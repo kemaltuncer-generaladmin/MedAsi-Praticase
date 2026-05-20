@@ -37,7 +37,6 @@ class SupabaseAuthRepository implements AuthRepository {
       if (user == null) {
         throw const AuthFailure('Giriş tamamlanamadı.');
       }
-      await _upsertProfile(user: user);
       return user.toDomain();
     } on AuthException catch (error) {
       throw AuthFailure(_friendlyMessage(error.message));
@@ -201,15 +200,13 @@ class SupabaseAuthRepository implements AuthRepository {
     final metadata = user.userMetadata ?? const <String, dynamic>{};
     final name = (fullName ?? metadata['full_name'] as String? ?? '').trim();
     final parts = name.split(RegExp(r'\s+')).where((part) => part.isNotEmpty);
-    final firstName = parts.isEmpty ? '' : parts.first;
-    final lastName = parts.length <= 1 ? '' : parts.skip(1).join(' ');
+    final firstName = parts.isEmpty ? null : parts.first;
+    final lastName = parts.length <= 1 ? null : parts.skip(1).join(' ');
     final now = DateTime.now().toUtc().toIso8601String();
 
     final profile = <String, dynamic>{
       'id': user.id,
       'email': user.email,
-      'first_name': firstName,
-      'last_name': lastName,
       'target': 'Staj + TUS',
       'theme_key': 'clinical',
       'updated_at': now,
@@ -220,6 +217,8 @@ class SupabaseAuthRepository implements AuthRepository {
         'consent_version': 'praticase-auth-v1',
       },
     };
+    if (firstName != null) profile['first_name'] = firstName;
+    if (lastName != null) profile['last_name'] = lastName;
 
     await _client.from('profiles').upsert(profile, onConflict: 'id');
   }
