@@ -1,0 +1,10 @@
+.dart_tool/
+.git/
+.idea/
+build/
+ios/Pods/
+linux/flutter/ephemeral/
+macos/Flutter/ephemeral/
+windows/flutter/ephemeral/
+*.iml
+*.log
