@@ -12,6 +12,7 @@
 .swiftpm/
 migrate_working_dir/
 AGENTS.md
+.env.praticase
 
 # IntelliJ related
 *.iml

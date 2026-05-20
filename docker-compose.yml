@@ -3,11 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        SUPABASE_URL: ${SUPABASE_URL:-https://qlinik.medasi.com.tr}
-        FLUTTER_SUPABASE_URL: ${FLUTTER_SUPABASE_URL:-https://qlinik.medasi.com.tr}
-        SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
-        AUTH_REDIRECT_URL: ${AUTH_REDIRECT_URL:-https://praticase.medasi.com.tr/auth/callback}
+      secrets:
+        - praticase_env
     restart: unless-stopped
     ports:
       - "8080:80"
@@ -16,3 +13,7 @@ services:
       interval: 30s
       timeout: 3s
       retries: 3
+
+secrets:
+  praticase_env:
+    file: ./.env.praticase

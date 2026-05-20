@@ -14,7 +14,8 @@ Use the bundled Flutter SDK from the sibling Developer folder:
 
 ## Docker
 
-The Docker target builds Flutter web and serves it with nginx:
+The Docker target builds Flutter web and serves it with nginx. Local secret
+values belong in `.env.praticase`, which is ignored by Git.
 
 ```bash
 docker compose up --build
