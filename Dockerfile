@@ -7,6 +7,10 @@ COPY pubspec.yaml pubspec.lock ./
 RUN flutter pub get
 
 COPY . .
+ARG SUPABASE_URL=https://qlinik.medasi.com.tr
+ARG FLUTTER_SUPABASE_URL=https://qlinik.medasi.com.tr
+ARG SUPABASE_ANON_KEY=
+ARG AUTH_REDIRECT_URL=https://praticase.medasi.com.tr/auth/callback
 RUN --mount=type=secret,id=praticase_env \
   if [ -f /run/secrets/praticase_env ]; then . /run/secrets/praticase_env; fi; \
   flutter build web --release --output build/web \
