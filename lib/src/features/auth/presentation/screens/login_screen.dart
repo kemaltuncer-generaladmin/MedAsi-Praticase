@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../../../../app/theme/praticase_colors.dart';
 import '../../data/auth_repository.dart';
-import '../widgets/auth_brand.dart';
 import '../widgets/auth_link_button.dart';
 import '../widgets/auth_primary_button.dart';
 import '../widgets/auth_scaffold.dart';
 import '../widgets/auth_status_card.dart';
 import '../widgets/auth_text_field.dart';
 import '../widgets/auth_validators.dart';
+import '../widgets/auth_visuals.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({
@@ -35,7 +36,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _password = TextEditingController();
   bool _loading = false;
   String? _error;
-  String? _info;
 
   @override
   void dispose() {
@@ -49,7 +49,6 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() {
       _loading = true;
       _error = null;
-      _info = null;
     });
     try {
       await widget.repository.signInWithEmail(
@@ -64,120 +63,87 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _google() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-      _info = null;
-    });
-    try {
-      await widget.repository.signInWithGoogle();
-      if (!widget.repository.isConfigured) {
-        widget.onSignedIn();
-      } else {
-        setState(() => _info = 'Google giriş ekranına yönlendiriliyorsun.');
-      }
-    } on AuthFailure catch (failure) {
-      setState(() => _error = failure.message);
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return AuthScaffold(
+      showFooterText: true,
+      topPadding: 34,
       onBack: widget.onBack,
       child: Form(
         key: _formKey,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const AuthBrand(),
-            const SizedBox(height: 36),
+            const AuthLogoBlock(),
+            const SizedBox(height: 58),
             Text(
-              'Tekrar hoş geldin',
-              style: Theme.of(context).textTheme.headlineMedium,
+              'Hoş geldin!',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                color: PratiCaseColors.navy,
+                fontSize: 32,
+                fontWeight: FontWeight.w900,
+              ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 10),
             Text(
-              'Bugünkü OSCE pratiğine devam et.',
-              style: Theme.of(context).textTheme.bodyMedium,
+              'Devam etmek için hesabına giriş yap.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: const Color(0xFF465872),
+                fontSize: 18,
+              ),
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 50),
             AuthTextField(
               label: 'E-posta',
-              hintText: 'ornek@mail.com',
+              hintText: 'E-posta adresinizi girin',
               controller: _email,
+              icon: Icons.mail_outline_rounded,
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
               validator: AuthValidators.email,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             AuthTextField(
               label: 'Şifre',
+              hintText: 'Şifrenizi girin',
               controller: _password,
+              icon: Icons.lock_outline_rounded,
               obscureText: true,
               textInputAction: TextInputAction.done,
               validator: AuthValidators.password,
             ),
+            const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerRight,
               child: AuthLinkButton(
-                label: 'Şifremi unuttum',
+                label: 'Şifremi unuttum?',
                 onPressed: widget.onForgotPassword,
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
             AuthPrimaryButton(
               label: 'Giriş Yap',
               loading: _loading,
               onPressed: _submit,
             ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                const Expanded(child: Divider()),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(
-                    'veya',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ),
-                const Expanded(child: Divider()),
-              ],
-            ),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: _loading ? null : _google,
-              icon: const Text(
-                'G',
-                style: TextStyle(fontWeight: FontWeight.w900),
-              ),
-              label: const Text('Google ile devam et'),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(50),
-              ),
-            ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   'Hesabın yok mu?',
-                  style: Theme.of(context).textTheme.bodySmall,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: const Color(0xFF465872),
+                  ),
                 ),
                 AuthLinkButton(label: 'Kayıt ol', onPressed: widget.onRegister),
               ],
             ),
             if (_error != null) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               AuthStatusCard(message: _error!, tone: AuthStatusTone.error),
-            ],
-            if (_info != null) ...[
-              const SizedBox(height: 12),
-              AuthStatusCard(message: _info!, tone: AuthStatusTone.success),
             ],
           ],
         ),

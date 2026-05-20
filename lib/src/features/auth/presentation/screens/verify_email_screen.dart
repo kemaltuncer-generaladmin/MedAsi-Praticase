@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/theme/praticase_colors.dart';
 import '../../data/auth_repository.dart';
-import '../widgets/auth_brand.dart';
 import '../widgets/auth_link_button.dart';
 import '../widgets/auth_primary_button.dart';
 import '../widgets/auth_scaffold.dart';
 import '../widgets/auth_status_card.dart';
+import '../widgets/auth_visuals.dart';
 import '../widgets/otp_input.dart';
 
 class VerifyEmailScreen extends StatefulWidget {
@@ -72,61 +72,47 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
   Widget build(BuildContext context) {
     return AuthScaffold(
       onBack: widget.onBack,
+      topPadding: 58,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const AuthBrand(),
-          const SizedBox(height: 36),
-          Center(
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                const Icon(
-                  Icons.mark_email_read_rounded,
-                  size: 112,
-                  color: Color(0xFFC9D8DE),
-                ),
-                Positioned(
-                  right: -6,
-                  bottom: 0,
-                  child: CircleAvatar(
-                    radius: 28,
-                    backgroundColor: PratiCaseColors.teal,
-                    child: const Icon(
-                      Icons.check_rounded,
-                      color: PratiCaseColors.white,
-                      size: 34,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          const Center(
+            child: AuthHeroIllustration(type: AuthHeroType.envelope, size: 218),
           ),
-          const SizedBox(height: 34),
+          const SizedBox(height: 40),
           Text(
             'E-postanı doğrula',
-            style: Theme.of(context).textTheme.headlineMedium,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              color: PratiCaseColors.navy,
+              fontSize: 34,
+              fontWeight: FontWeight.w900,
+            ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
           Text(
             'Sana gönderdiğimiz 6 haneli kodu gir.',
-            style: Theme.of(context).textTheme.bodyMedium,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: const Color(0xFF465872),
+              fontSize: 19,
+            ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 30),
           AuthStatusCard(
             title: 'Kod gönderilen e-posta',
             message: widget.email.isEmpty ? 'ornek@mail.com' : widget.email,
             tone: AuthStatusTone.info,
           ),
-          const SizedBox(height: 18),
-          OtpInput(onChanged: (value) => _code = value),
           const SizedBox(height: 24),
+          OtpInput(onChanged: (value) => _code = value),
+          const SizedBox(height: 34),
           AuthPrimaryButton(
             label: 'Doğrula',
             loading: _loading,
             onPressed: _verify,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 18),
           Center(
             child: AuthLinkButton(
               label: 'Kodu tekrar gönder',
@@ -134,11 +120,11 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
             ),
           ),
           if (_error != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             AuthStatusCard(message: _error!, tone: AuthStatusTone.error),
           ],
           if (_success != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             AuthStatusCard(message: _success!, tone: AuthStatusTone.success),
           ],
         ],

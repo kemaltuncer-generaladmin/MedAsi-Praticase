@@ -37,6 +37,7 @@ class SupabaseAuthRepository implements AuthRepository {
       if (user == null) {
         throw const AuthFailure('Giriş tamamlanamadı.');
       }
+      await _upsertProfile(user: user);
       return user.toDomain();
     } on AuthException catch (error) {
       throw AuthFailure(_friendlyMessage(error.message));
@@ -60,6 +61,11 @@ class SupabaseAuthRepository implements AuthRepository {
       if (user == null) {
         throw const AuthFailure('Kayıt tamamlanamadı.');
       }
+      await _tryUpsertProfile(
+        user: user,
+        fullName: fullName,
+        acceptedTerms: true,
+      );
       return user.toDomain();
     } on AuthException catch (error) {
       throw AuthFailure(_friendlyMessage(error.message));
@@ -105,6 +111,7 @@ class SupabaseAuthRepository implements AuthRepository {
       if (user == null) {
         throw const AuthFailure('Doğrulama tamamlanamadı.');
       }
+      await _upsertProfile(user: user);
       return user.toDomain();
     } on AuthException catch (error) {
       throw AuthFailure(_friendlyMessage(error.message));
@@ -127,11 +134,13 @@ class SupabaseAuthRepository implements AuthRepository {
     required String newPassword,
   }) async {
     try {
-      await _client.auth.verifyOTP(
-        email: email.trim(),
-        token: code,
-        type: OtpType.recovery,
-      );
+      if (code.trim().isNotEmpty) {
+        await _client.auth.verifyOTP(
+          email: email.trim(),
+          token: code,
+          type: OtpType.recovery,
+        );
+      }
       await _client.auth.updateUser(UserAttributes(password: newPassword));
     } on AuthException catch (error) {
       throw AuthFailure(_friendlyMessage(error.message));
@@ -156,6 +165,7 @@ class SupabaseAuthRepository implements AuthRepository {
       if (user == null) {
         throw const AuthFailure('Profil güncellenemedi.');
       }
+      await _upsertProfile(user: user, setup: setup);
       return user.toDomain(profileCompleted: true);
     } on AuthException catch (error) {
       throw AuthFailure(_friendlyMessage(error.message));
@@ -164,6 +174,65 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() => _client.auth.signOut();
+
+  Future<void> _tryUpsertProfile({
+    required User user,
+    String? fullName,
+    bool acceptedTerms = false,
+  }) async {
+    try {
+      await _upsertProfile(
+        user: user,
+        fullName: fullName,
+        acceptedTerms: acceptedTerms,
+      );
+    } on Object {
+      // Confirmed-email projects may not issue a session at signup time.
+      // The shared profile row is created after OTP verification in that case.
+    }
+  }
+
+  Future<void> _upsertProfile({
+    required User user,
+    String? fullName,
+    bool acceptedTerms = false,
+    ProfileSetup? setup,
+  }) async {
+    final metadata = user.userMetadata ?? const <String, dynamic>{};
+    final name = (fullName ?? metadata['full_name'] as String? ?? '').trim();
+    final parts = name.split(RegExp(r'\s+')).where((part) => part.isNotEmpty);
+    final firstName = parts.isEmpty ? '' : parts.first;
+    final lastName = parts.length <= 1 ? '' : parts.skip(1).join(' ');
+    final now = DateTime.now().toUtc().toIso8601String();
+
+    final profile = <String, dynamic>{
+      'id': user.id,
+      'email': user.email,
+      'first_name': firstName,
+      'last_name': lastName,
+      'target': 'Staj + TUS',
+      'theme_key': 'clinical',
+      'updated_at': now,
+      if (setup != null) 'class_level': _classLevel(setup.grade),
+      if (acceptedTerms) ...{
+        'legal_terms_accepted_at': now,
+        'privacy_notice_accepted_at': now,
+        'consent_version': 'praticase-auth-v1',
+      },
+    };
+
+    await _client.from('profiles').upsert(profile, onConflict: 'id');
+  }
+
+  String _classLevel(String grade) {
+    if (grade.startsWith('1')) return '1';
+    if (grade.startsWith('2')) return '2';
+    if (grade.startsWith('3')) return '3';
+    if (grade.startsWith('4')) return '4';
+    if (grade.startsWith('5')) return '5';
+    if (grade.startsWith('6')) return '6';
+    return 'Mezun';
+  }
 
   String _friendlyMessage(String message) {
     final lower = message.toLowerCase();

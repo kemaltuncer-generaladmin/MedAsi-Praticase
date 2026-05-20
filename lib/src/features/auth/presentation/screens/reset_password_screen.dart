@@ -2,14 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/theme/praticase_colors.dart';
 import '../../data/auth_repository.dart';
-import '../widgets/auth_brand.dart';
-import '../widgets/auth_link_button.dart';
 import '../widgets/auth_primary_button.dart';
 import '../widgets/auth_scaffold.dart';
 import '../widgets/auth_status_card.dart';
 import '../widgets/auth_text_field.dart';
 import '../widgets/auth_validators.dart';
-import '../widgets/otp_input.dart';
+import '../widgets/auth_visuals.dart';
 import '../widgets/password_strength_indicator.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
@@ -34,7 +32,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _password = TextEditingController();
   final _repeat = TextEditingController();
-  String _code = '';
   bool _loading = false;
   String? _error;
   bool _updated = false;
@@ -54,10 +51,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_code.length != 6) {
-      setState(() => _error = '6 haneli doğrulama kodunu gir.');
-      return;
-    }
     setState(() {
       _loading = true;
       _error = null;
@@ -65,7 +58,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     try {
       await widget.repository.resetPassword(
         email: widget.email,
-        code: _code,
+        code: '',
         newPassword: _password.text,
       );
       setState(() => _updated = true);
@@ -78,89 +71,123 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_updated) return _successView(context);
+
     return AuthScaffold(
       onBack: widget.onBack,
+      topPadding: 54,
       child: Form(
         key: _formKey,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const AuthBrand(),
-            const SizedBox(height: 34),
-            Text(
-              'Yeni şifre oluştur',
-              style: Theme.of(context).textTheme.headlineMedium,
+            const Center(
+              child: AuthHeroIllustration(type: AuthHeroType.lock, size: 196),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 26),
             Text(
-              'Hesabın için güvenli bir şifre belirle.',
-              style: Theme.of(context).textTheme.bodyMedium,
+              'Yeni şifre belirle',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                color: PratiCaseColors.navy,
+                fontSize: 35,
+                fontWeight: FontWeight.w900,
+              ),
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 16),
             Text(
-              'Doğrulama Kodu',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontSize: 13),
+              'Yeni şifreni belirle ve hesabına güvenle devam et.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: const Color(0xFF465872),
+                fontSize: 20,
+                height: 1.42,
+              ),
             ),
-            const SizedBox(height: 8),
-            OtpInput(onChanged: (value) => _code = value),
-            const SizedBox(height: 18),
+            const SizedBox(height: 44),
             AuthTextField(
-              label: 'Yeni Şifre',
+              label: 'Yeni şifre',
+              hintText: 'Yeni şifrenizi girin',
               controller: _password,
+              icon: Icons.lock_outline_rounded,
               obscureText: true,
+              textInputAction: TextInputAction.next,
               validator: AuthValidators.password,
             ),
-            const SizedBox(height: 10),
-            LinearProgressIndicator(
-              value: _password.text.length >= 12
-                  ? 1
-                  : (_password.text.length / 12).clamp(0.08, 1),
-              minHeight: 4,
-              color: PratiCaseColors.teal,
-              backgroundColor: PratiCaseColors.border,
-              borderRadius: BorderRadius.circular(99),
-            ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 24),
             AuthTextField(
-              label: 'Yeni Şifre Tekrar',
+              label: 'Yeni şifre tekrar',
+              hintText: 'Yeni şifrenizi tekrar girin',
               controller: _repeat,
+              icon: Icons.lock_outline_rounded,
               obscureText: true,
               validator: (value) {
                 if (value != _password.text) return 'Şifreler eşleşmiyor.';
                 return AuthValidators.password(value);
               },
             ),
+            const SizedBox(height: 28),
+            Text(
+              'Şifre gereksinimleri:',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: PratiCaseColors.navy,
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
             const SizedBox(height: 14),
             PasswordStrengthIndicator(password: _password.text),
-            const SizedBox(height: 20),
+            const SizedBox(height: 34),
             AuthPrimaryButton(
               label: 'Şifreyi Güncelle',
               loading: _loading,
               onPressed: _submit,
             ),
-            if (_updated) ...[
-              const SizedBox(height: 18),
-              AuthStatusCard(
-                title: 'Şifren güncellendi!',
-                message:
-                    'Yeni şifrenle giriş yaparak pratiğine devam edebilirsin.',
-                tone: AuthStatusTone.success,
-              ),
-              Center(
-                child: AuthLinkButton(
-                  label: 'Giriş Yap',
-                  onPressed: widget.onPasswordUpdated,
-                ),
-              ),
-            ],
             if (_error != null) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               AuthStatusCard(message: _error!, tone: AuthStatusTone.error),
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _successView(BuildContext context) {
+    return AuthScaffold(
+      topPadding: 150,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Center(
+            child: AuthHeroIllustration(type: AuthHeroType.success, size: 220),
+          ),
+          const SizedBox(height: 58),
+          Text(
+            'Şifre güncellendi!',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              color: PratiCaseColors.navy,
+              fontSize: 36,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 22),
+          Text(
+            'Şifren başarıyla güncellendi.\nGiriş yaparak devam edebilirsin.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: const Color(0xFF465872),
+              fontSize: 21,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 74),
+          AuthPrimaryButton(
+            label: 'Giriş Ekranına Dön',
+            onPressed: widget.onPasswordUpdated,
+          ),
+        ],
       ),
     );
   }
