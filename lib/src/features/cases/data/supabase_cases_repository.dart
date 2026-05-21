@@ -143,6 +143,22 @@ class SupabaseCasesRepository implements CasesRepository {
     required String message,
   }) async {
     try {
+      await _client.functions.invoke(
+        'praticase-patient-turn',
+        body: {'sessionId': sessionId, 'message': message},
+      );
+      return;
+    } on Object {
+      // Keep the live flow available if an Edge Function rollout is delayed.
+    }
+    await _recordPatientQuestionViaRpc(sessionId: sessionId, message: message);
+  }
+
+  Future<void> _recordPatientQuestionViaRpc({
+    required String sessionId,
+    required String message,
+  }) async {
+    try {
       await _client
           .schema('praticase')
           .rpc<void>(
@@ -495,6 +511,7 @@ class SupabaseCasesRepository implements CasesRepository {
   @override
   Future<ExamResultSummary> loadResult(String sessionId) async {
     try {
+      await _finalizeSession(sessionId);
       final row = await _client
           .schema('praticase')
           .from('session_result_cards')
@@ -514,6 +531,29 @@ class SupabaseCasesRepository implements CasesRepository {
         strongPoints: _stringList(row['strong_points']),
         improvementPoints: _stringList(row['improvement_points']),
       );
+    } on PostgrestException catch (error) {
+      throw CasesDataUnavailable(_message(error));
+    }
+  }
+
+  Future<void> _finalizeSession(String sessionId) async {
+    try {
+      await _client.functions.invoke(
+        'praticase-complete-session',
+        body: {'sessionId': sessionId},
+      );
+      return;
+    } on Object {
+      // The database RPC is the same live scoring engine used by the function.
+    }
+
+    try {
+      await _client
+          .schema('praticase')
+          .rpc<void>(
+            'finalize_exam_session',
+            params: {'p_session_id': sessionId},
+          );
     } on PostgrestException catch (error) {
       throw CasesDataUnavailable(_message(error));
     }

@@ -13,6 +13,9 @@
 migrate_working_dir/
 AGENTS.md
 .env.praticase
+.dart_tool/praticase_env.json
+ios/Flutter/PratiCaseEnv.xcconfig
+macos/Flutter/PratiCaseEnv.xcconfig
 
 # IntelliJ related
 *.iml
