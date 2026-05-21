@@ -201,6 +201,7 @@
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 				20A8D2C93E75CAD80EE6239E /* [CP] Embed Pods Frameworks */,
+				6F2C3D4E5A6B7C8D9E0F1234 /* Generate objective_c dSYM */,
 			);
 			buildRules = (
 			);
@@ -304,6 +305,24 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" embed_and_thin";
+		};
+		6F2C3D4E5A6B7C8D9E0F1234 /* Generate objective_c dSYM */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/objective_c.framework/objective_c",
+			);
+			name = "Generate objective_c dSYM";
+			outputPaths = (
+				"${DWARF_DSYM_FOLDER_PATH}/objective_c.framework.dSYM",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\nFRAMEWORK_BINARY=\"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/objective_c.framework/objective_c\"\nif [ ! -f \"$FRAMEWORK_BINARY\" ]; then\n  echo \"objective_c.framework not found; skipping dSYM generation.\"\n  exit 0\nfi\nDSYM_ROOT=\"${DWARF_DSYM_FOLDER_PATH:-${TARGET_BUILD_DIR}}\"\nDSYM_PATH=\"$DSYM_ROOT/objective_c.framework.dSYM\"\nmkdir -p \"$DSYM_ROOT\"\n/usr/bin/xcrun dsymutil \"$FRAMEWORK_BINARY\" -o \"$DSYM_PATH\"\n/usr/bin/xcrun dwarfdump --uuid \"$DSYM_PATH\"\n";
+			showEnvVarsInLog = 0;
 		};
 		9740EEB61CF901F6004384FC /* Run Script */ = {
 			isa = PBXShellScriptBuildPhase;
