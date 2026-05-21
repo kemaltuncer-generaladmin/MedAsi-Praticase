@@ -18,22 +18,28 @@ class AuthPrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final activeVisual = onPressed != null || loading;
     return SizedBox(
       width: double.infinity,
-      height: 64,
+      height: 56,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          gradient: const LinearGradient(
-            colors: [PratiCaseColors.teal, PratiCaseColors.navy],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: PratiCaseColors.navy.withValues(alpha: 0.22),
-              blurRadius: 18,
-              offset: const Offset(0, 10),
-            ),
-          ],
+          color: activeVisual ? null : const Color(0xFFE2E7EF),
+          borderRadius: BorderRadius.circular(12),
+          gradient: activeVisual
+              ? const LinearGradient(
+                  colors: [PratiCaseColors.teal, PratiCaseColors.navy],
+                )
+              : null,
+          boxShadow: activeVisual
+              ? [
+                  BoxShadow(
+                    color: PratiCaseColors.navy.withValues(alpha: 0.16),
+                    blurRadius: 14,
+                    offset: const Offset(0, 8),
+                  ),
+                ]
+              : null,
         ),
         child: FilledButton(
           onPressed: loading ? null : onPressed,
@@ -42,7 +48,7 @@ class AuthPrimaryButton extends StatelessWidget {
             disabledBackgroundColor: Colors.transparent,
             shadowColor: Colors.transparent,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
             ),
           ),
           child: AnimatedSwitcher(
@@ -63,10 +69,12 @@ class AuthPrimaryButton extends StatelessWidget {
                     children: [
                       Text(
                         label,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w900,
-                          color: Colors.white,
+                          color: activeVisual
+                              ? Colors.white
+                              : Color(0xFF718096),
                         ),
                       ),
                       if (showArrow) ...[

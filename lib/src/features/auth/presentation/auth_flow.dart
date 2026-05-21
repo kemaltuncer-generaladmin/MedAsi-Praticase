@@ -48,7 +48,6 @@ class _AuthFlowState extends State<AuthFlow> {
   Widget build(BuildContext context) {
     return switch (_step) {
       AuthStep.onboarding => OnboardingScreen(
-        repositoryConfigured: widget.authRepository.isConfigured,
         onCreateAccount: () => _go(AuthStep.register),
         onLogin: () => _go(AuthStep.login),
       ),

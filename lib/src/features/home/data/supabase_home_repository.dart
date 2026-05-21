@@ -179,7 +179,7 @@ class SupabaseHomeRepository implements HomeRepository {
 
   String _friendlyDatabaseMessage(PostgrestException error) {
     if (error.code == '42P01' || error.message.contains('schema')) {
-      return 'PratiCase canlı veri şeması bulunamadı. Supabase migration dosyasını uygulayın.';
+      return 'Ana ekran verisi şu anda hazırlanıyor. Lütfen daha sonra tekrar deneyin.';
     }
     return 'Ana ekran canlı verisi alınamadı. Lütfen bağlantı ve yetkileri kontrol edin.';
   }

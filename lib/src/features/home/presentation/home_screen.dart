@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/praticase_colors.dart';
+import '../../cases/data/cases_repository.dart';
+import '../../cases/presentation/cases_screen.dart';
 import '../data/home_repository.dart';
 import '../domain/home_dashboard.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
     required this.repository,
+    required this.casesRepository,
     this.onOpenCases,
     this.onOpenProgress,
     this.onOpenNotifications,
@@ -15,6 +18,7 @@ class HomeScreen extends StatefulWidget {
   });
 
   final HomeRepository repository;
+  final CasesRepository casesRepository;
   final VoidCallback? onOpenCases;
   final VoidCallback? onOpenProgress;
   final VoidCallback? onOpenNotifications;
@@ -57,27 +61,19 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         }
         final dashboard = snapshot.requireData;
+        final bottomPadding = MediaQuery.paddingOf(context).bottom + 132;
         return RefreshIndicator(
           onRefresh: _refresh,
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 116),
+            padding: EdgeInsets.fromLTRB(20, 18, 20, bottomPadding),
             children: [
               _HomeHeader(
                 dashboard: dashboard,
                 onOpenNotifications: widget.onOpenNotifications,
               ),
               const SizedBox(height: 26),
-              _Greeting(user: dashboard.user),
+              _Greeting(user: dashboard.user, onSearch: widget.onOpenCases),
               const SizedBox(height: 22),
-              _BannerCarousel(banners: dashboard.banners),
-              const SizedBox(height: 24),
-              _SectionHeader(
-                title: 'Genel Bakış',
-                onViewAll: widget.onOpenProgress,
-              ),
-              const SizedBox(height: 12),
-              _StatsStrip(stats: dashboard.stats),
-              const SizedBox(height: 26),
               _SectionHeader(
                 title: 'Devam Edilen Vaka',
                 onViewAll: widget.onOpenCases,
@@ -85,15 +81,32 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 12),
               _ContinuedCaseCard(
                 continuedCase: dashboard.continuedCase,
-                onOpenCases: widget.onOpenCases,
+                onOpenCase: dashboard.continuedCase == null
+                    ? null
+                    : () => _openCaseDetail(dashboard.continuedCase!.caseId),
               ),
+              const SizedBox(height: 24),
+              _BannerCarousel(
+                banners: dashboard.banners,
+                onCta: widget.onOpenCases,
+              ),
+              const SizedBox(height: 24),
+              _SectionHeader(
+                title: 'Genel Bakış',
+                onViewAll: widget.onOpenProgress,
+              ),
+              const SizedBox(height: 12),
+              _StatsStrip(stats: dashboard.stats),
               const SizedBox(height: 28),
               _SectionHeader(
                 title: 'Önerilen Vakalar',
                 onViewAll: widget.onOpenCases,
               ),
               const SizedBox(height: 12),
-              _RecommendedCases(cases: dashboard.recommendedCases),
+              _RecommendedCases(
+                cases: dashboard.recommendedCases,
+                onOpenCase: _openCaseDetail,
+              ),
               const SizedBox(height: 26),
               _BadgePanel(
                 summary: dashboard.badgeSummary,
@@ -103,6 +116,17 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       },
+    );
+  }
+
+  void _openCaseDetail(String caseId) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CaseDetailScreen(
+          repository: widget.casesRepository,
+          caseId: caseId,
+        ),
+      ),
     );
   }
 }
@@ -120,45 +144,47 @@ class _HomeHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _IconButtonShell(
-          icon: Icons.menu_rounded,
-          onTap: () => Scaffold.maybeOf(context)?.openDrawer(),
-        ),
-        const Spacer(),
         ClipRRect(
           borderRadius: BorderRadius.circular(12),
           child: Image.asset(
             'assets/branding/praticase.png',
-            width: 46,
-            height: 46,
+            width: 40,
+            height: 40,
             fit: BoxFit.cover,
           ),
         ),
         const SizedBox(width: 10),
-        RichText(
-          text: const TextSpan(
-            style: TextStyle(
-              color: PratiCaseColors.navy,
-              fontSize: 27,
-              fontWeight: FontWeight.w900,
-            ),
-            children: [
-              TextSpan(text: 'Prati'),
-              TextSpan(
-                text: 'Case',
-                style: TextStyle(color: PratiCaseColors.teal),
+        Expanded(
+          child: FittedBox(
+            alignment: Alignment.centerLeft,
+            fit: BoxFit.scaleDown,
+            child: RichText(
+              maxLines: 1,
+              text: const TextSpan(
+                style: TextStyle(
+                  color: PratiCaseColors.navy,
+                  fontSize: 25,
+                  fontWeight: FontWeight.w900,
+                ),
+                children: [
+                  TextSpan(text: 'Prati'),
+                  TextSpan(
+                    text: 'Case',
+                    style: TextStyle(color: PratiCaseColors.teal),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
-        const Spacer(),
+        const SizedBox(width: 12),
         _NotificationBell(
           count: dashboard.unreadNotificationCount,
           onTap: onOpenNotifications,
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
         CircleAvatar(
-          radius: 24,
+          radius: 21,
           backgroundColor: PratiCaseColors.teal.withValues(alpha: 0.14),
           child: Text(
             dashboard.user.initials,
@@ -174,9 +200,10 @@ class _HomeHeader extends StatelessWidget {
 }
 
 class _Greeting extends StatelessWidget {
-  const _Greeting({required this.user});
+  const _Greeting({required this.user, required this.onSearch});
 
   final HomeUser user;
+  final VoidCallback? onSearch;
 
   @override
   Widget build(BuildContext context) {
@@ -211,24 +238,45 @@ class _Greeting extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 14),
-        const _SearchPill(),
+        _SearchPill(onTap: onSearch),
       ],
     );
   }
 }
 
-class _BannerCarousel extends StatelessWidget {
-  const _BannerCarousel({required this.banners});
+class _BannerCarousel extends StatefulWidget {
+  const _BannerCarousel({required this.banners, required this.onCta});
 
   final List<HomeBanner> banners;
+  final VoidCallback? onCta;
+
+  @override
+  State<_BannerCarousel> createState() => _BannerCarouselState();
+}
+
+class _BannerCarouselState extends State<_BannerCarousel> {
+  late final PageController _controller;
+  int _activeIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PageController(viewportFraction: 1);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (banners.isEmpty) {
+    if (widget.banners.isEmpty) {
       return const _EmptyPanel(
         icon: Icons.dashboard_customize_rounded,
         title: 'Canlı ana ekran içeriği bekleniyor',
-        body: 'Supabase praticase.home_banners tablosuna aktif kayıt ekleyin.',
+        body: 'Yayınlanan ana ekran duyuruları burada görünecek.',
       );
     }
 
@@ -237,10 +285,14 @@ class _BannerCarousel extends StatelessWidget {
         SizedBox(
           height: 210,
           child: PageView.builder(
-            controller: PageController(viewportFraction: 1),
-            itemCount: banners.length,
+            controller: _controller,
+            onPageChanged: (index) => setState(() => _activeIndex = index),
+            itemCount: widget.banners.length,
             itemBuilder: (context, index) {
-              return _HeroBanner(banner: banners[index]);
+              return _HeroBanner(
+                banner: widget.banners[index],
+                onCta: widget.onCta,
+              );
             },
           ),
         ),
@@ -248,13 +300,13 @@ class _BannerCarousel extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            for (var index = 0; index < banners.length; index++)
+            for (var index = 0; index < widget.banners.length; index++)
               Container(
-                width: index == 0 ? 9 : 8,
-                height: index == 0 ? 9 : 8,
+                width: index == _activeIndex ? 9 : 8,
+                height: index == _activeIndex ? 9 : 8,
                 margin: const EdgeInsets.symmetric(horizontal: 5),
                 decoration: BoxDecoration(
-                  color: index == 0
+                  color: index == _activeIndex
                       ? PratiCaseColors.teal
                       : const Color(0xFFD1D8E1),
                   shape: BoxShape.circle,
@@ -268,9 +320,10 @@ class _BannerCarousel extends StatelessWidget {
 }
 
 class _HeroBanner extends StatelessWidget {
-  const _HeroBanner({required this.banner});
+  const _HeroBanner({required this.banner, required this.onCta});
 
   final HomeBanner banner;
+  final VoidCallback? onCta;
 
   @override
   Widget build(BuildContext context) {
@@ -294,14 +347,14 @@ class _HeroBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         child: Stack(
           children: [
-            Positioned(
-              right: 20,
-              top: 20,
-              bottom: 20,
+            const Positioned(
+              right: 12,
+              top: 26,
+              bottom: 18,
               child: _ClinicalIllustration(),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(22, 24, 150, 22),
+              padding: const EdgeInsets.fromLTRB(18, 18, 110, 18),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -316,12 +369,12 @@ class _HeroBanner extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: PratiCaseColors.white,
-                            fontSize: 22,
+                            fontSize: 19,
                             height: 1.2,
                             fontWeight: FontWeight.w900,
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 8),
                         Text(
                           banner.subtitle,
                           maxLines: 3,
@@ -330,8 +383,8 @@ class _HeroBanner extends StatelessWidget {
                             color: PratiCaseColors.white.withValues(
                               alpha: 0.84,
                             ),
-                            fontSize: 15,
-                            height: 1.45,
+                            fontSize: 13,
+                            height: 1.34,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -339,16 +392,16 @@ class _HeroBanner extends StatelessWidget {
                     ),
                   ),
                   SizedBox(
-                    height: 48,
+                    height: 42,
                     child: FilledButton.icon(
-                      onPressed: null,
+                      onPressed: onCta,
                       icon: const Icon(Icons.arrow_forward_rounded),
                       label: Text(banner.ctaLabel),
                       style: FilledButton.styleFrom(
                         backgroundColor: PratiCaseColors.white,
                         foregroundColor: PratiCaseColors.navy,
-                        minimumSize: const Size(0, 48),
-                        padding: const EdgeInsets.symmetric(horizontal: 18),
+                        minimumSize: const Size(0, 42),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
                       ),
                     ),
                   ),
@@ -373,7 +426,7 @@ class _StatsStrip extends StatelessWidget {
       return const _EmptyPanel(
         icon: Icons.query_stats_rounded,
         title: 'Canlı performans verisi yok',
-        body: 'Kullanıcı için praticase.user_dashboard_stats satırı oluşturun.',
+        body: 'Performans verilerin sınav çözdükçe burada oluşacak.',
       );
     }
 
@@ -409,7 +462,7 @@ class _StatsStrip extends StatelessWidget {
     ];
 
     return SizedBox(
-      height: 132,
+      height: 150,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: items.length,
@@ -423,11 +476,11 @@ class _StatsStrip extends StatelessWidget {
 class _ContinuedCaseCard extends StatelessWidget {
   const _ContinuedCaseCard({
     required this.continuedCase,
-    required this.onOpenCases,
+    required this.onOpenCase,
   });
 
   final ContinuedCase? continuedCase;
-  final VoidCallback? onOpenCases;
+  final VoidCallback? onOpenCase;
 
   @override
   Widget build(BuildContext context) {
@@ -503,7 +556,7 @@ class _ContinuedCaseCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 14),
-          _ArrowButton(onTap: onOpenCases),
+          _ArrowButton(onTap: onOpenCase),
         ],
       ),
     );
@@ -511,9 +564,10 @@ class _ContinuedCaseCard extends StatelessWidget {
 }
 
 class _RecommendedCases extends StatelessWidget {
-  const _RecommendedCases({required this.cases});
+  const _RecommendedCases({required this.cases, required this.onOpenCase});
 
   final List<RecommendedCase> cases;
+  final ValueChanged<String> onOpenCase;
 
   @override
   Widget build(BuildContext context) {
@@ -521,8 +575,7 @@ class _RecommendedCases extends StatelessWidget {
       return const _EmptyPanel(
         icon: Icons.recommend_rounded,
         title: 'Önerilen canlı vaka yok',
-        body:
-            'praticase.user_case_recommendations satırları burada listelenir.',
+        body: 'Kişisel vaka önerilerin hazır olduğunda burada görünecek.',
       );
     }
 
@@ -532,84 +585,94 @@ class _RecommendedCases extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         itemCount: cases.length,
         separatorBuilder: (_, _) => const SizedBox(width: 14),
-        itemBuilder: (context, index) =>
-            _RecommendedCaseCard(recommendedCase: cases[index]),
+        itemBuilder: (context, index) => _RecommendedCaseCard(
+          recommendedCase: cases[index],
+          onTap: () => onOpenCase(cases[index].caseId),
+        ),
       ),
     );
   }
 }
 
 class _RecommendedCaseCard extends StatelessWidget {
-  const _RecommendedCaseCard({required this.recommendedCase});
+  const _RecommendedCaseCard({
+    required this.recommendedCase,
+    required this.onTap,
+  });
 
   final RecommendedCase recommendedCase;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 178,
-      padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _SoftIcon(
-            icon: _caseIcon(recommendedCase.iconKey),
-            color: _difficultyColor(recommendedCase.difficulty),
-          ),
-          const Spacer(),
-          Text(
-            recommendedCase.title,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: PratiCaseColors.navy,
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            recommendedCase.branch,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF617086),
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Zorluk: ${recommendedCase.difficulty.label}',
-            style: TextStyle(
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Ink(
+        width: 178,
+        padding: const EdgeInsets.all(16),
+        decoration: _cardDecoration(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _SoftIcon(
+              icon: _caseIcon(recommendedCase.iconKey),
               color: _difficultyColor(recommendedCase.difficulty),
-              fontWeight: FontWeight.w800,
             ),
-          ),
-          const SizedBox(height: 12),
-          const Divider(color: PratiCaseColors.border),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '${recommendedCase.points} Puan',
-                  style: const TextStyle(
-                    color: Color(0xFF42526B),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
+            const Spacer(),
+            Text(
+              recommendedCase.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: PratiCaseColors.navy,
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              recommendedCase.branch,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF617086),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Zorluk: ${recommendedCase.difficulty.label}',
+              style: TextStyle(
+                color: _difficultyColor(recommendedCase.difficulty),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Divider(color: PratiCaseColors.border),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${recommendedCase.points} Puan',
+                    style: const TextStyle(
+                      color: Color(0xFF42526B),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
-              ),
-              Icon(
-                recommendedCase.isBookmarked
-                    ? Icons.bookmark_rounded
-                    : Icons.bookmark_border_rounded,
-                color: const Color(0xFF5B6A84),
-              ),
-            ],
-          ),
-        ],
+                Icon(
+                  recommendedCase.isBookmarked
+                      ? Icons.bookmark_rounded
+                      : Icons.bookmark_border_rounded,
+                  color: const Color(0xFF5B6A84),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -827,32 +890,38 @@ class _EmptyPanel extends StatelessWidget {
 }
 
 class _SearchPill extends StatelessWidget {
-  const _SearchPill();
+  const _SearchPill({required this.onTap});
+
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 50,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: PratiCaseColors.white,
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: PratiCaseColors.border),
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.search_rounded, color: Color(0xFF68768E)),
-          SizedBox(width: 8),
-          Text(
-            'Arama',
-            style: TextStyle(
-              color: Color(0xFF68768E),
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(26),
+      child: Container(
+        height: 50,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: PratiCaseColors.white,
+          borderRadius: BorderRadius.circular(26),
+          border: Border.all(color: PratiCaseColors.border),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.search_rounded, color: Color(0xFF68768E)),
+            SizedBox(width: 8),
+            Text(
+              'Arama',
+              style: TextStyle(
+                color: Color(0xFF68768E),
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -923,25 +992,25 @@ class _StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 132,
-      padding: const EdgeInsets.fromLTRB(12, 14, 12, 12),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
       decoration: _cardDecoration(),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _SoftIcon(icon: item.icon, color: item.color, size: 44),
-          const SizedBox(height: 9),
+          _SoftIcon(icon: item.icon, color: item.color, size: 38),
+          const SizedBox(height: 8),
           Text(
             item.value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: PratiCaseColors.navy,
-              fontSize: 24,
+              fontSize: 22,
               fontWeight: FontWeight.w900,
               height: 1,
             ),
           ),
-          const SizedBox(height: 7),
+          const SizedBox(height: 6),
           Text(
             item.label,
             maxLines: 1,
@@ -952,7 +1021,7 @@ class _StatCard extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 7),
+          const SizedBox(height: 5),
           Text(
             item.delta,
             maxLines: 1,
@@ -1040,6 +1109,8 @@ class _Tag extends StatelessWidget {
 }
 
 class _ClinicalIllustration extends StatelessWidget {
+  const _ClinicalIllustration();
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -1191,7 +1262,7 @@ IconData _caseIcon(String? key) {
     case 'heart':
       return Icons.favorite_rounded;
     case 'brain':
-      return Icons.psychology_alt_rounded;
+      return Icons.monitor_heart_outlined;
     case 'lung':
       return Icons.air_rounded;
     case 'abdomen':

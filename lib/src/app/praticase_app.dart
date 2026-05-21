@@ -11,16 +11,16 @@ import 'theme/praticase_theme.dart';
 class PratiCaseApp extends StatefulWidget {
   const PratiCaseApp({
     required this.authRepository,
-    this.homeRepository,
-    this.casesRepository,
-    this.progressRepository,
+    required this.homeRepository,
+    required this.casesRepository,
+    required this.progressRepository,
     super.key,
   });
 
   final AuthRepository authRepository;
-  final HomeRepository? homeRepository;
-  final CasesRepository? casesRepository;
-  final ProgressRepository? progressRepository;
+  final HomeRepository homeRepository;
+  final CasesRepository casesRepository;
+  final ProgressRepository progressRepository;
 
   @override
   State<PratiCaseApp> createState() => _PratiCaseAppState();
@@ -28,6 +28,7 @@ class PratiCaseApp extends StatefulWidget {
 
 class _PratiCaseAppState extends State<PratiCaseApp> {
   bool _authenticated = false;
+  bool _restoringSession = true;
 
   @override
   void initState() {
@@ -37,10 +38,18 @@ class _PratiCaseAppState extends State<PratiCaseApp> {
 
   Future<void> _restoreSession() async {
     final user = await widget.authRepository.currentUser();
-    if (!mounted || user == null) return;
-    setState(
-      () => _authenticated = user.profileCompleted || user.emailVerified,
-    );
+    if (!mounted) return;
+    setState(() {
+      _authenticated =
+          user?.profileCompleted == true || user?.emailVerified == true;
+      _restoringSession = false;
+    });
+  }
+
+  Future<void> _signOut() async {
+    await widget.authRepository.signOut();
+    if (!mounted) return;
+    setState(() => _authenticated = false);
   }
 
   @override
@@ -49,16 +58,31 @@ class _PratiCaseAppState extends State<PratiCaseApp> {
       title: 'PratiCase',
       debugShowCheckedModeBanner: false,
       theme: PratiCaseTheme.light(),
-      home: _authenticated
+      home: _restoringSession
+          ? const _PratiCaseStartupScreen()
+          : _authenticated
           ? PratiCaseShell(
               homeRepository: widget.homeRepository,
               casesRepository: widget.casesRepository,
               progressRepository: widget.progressRepository,
+              onSignOut: _signOut,
             )
           : AuthFlow(
               authRepository: widget.authRepository,
               onAuthenticated: () => setState(() => _authenticated = true),
             ),
+    );
+  }
+}
+
+class _PratiCaseStartupScreen extends StatelessWidget {
+  const _PratiCaseStartupScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: Color(0xFFF7F9FB),
+      body: Center(child: CircularProgressIndicator()),
     );
   }
 }

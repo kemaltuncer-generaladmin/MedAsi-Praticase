@@ -10,7 +10,7 @@ class AuthScaffold extends StatelessWidget {
     this.bottom,
     this.showFooterText = true,
     this.topPadding = 20,
-    this.bottomPadding = 190,
+    this.bottomPadding = 32,
     super.key,
   });
 
@@ -23,7 +23,9 @@ class AuthScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: PratiCaseColors.white,
       body: Stack(
         children: [
@@ -63,17 +65,26 @@ class AuthScaffold extends StatelessWidget {
                             keyboardDismissBehavior:
                                 ScrollViewKeyboardDismissBehavior.onDrag,
                             padding: EdgeInsets.fromLTRB(
-                              32,
+                              24,
                               topPadding,
-                              32,
+                              24,
                               bottomPadding,
                             ),
-                            child: child,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                child,
+                                if (showFooterText && !keyboardOpen) ...[
+                                  const SizedBox(height: 28),
+                                  const _AuthTrustFooter(),
+                                ],
+                              ],
+                            ),
                           ),
                         ),
                         if (bottom != null)
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(32, 0, 32, 16),
+                            padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
                             child: bottom,
                           ),
                       ],
@@ -81,6 +92,43 @@ class AuthScaffold extends StatelessWidget {
                   ),
                 );
               },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AuthTrustFooter extends StatelessWidget {
+  const _AuthTrustFooter();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.navy.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: PratiCaseColors.border),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.verified_user_outlined,
+            color: PratiCaseColors.teal,
+            size: 20,
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              'Güvenli Medasi hesabınla devam et',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: PratiCaseColors.navy,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ],

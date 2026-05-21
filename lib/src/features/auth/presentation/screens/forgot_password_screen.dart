@@ -80,7 +80,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     return AuthScaffold(
       onBack: widget.onBack,
-      topPadding: 78,
+      topPadding: 32,
       child: Form(
         key: _formKey,
         child: Column(
@@ -89,30 +89,30 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             const Center(
               child: AuthHeroIllustration(
                 type: AuthHeroType.envelope,
-                size: 210,
+                size: 168,
               ),
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 26),
             Text(
               'Şifremi mi unuttum?',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 color: PratiCaseColors.navy,
-                fontSize: 33,
+                fontSize: 30,
                 fontWeight: FontWeight.w900,
               ),
             ),
             const SizedBox(height: 20),
             Text(
-              'E-posta adresini gir, şifre sıfırlama bağlantısını gönderelim.',
+              'E-posta adresini gir, şifre sıfırlama kodunu gönderelim.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: const Color(0xFF465872),
-                fontSize: 20,
+                fontSize: 17,
                 height: 1.45,
               ),
             ),
-            const SizedBox(height: 54),
+            const SizedBox(height: 32),
             AuthTextField(
               label: 'E-posta',
               hintText: 'E-posta adresinizi girin',
@@ -121,7 +121,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               keyboardType: TextInputType.emailAddress,
               validator: AuthValidators.email,
             ),
-            const SizedBox(height: 42),
+            const SizedBox(height: 28),
             AuthPrimaryButton(
               label: 'Gönder',
               loading: _loading,
@@ -147,34 +147,34 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Widget _sentView(BuildContext context) {
     return AuthScaffold(
       onBack: widget.onBack,
-      topPadding: 78,
+      topPadding: 34,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const Center(
-            child: AuthHeroIllustration(type: AuthHeroType.envelope, size: 222),
+            child: AuthHeroIllustration(type: AuthHeroType.envelope, size: 170),
           ),
-          const SizedBox(height: 36),
+          const SizedBox(height: 26),
           Text(
             'E-posta gönderildi!',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
               color: PratiCaseColors.navy,
-              fontSize: 34,
+              fontSize: 30,
               fontWeight: FontWeight.w900,
             ),
           ),
           const SizedBox(height: 18),
           Text(
-            'Şifre sıfırlama bağlantısını içeren bir e-posta gönderdik. Lütfen gelen kutunuzu kontrol edin.',
+            'Şifre sıfırlama kodunu içeren bir e-posta gönderdik. Kodu sonraki ekranda kullanacaksın.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
               color: const Color(0xFF465872),
-              fontSize: 20,
+              fontSize: 17,
               height: 1.36,
             ),
           ),
-          const SizedBox(height: 42),
+          const SizedBox(height: 28),
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
@@ -222,6 +222,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             ),
           ),
           const SizedBox(height: 40),
+          AuthPrimaryButton(
+            label: 'Kodu Gir',
+            onPressed: () => widget.onCodeSent(_email.text.trim()),
+          ),
+          const SizedBox(height: 12),
           AuthPrimaryButton(
             label: _seconds > 0
                 ? 'Tekrar Gönder (00:${_seconds.toString().padLeft(2, '0')})'

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../app/theme/praticase_colors.dart';
@@ -31,6 +33,8 @@ class VerifyEmailScreen extends StatefulWidget {
 
 class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
   String _code = '';
+  Timer? _resendTimer;
+  int _resendSeconds = 0;
   bool _loading = false;
   String? _error;
   String? _success;
@@ -62,30 +66,51 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     });
     try {
       await widget.repository.resendEmailVerification(widget.email);
+      _startResendCooldown();
       setState(() => _success = 'Yeni kod gönderildi.');
     } on AuthFailure catch (failure) {
       setState(() => _error = failure.message);
     }
   }
 
+  void _startResendCooldown() {
+    _resendTimer?.cancel();
+    _resendSeconds = 45;
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      if (_resendSeconds <= 1) {
+        timer.cancel();
+        setState(() => _resendSeconds = 0);
+      } else {
+        setState(() => _resendSeconds--);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _resendTimer?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return AuthScaffold(
       onBack: widget.onBack,
-      topPadding: 58,
+      topPadding: 30,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const Center(
-            child: AuthHeroIllustration(type: AuthHeroType.envelope, size: 218),
+            child: AuthHeroIllustration(type: AuthHeroType.envelope, size: 166),
           ),
-          const SizedBox(height: 40),
+          const SizedBox(height: 26),
           Text(
             'E-postanı doğrula',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
               color: PratiCaseColors.navy,
-              fontSize: 34,
+              fontSize: 30,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -95,7 +120,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
               color: const Color(0xFF465872),
-              fontSize: 19,
+              fontSize: 17,
             ),
           ),
           const SizedBox(height: 30),
@@ -115,8 +140,10 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
           const SizedBox(height: 18),
           Center(
             child: AuthLinkButton(
-              label: 'Kodu tekrar gönder',
-              onPressed: _resend,
+              label: _resendSeconds > 0
+                  ? 'Kodu tekrar gönder (00:${_resendSeconds.toString().padLeft(2, '0')})'
+                  : 'Kodu tekrar gönder',
+              onPressed: _resendSeconds > 0 ? null : _resend,
             ),
           ),
           if (_error != null) ...[

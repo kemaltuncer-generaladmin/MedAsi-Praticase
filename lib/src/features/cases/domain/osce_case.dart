@@ -106,6 +106,8 @@ class ExamSessionOverview {
     required this.currentStep,
     required this.remainingPoints,
     required this.budgetPoints,
+    required this.durationMinutes,
+    required this.startedAt,
   });
 
   final String id;
@@ -115,6 +117,8 @@ class ExamSessionOverview {
   final String currentStep;
   final int remainingPoints;
   final int budgetPoints;
+  final int durationMinutes;
+  final DateTime startedAt;
 }
 
 class ChatMessage {
@@ -257,6 +261,11 @@ class ExamResultSummary {
     required this.categoryScores,
     required this.strongPoints,
     required this.improvementPoints,
+    required this.criticalMistakes,
+    required this.unnecessaryTests,
+    required this.missedHistory,
+    required this.missedPhysicalExam,
+    required this.idealApproach,
   });
 
   final String sessionId;
@@ -267,6 +276,11 @@ class ExamResultSummary {
   final List<ResultCategoryScore> categoryScores;
   final List<String> strongPoints;
   final List<String> improvementPoints;
+  final List<String> criticalMistakes;
+  final List<String> unnecessaryTests;
+  final List<String> missedHistory;
+  final List<String> missedPhysicalExam;
+  final String idealApproach;
 }
 
 class LabResultDetail {

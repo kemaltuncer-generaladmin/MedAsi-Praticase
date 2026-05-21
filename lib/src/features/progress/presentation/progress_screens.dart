@@ -35,8 +35,7 @@ class BadgesScreen extends StatelessWidget {
               const _StateBlock(
                 icon: Icons.workspace_premium_outlined,
                 title: 'Rozet tanımı yok',
-                body:
-                    'praticase.badge_definitions verisi eklendiğinde burada görünür.',
+                body: 'Rozetler yayınlandığında burada görünecek.',
               )
             else
               GridView.count(
@@ -94,7 +93,7 @@ class LeaderboardScreen extends StatelessWidget {
               const _StateBlock(
                 icon: Icons.leaderboard_outlined,
                 title: 'Sıralama verisi yok',
-                body: 'praticase.leaderboard_scores dolduğunda liste oluşur.',
+                body: 'Sıralama verisi oluştuğunda liste burada görünecek.',
               )
             else ...[
               _TopThree(entries: entries.take(3).toList()),
@@ -114,9 +113,14 @@ class LeaderboardScreen extends StatelessWidget {
 }
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({required this.repository, super.key});
+  const ProfileScreen({
+    required this.repository,
+    required this.onSignOut,
+    super.key,
+  });
 
   final ProgressRepository repository;
+  final Future<void> Function() onSignOut;
 
   @override
   Widget build(BuildContext context) {
@@ -166,6 +170,7 @@ class ProfileScreen extends StatelessWidget {
                 _MenuItem(Icons.settings_outlined, 'Ayarlar'),
                 _MenuItem(Icons.download_rounded, 'İndirmelerim'),
               ],
+              onSignOut: onSignOut,
             ),
           ],
         );
@@ -175,9 +180,14 @@ class ProfileScreen extends StatelessWidget {
 }
 
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({required this.repository, super.key});
+  const SettingsScreen({
+    required this.repository,
+    required this.onSignOut,
+    super.key,
+  });
 
   final ProgressRepository repository;
+  final Future<void> Function() onSignOut;
 
   @override
   Widget build(BuildContext context) {
@@ -215,7 +225,12 @@ class SettingsScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                  _SettingsRow(Icons.lock_outline_rounded, 'Hesap ve Güvenlik'),
+                  _SettingsRow(
+                    Icons.lock_outline_rounded,
+                    'Hesap ve Güvenlik',
+                    value: 'Hazırlanıyor',
+                    onTap: () => _showComingSoon(context, 'Hesap ve Güvenlik'),
+                  ),
                   _SettingsRow(
                     Icons.notifications_none_rounded,
                     'Bildirim Ayarları',
@@ -236,21 +251,25 @@ class SettingsScreen extends StatelessWidget {
                     Icons.visibility_outlined,
                     'Görüntüleme',
                     value: snapshot.requireData.settings.displayMode,
+                    onTap: () => _showComingSoon(context, 'Görüntüleme'),
                   ),
                   _SettingsRow(
                     Icons.language_rounded,
                     'Dil',
                     value: snapshot.requireData.settings.language,
+                    onTap: () => _showComingSoon(context, 'Dil'),
                   ),
                   _SettingsRow(
                     Icons.text_fields_rounded,
                     'Yazı Boyutu',
                     value: snapshot.requireData.settings.textSize,
+                    onTap: () => _showComingSoon(context, 'Yazı Boyutu'),
                   ),
                   _SettingsRow(
                     Icons.volume_up_outlined,
                     'Ses ve Titreşim',
                     enabled: snapshot.requireData.settings.soundAndHaptics,
+                    onTap: () => _showComingSoon(context, 'Ses ve Titreşim'),
                   ),
                 ],
               ),
@@ -262,16 +281,19 @@ class SettingsScreen extends StatelessWidget {
                     Icons.data_usage_rounded,
                     'Veri Kullanımı',
                     value: snapshot.requireData.settings.dataUsage,
+                    onTap: () => _showComingSoon(context, 'Veri Kullanımı'),
                   ),
                   _SettingsRow(
                     Icons.wifi_off_rounded,
                     'Çevrimdışı Mod',
                     enabled: snapshot.requireData.settings.offlineMode,
+                    onTap: () => _showComingSoon(context, 'Çevrimdışı Mod'),
                   ),
                   _SettingsRow(
                     Icons.text_snippet_outlined,
                     'Vaka İndirmeleri',
                     enabled: snapshot.requireData.settings.caseDownloadsEnabled,
+                    onTap: () => _showComingSoon(context, 'Vaka İndirmeleri'),
                   ),
                 ],
               ),
@@ -302,17 +324,21 @@ class SettingsScreen extends StatelessWidget {
                     Icons.info_outline_rounded,
                     'Hakkında',
                     value: 'v1.2.0',
+                    onTap: () => _showComingSoon(context, 'Hakkında'),
                   ),
                 ],
               ),
               const SizedBox(height: 26),
               OutlinedButton(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<bool>(
-                    fullscreenDialog: true,
-                    builder: (_) => const LogoutConfirmScreen(),
-                  ),
-                ),
+                onPressed: () async {
+                  final confirmed = await Navigator.of(context).push<bool>(
+                    MaterialPageRoute<bool>(
+                      fullscreenDialog: true,
+                      builder: (_) => const LogoutConfirmScreen(),
+                    ),
+                  );
+                  if (confirmed == true) await onSignOut();
+                },
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFFE04F5F),
                   minimumSize: const Size.fromHeight(52),
@@ -440,7 +466,7 @@ class MyDataScreen extends StatelessWidget {
       title: 'Verilerim',
       future: repository.loadUserDataOverview(),
       emptyTitle: 'Veri başlığı yok',
-      emptyBody: 'Kullanıcı veri özetleri canlı view’dan gelir.',
+      emptyBody: 'Hesabına ait veri özetleri hazır olduğunda burada görünür.',
       itemBuilder: (item) => _SimpleTile(item: item),
       footer: Container(
         padding: const EdgeInsets.all(16),
@@ -475,6 +501,7 @@ class ContactScreen extends StatefulWidget {
 }
 
 class _ContactScreenState extends State<ContactScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _subject = TextEditingController();
   final _email = TextEditingController();
   final _message = TextEditingController();
@@ -489,6 +516,7 @@ class _ContactScreenState extends State<ContactScreen> {
   }
 
   Future<void> _send() async {
+    if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
     try {
       await widget.repository.createContactRequest(
@@ -511,18 +539,53 @@ class _ContactScreenState extends State<ContactScreen> {
     return _ProgressPage(
       title: 'İletişim / Bize Ulaşın',
       children: [
-        _FormFieldBlock(label: 'Konu', controller: _subject),
-        const SizedBox(height: 12),
-        _FormFieldBlock(label: 'E-posta', controller: _email),
-        const SizedBox(height: 12),
-        _FormFieldBlock(label: 'Mesajınız', controller: _message, maxLines: 7),
-        const SizedBox(height: 18),
-        FilledButton(
-          onPressed: _saving ? null : _send,
-          child: Text(_saving ? 'Gönderiliyor...' : 'Gönder'),
+        Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              _FormFieldBlock(
+                label: 'Konu',
+                controller: _subject,
+                validator: _requiredText,
+              ),
+              const SizedBox(height: 12),
+              _FormFieldBlock(
+                label: 'E-posta',
+                controller: _email,
+                keyboardType: TextInputType.emailAddress,
+                validator: _emailText,
+              ),
+              const SizedBox(height: 12),
+              _FormFieldBlock(
+                label: 'Mesajınız',
+                controller: _message,
+                maxLines: 7,
+                validator: _requiredText,
+              ),
+              const SizedBox(height: 18),
+              FilledButton(
+                onPressed: _saving ? null : _send,
+                child: Text(_saving ? 'Gönderiliyor...' : 'Gönder'),
+              ),
+            ],
+          ),
         ),
       ],
     );
+  }
+
+  String? _requiredText(String? value) {
+    if (value == null || value.trim().isEmpty) return 'Bu alan zorunlu.';
+    return null;
+  }
+
+  String? _emailText(String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) return 'E-posta adresini gir.';
+    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(text)) {
+      return 'Geçerli bir e-posta gir.';
+    }
+    return null;
   }
 }
 
@@ -1116,10 +1179,15 @@ class _StatsPanel extends StatelessWidget {
 }
 
 class _MenuPanel extends StatelessWidget {
-  const _MenuPanel({required this.repository, required this.items});
+  const _MenuPanel({
+    required this.repository,
+    required this.items,
+    required this.onSignOut,
+  });
 
   final ProgressRepository repository;
   final List<_MenuItem> items;
+  final Future<void> Function() onSignOut;
 
   @override
   Widget build(BuildContext context) {
@@ -1173,7 +1241,10 @@ class _MenuPanel extends StatelessWidget {
                 if (item.title == 'Ayarlar') {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (_) => SettingsScreen(repository: repository),
+                      builder: (_) => SettingsScreen(
+                        repository: repository,
+                        onSignOut: onSignOut,
+                      ),
                     ),
                   );
                 }
@@ -1239,6 +1310,7 @@ class _SettingsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       onTap: onTap,
+      enabled: onTap != null || enabled != null,
       leading: Icon(icon, color: PratiCaseColors.navy),
       title: Text(title),
       trailing: enabled == null
@@ -1253,7 +1325,10 @@ class _SettingsRow extends StatelessWidget {
                 const Icon(Icons.chevron_right_rounded),
               ],
             )
-          : Switch(value: enabled!, onChanged: null),
+          : Switch(
+              value: enabled!,
+              onChanged: onTap == null ? null : (_) => onTap!(),
+            ),
     );
   }
 }
@@ -1371,11 +1446,15 @@ class _FormFieldBlock extends StatelessWidget {
     required this.label,
     required this.controller,
     this.maxLines = 1,
+    this.keyboardType,
+    this.validator,
   });
 
   final String label;
   final TextEditingController controller;
   final int maxLines;
+  final TextInputType? keyboardType;
+  final String? Function(String?)? validator;
 
   @override
   Widget build(BuildContext context) {
@@ -1390,9 +1469,11 @@ class _FormFieldBlock extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        TextField(
+        TextFormField(
           controller: controller,
+          keyboardType: keyboardType,
           maxLines: maxLines,
+          validator: validator,
           decoration: InputDecoration(
             filled: true,
             fillColor: Colors.white,
@@ -1556,6 +1637,12 @@ Color _tierColor(String tier) {
 String _errorText(Object? error) {
   if (error is ProgressDataUnavailable) return error.message;
   return 'Canlı veri alınamadı. Lütfen bağlantı ve yetkileri kontrol edin.';
+}
+
+void _showComingSoon(BuildContext context, String title) {
+  ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text('$title yakında kullanıma açılacak.')));
 }
 
 String _initial(String value) {

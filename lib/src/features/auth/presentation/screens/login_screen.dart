@@ -67,7 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return AuthScaffold(
       showFooterText: true,
-      topPadding: 34,
+      topPadding: 18,
       onBack: widget.onBack,
       child: Form(
         key: _formKey,
@@ -75,7 +75,7 @@ class _LoginScreenState extends State<LoginScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const AuthLogoBlock(),
-            const SizedBox(height: 58),
+            const SizedBox(height: 34),
             Text(
               'Hoş geldin!',
               textAlign: TextAlign.center,
@@ -94,7 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 fontSize: 18,
               ),
             ),
-            const SizedBox(height: 50),
+            const SizedBox(height: 34),
             AuthTextField(
               label: 'E-posta',
               hintText: 'E-posta adresinizi girin',
@@ -104,7 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
               textInputAction: TextInputAction.next,
               validator: AuthValidators.email,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 18),
             AuthTextField(
               label: 'Şifre',
               hintText: 'Şifrenizi girin',
@@ -122,13 +122,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 onPressed: widget.onForgotPassword,
               ),
             ),
-            const SizedBox(height: 28),
+            if (_error != null) ...[
+              const SizedBox(height: 14),
+              AuthStatusCard(message: _error!, tone: AuthStatusTone.error),
+            ],
+            const SizedBox(height: 22),
             AuthPrimaryButton(
               label: 'Giriş Yap',
               loading: _loading,
               onPressed: _submit,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 18),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -141,10 +145,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 AuthLinkButton(label: 'Kayıt ol', onPressed: widget.onRegister),
               ],
             ),
-            if (_error != null) ...[
-              const SizedBox(height: 16),
-              AuthStatusCard(message: _error!, tone: AuthStatusTone.error),
-            ],
           ],
         ),
       ),

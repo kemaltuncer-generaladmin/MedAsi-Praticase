@@ -318,7 +318,7 @@ class SupabaseProgressRepository implements ProgressRepository {
 
   String _message(PostgrestException error) {
     if (error.code == '42P01' || error.message.contains('schema')) {
-      return 'PratiCase canlı profil/gelişim şeması bulunamadı. Supabase migration dosyalarını uygulayın.';
+      return 'Profil ve gelişim verisi şu anda hazırlanıyor. Lütfen daha sonra tekrar deneyin.';
     }
     return 'Canlı profil/gelişim verisi alınamadı. Lütfen bağlantı ve yetkileri kontrol edin.';
   }

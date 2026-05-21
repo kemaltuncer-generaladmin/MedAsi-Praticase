@@ -9,6 +9,7 @@ import '../widgets/auth_status_card.dart';
 import '../widgets/auth_text_field.dart';
 import '../widgets/auth_validators.dart';
 import '../widgets/auth_visuals.dart';
+import '../widgets/password_strength_indicator.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({
@@ -35,9 +36,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _repeatPassword = TextEditingController();
-  bool _acceptedTerms = true;
+  bool _acceptedTerms = false;
   bool _loading = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _password.addListener(() => setState(() {}));
+  }
 
   @override
   void dispose() {
@@ -82,53 +89,61 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return AuthScaffold(
       showFooterText: false,
-      topPadding: 18,
-      bottomPadding: 138,
+      topPadding: 12,
+      bottomPadding: 40,
       onBack: widget.onBack,
       child: Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const AuthWordmark(width: 276),
-            const SizedBox(height: 52),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Hesap oluştur',
-                        style: Theme.of(context).textTheme.headlineMedium
-                            ?.copyWith(
-                              color: PratiCaseColors.navy,
-                              fontSize: 31,
-                              fontWeight: FontWeight.w900,
-                              height: 1.06,
-                            ),
+            const AuthWordmark(width: 236),
+            const SizedBox(height: 32),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final showHero = constraints.maxWidth >= 330;
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Hesap oluştur',
+                            style: Theme.of(context).textTheme.headlineMedium
+                                ?.copyWith(
+                                  color: PratiCaseColors.navy,
+                                  fontSize: 31,
+                                  fontWeight: FontWeight.w900,
+                                  height: 1.06,
+                                ),
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            'PratiCase’e katıl ve gelişimine hemen başla.',
+                            style: Theme.of(context).textTheme.bodyLarge
+                                ?.copyWith(
+                                  color: const Color(0xFF465872),
+                                  fontSize: 17,
+                                  height: 1.45,
+                                ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 14),
-                      Text(
-                        'PratiCase’e katıl ve gelişimine hemen başla.',
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: const Color(0xFF465872),
-                          fontSize: 17,
-                          height: 1.45,
-                        ),
+                    ),
+                    if (showHero) ...[
+                      const SizedBox(width: 12),
+                      const AuthHeroIllustration(
+                        type: AuthHeroType.profile,
+                        size: 112,
                       ),
                     ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                const AuthHeroIllustration(
-                  type: AuthHeroType.profile,
-                  size: 138,
-                ),
-              ],
+                  ],
+                );
+              },
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
             AuthTextField(
               label: 'Ad',
               hintText: 'Adınızı girin',
@@ -138,7 +153,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               validator: (value) =>
                   (value == null || value.trim().isEmpty) ? 'Adını gir.' : null,
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 14),
             AuthTextField(
               label: 'Soyad',
               hintText: 'Soyadınızı girin',
@@ -149,7 +164,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ? 'Soyadını gir.'
                   : null,
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 14),
             AuthTextField(
               label: 'E-posta',
               hintText: 'E-posta adresinizi girin',
@@ -159,7 +174,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               textInputAction: TextInputAction.next,
               validator: AuthValidators.email,
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 14),
             AuthTextField(
               label: 'Şifre',
               hintText: 'Şifrenizi oluşturun',
@@ -169,7 +184,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               textInputAction: TextInputAction.next,
               validator: AuthValidators.password,
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 10),
+            PasswordStrengthIndicator(password: _password.text),
+            const SizedBox(height: 14),
             AuthTextField(
               label: 'Şifre (Tekrar)',
               hintText: 'Şifrenizi tekrar girin',
@@ -182,56 +199,79 @@ class _RegisterScreenState extends State<RegisterScreen> {
               },
             ),
             const SizedBox(height: 20),
-            InkWell(
-              onTap: () => setState(() => _acceptedTerms = !_acceptedTerms),
-              borderRadius: BorderRadius.circular(8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 20,
-                    height: 20,
-                    margin: const EdgeInsets.only(top: 3),
-                    decoration: BoxDecoration(
-                      color: _acceptedTerms
-                          ? PratiCaseColors.teal
-                          : Colors.white,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: PratiCaseColors.teal),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                InkWell(
+                  onTap: () => setState(() => _acceptedTerms = !_acceptedTerms),
+                  borderRadius: BorderRadius.circular(12),
+                  child: SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: Center(
+                      child: Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: _acceptedTerms
+                              ? PratiCaseColors.teal
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(5),
+                          border: Border.all(color: PratiCaseColors.teal),
+                        ),
+                        child: _acceptedTerms
+                            ? const Icon(
+                                Icons.check_rounded,
+                                color: Colors.white,
+                                size: 17,
+                              )
+                            : null,
+                      ),
                     ),
-                    child: _acceptedTerms
-                        ? const Icon(
-                            Icons.check_rounded,
-                            color: Colors.white,
-                            size: 16,
-                          )
-                        : null,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: RichText(
-                      text: TextSpan(
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        'Kullanım koşullarını ve ',
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: const Color(0xFF23364F),
                           height: 1.35,
                         ),
-                        children: const [
-                          TextSpan(text: 'Kullanım koşullarını ve '),
-                          TextSpan(
-                            text: 'gizlilik politikasını',
-                            style: TextStyle(
-                              color: PratiCaseColors.teal,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          TextSpan(text: ' okudum, kabul ediyorum.'),
-                        ],
                       ),
-                    ),
+                      GestureDetector(
+                        onTap: _openLegalNotice,
+                        child: Text(
+                          'gizlilik politikasını',
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(
+                                color: PratiCaseColors.teal,
+                                height: 1.35,
+                                fontWeight: FontWeight.w900,
+                                decoration: TextDecoration.underline,
+                                decorationColor: PratiCaseColors.teal,
+                              ),
+                        ),
+                      ),
+                      Text(
+                        ' okudum, kabul ediyorum.',
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: const Color(0xFF23364F),
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
+            if (_error != null) ...[
+              const SizedBox(height: 16),
+              AuthStatusCard(message: _error!, tone: AuthStatusTone.error),
+            ],
             const SizedBox(height: 26),
             AuthPrimaryButton(
               label: 'Hesap Oluştur',
@@ -239,8 +279,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               onPressed: _submit,
             ),
             const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text(
                   'Zaten hesabın var mı?',
@@ -251,12 +292,97 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 AuthLinkButton(label: 'Giriş yap', onPressed: widget.onLogin),
               ],
             ),
-            if (_error != null) ...[
-              const SizedBox(height: 16),
-              AuthStatusCard(message: _error!, tone: AuthStatusTone.error),
-            ],
           ],
         ),
+      ),
+    );
+  }
+
+  void _openLegalNotice() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const AuthLegalNoticeScreen()),
+    );
+  }
+}
+
+class AuthLegalNoticeScreen extends StatelessWidget {
+  const AuthLegalNoticeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return AuthScaffold(
+      showFooterText: false,
+      onBack: () => Navigator.maybePop(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Gizlilik ve Kullanım Koşulları',
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              color: PratiCaseColors.navy,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 18),
+          const AuthStatusCard(
+            title: 'Medasi PratiCase',
+            message:
+                'PratiCase, hesap oluşturma sırasında kimlik, iletişim ve öğrenme hedefi bilgilerini yalnızca OSCE simülasyon deneyimini sunmak ve geliştirmek için işler.',
+            tone: AuthStatusTone.info,
+          ),
+          const SizedBox(height: 18),
+          _LegalParagraph(
+            title: 'Kullanım',
+            body:
+                'Uygulama eğitim amaçlıdır. Klinik karar, acil müdahale veya hasta tedavisi yerine geçmez.',
+          ),
+          _LegalParagraph(
+            title: 'Veri',
+            body:
+                'Profil, sınav oturumu, vaka ilerleme ve iletişim kayıtları Medasi altyapısında saklanır. Veriler yetkisiz kişilerle paylaşılmaz.',
+          ),
+          _LegalParagraph(
+            title: 'Onay',
+            body:
+                'Hesap oluşturarak kullanım koşullarını ve gizlilik politikasını okuduğunu, anladığını ve kabul ettiğini beyan edersin.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LegalParagraph extends StatelessWidget {
+  const _LegalParagraph({required this.title, required this.body});
+
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: PratiCaseColors.navy,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            body,
+            style: const TextStyle(
+              color: Color(0xFF465872),
+              height: 1.45,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -33,11 +33,13 @@ class PasswordStrengthIndicator extends StatelessWidget {
                   size: 30,
                 ),
                 const SizedBox(width: 18),
-                Text(
-                  item.$1,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: const Color(0xFF23364F),
-                    fontSize: 19,
+                Expanded(
+                  child: Text(
+                    item.$1,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: const Color(0xFF23364F),
+                      fontSize: 17,
+                    ),
                   ),
                 ),
               ],

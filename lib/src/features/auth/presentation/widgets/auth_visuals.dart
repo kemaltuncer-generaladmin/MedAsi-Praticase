@@ -18,45 +18,6 @@ class AuthBackground extends StatelessWidget {
             painter: _AuthBackgroundPainter(compactWave: !showFooterText),
           ),
         ),
-        if (showFooterText)
-          Positioned(
-            left: 24,
-            right: 24,
-            bottom: 34,
-            child: IgnorePointer(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.verified_user_outlined,
-                    color: PratiCaseColors.tealBright.withValues(alpha: 0.8),
-                    size: 34,
-                  ),
-                  const SizedBox(height: 16),
-                  RichText(
-                    textAlign: TextAlign.center,
-                    text: TextSpan(
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Colors.white,
-                        fontSize: 19,
-                        height: 1.2,
-                      ),
-                      children: const [
-                        TextSpan(text: 'Güvenli. Hızlı. '),
-                        TextSpan(
-                          text: 'Her yerde seninle.',
-                          style: TextStyle(
-                            color: PratiCaseColors.tealBright,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
       ],
     );
   }
@@ -69,14 +30,14 @@ class AuthLogoBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Image.asset('assets/auth/praticase_icon.png', width: 132, height: 132),
-        const SizedBox(height: 14),
+        Image.asset('assets/auth/praticase_icon.png', width: 104, height: 104),
+        const SizedBox(height: 10),
         RichText(
           textAlign: TextAlign.center,
           text: const TextSpan(
             style: TextStyle(
               color: PratiCaseColors.navy,
-              fontSize: 52,
+              fontSize: 44,
               fontWeight: FontWeight.w900,
               height: 0.95,
             ),
@@ -89,25 +50,28 @@ class AuthLogoBlock extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 8),
-        const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _GoldLine(),
-            SizedBox(width: 8),
-            Text(
-              'OSCE PRATİK PLATFORMU',
-              style: TextStyle(
-                color: PratiCaseColors.navy,
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 4,
+        const SizedBox(height: 6),
+        const FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _GoldLine(),
+              SizedBox(width: 8),
+              Text(
+                'OSCE PRATİK PLATFORMU',
+                style: TextStyle(
+                  color: PratiCaseColors.navy,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0,
+                ),
               ),
-            ),
-            SizedBox(width: 8),
-            _GoldLine(),
-          ],
+              SizedBox(width: 8),
+              _GoldLine(),
+            ],
+          ),
         ),
       ],
     );
@@ -305,17 +269,23 @@ class _ProfileCardIcon extends StatelessWidget {
           ),
         ],
       ),
-      child: const Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircleAvatar(radius: 18, backgroundColor: PratiCaseColors.teal),
-          SizedBox(height: 9),
-          Icon(Icons.person_rounded, color: PratiCaseColors.teal, size: 50),
-          SizedBox(height: 8),
-          _MiniLine(width: 55),
-          SizedBox(height: 7),
-          _MiniLine(width: 42),
-        ],
+      child: const FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Padding(
+          padding: EdgeInsets.all(10),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircleAvatar(radius: 18, backgroundColor: PratiCaseColors.teal),
+              SizedBox(height: 9),
+              Icon(Icons.person_rounded, color: PratiCaseColors.teal, size: 50),
+              SizedBox(height: 8),
+              _MiniLine(width: 55),
+              SizedBox(height: 7),
+              _MiniLine(width: 42),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -399,7 +369,7 @@ class _AuthBackgroundPainter extends CustomPainter {
       );
     }
 
-    final waveTop = size.height * (compactWave ? 0.9 : 0.76);
+    final waveTop = size.height * (compactWave ? 0.92 : 0.84);
     final softWave = Path()
       ..moveTo(0, waveTop - 22)
       ..cubicTo(

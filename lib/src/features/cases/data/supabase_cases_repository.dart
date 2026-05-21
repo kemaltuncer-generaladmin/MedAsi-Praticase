@@ -102,8 +102,8 @@ class SupabaseCasesRepository implements CasesRepository {
           .schema('praticase')
           .from('exam_sessions')
           .select(
-            'id,case_id,current_step,remaining_points,budget_points,'
-            'cases(title,patient_profile)',
+            'id,case_id,current_step,remaining_points,budget_points,started_at,'
+            'cases(title,patient_profile,duration_minutes)',
           )
           .eq('id', sessionId)
           .single();
@@ -116,6 +116,9 @@ class SupabaseCasesRepository implements CasesRepository {
         currentStep: _string(row, 'current_step'),
         remainingPoints: _int(row, 'remaining_points'),
         budgetPoints: _int(row, 'budget_points'),
+        durationMinutes: _int(caseData, 'duration_minutes'),
+        startedAt:
+            DateTime.tryParse(_string(row, 'started_at')) ?? DateTime.now(),
       );
     } on PostgrestException catch (error) {
       throw CasesDataUnavailable(_message(error));
@@ -147,26 +150,10 @@ class SupabaseCasesRepository implements CasesRepository {
         'praticase-patient-turn',
         body: {'sessionId': sessionId, 'message': message},
       );
-      return;
     } on Object {
-      // Keep the live flow available if an Edge Function rollout is delayed.
-    }
-    await _recordPatientQuestionViaRpc(sessionId: sessionId, message: message);
-  }
-
-  Future<void> _recordPatientQuestionViaRpc({
-    required String sessionId,
-    required String message,
-  }) async {
-    try {
-      await _client
-          .schema('praticase')
-          .rpc<void>(
-            'record_patient_question',
-            params: {'p_session_id': sessionId, 'p_message': message},
-          );
-    } on PostgrestException catch (error) {
-      throw CasesDataUnavailable(_message(error));
+      throw const CasesDataUnavailable(
+        'Yapay zeka hasta yanıtı alınamadı. Lütfen Vertex AI edge function ayarlarını kontrol edin.',
+      );
     }
   }
 
@@ -517,7 +504,9 @@ class SupabaseCasesRepository implements CasesRepository {
           .from('session_result_cards')
           .select(
             'session_id,case_title,total_score,max_score,percentage,'
-            'category_scores,strong_points,improvement_points',
+            'category_scores,strong_points,improvement_points,'
+            'critical_mistakes,unnecessary_tests,missed_history,'
+            'missed_physical_exam,ideal_approach',
           )
           .eq('session_id', sessionId)
           .single();
@@ -530,6 +519,11 @@ class SupabaseCasesRepository implements CasesRepository {
         categoryScores: _categoryScores(row['category_scores']),
         strongPoints: _stringList(row['strong_points']),
         improvementPoints: _stringList(row['improvement_points']),
+        criticalMistakes: _stringList(row['critical_mistakes']),
+        unnecessaryTests: _stringList(row['unnecessary_tests']),
+        missedHistory: _stringList(row['missed_history']),
+        missedPhysicalExam: _stringList(row['missed_physical_exam']),
+        idealApproach: _string(row, 'ideal_approach'),
       );
     } on PostgrestException catch (error) {
       throw CasesDataUnavailable(_message(error));
@@ -542,20 +536,10 @@ class SupabaseCasesRepository implements CasesRepository {
         'praticase-complete-session',
         body: {'sessionId': sessionId},
       );
-      return;
     } on Object {
-      // The database RPC is the same live scoring engine used by the function.
-    }
-
-    try {
-      await _client
-          .schema('praticase')
-          .rpc<void>(
-            'finalize_exam_session',
-            params: {'p_session_id': sessionId},
-          );
-    } on PostgrestException catch (error) {
-      throw CasesDataUnavailable(_message(error));
+      throw const CasesDataUnavailable(
+        'Yapay zeka sonuç karnesi oluşturulamadı. Lütfen Vertex AI edge function ayarlarını kontrol edin.',
+      );
     }
   }
 
@@ -827,7 +811,7 @@ class SupabaseCasesRepository implements CasesRepository {
 
   String _message(PostgrestException error) {
     if (error.code == '42P01' || error.message.contains('schema')) {
-      return 'PratiCase canlı vaka şeması bulunamadı. Supabase migration dosyalarını uygulayın.';
+      return 'Vaka verisi şu anda hazırlanıyor. Lütfen daha sonra tekrar deneyin.';
     }
     return 'Canlı vaka verisi alınamadı. Lütfen bağlantı ve yetkileri kontrol edin.';
   }

@@ -5,8 +5,6 @@ class AuthConfig {
     required this.redirectUrl,
   });
 
-  static const _defaultMedasiAuthUrl = 'https://qlinik.medasi.com.tr';
-
   factory AuthConfig.fromEnvironment() {
     const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
     const flutterSupabaseUrl = String.fromEnvironment('FLUTTER_SUPABASE_URL');
@@ -21,7 +19,7 @@ class AuthConfig {
           ? supabaseUrl
           : flutterSupabaseUrl.isNotEmpty
           ? flutterSupabaseUrl
-          : _defaultMedasiAuthUrl,
+          : '',
       supabaseAnonKey: supabaseAnonKey,
       redirectUrl: redirectUrl,
     );
@@ -31,5 +29,6 @@ class AuthConfig {
   final String supabaseAnonKey;
   final String redirectUrl;
 
-  bool get canUseSupabase => supabaseAnonKey.isNotEmpty;
+  bool get canUseSupabase =>
+      supabaseUrl.trim().isNotEmpty && supabaseAnonKey.trim().isNotEmpty;
 }

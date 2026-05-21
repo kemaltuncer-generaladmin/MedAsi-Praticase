@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/praticase_colors.dart';
@@ -15,6 +17,7 @@ class CasesScreen extends StatefulWidget {
 
 class _CasesScreenState extends State<CasesScreen> {
   final _searchController = TextEditingController();
+  Timer? _searchDebounce;
   String? _difficulty;
   late Future<List<OsceCaseSummary>> _casesFuture;
 
@@ -26,8 +29,14 @@ class _CasesScreenState extends State<CasesScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _scheduleSearch() {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 350), _search);
   }
 
   void _search() {
@@ -69,9 +78,11 @@ class _CasesScreenState extends State<CasesScreen> {
                     'Klinik becerini geliştir, vakaları çöz ve puan kazan!',
               ),
               const SizedBox(height: 16),
-              _SearchBox(controller: _searchController, onChanged: _search),
-              const SizedBox(height: 12),
-              const _FilterRail(),
+              _SearchBox(
+                controller: _searchController,
+                onChanged: _scheduleSearch,
+                onSubmitted: _search,
+              ),
               const SizedBox(height: 18),
               if (snapshot.connectionState != ConnectionState.done)
                 const _CenteredState(
@@ -89,8 +100,7 @@ class _CasesScreenState extends State<CasesScreen> {
                 const _CenteredState(
                   icon: Icons.assignment_outlined,
                   title: 'Yayınlanmış vaka yok',
-                  body:
-                      'praticase.cases tablosunda is_published=true vaka olduğunda burada listelenir.',
+                  body: 'Yayınlanan OSCE vakaları burada listelenecek.',
                 )
               else ...[
                 Row(
@@ -146,8 +156,9 @@ class _CasesScreenState extends State<CasesScreen> {
       ),
     );
     if (!mounted) return;
+    if (selected == null) return;
     setState(() {
-      _difficulty = selected;
+      _difficulty = selected.isEmpty ? null : selected;
       _casesFuture = widget.repository.loadCases(
         query: _searchController.text,
         difficulty: _difficulty,
@@ -217,7 +228,7 @@ class _CaseSearchFilterScreenState extends State<CaseSearchFilterScreen> {
         children: [
           Expanded(
             child: OutlinedButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(context, ''),
               child: const Text('Temizle'),
             ),
           ),
@@ -303,7 +314,7 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
               _StepTopBar(
                 title: 'Vaka Detay',
                 trailing: IconButton(
-                  onPressed: null,
+                  onPressed: () => _showComingSoon(context, 'Favori vaka'),
                   icon: Icon(
                     detail.summary.isBookmarked
                         ? Icons.bookmark_rounded
@@ -363,6 +374,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
   final _messageController = TextEditingController();
   late Future<_ChatBundle> _bundleFuture;
   bool _sending = false;
+  bool _navigating = false;
 
   @override
   void initState() {
@@ -392,7 +404,13 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
         sessionId: widget.sessionId,
         message: text,
       );
-      setState(() => _bundleFuture = _load());
+      final bundle = await _bundleFuture;
+      final messages = await widget.repository.loadMessages(widget.sessionId);
+      setState(
+        () => _bundleFuture = Future.value(
+          _ChatBundle(session: bundle.session, messages: messages),
+        ),
+      );
       await _bundleFuture;
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -400,21 +418,27 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
   }
 
   Future<void> _next() async {
+    if (_navigating) return;
+    setState(() => _navigating = true);
     final session = (await _bundleFuture).session;
-    await widget.repository.advanceSession(
-      sessionId: widget.sessionId,
-      step: 'physical_exam',
-    );
-    if (!mounted) return;
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => PhysicalExamScreen(
-          repository: widget.repository,
-          sessionId: widget.sessionId,
-          caseId: session.caseId,
+    try {
+      await widget.repository.advanceSession(
+        sessionId: widget.sessionId,
+        step: 'physical_exam',
+      );
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => PhysicalExamScreen(
+            repository: widget.repository,
+            sessionId: widget.sessionId,
+            caseId: session.caseId,
+          ),
         ),
-      ),
-    );
+      );
+    } finally {
+      if (mounted) setState(() => _navigating = false);
+    }
   }
 
   @override
@@ -445,7 +469,15 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
                 child: Column(
                   children: [
-                    const _StepTopBar(title: 'PratiCase', step: 1),
+                    _StepTopBar(
+                      title: 'PratiCase',
+                      step: 1,
+                      subtitle: _examSubtitle(bundle.session),
+                      trailing: _FinishExamButton(
+                        repository: widget.repository,
+                        sessionId: widget.sessionId,
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     _PatientBanner(session: bundle.session),
                     const SizedBox(height: 10),
@@ -509,7 +541,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
                 controller: _messageController,
                 sending: _sending,
                 onSend: _send,
-                onNext: _next,
+                onNext: _navigating ? null : _next,
               ),
             ],
           );
@@ -546,6 +578,7 @@ class _PhysicalExamScreenState extends State<PhysicalExamScreen> {
   }
 
   Future<_PhysicalBundle> _load() async {
+    final session = await widget.repository.loadSession(widget.sessionId);
     final groups = await widget.repository.loadPhysicalExamGroups(
       widget.caseId,
     );
@@ -553,7 +586,7 @@ class _PhysicalExamScreenState extends State<PhysicalExamScreen> {
       sessionId: widget.sessionId,
       caseId: widget.caseId,
     );
-    return _PhysicalBundle(groups: groups, options: options);
+    return _PhysicalBundle(session: session, groups: groups, options: options);
   }
 
   Future<void> _select(String optionId) async {
@@ -611,7 +644,15 @@ class _PhysicalExamScreenState extends State<PhysicalExamScreen> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
             children: [
-              const _StepTopBar(title: 'Fizik Muayene', step: 2),
+              _StepTopBar(
+                title: 'Fizik Muayene',
+                step: 2,
+                subtitle: _examSubtitle(bundle.session),
+                trailing: _FinishExamButton(
+                  repository: widget.repository,
+                  sessionId: widget.sessionId,
+                ),
+              ),
               const SizedBox(height: 18),
               const Text(
                 'Sistem seçerek muayene edin.',
@@ -743,8 +784,11 @@ class _TestsScreenState extends State<TestsScreen> {
               _StepTopBar(
                 title: 'Tetkik İsteme',
                 step: 3,
-                subtitle:
-                    'Bütçe Puanı ${bundle.session.remainingPoints} / ${bundle.session.budgetPoints}',
+                subtitle: _examSubtitle(bundle.session),
+                trailing: _FinishExamButton(
+                  repository: widget.repository,
+                  sessionId: widget.sessionId,
+                ),
               ),
               const SizedBox(height: 18),
               _SegmentScroller(
@@ -833,11 +877,13 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
   final _reasoningController = TextEditingController();
   late Future<_DiagnosisBundle> _bundleFuture;
   final _selected = <String>{};
+  bool _saving = false;
 
   @override
   void initState() {
     super.initState();
     _bundleFuture = _load();
+    _primaryController.addListener(() => setState(() {}));
   }
 
   @override
@@ -865,26 +911,32 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
   }
 
   Future<void> _save() async {
-    await widget.repository.saveDiagnosisAnswer(
-      sessionId: widget.sessionId,
-      primaryDiagnosis: _primaryController.text,
-      selectedOptionIds: _selected.toList(),
-      reasoning: _reasoningController.text,
-    );
-    await widget.repository.advanceSession(
-      sessionId: widget.sessionId,
-      step: 'management',
-    );
-    if (!mounted) return;
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => ManagementPlanScreen(
-          repository: widget.repository,
-          sessionId: widget.sessionId,
-          caseId: widget.caseId,
+    if (_primaryController.text.trim().isEmpty || _saving) return;
+    setState(() => _saving = true);
+    try {
+      await widget.repository.saveDiagnosisAnswer(
+        sessionId: widget.sessionId,
+        primaryDiagnosis: _primaryController.text.trim(),
+        selectedOptionIds: _selected.toList(),
+        reasoning: _reasoningController.text.trim(),
+      );
+      await widget.repository.advanceSession(
+        sessionId: widget.sessionId,
+        step: 'management',
+      );
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ManagementPlanScreen(
+            repository: widget.repository,
+            sessionId: widget.sessionId,
+            caseId: widget.caseId,
+          ),
         ),
-      ),
-    );
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
@@ -916,8 +968,11 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
               _StepTopBar(
                 title: 'Tanı ve Ayırıcı Tanı',
                 step: 4,
-                subtitle:
-                    'Kalan Puan ${bundle.session.remainingPoints} / ${bundle.session.budgetPoints}',
+                subtitle: _examSubtitle(bundle.session),
+                trailing: _FinishExamButton(
+                  repository: widget.repository,
+                  sessionId: widget.sessionId,
+                ),
               ),
               const SizedBox(height: 18),
               _InputBlock(
@@ -949,8 +1004,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
                 const _CenteredState(
                   icon: Icons.fact_check_outlined,
                   title: 'Tanı seçeneği yok',
-                  body:
-                      'praticase.diagnosis_options verisi eklendiğinde burada görünür.',
+                  body: 'Ayırıcı tanı seçenekleri yayınlandığında görünür.',
                 ),
               const SizedBox(height: 14),
               _InputBlock(
@@ -963,7 +1017,12 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
           );
         },
       ),
-      bottom: _BottomAction(label: 'Devam Et', onPressed: _save),
+      bottom: _BottomAction(
+        label: _saving ? 'Kaydediliyor...' : 'Devam Et',
+        onPressed: _primaryController.text.trim().isEmpty || _saving
+            ? null
+            : _save,
+      ),
     );
   }
 }
@@ -1070,7 +1129,15 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 130),
             children: [
-              const _StepTopBar(title: 'Tedavi / Yönetim Planı', step: 5),
+              _StepTopBar(
+                title: 'Tedavi / Yönetim Planı',
+                step: 5,
+                subtitle: _examSubtitle(bundle.session),
+                trailing: _FinishExamButton(
+                  repository: widget.repository,
+                  sessionId: widget.sessionId,
+                ),
+              ),
               const SizedBox(height: 18),
               _InputBlock(
                 label: 'Tanınız',
@@ -1100,8 +1167,7 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
                 const _CenteredState(
                   icon: Icons.assignment_outlined,
                   title: 'Tedavi seçeneği yok',
-                  body:
-                      'praticase.management_plan_options verisi eklendiğinde burada görünür.',
+                  body: 'Yönetim planı seçenekleri yayınlandığında görünür.',
                 )
               else
                 for (final entry in grouped.entries) ...[
@@ -1203,6 +1269,36 @@ class ResultScreen extends StatelessWidget {
                 color: PratiCaseColors.gold,
                 items: result.improvementPoints,
               ),
+              const SizedBox(height: 14),
+              _FeedbackCard(
+                title: 'Kritik Hatalar',
+                icon: Icons.error_outline_rounded,
+                color: const Color(0xFFE15B5B),
+                items: result.criticalMistakes,
+              ),
+              const SizedBox(height: 14),
+              _FeedbackCard(
+                title: 'Gereksiz Tetkikler',
+                icon: Icons.science_outlined,
+                color: const Color(0xFF8B6F47),
+                items: result.unnecessaryTests,
+              ),
+              const SizedBox(height: 14),
+              _FeedbackCard(
+                title: 'Eksik Anamnez',
+                icon: Icons.chat_bubble_outline_rounded,
+                color: const Color(0xFF506178),
+                items: result.missedHistory,
+              ),
+              const SizedBox(height: 14),
+              _FeedbackCard(
+                title: 'Kaçırılan Muayeneler',
+                icon: Icons.health_and_safety_outlined,
+                color: PratiCaseColors.teal,
+                items: result.missedPhysicalExam,
+              ),
+              const SizedBox(height: 14),
+              _IdealApproachCard(text: result.idealApproach),
               const SizedBox(height: 18),
               _BottomAction(
                 label: 'Vaka Raporunu İncele',
@@ -1270,6 +1366,36 @@ class CaseReportScreen extends StatelessWidget {
             color: PratiCaseColors.gold,
             items: result.improvementPoints,
           ),
+          const SizedBox(height: 14),
+          _FeedbackCard(
+            title: 'Kritik Hatalar',
+            icon: Icons.error_outline_rounded,
+            color: const Color(0xFFE15B5B),
+            items: result.criticalMistakes,
+          ),
+          const SizedBox(height: 14),
+          _FeedbackCard(
+            title: 'Gereksiz Tetkikler',
+            icon: Icons.science_outlined,
+            color: const Color(0xFF8B6F47),
+            items: result.unnecessaryTests,
+          ),
+          const SizedBox(height: 14),
+          _FeedbackCard(
+            title: 'Eksik Anamnez',
+            icon: Icons.chat_bubble_outline_rounded,
+            color: const Color(0xFF506178),
+            items: result.missedHistory,
+          ),
+          const SizedBox(height: 14),
+          _FeedbackCard(
+            title: 'Kaçırılan Muayeneler',
+            icon: Icons.health_and_safety_outlined,
+            color: PratiCaseColors.teal,
+            items: result.missedPhysicalExam,
+          ),
+          const SizedBox(height: 14),
+          _IdealApproachCard(text: result.idealApproach),
         ],
       ),
     );
@@ -1404,7 +1530,22 @@ class ImagingResultScreen extends StatelessWidget {
                 clipBehavior: Clip.antiAlias,
                 child: detail.imageUrl.isEmpty
                     ? const Center(child: Icon(Icons.image_outlined, size: 54))
-                    : Image.network(detail.imageUrl, fit: BoxFit.cover),
+                    : Image.network(
+                        detail.imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.broken_image_outlined, size: 54),
+                                SizedBox(height: 8),
+                                Text('Görüntü yüklenemedi'),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
               ),
               const SizedBox(height: 14),
               _SectionCard(title: 'Rapor', child: Text(detail.report)),
@@ -1651,7 +1792,7 @@ class _MobileHeader extends StatelessWidget {
     return Row(
       children: [
         IconButton(
-          onPressed: () => Navigator.maybePop(context),
+          onPressed: () => _showComingSoon(context, 'Menü'),
           icon: const Icon(Icons.menu_rounded, color: PratiCaseColors.navy),
         ),
         const Spacer(),
@@ -1667,7 +1808,7 @@ class _MobileHeader extends StatelessWidget {
         ),
         const Spacer(),
         IconButton(
-          onPressed: null,
+          onPressed: () => _showComingSoon(context, 'Bildirimler'),
           icon: const Icon(
             Icons.notifications_none_rounded,
             color: PratiCaseColors.navy,
@@ -1799,16 +1940,22 @@ class _PageTitle extends StatelessWidget {
 }
 
 class _SearchBox extends StatelessWidget {
-  const _SearchBox({required this.controller, required this.onChanged});
+  const _SearchBox({
+    required this.controller,
+    required this.onChanged,
+    required this.onSubmitted,
+  });
 
   final TextEditingController controller;
   final VoidCallback onChanged;
+  final VoidCallback onSubmitted;
 
   @override
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
       onChanged: (_) => onChanged(),
+      onSubmitted: (_) => onSubmitted(),
       textInputAction: TextInputAction.search,
       decoration: InputDecoration(
         hintText: 'Vaka ara...',
@@ -1823,25 +1970,6 @@ class _SearchBox extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: PratiCaseColors.border),
         ),
-      ),
-    );
-  }
-}
-
-class _FilterRail extends StatelessWidget {
-  const _FilterRail();
-
-  @override
-  Widget build(BuildContext context) {
-    const filters = ['Tümü', 'Acil', 'Dahiliye', 'Cerrahi'];
-    return SizedBox(
-      height: 40,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: filters.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (context, index) =>
-            _ChipTag(label: filters[index], active: index == 0),
       ),
     );
   }
@@ -1872,21 +2000,14 @@ class _CaseListCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          item.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: PratiCaseColors.navy,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                      _TinyPill(text: 'Zorluk: ${item.difficulty.label}'),
-                    ],
+                  Text(
+                    item.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: PratiCaseColors.navy,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -1906,6 +2027,7 @@ class _CaseListCard extends StatelessWidget {
                     children: [
                       _ChipTag(label: item.setting),
                       _ChipTag(label: item.branch),
+                      _TinyPill(text: 'Zorluk: ${item.difficulty.label}'),
                       _ChipTag(label: '${item.points} Puan'),
                     ],
                   ),
@@ -2047,9 +2169,10 @@ class _PatientInfoCard extends StatelessWidget {
     return _SectionCard(
       title: 'Hasta Bilgileri',
       child: GridView.count(
-        crossAxisCount: 4,
-        crossAxisSpacing: 8,
-        childAspectRatio: 0.86,
+        crossAxisCount: 2,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 2.45,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         children: [
@@ -2158,7 +2281,7 @@ class _PatientBanner extends StatelessWidget {
               ],
             ),
           ),
-          OutlinedButton.icon(
+          IconButton.outlined(
             onPressed: () => showModalBottomSheet<void>(
               context: context,
               showDragHandle: true,
@@ -2187,8 +2310,8 @@ class _PatientBanner extends StatelessWidget {
                 ),
               ),
             ),
-            icon: const Icon(Icons.badge_outlined, size: 16),
-            label: const Text('Hasta Bilgileri'),
+            tooltip: 'Hasta bilgileri',
+            icon: const Icon(Icons.badge_outlined, size: 20),
           ),
         ],
       ),
@@ -2243,7 +2366,7 @@ class _ChatComposer extends StatelessWidget {
   final TextEditingController controller;
   final bool sending;
   final VoidCallback onSend;
-  final VoidCallback onNext;
+  final VoidCallback? onNext;
 
   @override
   Widget build(BuildContext context) {
@@ -2570,6 +2693,37 @@ class _BottomAction extends StatelessWidget {
   }
 }
 
+class _FinishExamButton extends StatelessWidget {
+  const _FinishExamButton({required this.repository, required this.sessionId});
+
+  final CasesRepository repository;
+  final String sessionId;
+
+  Future<void> _finish(BuildContext context) async {
+    await repository.advanceSession(sessionId: sessionId, step: 'completed');
+    if (!context.mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            ResultScreen(repository: repository, sessionId: sessionId),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: () => _finish(context),
+      style: TextButton.styleFrom(
+        foregroundColor: const Color(0xFFE04F5F),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        textStyle: const TextStyle(fontWeight: FontWeight.w900),
+      ),
+      child: const Text('Bitir'),
+    );
+  }
+}
+
 class _SectionCard extends StatelessWidget {
   const _SectionCard({required this.title, required this.child});
 
@@ -2618,30 +2772,37 @@ class _InfoCell extends StatelessWidget {
         border: Border.all(color: PratiCaseColors.border),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Row(
         children: [
-          Icon(icon, color: PratiCaseColors.teal, size: 20),
-          const SizedBox(height: 6),
-          Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF66758A),
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: PratiCaseColors.navy,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
+          Icon(icon, color: PratiCaseColors.teal, size: 22),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF66758A),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: PratiCaseColors.navy,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -2812,10 +2973,9 @@ class _FilterSummaryRow extends StatelessWidget {
 }
 
 class _ChipTag extends StatelessWidget {
-  const _ChipTag({required this.label, this.active = false, this.tone});
+  const _ChipTag({required this.label, this.tone});
 
   final String label;
-  final bool active;
   final Color? tone;
 
   @override
@@ -2824,13 +2984,13 @@ class _ChipTag extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: active ? PratiCaseColors.teal : color.withValues(alpha: 0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
         label,
         style: TextStyle(
-          color: active ? PratiCaseColors.white : color,
+          color: color,
           fontSize: 12,
           fontWeight: FontWeight.w900,
         ),
@@ -2990,8 +3150,13 @@ class _ChatBundle {
 }
 
 class _PhysicalBundle {
-  const _PhysicalBundle({required this.groups, required this.options});
+  const _PhysicalBundle({
+    required this.session,
+    required this.groups,
+    required this.options,
+  });
 
+  final ExamSessionOverview session;
   final List<PhysicalExamGroup> groups;
   final List<PhysicalExamOption> options;
 }
@@ -3184,38 +3349,53 @@ class _ScoreGrid extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: _cardDecoration(),
       child: GridView.count(
-        crossAxisCount: 5,
+        crossAxisCount: 2,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        childAspectRatio: 0.78,
-        crossAxisSpacing: 6,
+        childAspectRatio: 2.55,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
         children: [
           for (final score in scores)
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(_scoreIcon(score.title), color: PratiCaseColors.teal),
-                const SizedBox(height: 6),
-                Text(
-                  score.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: PratiCaseColors.navy,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: PratiCaseColors.teal.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(_scoreIcon(score.title), color: PratiCaseColors.teal),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          score.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: PratiCaseColors.navy,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          '${score.score}/${score.maxScore}',
+                          style: const TextStyle(
+                            color: PratiCaseColors.teal,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${score.score}/${score.maxScore}',
-                  style: const TextStyle(
-                    color: PratiCaseColors.teal,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
         ],
       ),
@@ -3257,6 +3437,27 @@ class _FeedbackCard extends StatelessWidget {
   }
 }
 
+class _IdealApproachCard extends StatelessWidget {
+  const _IdealApproachCard({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SectionCard(
+      title: 'İdeal Yaklaşım Özeti',
+      child: Text(
+        text.isEmpty ? 'Canlı karne özeti henüz oluşmadı.' : text,
+        style: const TextStyle(
+          color: Color(0xFF405168),
+          fontWeight: FontWeight.w700,
+          height: 1.45,
+        ),
+      ),
+    );
+  }
+}
+
 BoxDecoration _cardDecoration() {
   return BoxDecoration(
     color: PratiCaseColors.white,
@@ -3288,7 +3489,7 @@ IconData _caseIcon(String? key) {
     case 'heart':
       return Icons.favorite_rounded;
     case 'brain':
-      return Icons.psychology_alt_rounded;
+      return Icons.monitor_heart_outlined;
     case 'lung':
       return Icons.air_rounded;
     case 'abdomen':
@@ -3303,13 +3504,17 @@ IconData _caseIcon(String? key) {
 IconData _flowIcon(String key) {
   switch (key) {
     case 'history':
+    case 'chat':
       return Icons.chat_bubble_outline_rounded;
     case 'exam':
+    case 'stethoscope':
       return Icons.health_and_safety_outlined;
     case 'tests':
+    case 'tube':
       return Icons.science_outlined;
     case 'diagnosis':
-      return Icons.psychology_alt_rounded;
+    case 'clipboard':
+      return Icons.fact_check_outlined;
     case 'management':
       return Icons.assignment_turned_in_rounded;
     default:
@@ -3327,7 +3532,30 @@ IconData _scoreIcon(String title) {
   return Icons.query_stats_rounded;
 }
 
+String _examSubtitle(ExamSessionOverview session) {
+  final endAt = session.startedAt.add(
+    Duration(minutes: session.durationMinutes),
+  );
+  final remaining = endAt.difference(DateTime.now());
+  final safeRemaining = remaining.isNegative ? Duration.zero : remaining;
+  final minutes = safeRemaining.inMinutes
+      .remainder(60)
+      .toString()
+      .padLeft(2, '0');
+  final seconds = safeRemaining.inSeconds
+      .remainder(60)
+      .toString()
+      .padLeft(2, '0');
+  return 'Süre $minutes:$seconds • Puan ${session.remainingPoints}/${session.budgetPoints}';
+}
+
 String _errorText(Object? error) {
   if (error is CasesDataUnavailable) return error.message;
   return 'Canlı veri alınamadı. Lütfen bağlantı ve yetkileri kontrol edin.';
+}
+
+void _showComingSoon(BuildContext context, String title) {
+  ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text('$title yakında kullanıma açılacak.')));
 }

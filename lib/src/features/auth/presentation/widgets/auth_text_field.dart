@@ -66,12 +66,12 @@ class _AuthTextFieldState extends State<AuthTextField> {
             filled: true,
             fillColor: PratiCaseColors.white,
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 22,
+              horizontal: 16,
+              vertical: 16,
             ),
             prefixIcon: widget.icon == null
                 ? null
-                : Icon(widget.icon, color: PratiCaseColors.teal, size: 27),
+                : Icon(widget.icon, color: PratiCaseColors.teal, size: 23),
             suffixIcon: widget.obscureText
                 ? IconButton(
                     onPressed: () => setState(() => _obscured = !_obscured),

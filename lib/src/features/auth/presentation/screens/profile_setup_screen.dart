@@ -29,8 +29,8 @@ class ProfileSetupScreen extends StatefulWidget {
 class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   String _grade = '5. Sınıf';
   int _dailyGoal = 2;
-  final _branches = <String>{'Kadın Doğum', 'Genel Cerrahi'};
-  DateTime? _examDate = DateTime(2026, 6, 24);
+  final _branches = <String>{};
+  DateTime? _examDate;
   bool _loading = false;
   String? _error;
 
@@ -117,7 +117,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 children: [
                   for (final branch in branches)
                     _BranchChip(
-                      width: (constraints.maxWidth - 20) / 3,
+                      width: (constraints.maxWidth - 10) / 2,
                       icon: branch.$1,
                       label: branch.$2,
                       selected: _branches.contains(branch.$2),
@@ -216,8 +216,8 @@ class _BranchChip extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
-        width: width.clamp(92, 128),
-        height: 78,
+        width: width.clamp(132, 190),
+        height: 74,
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: selected
@@ -244,8 +244,9 @@ class _BranchChip extends StatelessWidget {
                   const SizedBox(height: 6),
                   Text(
                     label,
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),

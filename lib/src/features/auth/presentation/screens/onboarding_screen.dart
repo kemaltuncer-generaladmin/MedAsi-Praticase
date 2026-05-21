@@ -7,13 +7,11 @@ import '../widgets/auth_scaffold.dart';
 
 class OnboardingScreen extends StatelessWidget {
   const OnboardingScreen({
-    required this.repositoryConfigured,
     required this.onCreateAccount,
     required this.onLogin,
     super.key,
   });
 
-  final bool repositoryConfigured;
   final VoidCallback onCreateAccount;
   final VoidCallback onLogin;
 
@@ -75,19 +73,15 @@ class OnboardingScreen extends StatelessWidget {
           const SizedBox(height: 18),
           Row(
             children: [
-              Icon(
-                repositoryConfigured
-                    ? Icons.verified_user_rounded
-                    : Icons.shield_outlined,
+              const Icon(
+                Icons.verified_user_rounded,
                 size: 18,
                 color: PratiCaseColors.teal,
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  repositoryConfigured
-                      ? 'Medasi hesabınla güvenli şekilde devam et.'
-                      : 'Medasi auth env gelene kadar güvenli demo akışı açık.',
+                  'Medasi hesabınla güvenli şekilde devam et.',
                   style: textTheme.bodySmall,
                 ),
               ),
