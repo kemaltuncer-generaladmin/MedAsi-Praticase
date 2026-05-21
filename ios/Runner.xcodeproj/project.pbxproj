@@ -305,6 +305,7 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" embed_and_thin";
+			showEnvVarsInLog = 0;
 		};
 		6F2C3D4E5A6B7C8D9E0F1234 /* Generate objective_c dSYM */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -338,6 +339,7 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" build";
+			showEnvVarsInLog = 0;
 		};
 		A11B3CD0BAE72B021071EC73 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
