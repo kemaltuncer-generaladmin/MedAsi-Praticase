@@ -1,9 +1,24 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/praticase_colors.dart';
+import '../../cases/data/cases_repository.dart';
+import '../../cases/presentation/cases_screen.dart';
+import '../../home/data/home_repository.dart';
+import '../../home/presentation/home_screen.dart';
+import '../../progress/data/progress_repository.dart';
+import '../../progress/presentation/progress_screens.dart';
 
 class PratiCaseShell extends StatefulWidget {
-  const PratiCaseShell({super.key});
+  const PratiCaseShell({
+    required this.homeRepository,
+    required this.casesRepository,
+    required this.progressRepository,
+    super.key,
+  });
+
+  final HomeRepository? homeRepository;
+  final CasesRepository? casesRepository;
+  final ProgressRepository? progressRepository;
 
   @override
   State<PratiCaseShell> createState() => _PratiCaseShellState();
@@ -12,256 +27,221 @@ class PratiCaseShell extends StatefulWidget {
 class _PratiCaseShellState extends State<PratiCaseShell> {
   int _selectedIndex = 0;
 
-  static const _pages = <_ShellPage>[
-    _ShellPage(
-      title: 'Ana Sayfa',
-      icon: Icons.home_rounded,
-      headline: 'Bugünün OSCE istasyonu hazır',
-      body:
-          'Sanal hasta, süreli istasyon ve rubrik karnesi için PratiCase temeli kuruldu.',
-      action: 'Hızlı başlat',
-    ),
-    _ShellPage(
-      title: 'Vakalar',
-      icon: Icons.assignment_rounded,
-      headline: 'Vaka kütüphanesi',
-      body:
-          'Kadın doğum, üroloji ve genel cerrahi istasyonları için model alanı ayrıldı.',
-      action: 'Vakaları gör',
-    ),
-    _ShellPage(
-      title: 'Sınavlar',
-      icon: Icons.timer_rounded,
-      headline: 'Süreli sınav odası',
-      body:
-          'Tek istasyon, mini OSCE ve zayıf konulardan sınav akışları burada yaşayacak.',
-      action: 'Sınav planla',
-    ),
-    _ShellPage(
-      title: 'Gelişim',
-      icon: Icons.trending_up_rounded,
-      headline: 'Performans karnesi',
-      body:
-          'Anamnez, muayene, tetkik, tanı ve yönetim skorları için gelişim zemini hazır.',
-      action: 'Gelişimi incele',
-    ),
-    _ShellPage(
-      title: 'Profil',
-      icon: Icons.person_rounded,
-      headline: 'Profil ve hedefler',
-      body:
-          'Auth planı geldiğinde kullanıcı hedefleri ve Medasi hesabı bağlantısı buraya eklenecek.',
-      action: 'Profil kurulumu',
-    ),
-  ];
-
   @override
   Widget build(BuildContext context) {
-    final page = _pages[_selectedIndex];
+    final homeRepository = widget.homeRepository;
+    final casesRepository = widget.casesRepository;
+    final progressRepository = widget.progressRepository;
+    final pages = [
+      homeRepository == null
+          ? const _LiveDataRequiredScreen()
+          : HomeScreen(
+              repository: homeRepository,
+              onOpenCases: () => setState(() => _selectedIndex = 1),
+              onOpenProgress: () => setState(() => _selectedIndex = 3),
+              onOpenNotifications: progressRepository == null
+                  ? null
+                  : () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            NotificationsScreen(repository: progressRepository),
+                      ),
+                    ),
+              onOpenBadges: progressRepository == null
+                  ? null
+                  : () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            BadgesScreen(repository: progressRepository),
+                      ),
+                    ),
+            ),
+      casesRepository == null
+          ? const _LiveDataRequiredScreen()
+          : CasesScreen(repository: casesRepository),
+      casesRepository == null
+          ? const _LiveDataRequiredScreen()
+          : CasesScreen(repository: casesRepository),
+      progressRepository == null
+          ? const _LiveDataRequiredScreen()
+          : LeaderboardScreen(repository: progressRepository),
+      progressRepository == null
+          ? const _LiveDataRequiredScreen()
+          : ProfileScreen(repository: progressRepository),
+    ];
 
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.asset(
-                'assets/branding/praticase.png',
-                width: 36,
-                height: 36,
-                fit: BoxFit.cover,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Text('PratiCase'),
-          ],
-        ),
-      ),
+      extendBody: true,
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          children: [
-            _HeroPanel(page: page),
-            const SizedBox(height: 16),
-            const _StatusGrid(),
-            const SizedBox(height: 16),
-            const _AuthNotice(),
-          ],
-        ),
+        bottom: false,
+        child: IndexedStack(index: _selectedIndex, children: pages),
       ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: NavigationBar(
-          selectedIndex: _selectedIndex,
-          onDestinationSelected: (index) {
-            setState(() => _selectedIndex = index);
-          },
-          destinations: [
-            for (final item in _pages)
-              NavigationDestination(icon: Icon(item.icon), label: item.title),
-          ],
-        ),
+      bottomNavigationBar: _PratiCaseBottomNav(
+        selectedIndex: _selectedIndex,
+        onSelected: (index) => setState(() => _selectedIndex = index),
       ),
     );
   }
 }
 
-class _HeroPanel extends StatelessWidget {
-  const _HeroPanel({required this.page});
-
-  final _ShellPage page;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: PratiCaseColors.teal.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                child: Text(
-                  'OSCE pratik platformu',
-                  style: textTheme.labelLarge?.copyWith(
-                    color: PratiCaseColors.teal,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 18),
-            Text(page.headline, style: textTheme.headlineMedium),
-            const SizedBox(height: 10),
-            Text(page.body, style: textTheme.bodyMedium),
-            const SizedBox(height: 18),
-            FilledButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.arrow_forward_rounded),
-              label: Text(page.action),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusGrid extends StatelessWidget {
-  const _StatusGrid();
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isWide = constraints.maxWidth >= 680;
-        return GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: isWide ? 3 : 1,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: isWide ? 1.55 : 3.2,
-          children: const [
-            _StatusCard(
-              icon: Icons.verified_user_rounded,
-              title: 'Bağımsız ürün',
-              body: 'Qlinik ve SourceBase akışlarına dokunmadan ayrı gelişir.',
-            ),
-            _StatusCard(
-              icon: Icons.storage_rounded,
-              title: 'Ortak veri zemini',
-              body: 'Medasi hesabı ve Supabase entegrasyonu için hazır kapı.',
-            ),
-            _StatusCard(
-              icon: Icons.terminal_rounded,
-              title: 'Docker hazır',
-              body: 'Flutter web build çıktısı nginx ile servis edilecek.',
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _StatusCard extends StatelessWidget {
-  const _StatusCard({
-    required this.icon,
-    required this.title,
-    required this.body,
+class _PratiCaseBottomNav extends StatelessWidget {
+  const _PratiCaseBottomNav({
+    required this.selectedIndex,
+    required this.onSelected,
   });
 
-  final IconData icon;
-  final String title;
-  final String body;
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Card(
+    return SafeArea(
+      top: false,
       child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: PratiCaseColors.teal),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: textTheme.titleMedium,
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        child: Container(
+          height: 82,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: PratiCaseColors.white,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: PratiCaseColors.navy.withValues(alpha: 0.12),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              _NavItem(
+                selected: selectedIndex == 0,
+                icon: Icons.home_rounded,
+                label: 'Ana Sayfa',
+                onTap: () => onSelected(0),
+              ),
+              _NavItem(
+                selected: selectedIndex == 1,
+                icon: Icons.inventory_2_outlined,
+                label: 'Vakalar',
+                onTap: () => onSelected(1),
+              ),
+              _CenterNavItem(
+                selected: selectedIndex == 2,
+                onTap: () => onSelected(2),
+              ),
+              _NavItem(
+                selected: selectedIndex == 3,
+                icon: Icons.bar_chart_rounded,
+                label: 'Sıralama',
+                onTap: () => onSelected(3),
+              ),
+              _NavItem(
+                selected: selectedIndex == 4,
+                icon: Icons.person_outline_rounded,
+                label: 'Profilim',
+                onTap: () => onSelected(4),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.selected,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final bool selected;
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? PratiCaseColors.teal : const Color(0xFF7B8798);
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: SizedBox(
+          height: 66,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: color, size: 25),
+              const SizedBox(height: 5),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 12,
+                    fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    body,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: textTheme.bodySmall,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CenterNavItem extends StatelessWidget {
+  const _CenterNavItem({required this.selected, required this.onTap});
+
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(30),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 58,
+              height: 58,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [PratiCaseColors.teal, Color(0xFF00586A)],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: PratiCaseColors.teal.withValues(alpha: 0.34),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
                   ),
                 ],
               ),
+              child: const Icon(
+                Icons.add_rounded,
+                color: PratiCaseColors.white,
+                size: 38,
+              ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _AuthNotice extends StatelessWidget {
-  const _AuthNotice();
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(Icons.lock_outline_rounded, color: PratiCaseColors.gold),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Auth akışı, gelecek plan dosyasına göre ayrı feature altında kurulacak.',
-                style: Theme.of(context).textTheme.bodyMedium,
+            const SizedBox(height: 3),
+            Text(
+              'Vaka Çöz',
+              maxLines: 1,
+              style: TextStyle(
+                color: selected ? PratiCaseColors.teal : PratiCaseColors.navy,
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
               ),
             ),
           ],
@@ -271,18 +251,37 @@ class _AuthNotice extends StatelessWidget {
   }
 }
 
-class _ShellPage {
-  const _ShellPage({
-    required this.title,
-    required this.icon,
-    required this.headline,
-    required this.body,
-    required this.action,
-  });
+class _LiveDataRequiredScreen extends StatelessWidget {
+  const _LiveDataRequiredScreen();
 
-  final String title;
-  final IconData icon;
-  final String headline;
-  final String body;
-  final String action;
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(24, 96, 24, 128),
+      children: const [
+        Icon(Icons.storage_rounded, color: PratiCaseColors.teal, size: 58),
+        SizedBox(height: 18),
+        Text(
+          'PratiCase canlı veri bekliyor',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: PratiCaseColors.navy,
+            fontSize: 24,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        SizedBox(height: 10),
+        Text(
+          'Ana ekran mock data kullanmaz. SUPABASE_URL ve SUPABASE_ANON_KEY ile başlatıldığında praticase şemasından beslenecek.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Color(0xFF627084),
+            fontSize: 15,
+            height: 1.45,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
 }

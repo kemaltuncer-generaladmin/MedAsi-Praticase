@@ -2,13 +2,25 @@ import 'package:flutter/material.dart';
 
 import '../features/auth/data/auth_repository.dart';
 import '../features/auth/presentation/auth_flow.dart';
+import '../features/cases/data/cases_repository.dart';
+import '../features/home/data/home_repository.dart';
+import '../features/progress/data/progress_repository.dart';
 import '../features/shell/presentation/praticase_shell.dart';
 import 'theme/praticase_theme.dart';
 
 class PratiCaseApp extends StatefulWidget {
-  const PratiCaseApp({required this.authRepository, super.key});
+  const PratiCaseApp({
+    required this.authRepository,
+    this.homeRepository,
+    this.casesRepository,
+    this.progressRepository,
+    super.key,
+  });
 
   final AuthRepository authRepository;
+  final HomeRepository? homeRepository;
+  final CasesRepository? casesRepository;
+  final ProgressRepository? progressRepository;
 
   @override
   State<PratiCaseApp> createState() => _PratiCaseAppState();
@@ -38,7 +50,11 @@ class _PratiCaseAppState extends State<PratiCaseApp> {
       debugShowCheckedModeBanner: false,
       theme: PratiCaseTheme.light(),
       home: _authenticated
-          ? const PratiCaseShell()
+          ? PratiCaseShell(
+              homeRepository: widget.homeRepository,
+              casesRepository: widget.casesRepository,
+              progressRepository: widget.progressRepository,
+            )
           : AuthFlow(
               authRepository: widget.authRepository,
               onAuthenticated: () => setState(() => _authenticated = true),
