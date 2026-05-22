@@ -987,7 +987,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
             children: [
               _ExamTopBar(
                 session: bundle.session,
-                phase: 'Tanı',
+                phase: 'Tanı ve Yönetim',
                 repository: widget.repository,
                 sessionId: widget.sessionId,
               ),
@@ -995,13 +995,13 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
               const _PhaseTabs(activeStep: 4),
               const SizedBox(height: 18),
               _InputBlock(
-                label: 'En olası tanınız nedir?',
+                label: 'Ön Tanı',
                 controller: _primaryController,
-                hint: 'Tanı yazın',
-                maxLines: 1,
+                hint: 'Kesinleşen veya en olası ön tanınızı yazın.',
+                maxLines: 2,
               ),
               const SizedBox(height: 16),
-              const _FormLabel('Ayırıcı Tanılarınızı seçin'),
+              const _FormLabel('Ayırıcı Tanılar'),
               const SizedBox(height: 8),
               for (final option in bundle.options) ...[
                 _DiagnosisTile(
@@ -1027,9 +1027,10 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
                 ),
               const SizedBox(height: 14),
               _InputBlock(
-                label: 'Tanı gerekçenizi yazın',
+                label: 'Tanı Gerekçesi',
                 controller: _reasoningController,
-                hint: 'Klinik bulgular ve laboratuvar sonuçlarını özetleyin.',
+                hint:
+                    'Dışlanması gereken tanıları, klinik bulguları ve tetkik sonuçlarını özetleyin.',
                 maxLines: 6,
               ),
             ],
@@ -1084,11 +1085,16 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
   Future<_ManagementBundle> _load() async {
     final session = await widget.repository.loadSession(widget.sessionId);
     final answer = await widget.repository.loadManagementPlan(widget.sessionId);
+    final diagnosisAnswer = await widget.repository.loadDiagnosisAnswer(
+      widget.sessionId,
+    );
     final options = await widget.repository.loadManagementOptions(
       sessionId: widget.sessionId,
       caseId: widget.caseId,
     );
-    _diagnosisController.text = answer?.diagnosis ?? '';
+    _diagnosisController.text = (answer?.diagnosis.trim().isNotEmpty ?? false)
+        ? answer!.diagnosis
+        : diagnosisAnswer?.primaryDiagnosis ?? '';
     _noteController.text = answer?.note ?? '';
     _selected
       ..clear()
@@ -1150,7 +1156,7 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
             children: [
               _ExamTopBar(
                 session: bundle.session,
-                phase: 'Yönetim Planı',
+                phase: 'Tanı ve Yönetim',
                 repository: widget.repository,
                 sessionId: widget.sessionId,
               ),
@@ -1158,14 +1164,14 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
               const _PhaseTabs(activeStep: 5),
               const SizedBox(height: 18),
               _InputBlock(
-                label: 'Tanınız',
+                label: 'Ön Tanı',
                 controller: _diagnosisController,
-                hint: 'Tanınızı yazın',
-                maxLines: 1,
+                hint: 'Kesinleşen veya en olası ön tanınızı yazın.',
+                maxLines: 2,
               ),
               const SizedBox(height: 18),
               const Text(
-                'Tedavi Planınızı Oluşturun',
+                'Yönetim Planı',
                 style: TextStyle(
                   color: PratiCaseColors.navy,
                   fontSize: 17,
@@ -1174,7 +1180,7 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
               ),
               const SizedBox(height: 6),
               const Text(
-                'Hastaya yönelik uygun tedavi ve yönetim planınızı seçin.',
+                'Tedavi, konsültasyon ve acil müdahale kararlarını eksiksiz işaretleyin.',
                 style: TextStyle(
                   color: Color(0xFF66758A),
                   fontWeight: FontWeight.w600,
@@ -1190,7 +1196,7 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
               else
                 for (final entry in grouped.entries) ...[
                   _ManagementGroupCard(
-                    title: entry.key,
+                    title: _managementCategoryTitle(entry.key),
                     options: entry.value,
                     selected: _selected,
                     onChanged: (optionId, selected) {
@@ -1206,9 +1212,10 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
                   const SizedBox(height: 14),
                 ],
               _InputBlock(
-                label: 'Planınızı kısaca açıklayın',
+                label: 'Acil Müdahaleler ve Ek Tetkikler',
                 controller: _noteController,
-                hint: 'Yönetim planınızı klinik gerekçesiyle yazın.',
+                hint:
+                    'Acil prosedür, ileri görüntüleme veya ek laboratuvar taleplerini klinik gerekçesiyle yazın.',
                 maxLines: 5,
               ),
               const SizedBox(height: 14),
@@ -1229,7 +1236,8 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
         },
       ),
       bottom: _BottomAction(
-        label: 'Planı Kaydet ve Karnemi Hazırla',
+        label: 'Sınavı Bitir ve Değerlendir',
+        icon: Icons.check_circle_rounded,
         onPressed: _save,
       ),
     );
@@ -1325,6 +1333,13 @@ class ResultScreen extends StatelessWidget {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => CaseReportScreen(result: result),
+                    ),
+                  );
+                },
+                onSuggestedCases: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => CasesScreen(repository: repository),
                     ),
                   );
                 },
@@ -2944,10 +2959,15 @@ class _FormLabel extends StatelessWidget {
 }
 
 class _BottomAction extends StatelessWidget {
-  const _BottomAction({required this.label, required this.onPressed});
+  const _BottomAction({
+    required this.label,
+    required this.onPressed,
+    this.icon = Icons.arrow_forward_rounded,
+  });
 
   final String label;
   final VoidCallback? onPressed;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
@@ -2956,7 +2976,7 @@ class _BottomAction extends StatelessWidget {
       child: FilledButton.icon(
         onPressed: onPressed,
         label: Text(label),
-        icon: const Icon(Icons.arrow_forward_rounded),
+        icon: Icon(icon),
         style: FilledButton.styleFrom(
           textStyle: const TextStyle(fontWeight: FontWeight.w900),
         ),
@@ -3462,6 +3482,24 @@ class _ManagementBundle {
   final List<ManagementOption> options;
 }
 
+String _managementCategoryTitle(String value) {
+  final normalized = value.trim().toLowerCase();
+  if (normalized.contains('kons') || normalized.contains('consult')) {
+    return 'Konsültasyon İstemleri';
+  }
+  if (normalized.contains('acil') ||
+      normalized.contains('emergency') ||
+      normalized.contains('tetkik')) {
+    return 'Acil Müdahaleler ve Ek Tetkikler';
+  }
+  if (normalized.contains('tedavi') ||
+      normalized.contains('treatment') ||
+      normalized.contains('ilaç')) {
+    return 'Tedavi Planı';
+  }
+  return value.trim().isEmpty ? 'Tedavi Planı' : value;
+}
+
 class _ManagementGroupCard extends StatelessWidget {
   const _ManagementGroupCard({
     required this.title,
@@ -3687,28 +3725,47 @@ class _ScoreCard extends StatelessWidget {
 }
 
 class _ResultActions extends StatelessWidget {
-  const _ResultActions({required this.onRetry, required this.onReport});
+  const _ResultActions({
+    required this.onRetry,
+    required this.onReport,
+    required this.onSuggestedCases,
+  });
 
   final VoidCallback onRetry;
   final VoidCallback onReport;
+  final VoidCallback onSuggestedCases;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: OutlinedButton.icon(
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: FilledButton.icon(
             onPressed: onRetry,
-            icon: const Icon(Icons.refresh_rounded),
+            icon: const Icon(Icons.restart_alt_rounded),
             label: const Text('Tekrar Çöz'),
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: FilledButton.icon(
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: OutlinedButton.icon(
             onPressed: onReport,
             icon: const Icon(Icons.description_outlined),
             label: const Text('Detaylı Rapor'),
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: OutlinedButton.icon(
+            onPressed: onSuggestedCases,
+            icon: const Icon(Icons.library_books_outlined),
+            label: const Text('Benzer Vaka Önerileri'),
           ),
         ),
       ],

@@ -37,6 +37,7 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
         repository: widget.homeRepository,
         casesRepository: widget.casesRepository,
         onOpenCases: () => setState(() => _selectedIndex = 1),
+        onOpenExams: () => setState(() => _selectedIndex = 2),
         onOpenProgress: () => setState(() => _selectedIndex = 3),
         onOpenNotifications: () => Navigator.of(context).push(
           MaterialPageRoute<void>(

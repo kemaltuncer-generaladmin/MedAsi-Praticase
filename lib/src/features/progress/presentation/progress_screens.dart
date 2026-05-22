@@ -30,6 +30,8 @@ class _BadgesScreenState extends State<BadgesScreen> {
         return _ProgressPage(
           title: 'Rozetlerim',
           children: [
+            _BadgeSummaryHero(badges: badges),
+            const SizedBox(height: 16),
             _SegmentHeader(
               items: const ['Tümü', 'Kazanılan', 'Kazanılmamış'],
               selectedIndex: _selectedFilter,
@@ -1282,6 +1284,144 @@ class _SupportActionButton extends StatelessWidget {
   }
 }
 
+class _BadgeSummaryHero extends StatelessWidget {
+  const _BadgeSummaryHero({required this.badges});
+
+  final List<BadgeCard> badges;
+
+  @override
+  Widget build(BuildContext context) {
+    final earned = badges.where((badge) => badge.earned).length;
+    final total = badges.length;
+    final active = badges
+        .where((badge) => !badge.earned && badge.progressCount > 0)
+        .take(2)
+        .toList();
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [PratiCaseColors.navy, PratiCaseColors.teal],
+        ),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: PratiCaseColors.navy.withValues(alpha: 0.12),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Kazanılan Toplam',
+            style: TextStyle(
+              color: PratiCaseColors.tealBright,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: RichText(
+                  text: TextSpan(
+                    children: [
+                      TextSpan(
+                        text: '$earned',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 40,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      TextSpan(
+                        text: ' / $total Rozet',
+                        style: const TextStyle(
+                          color: Color(0xFFDDE8EA),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const Icon(
+                Icons.military_tech_rounded,
+                color: PratiCaseColors.tealBright,
+                size: 42,
+              ),
+            ],
+          ),
+          if (active.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            for (final badge in active) ...[
+              _BadgeProgressLine(badge: badge),
+              if (badge != active.last) const SizedBox(height: 10),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _BadgeProgressLine extends StatelessWidget {
+  const _BadgeProgressLine({required this.badge});
+
+  final BadgeCard badge;
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = badge.targetCount == 0
+        ? 0.0
+        : (badge.progressCount / badge.targetCount).clamp(0.0, 1.0);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                badge.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            Text(
+              '${badge.progressCount}/${badge.targetCount}',
+              style: const TextStyle(
+                color: Color(0xFFDDE8EA),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(99),
+          child: LinearProgressIndicator(
+            value: progress,
+            minHeight: 6,
+            backgroundColor: Colors.white24,
+            color: PratiCaseColors.tealBright,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _BadgeCardView extends StatelessWidget {
   const _BadgeCardView({required this.badge});
 
@@ -1351,58 +1491,117 @@ class _TopThree extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (entries.isEmpty) return const SizedBox.shrink();
+    final podium = [
+      ...entries.where((entry) => entry.rank == 2),
+      ...entries.where((entry) => entry.rank == 1),
+      ...entries.where((entry) => entry.rank == 3),
+    ];
+    if (podium.isEmpty) podium.addAll(entries);
     return SizedBox(
-      height: 180,
+      height: 188,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          for (final entry in entries)
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  CircleAvatar(
-                    radius: entry.rank == 1 ? 38 : 30,
-                    backgroundColor: PratiCaseColors.teal.withValues(
-                      alpha: 0.14,
-                    ),
-                    child: Text(
-                      _initial(entry.displayName),
-                      style: const TextStyle(
-                        color: PratiCaseColors.teal,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
+          for (final entry in podium.take(3)) ...[
+            Expanded(child: _PodiumCard(entry: entry)),
+            if (entry != podium.take(3).last) const SizedBox(width: 10),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _PodiumCard extends StatelessWidget {
+  const _PodiumCard({required this.entry});
+
+  final LeaderboardEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final isFirst = entry.rank == 1;
+    return Container(
+      height: isFirst ? 168 : 146,
+      padding: const EdgeInsets.fromLTRB(10, 14, 10, 12),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isFirst
+              ? PratiCaseColors.gold.withValues(alpha: 0.62)
+              : PratiCaseColors.border,
+          width: isFirst ? 1.5 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: PratiCaseColors.navy.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Stack(
+            alignment: Alignment.bottomCenter,
+            children: [
+              CircleAvatar(
+                radius: isFirst ? 34 : 28,
+                backgroundColor: PratiCaseColors.teal.withValues(alpha: 0.14),
+                child: Text(
+                  _initial(entry.displayName),
+                  style: const TextStyle(
+                    color: PratiCaseColors.teal,
+                    fontWeight: FontWeight.w900,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${entry.rank}',
-                    style: const TextStyle(
-                      color: PratiCaseColors.gold,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  Text(
-                    entry.displayName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: PratiCaseColors.navy,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  Text(
-                    '${entry.totalPoints} puan',
-                    style: const TextStyle(
-                      color: Color(0xFF66758A),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
+                ),
               ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isFirst ? PratiCaseColors.gold : PratiCaseColors.navy,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: Text(
+                  '#${entry.rank}',
+                  style: TextStyle(
+                    color: isFirst ? PratiCaseColors.navy : Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          Text(
+            entry.displayName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: PratiCaseColors.navy,
+              fontWeight: FontWeight.w900,
             ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            '${entry.totalPoints}',
+            style: TextStyle(
+              color: isFirst ? PratiCaseColors.gold : PratiCaseColors.teal,
+              fontSize: isFirst ? 20 : 17,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          Text(
+            '${entry.solvedCaseCount} vaka',
+            style: const TextStyle(
+              color: Color(0xFF66758A),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
         ],
       ),
     );
