@@ -740,13 +740,13 @@ class _QuickActionCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Ink(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         decoration: _cardDecoration(),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _SoftIcon(icon: icon, color: PratiCaseColors.teal, size: 48),
-            const SizedBox(height: 12),
+            _SoftIcon(icon: icon, color: PratiCaseColors.teal, size: 44),
+            const SizedBox(height: 10),
             FittedBox(
               fit: BoxFit.scaleDown,
               child: Text(
@@ -759,7 +759,7 @@ class _QuickActionCard extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 5),
             Text(
               subtitle,
               maxLines: 2,
@@ -767,7 +767,8 @@ class _QuickActionCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: Color(0xFF68768E),
-                fontSize: 13,
+                fontSize: 12,
+                height: 1.15,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -996,31 +997,34 @@ class _SearchPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(26),
-      child: Container(
-        height: 50,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(
-          color: PratiCaseColors.white,
-          borderRadius: BorderRadius.circular(26),
-          border: Border.all(color: PratiCaseColors.border),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.search_rounded, color: Color(0xFF68768E)),
-            SizedBox(width: 8),
-            Text(
-              'Arama',
-              style: TextStyle(
-                color: Color(0xFF68768E),
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(26),
+        child: Container(
+          height: 50,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: PratiCaseColors.white,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: PratiCaseColors.border),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.search_rounded, color: Color(0xFF68768E)),
+              SizedBox(width: 8),
+              Text(
+                'Arama',
+                style: TextStyle(
+                  color: Color(0xFF68768E),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -1985,8 +1985,12 @@ class _ProfileHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasDisplayName = profile.displayName.trim().isNotEmpty;
+    final title = hasDisplayName
+        ? profile.displayName.trim()
+        : _emailName(profile.email);
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 42, 20, 32),
+      padding: const EdgeInsets.fromLTRB(20, 34, 20, 26),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [Color(0xFF005263), Color(0xFF007179)],
@@ -1999,11 +2003,7 @@ class _ProfileHero extends StatelessWidget {
             radius: 46,
             backgroundColor: Colors.white,
             child: Text(
-              _initial(
-                profile.displayName.isEmpty
-                    ? profile.email
-                    : profile.displayName,
-              ),
+              _initial(title),
               style: const TextStyle(
                 color: PratiCaseColors.teal,
                 fontSize: 28,
@@ -2012,14 +2012,32 @@ class _ProfileHero extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Text(
-            profile.displayName.isEmpty ? profile.email : profile.displayName,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              title,
+              maxLines: 1,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
+          if (!hasDisplayName && profile.email.trim().isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              profile.email.trim(),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
           const SizedBox(height: 6),
           Text(
             [
@@ -2073,31 +2091,46 @@ class _StatsPanel extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          GridView.count(
-            crossAxisCount: 3,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            childAspectRatio: 1.2,
-            children: [
-              _MiniMetric(
-                label: 'Çözdüğüm Vaka',
-                value: '${profile.solvedCaseCount}',
-              ),
-              _MiniMetric(
-                label: 'Toplam Puan',
-                value: '${profile.totalPoints}',
-              ),
-              _MiniMetric(
-                label: 'Doğru Tanı',
-                value: '%${profile.correctDiagnosisRate}',
-              ),
-              _MiniMetric(
-                label: 'Ortalama',
-                value: '${profile.successRatePercent}',
-              ),
-              _MiniMetric(label: 'Seri', value: '${profile.dailyStreak} gün'),
-              _MiniMetric(label: 'Sınıf', value: profile.classLevel),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final width = (constraints.maxWidth - 16) / 3;
+              return Wrap(
+                spacing: 8,
+                runSpacing: 10,
+                children: [
+                  _MiniMetric(
+                    width: width,
+                    label: 'Çözdüğüm Vaka',
+                    value: '${profile.solvedCaseCount}',
+                  ),
+                  _MiniMetric(
+                    width: width,
+                    label: 'Toplam Puan',
+                    value: '${profile.totalPoints}',
+                  ),
+                  _MiniMetric(
+                    width: width,
+                    label: 'Doğru Tanı',
+                    value: '%${profile.correctDiagnosisRate}',
+                  ),
+                  _MiniMetric(
+                    width: width,
+                    label: 'Ortalama',
+                    value: '${profile.successRatePercent}',
+                  ),
+                  _MiniMetric(
+                    width: width,
+                    label: 'Seri',
+                    value: '${profile.dailyStreak} gün',
+                  ),
+                  _MiniMetric(
+                    width: width,
+                    label: 'Sınıf',
+                    value: profile.classLevel,
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -2120,95 +2153,102 @@ class _MenuPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: _cardDecoration(),
-      child: Column(
-        children: [
-          for (final item in items)
-            ListTile(
-              leading: Icon(item.icon, color: PratiCaseColors.navy),
-              title: Text(item.title),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () {
-                if (item.title == 'Vaka Geçmişim') {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => CaseHistoryScreen(repository: repository),
-                    ),
-                  );
-                }
-                if (item.title == 'Favori Vakalarım') {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) =>
-                          FavoriteCasesScreen(repository: repository),
-                    ),
-                  );
-                }
-                if (item.title == 'Notlarım') {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => NotesScreen(repository: repository),
-                    ),
-                  );
-                }
-                if (item.title == 'Günlük Hedefler') {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => DailyGoalsScreen(repository: repository),
-                    ),
-                  );
-                }
-                if (item.title == 'Liderlik Tablosu') {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => LeaderboardScreen(repository: repository),
-                    ),
-                  );
-                }
-                if (item.title == 'Bildirimler') {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) =>
-                          NotificationsScreen(repository: repository),
-                    ),
-                  );
-                }
-                if (item.title == 'Başarılarım') {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => BadgesScreen(repository: repository),
-                    ),
-                  );
-                }
-                if (item.title == 'Ayarlar') {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => SettingsScreen(
-                        authRepository: authRepository,
-                        repository: repository,
-                        onSignOut: onSignOut,
+    return Material(
+      type: MaterialType.transparency,
+      child: Container(
+        decoration: _cardDecoration(),
+        child: Column(
+          children: [
+            for (final item in items)
+              ListTile(
+                leading: Icon(item.icon, color: PratiCaseColors.navy),
+                title: Text(item.title),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () {
+                  if (item.title == 'Vaka Geçmişim') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            CaseHistoryScreen(repository: repository),
                       ),
-                    ),
-                  );
-                }
-                if (item.title == 'Yardım ve Destek') {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => HelpCenterScreen(repository: repository),
-                    ),
-                  );
-                }
-                if (item.title == 'İndirmelerim') {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => MyDataScreen(repository: repository),
-                    ),
-                  );
-                }
-              },
-            ),
-        ],
+                    );
+                  }
+                  if (item.title == 'Favori Vakalarım') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            FavoriteCasesScreen(repository: repository),
+                      ),
+                    );
+                  }
+                  if (item.title == 'Notlarım') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => NotesScreen(repository: repository),
+                      ),
+                    );
+                  }
+                  if (item.title == 'Günlük Hedefler') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            DailyGoalsScreen(repository: repository),
+                      ),
+                    );
+                  }
+                  if (item.title == 'Liderlik Tablosu') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            LeaderboardScreen(repository: repository),
+                      ),
+                    );
+                  }
+                  if (item.title == 'Bildirimler') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            NotificationsScreen(repository: repository),
+                      ),
+                    );
+                  }
+                  if (item.title == 'Başarılarım') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => BadgesScreen(repository: repository),
+                      ),
+                    );
+                  }
+                  if (item.title == 'Ayarlar') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => SettingsScreen(
+                          authRepository: authRepository,
+                          repository: repository,
+                          onSignOut: onSignOut,
+                        ),
+                      ),
+                    );
+                  }
+                  if (item.title == 'Yardım ve Destek') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            HelpCenterScreen(repository: repository),
+                      ),
+                    );
+                  }
+                  if (item.title == 'İndirmelerim') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => MyDataScreen(repository: repository),
+                      ),
+                    );
+                  }
+                },
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -2733,37 +2773,48 @@ class _FormFieldBlock extends StatelessWidget {
 }
 
 class _MiniMetric extends StatelessWidget {
-  const _MiniMetric({required this.label, required this.value});
+  const _MiniMetric({required this.label, required this.value, this.width});
 
   final String label;
   final String value;
+  final double? width;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          value,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: PratiCaseColors.navy,
-            fontWeight: FontWeight.w900,
+    return SizedBox(
+      width: width,
+      height: 72,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              style: const TextStyle(
+                color: PratiCaseColors.navy,
+                fontSize: 17,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: Color(0xFF66758A),
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
+          const SizedBox(height: 4),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Color(0xFF66758A),
+              fontSize: 11,
+              height: 1.15,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -2957,4 +3008,11 @@ String _initial(String value) {
   final trimmed = value.trim();
   if (trimmed.isEmpty) return 'P';
   return String.fromCharCode(trimmed.runes.first).toUpperCase();
+}
+
+String _emailName(String email) {
+  final trimmed = email.trim();
+  if (trimmed.isEmpty) return 'PratiCase';
+  final local = trimmed.split('@').first.trim();
+  return local.isEmpty ? trimmed : local;
 }

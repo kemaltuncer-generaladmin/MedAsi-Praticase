@@ -9,6 +9,8 @@ import 'package:praticase/src/features/auth/presentation/screens/register_screen
 import 'package:praticase/src/features/auth/presentation/screens/reset_password_screen.dart';
 import 'package:praticase/src/features/cases/data/cases_repository.dart';
 import 'package:praticase/src/features/home/data/home_repository.dart';
+import 'package:praticase/src/features/home/domain/home_dashboard.dart';
+import 'package:praticase/src/features/home/presentation/home_screen.dart';
 import 'package:praticase/src/features/progress/data/progress_repository.dart';
 import 'package:praticase/src/features/progress/domain/progress_models.dart';
 import 'package:praticase/src/features/progress/presentation/progress_screens.dart';
@@ -183,6 +185,56 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('profile screen keeps long email compact on iPhone 14', (
+    tester,
+  ) async {
+    await _setIPhone14Viewport(tester);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ProfileScreen(
+            authRepository: _TestAuthRepository(),
+            repository: _LongEmailProgressRepository(),
+            onSignOut: () async {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('kemal.tuncer'), findsOneWidget);
+    expect(find.text('kemal.tuncer@medasi.com.tr'), findsOneWidget);
+    expect(find.text('İstatistiklerim'), findsOneWidget);
+  });
+
+  testWidgets('home screen renders with live empty optional sections', (
+    tester,
+  ) async {
+    await _setIPhone14Viewport(tester);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: HomeScreen(
+            repository: _EmptyLiveHomeRepository(),
+            casesRepository: _FakeCasesRepository(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Canlı veri bağlantısı gerekli'), findsNothing);
+    expect(find.text('Devam Edilen Vaka'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Önerilen Vakalar'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Önerilen Vakalar'), findsOneWidget);
+  });
 }
 
 class _FakeHomeRepository extends Fake implements HomeRepository {}
@@ -213,6 +265,49 @@ class _ProfileProgressRepository extends Fake implements ProgressRepository {
         offlineMode: false,
         caseDownloadsEnabled: false,
       ),
+    );
+  }
+}
+
+class _LongEmailProgressRepository extends Fake implements ProgressRepository {
+  @override
+  Future<ProfileCard> loadProfile() async {
+    return const ProfileCard(
+      displayName: '',
+      email: 'kemal.tuncer@medasi.com.tr',
+      classLevel: 'Mezun',
+      target: 'TUS',
+      totalPoints: 0,
+      solvedCaseCount: 0,
+      correctDiagnosisRate: 0,
+      dailyStreak: 0,
+      successRatePercent: 0,
+      settings: AppSettings(
+        displayMode: 'Açık',
+        language: 'Türkçe',
+        textSize: 'Orta',
+        soundAndHaptics: true,
+        dataUsage: 'Standart',
+        offlineMode: false,
+        caseDownloadsEnabled: false,
+      ),
+    );
+  }
+}
+
+class _EmptyLiveHomeRepository extends Fake implements HomeRepository {
+  @override
+  Future<HomeDashboard> loadDashboard() async {
+    return const HomeDashboard(
+      user: HomeUser(
+        id: 'test-user',
+        email: 'kemal.tuncer@medasi.com.tr',
+        fullName: 'Kemal Tuncer',
+      ),
+      banners: [],
+      stats: null,
+      recommendedCases: [],
+      unreadNotificationCount: 0,
     );
   }
 }
