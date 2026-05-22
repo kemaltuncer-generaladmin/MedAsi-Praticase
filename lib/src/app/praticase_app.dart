@@ -61,6 +61,7 @@ class _PratiCaseAppState extends State<PratiCaseApp> {
           ? const _PratiCaseStartupScreen()
           : _authenticated
           ? PratiCaseShell(
+              authRepository: widget.authRepository,
               homeRepository: widget.homeRepository,
               casesRepository: widget.casesRepository,
               progressRepository: widget.progressRepository,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/praticase_colors.dart';
+import '../../auth/data/auth_repository.dart';
 import '../../cases/data/cases_repository.dart';
 import '../../cases/presentation/cases_screen.dart';
 import '../../home/data/home_repository.dart';
@@ -11,6 +12,7 @@ import '../../progress/presentation/progress_screens.dart';
 
 class PratiCaseShell extends StatefulWidget {
   const PratiCaseShell({
+    required this.authRepository,
     required this.homeRepository,
     required this.casesRepository,
     required this.progressRepository,
@@ -18,6 +20,7 @@ class PratiCaseShell extends StatefulWidget {
     super.key,
   });
 
+  final AuthRepository authRepository;
   final HomeRepository homeRepository;
   final CasesRepository casesRepository;
   final ProgressRepository progressRepository;
@@ -66,6 +69,7 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
       ),
       _ProgressSummaryScreen(repository: widget.progressRepository),
       ProfileScreen(
+        authRepository: widget.authRepository,
         repository: widget.progressRepository,
         onSignOut: widget.onSignOut,
       ),
