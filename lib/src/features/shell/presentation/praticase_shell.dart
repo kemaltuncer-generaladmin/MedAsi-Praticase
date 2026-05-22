@@ -51,7 +51,15 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
           ),
         ),
       ),
-      CasesScreen(repository: widget.casesRepository),
+      CasesScreen(
+        repository: widget.casesRepository,
+        onOpenNotifications: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) =>
+                NotificationsScreen(repository: widget.progressRepository),
+          ),
+        ),
+      ),
       _ExamsScreen(
         progressRepository: widget.progressRepository,
         onOpenCases: () => setState(() => _selectedIndex = 1),
@@ -428,10 +436,7 @@ class _ShellTopBar extends StatelessWidget {
               ),
             ),
           ),
-          IconButton(
-            onPressed: () => _showComingSoon(context, 'Gelişim seçenekleri'),
-            icon: const Icon(Icons.more_vert_rounded),
-          ),
+          const SizedBox(width: 48),
         ],
       ),
     );
@@ -746,10 +751,4 @@ BoxDecoration _shellCardDecoration() {
       ),
     ],
   );
-}
-
-void _showComingSoon(BuildContext context, String title) {
-  ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(SnackBar(content: Text('$title yakında kullanıma açılacak.')));
 }

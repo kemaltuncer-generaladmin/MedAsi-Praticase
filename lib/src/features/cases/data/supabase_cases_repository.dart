@@ -68,6 +68,25 @@ class SupabaseCasesRepository implements CasesRepository {
   }
 
   @override
+  Future<void> setBookmark({
+    required String caseId,
+    required bool bookmarked,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) throw const CasesDataUnavailable('Oturum bulunamadı.');
+    try {
+      final table = _client.schema('praticase').from('user_bookmarked_cases');
+      if (bookmarked) {
+        await table.upsert({'user_id': user.id, 'case_id': caseId});
+      } else {
+        await table.delete().eq('user_id', user.id).eq('case_id', caseId);
+      }
+    } on PostgrestException catch (error) {
+      throw CasesDataUnavailable(_message(error));
+    }
+  }
+
+  @override
   Future<ExamSessionOverview> startSession(String caseId) async {
     final user = _client.auth.currentUser;
     if (user == null) throw const CasesDataUnavailable('Oturum bulunamadı.');
@@ -146,10 +165,15 @@ class SupabaseCasesRepository implements CasesRepository {
     required String message,
   }) async {
     try {
-      await _client.functions.invoke(
+      final response = await _client.functions.invoke(
         'praticase-patient-turn',
         body: {'sessionId': sessionId, 'message': message},
       );
+      if (response.status >= 400) {
+        throw CasesDataUnavailable(_functionMessage(response.data));
+      }
+    } on CasesDataUnavailable {
+      rethrow;
     } on Object {
       throw const CasesDataUnavailable(
         'Yapay zeka hasta yanıtı alınamadı. Lütfen Vertex AI edge function ayarlarını kontrol edin.',
@@ -532,10 +556,15 @@ class SupabaseCasesRepository implements CasesRepository {
 
   Future<void> _finalizeSession(String sessionId) async {
     try {
-      await _client.functions.invoke(
+      final response = await _client.functions.invoke(
         'praticase-complete-session',
         body: {'sessionId': sessionId},
       );
+      if (response.status >= 400) {
+        throw CasesDataUnavailable(_functionMessage(response.data));
+      }
+    } on CasesDataUnavailable {
+      rethrow;
     } on Object {
       throw const CasesDataUnavailable(
         'Yapay zeka sonuç karnesi oluşturulamadı. Lütfen Vertex AI edge function ayarlarını kontrol edin.',
@@ -669,9 +698,45 @@ class SupabaseCasesRepository implements CasesRepository {
             'updated_at': DateTime.now().toUtc().toIso8601String(),
           })
           .eq('id', sessionId);
+      await _updateProgressForStep(sessionId: sessionId, step: step);
     } on PostgrestException catch (error) {
       throw CasesDataUnavailable(_message(error));
     }
+  }
+
+  Future<void> _updateProgressForStep({
+    required String sessionId,
+    required String step,
+  }) async {
+    final session = await loadSession(sessionId);
+    final user = _client.auth.currentUser;
+    if (user == null) return;
+    await _client.schema('praticase').from('user_case_progress').upsert({
+      'user_id': user.id,
+      'case_id': session.caseId,
+      'status': step == 'completed' ? 'completed' : 'in_progress',
+      'progress_percent': _progressPercent(step),
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    }, onConflict: 'user_id,case_id');
+  }
+
+  int _progressPercent(String step) {
+    return switch (step) {
+      'physical_exam' => 40,
+      'tests' => 60,
+      'diagnosis' => 75,
+      'management' => 90,
+      'completed' => 100,
+      _ => 20,
+    };
+  }
+
+  String _functionMessage(Object? data) {
+    if (data is Map) {
+      final error = data['error']?.toString().trim();
+      if (error != null && error.isNotEmpty) return error;
+    }
+    return 'Canlı işlem tamamlanamadı. Lütfen tekrar deneyin.';
   }
 
   OsceCaseSummary _summary(Map<String, dynamic> row) {

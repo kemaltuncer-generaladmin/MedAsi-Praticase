@@ -39,6 +39,14 @@ class TimeoutCasesRepository implements CasesRepository {
       _delegate.loadCaseDetail(caseId).withRepositoryTimeout();
 
   @override
+  Future<void> setBookmark({
+    required String caseId,
+    required bool bookmarked,
+  }) => _delegate
+      .setBookmark(caseId: caseId, bookmarked: bookmarked)
+      .withRepositoryTimeout();
+
+  @override
   Future<ExamSessionOverview> startSession(String caseId) =>
       _delegate.startSession(caseId).withRepositoryTimeout();
 
@@ -213,6 +221,10 @@ class TimeoutProgressRepository implements ProgressRepository {
       _delegate.loadNotifications().withRepositoryTimeout();
 
   @override
+  Future<void> markNotificationRead(String notificationId) =>
+      _delegate.markNotificationRead(notificationId).withRepositoryTimeout();
+
+  @override
   Future<List<SimpleContentItem>> loadSupportTopics() =>
       _delegate.loadSupportTopics().withRepositoryTimeout();
 
@@ -237,6 +249,14 @@ class TimeoutProgressRepository implements ProgressRepository {
       _delegate.loadCaseHistory().withRepositoryTimeout();
 
   @override
+  Future<List<UserNote>> loadNotes() =>
+      _delegate.loadNotes().withRepositoryTimeout();
+
+  @override
+  Future<String> exportUserData() =>
+      _delegate.exportUserData().withRepositoryTimeout();
+
+  @override
   Future<void> createContactRequest({
     required String subject,
     required String email,
@@ -259,4 +279,8 @@ class TimeoutProgressRepository implements ProgressRepository {
         educationLevel: educationLevel,
       )
       .withRepositoryTimeout();
+
+  @override
+  Future<void> saveAppSettings(AppSettings settings) =>
+      _delegate.saveAppSettings(settings).withRepositoryTimeout();
 }

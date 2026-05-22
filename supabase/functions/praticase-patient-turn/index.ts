@@ -47,6 +47,13 @@ Deno.serve(async (request) => {
       origin,
     );
   }
+  if (message.length > 1200) {
+    return jsonResponse(
+      { error: "Message is too long" },
+      413,
+      origin,
+    );
+  }
 
   if (!vertexConfigured()) {
     return jsonResponse(
@@ -68,6 +75,7 @@ Deno.serve(async (request) => {
     )
     .eq("id", sessionId)
     .eq("status", "active")
+    .eq("current_step", "history")
     .single();
 
   if (sessionError || !session) {

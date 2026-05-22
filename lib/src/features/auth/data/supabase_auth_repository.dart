@@ -20,7 +20,9 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<domain.AuthUser?> currentUser() async {
-    return _client.auth.currentUser?.toDomain();
+    final user = _client.auth.currentUser;
+    if (user == null) return null;
+    return user.toDomain(profileCompleted: await _profileCompleted(user));
   }
 
   @override
@@ -221,6 +223,29 @@ class SupabaseAuthRepository implements AuthRepository {
     if (lastName != null) profile['last_name'] = lastName;
 
     await _client.from('profiles').upsert(profile, onConflict: 'id');
+
+    if (setup != null) {
+      await _client.schema('praticase').from('user_app_settings').upsert({
+        'user_id': user.id,
+        'updated_at': now,
+      }, onConflict: 'user_id');
+    }
+  }
+
+  Future<bool> _profileCompleted(User user) async {
+    final metadata = user.userMetadata ?? const <String, dynamic>{};
+    if (metadata['praticase_profile_completed'] == true) return true;
+    try {
+      final profile = await _client
+          .from('profiles')
+          .select('class_level,target')
+          .eq('id', user.id)
+          .maybeSingle();
+      final classLevel = profile?['class_level'];
+      return classLevel is String && classLevel.trim().isNotEmpty;
+    } on Object {
+      return false;
+    }
   }
 
   String _classLevel(String grade) {

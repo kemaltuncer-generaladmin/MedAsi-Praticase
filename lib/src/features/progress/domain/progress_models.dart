@@ -139,3 +139,21 @@ class CaseCollectionItem {
   final int? score;
   final DateTime? updatedAt;
 }
+
+class UserNote {
+  const UserNote({
+    required this.id,
+    required this.title,
+    required this.body,
+    required this.category,
+    required this.caseTitle,
+    required this.updatedAt,
+  });
+
+  final String id;
+  final String title;
+  final String body;
+  final String category;
+  final String? caseTitle;
+  final DateTime updatedAt;
+}

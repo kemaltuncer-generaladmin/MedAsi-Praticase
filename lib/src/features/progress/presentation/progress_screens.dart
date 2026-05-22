@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../app/theme/praticase_colors.dart';
 import '../data/progress_repository.dart';
@@ -237,7 +238,7 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
     required this.repository,
     required this.onSignOut,
@@ -248,9 +249,27 @@ class SettingsScreen extends StatelessWidget {
   final Future<void> Function() onSignOut;
 
   @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  late Future<ProfileCard> _profileFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _profileFuture = widget.repository.loadProfile();
+  }
+
+  Future<void> _refresh() async {
+    setState(() => _profileFuture = widget.repository.loadProfile());
+    await _profileFuture;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return FutureBuilder<ProfileCard>(
-      future: repository.loadProfile(),
+      future: _profileFuture,
       builder: (context, snapshot) {
         return _ProgressPage(
           title: 'Ayarlar',
@@ -277,7 +296,7 @@ class SettingsScreen extends StatelessWidget {
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) => ProfileEditScreen(
-                          repository: repository,
+                          repository: widget.repository,
                           profile: snapshot.requireData,
                         ),
                       ),
@@ -286,8 +305,12 @@ class SettingsScreen extends StatelessWidget {
                   _SettingsRow(
                     Icons.lock_outline_rounded,
                     'Hesap ve Güvenlik',
-                    value: 'Hazırlanıyor',
-                    onTap: () => _showComingSoon(context, 'Hesap ve Güvenlik'),
+                    value: 'Supabase Auth',
+                    onTap: () => _showInfo(
+                      context,
+                      'Hesap ve Güvenlik',
+                      'Şifre sıfırlama ve oturum güvenliği Supabase Auth üzerinden yönetiliyor.',
+                    ),
                   ),
                   _SettingsRow(
                     Icons.notifications_none_rounded,
@@ -295,7 +318,7 @@ class SettingsScreen extends StatelessWidget {
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) =>
-                            NotificationsScreen(repository: repository),
+                            NotificationsScreen(repository: widget.repository),
                       ),
                     ),
                   ),
@@ -309,25 +332,76 @@ class SettingsScreen extends StatelessWidget {
                     Icons.visibility_outlined,
                     'Görüntüleme',
                     value: snapshot.requireData.settings.displayMode,
-                    onTap: () => _showComingSoon(context, 'Görüntüleme'),
+                    onTap: () => _chooseSetting(
+                      snapshot.requireData.settings,
+                      title: 'Görüntüleme',
+                      values: const ['Sistem', 'Açık', 'Koyu'],
+                      apply: (settings, value) => AppSettings(
+                        displayMode: value,
+                        language: settings.language,
+                        textSize: settings.textSize,
+                        soundAndHaptics: settings.soundAndHaptics,
+                        dataUsage: settings.dataUsage,
+                        offlineMode: settings.offlineMode,
+                        caseDownloadsEnabled: settings.caseDownloadsEnabled,
+                      ),
+                    ),
                   ),
                   _SettingsRow(
                     Icons.language_rounded,
                     'Dil',
                     value: snapshot.requireData.settings.language,
-                    onTap: () => _showComingSoon(context, 'Dil'),
+                    onTap: () => _chooseSetting(
+                      snapshot.requireData.settings,
+                      title: 'Dil',
+                      values: const ['Türkçe'],
+                      apply: (settings, value) => AppSettings(
+                        displayMode: settings.displayMode,
+                        language: value,
+                        textSize: settings.textSize,
+                        soundAndHaptics: settings.soundAndHaptics,
+                        dataUsage: settings.dataUsage,
+                        offlineMode: settings.offlineMode,
+                        caseDownloadsEnabled: settings.caseDownloadsEnabled,
+                      ),
+                    ),
                   ),
                   _SettingsRow(
                     Icons.text_fields_rounded,
                     'Yazı Boyutu',
                     value: snapshot.requireData.settings.textSize,
-                    onTap: () => _showComingSoon(context, 'Yazı Boyutu'),
+                    onTap: () => _chooseSetting(
+                      snapshot.requireData.settings,
+                      title: 'Yazı Boyutu',
+                      values: const ['Küçük', 'Orta', 'Büyük'],
+                      apply: (settings, value) => AppSettings(
+                        displayMode: settings.displayMode,
+                        language: settings.language,
+                        textSize: value,
+                        soundAndHaptics: settings.soundAndHaptics,
+                        dataUsage: settings.dataUsage,
+                        offlineMode: settings.offlineMode,
+                        caseDownloadsEnabled: settings.caseDownloadsEnabled,
+                      ),
+                    ),
                   ),
                   _SettingsRow(
                     Icons.volume_up_outlined,
                     'Ses ve Titreşim',
                     enabled: snapshot.requireData.settings.soundAndHaptics,
-                    onTap: () => _showComingSoon(context, 'Ses ve Titreşim'),
+                    onTap: () => _saveSettings(
+                      AppSettings(
+                        displayMode: snapshot.requireData.settings.displayMode,
+                        language: snapshot.requireData.settings.language,
+                        textSize: snapshot.requireData.settings.textSize,
+                        soundAndHaptics:
+                            !snapshot.requireData.settings.soundAndHaptics,
+                        dataUsage: snapshot.requireData.settings.dataUsage,
+                        offlineMode: snapshot.requireData.settings.offlineMode,
+                        caseDownloadsEnabled:
+                            snapshot.requireData.settings.caseDownloadsEnabled,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -339,19 +413,56 @@ class SettingsScreen extends StatelessWidget {
                     Icons.data_usage_rounded,
                     'Veri Kullanımı',
                     value: snapshot.requireData.settings.dataUsage,
-                    onTap: () => _showComingSoon(context, 'Veri Kullanımı'),
+                    onTap: () => _chooseSetting(
+                      snapshot.requireData.settings,
+                      title: 'Veri Kullanımı',
+                      values: const ['Düşük', 'Standart', 'Yüksek'],
+                      apply: (settings, value) => AppSettings(
+                        displayMode: settings.displayMode,
+                        language: settings.language,
+                        textSize: settings.textSize,
+                        soundAndHaptics: settings.soundAndHaptics,
+                        dataUsage: value,
+                        offlineMode: settings.offlineMode,
+                        caseDownloadsEnabled: settings.caseDownloadsEnabled,
+                      ),
+                    ),
                   ),
                   _SettingsRow(
                     Icons.wifi_off_rounded,
                     'Çevrimdışı Mod',
                     enabled: snapshot.requireData.settings.offlineMode,
-                    onTap: () => _showComingSoon(context, 'Çevrimdışı Mod'),
+                    onTap: () => _saveSettings(
+                      AppSettings(
+                        displayMode: snapshot.requireData.settings.displayMode,
+                        language: snapshot.requireData.settings.language,
+                        textSize: snapshot.requireData.settings.textSize,
+                        soundAndHaptics:
+                            snapshot.requireData.settings.soundAndHaptics,
+                        dataUsage: snapshot.requireData.settings.dataUsage,
+                        offlineMode: !snapshot.requireData.settings.offlineMode,
+                        caseDownloadsEnabled:
+                            snapshot.requireData.settings.caseDownloadsEnabled,
+                      ),
+                    ),
                   ),
                   _SettingsRow(
                     Icons.text_snippet_outlined,
                     'Vaka İndirmeleri',
                     enabled: snapshot.requireData.settings.caseDownloadsEnabled,
-                    onTap: () => _showComingSoon(context, 'Vaka İndirmeleri'),
+                    onTap: () => _saveSettings(
+                      AppSettings(
+                        displayMode: snapshot.requireData.settings.displayMode,
+                        language: snapshot.requireData.settings.language,
+                        textSize: snapshot.requireData.settings.textSize,
+                        soundAndHaptics:
+                            snapshot.requireData.settings.soundAndHaptics,
+                        dataUsage: snapshot.requireData.settings.dataUsage,
+                        offlineMode: snapshot.requireData.settings.offlineMode,
+                        caseDownloadsEnabled:
+                            !snapshot.requireData.settings.caseDownloadsEnabled,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -365,7 +476,7 @@ class SettingsScreen extends StatelessWidget {
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) =>
-                            HelpCenterScreen(repository: repository),
+                            HelpCenterScreen(repository: widget.repository),
                       ),
                     ),
                   ),
@@ -374,7 +485,8 @@ class SettingsScreen extends StatelessWidget {
                     'Bize Ulaşın',
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (_) => ContactScreen(repository: repository),
+                        builder: (_) =>
+                            ContactScreen(repository: widget.repository),
                       ),
                     ),
                   ),
@@ -382,7 +494,11 @@ class SettingsScreen extends StatelessWidget {
                     Icons.info_outline_rounded,
                     'Hakkında',
                     value: 'v1.2.0',
-                    onTap: () => _showComingSoon(context, 'Hakkında'),
+                    onTap: () => _showInfo(
+                      context,
+                      'Hakkında',
+                      'PratiCase, Medasi ekosistemi için OSCE simülasyon uygulamasıdır.',
+                    ),
                   ),
                 ],
               ),
@@ -395,7 +511,7 @@ class SettingsScreen extends StatelessWidget {
                       builder: (_) => const LogoutConfirmScreen(),
                     ),
                   );
-                  if (confirmed == true) await onSignOut();
+                  if (confirmed == true) await widget.onSignOut();
                 },
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFFE04F5F),
@@ -408,6 +524,57 @@ class SettingsScreen extends StatelessWidget {
         );
       },
     );
+  }
+
+  Future<void> _chooseSetting(
+    AppSettings settings, {
+    required String title,
+    required List<String> values,
+    required AppSettings Function(AppSettings settings, String value) apply,
+  }) async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: PratiCaseColors.navy,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            for (final value in values)
+              ListTile(
+                title: Text(value),
+                onTap: () => Navigator.pop(context, value),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (selected == null) return;
+    await _saveSettings(apply(settings, selected));
+  }
+
+  Future<void> _saveSettings(AppSettings settings) async {
+    try {
+      await widget.repository.saveAppSettings(settings);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Ayarlar kaydedildi.')));
+      await _refresh();
+    } on ProgressDataUnavailable catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
   }
 }
 
@@ -422,11 +589,25 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   int _selectedFilter = 0;
+  late Future<List<NotificationCard>> _notificationsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _notificationsFuture = widget.repository.loadNotifications();
+  }
+
+  Future<void> _refresh() async {
+    setState(
+      () => _notificationsFuture = widget.repository.loadNotifications(),
+    );
+    await _notificationsFuture;
+  }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<NotificationCard>>(
-      future: widget.repository.loadNotifications(),
+      future: _notificationsFuture,
       builder: (context, snapshot) {
         final notifications = snapshot.data ?? const <NotificationCard>[];
         final visible = switch (_selectedFilter) {
@@ -463,13 +644,28 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               )
             else
               for (final item in visible) ...[
-                _NotificationTile(item: item),
+                _NotificationTile(
+                  item: item,
+                  onTap: item.isRead ? null : () => _markRead(item.id),
+                ),
                 const SizedBox(height: 10),
               ],
           ],
         );
       },
     );
+  }
+
+  Future<void> _markRead(String id) async {
+    try {
+      await widget.repository.markNotificationRead(id);
+      await _refresh();
+    } on ProgressDataUnavailable catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
   }
 }
 
@@ -772,25 +968,24 @@ class MyDataScreen extends StatelessWidget {
       emptyTitle: 'Veri başlığı yok',
       emptyBody: 'Hesabına ait veri özetleri hazır olduğunda burada görünür.',
       itemBuilder: (item) => _SimpleTile(item: item),
-      footer: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: _cardDecoration(),
-        child: const Row(
-          children: [
-            Icon(Icons.ios_share_rounded, color: PratiCaseColors.teal),
-            SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Veri Dışa Aktar',
-                style: TextStyle(
-                  color: PratiCaseColors.navy,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+      footer: _ExportDataTile(repository: repository),
+    );
+  }
+}
+
+class NotesScreen extends StatelessWidget {
+  const NotesScreen({required this.repository, super.key});
+
+  final ProgressRepository repository;
+
+  @override
+  Widget build(BuildContext context) {
+    return _LiveListPage<UserNote>(
+      title: 'Notlarım',
+      future: repository.loadNotes(),
+      emptyTitle: 'Kayıtlı not yok',
+      emptyBody: 'OSCE odasında eklediğin vaka notları burada görünür.',
+      itemBuilder: (item) => _NoteTile(item: item),
     );
   }
 }
@@ -833,6 +1028,11 @@ class _ContactScreenState extends State<ContactScreen> {
         const SnackBar(content: Text('Mesajınız canlı destek kaydına alındı.')),
       );
       Navigator.maybePop(context);
+    } on ProgressDataUnavailable catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -933,6 +1133,14 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   }
 
   Future<void> _save() async {
+    if (_name.text.trim().isEmpty ||
+        _email.text.trim().isEmpty ||
+        !_email.text.contains('@')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Geçerli profil bilgilerini gir.')),
+      );
+      return;
+    }
     setState(() => _saving = true);
     try {
       await widget.repository.saveProfile(
@@ -942,7 +1150,15 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         educationLevel: _education.text,
       );
       if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profil güncellendi.')));
       Navigator.maybePop(context);
+    } on ProgressDataUnavailable catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -1831,7 +2047,7 @@ class _MenuPanel extends StatelessWidget {
                 if (item.title == 'Notlarım') {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (_) => MyDataScreen(repository: repository),
+                      builder: (_) => NotesScreen(repository: repository),
                     ),
                   );
                 }
@@ -2030,22 +2246,120 @@ class _SettingsRow extends StatelessWidget {
 }
 
 class _NotificationTile extends StatelessWidget {
-  const _NotificationTile({required this.item});
+  const _NotificationTile({required this.item, this.onTap});
 
   final NotificationCard item;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: _cardDecoration(),
       child: ListTile(
+        onTap: onTap,
         leading: Icon(
           item.isRead ? Icons.notifications_none_rounded : Icons.star_rounded,
           color: item.isRead ? const Color(0xFF66758A) : PratiCaseColors.gold,
         ),
         title: Text(item.title),
         subtitle: Text(item.body),
-        trailing: const Icon(Icons.chevron_right_rounded),
+        trailing: item.isRead
+            ? const Icon(Icons.check_circle_outline_rounded)
+            : const Text(
+                'Okundu',
+                style: TextStyle(
+                  color: PratiCaseColors.teal,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+      ),
+    );
+  }
+}
+
+class _NoteTile extends StatelessWidget {
+  const _NoteTile({required this.item});
+
+  final UserNote item;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: _cardDecoration(),
+      child: ListTile(
+        leading: const Icon(
+          Icons.note_alt_outlined,
+          color: PratiCaseColors.teal,
+        ),
+        title: Text(item.title),
+        subtitle: Text(
+          [
+            item.category,
+            if (item.caseTitle != null) item.caseTitle!,
+            item.body,
+          ].join(' • '),
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    );
+  }
+}
+
+class _ExportDataTile extends StatefulWidget {
+  const _ExportDataTile({required this.repository});
+
+  final ProgressRepository repository;
+
+  @override
+  State<_ExportDataTile> createState() => _ExportDataTileState();
+}
+
+class _ExportDataTileState extends State<_ExportDataTile> {
+  bool _exporting = false;
+
+  Future<void> _export() async {
+    setState(() => _exporting = true);
+    try {
+      final payload = await widget.repository.exportUserData();
+      await Clipboard.setData(ClipboardData(text: payload));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Kullanıcı verisi panoya kopyalandı.')),
+      );
+    } on ProgressDataUnavailable catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: _exporting ? null : _export,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: _cardDecoration(),
+        child: Row(
+          children: [
+            const Icon(Icons.ios_share_rounded, color: PratiCaseColors.teal),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                _exporting ? 'Dışa aktarılıyor...' : 'Veri Dışa Aktar',
+                style: const TextStyle(
+                  color: PratiCaseColors.navy,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2463,10 +2777,20 @@ String _errorText(Object? error) {
   return 'Canlı veri alınamadı. Lütfen bağlantı ve yetkileri kontrol edin.';
 }
 
-void _showComingSoon(BuildContext context, String title) {
-  ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(SnackBar(content: Text('$title yakında kullanıma açılacak.')));
+void _showInfo(BuildContext context, String title, String body) {
+  showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(title),
+      content: Text(body),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Tamam'),
+        ),
+      ],
+    ),
+  );
 }
 
 String _initial(String value) {

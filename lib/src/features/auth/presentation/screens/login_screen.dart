@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/theme/praticase_colors.dart';
 import '../../data/auth_repository.dart';
+import '../../domain/auth_user.dart';
 import '../widgets/auth_link_button.dart';
 import '../widgets/auth_primary_button.dart';
 import '../widgets/auth_scaffold.dart';
@@ -23,7 +24,7 @@ class LoginScreen extends StatefulWidget {
   final VoidCallback onBack;
   final VoidCallback onForgotPassword;
   final VoidCallback onRegister;
-  final VoidCallback onSignedIn;
+  final ValueChanged<AuthUser> onSignedIn;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -50,11 +51,11 @@ class _LoginScreenState extends State<LoginScreen> {
       _error = null;
     });
     try {
-      await widget.repository.signInWithEmail(
+      final user = await widget.repository.signInWithEmail(
         email: _email.text,
         password: _password.text,
       );
-      widget.onSignedIn();
+      widget.onSignedIn(user);
     } on AuthFailure catch (failure) {
       setState(() => _error = failure.message);
     } finally {
@@ -140,9 +141,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 20),
                   const _DividerLabel(),
                   const SizedBox(height: 16),
-                  const _ProviderButton(
+                  _ProviderButton(
                     icon: Icons.g_mobiledata_rounded,
                     label: 'Google ile devam et',
+                    onPressed: _signInWithGoogle,
                   ),
                   const SizedBox(height: 8),
                   const _ProviderButton(
@@ -170,6 +172,20 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await widget.repository.signInWithGoogle();
+    } on AuthFailure catch (failure) {
+      setState(() => _error = failure.message);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 }
 
@@ -246,15 +262,20 @@ class _DividerLabel extends StatelessWidget {
 }
 
 class _ProviderButton extends StatelessWidget {
-  const _ProviderButton({required this.icon, required this.label});
+  const _ProviderButton({
+    required this.icon,
+    required this.label,
+    this.onPressed,
+  });
 
   final IconData icon;
   final String label;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
     return OutlinedButton.icon(
-      onPressed: () {},
+      onPressed: onPressed,
       icon: Icon(icon, color: PratiCaseColors.ink),
       label: Text(label),
       style: OutlinedButton.styleFrom(

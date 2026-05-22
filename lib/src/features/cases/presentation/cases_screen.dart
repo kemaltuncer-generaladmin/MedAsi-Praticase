@@ -7,9 +7,14 @@ import '../data/cases_repository.dart';
 import '../domain/osce_case.dart';
 
 class CasesScreen extends StatefulWidget {
-  const CasesScreen({required this.repository, super.key});
+  const CasesScreen({
+    required this.repository,
+    this.onOpenNotifications,
+    super.key,
+  });
 
   final CasesRepository repository;
+  final VoidCallback? onOpenNotifications;
 
   @override
   State<CasesScreen> createState() => _CasesScreenState();
@@ -71,7 +76,10 @@ class _CasesScreenState extends State<CasesScreen> {
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: EdgeInsets.fromLTRB(20, 18, 20, bottom),
             children: [
-              const _MobileHeader(title: 'PratiCase'),
+              _MobileHeader(
+                title: 'PratiCase',
+                onOpenNotifications: widget.onOpenNotifications,
+              ),
               const SizedBox(height: 18),
               const _PageTitle(
                 title: 'Vaka Kütüphanesi',
@@ -283,6 +291,7 @@ class CaseDetailScreen extends StatefulWidget {
 class _CaseDetailScreenState extends State<CaseDetailScreen> {
   late Future<OsceCaseDetail> _detailFuture;
   bool _starting = false;
+  bool _bookmarking = false;
 
   @override
   void initState() {
@@ -305,6 +314,27 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
       );
     } finally {
       if (mounted) setState(() => _starting = false);
+    }
+  }
+
+  Future<void> _toggleBookmark(OsceCaseDetail detail) async {
+    if (_bookmarking) return;
+    setState(() => _bookmarking = true);
+    try {
+      await widget.repository.setBookmark(
+        caseId: widget.caseId,
+        bookmarked: !detail.summary.isBookmarked,
+      );
+      setState(
+        () => _detailFuture = widget.repository.loadCaseDetail(widget.caseId),
+      );
+    } on CasesDataUnavailable catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      if (mounted) setState(() => _bookmarking = false);
     }
   }
 
@@ -335,7 +365,9 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
               _StepTopBar(
                 title: 'Vaka Detay',
                 trailing: IconButton(
-                  onPressed: () => _showComingSoon(context, 'Favori vaka'),
+                  onPressed: _bookmarking
+                      ? null
+                      : () => _toggleBookmark(detail),
                   icon: Icon(
                     detail.summary.isBookmarked
                         ? Icons.bookmark_rounded
@@ -1691,6 +1723,12 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
   }
 
   Future<void> _save() async {
+    if (_note.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Not kaydetmek için içerik gir.')),
+      );
+      return;
+    }
     setState(() => _saving = true);
     try {
       await widget.repository.saveNote(
@@ -1700,7 +1738,15 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
         category: 'Vaka',
       );
       if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Not kaydedildi.')));
       Navigator.maybePop(context);
+    } on CasesDataUnavailable catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -1819,18 +1865,16 @@ class _FlowScaffold extends StatelessWidget {
 }
 
 class _MobileHeader extends StatelessWidget {
-  const _MobileHeader({required this.title});
+  const _MobileHeader({required this.title, this.onOpenNotifications});
 
   final String title;
+  final VoidCallback? onOpenNotifications;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        IconButton(
-          onPressed: () => _showComingSoon(context, 'Menü'),
-          icon: const Icon(Icons.menu_rounded, color: PratiCaseColors.navy),
-        ),
+        const SizedBox(width: 48),
         const Spacer(),
         Image.asset('assets/branding/praticase.png', width: 34, height: 34),
         const SizedBox(width: 8),
@@ -1844,7 +1888,7 @@ class _MobileHeader extends StatelessWidget {
         ),
         const Spacer(),
         IconButton(
-          onPressed: () => _showComingSoon(context, 'Bildirimler'),
+          onPressed: onOpenNotifications,
           icon: const Icon(
             Icons.notifications_none_rounded,
             color: PratiCaseColors.navy,
@@ -3895,10 +3939,4 @@ IconData _flowIcon(String key) {
 String _errorText(Object? error) {
   if (error is CasesDataUnavailable) return error.message;
   return 'Canlı veri alınamadı. Lütfen bağlantı ve yetkileri kontrol edin.';
-}
-
-void _showComingSoon(BuildContext context, String title) {
-  ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(SnackBar(content: Text('$title yakında kullanıma açılacak.')));
 }

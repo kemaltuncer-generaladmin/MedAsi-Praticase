@@ -56,7 +56,15 @@ class _AuthFlowState extends State<AuthFlow> {
         onBack: () => _go(AuthStep.onboarding),
         onForgotPassword: () => _go(AuthStep.forgotPassword),
         onRegister: () => _go(AuthStep.register),
-        onSignedIn: widget.onAuthenticated,
+        onSignedIn: (user) {
+          _setEmail(user.email);
+          _setFullName(user.fullName ?? '');
+          if (user.profileCompleted) {
+            widget.onAuthenticated();
+          } else {
+            _go(AuthStep.profileSetup);
+          }
+        },
       ),
       AuthStep.register => RegisterScreen(
         repository: widget.authRepository,
