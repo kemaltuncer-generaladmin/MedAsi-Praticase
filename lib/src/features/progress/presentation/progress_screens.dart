@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../app/theme/praticase_colors.dart';
+import '../../auth/data/auth_repository.dart';
 import '../data/progress_repository.dart';
 import '../domain/progress_models.dart';
 
@@ -167,11 +168,13 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({
+    required this.authRepository,
     required this.repository,
     required this.onSignOut,
     super.key,
   });
 
+  final AuthRepository authRepository;
   final ProgressRepository repository;
   final Future<void> Function() onSignOut;
 
@@ -213,6 +216,7 @@ class ProfileScreen extends StatelessWidget {
             _StatsPanel(profile: profile),
             const SizedBox(height: 16),
             _MenuPanel(
+              authRepository: authRepository,
               repository: repository,
               items: const [
                 _MenuItem(Icons.history_rounded, 'Vaka Geçmişim'),
@@ -240,11 +244,13 @@ class ProfileScreen extends StatelessWidget {
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
+    required this.authRepository,
     required this.repository,
     required this.onSignOut,
     super.key,
   });
 
+  final AuthRepository authRepository;
   final ProgressRepository repository;
   final Future<void> Function() onSignOut;
 
@@ -306,10 +312,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Icons.lock_outline_rounded,
                     'Hesap ve Güvenlik',
                     value: 'Supabase Auth',
-                    onTap: () => _showInfo(
-                      context,
-                      'Hesap ve Güvenlik',
-                      'Şifre sıfırlama ve oturum güvenliği Supabase Auth üzerinden yönetiliyor.',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => AccountSecurityScreen(
+                          authRepository: widget.authRepository,
+                          profile: snapshot.requireData,
+                        ),
+                      ),
                     ),
                   ),
                   _SettingsRow(
@@ -585,6 +594,90 @@ class NotificationsScreen extends StatefulWidget {
 
   @override
   State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class AccountSecurityScreen extends StatefulWidget {
+  const AccountSecurityScreen({
+    required this.authRepository,
+    required this.profile,
+    super.key,
+  });
+
+  final AuthRepository authRepository;
+  final ProfileCard profile;
+
+  @override
+  State<AccountSecurityScreen> createState() => _AccountSecurityScreenState();
+}
+
+class _AccountSecurityScreenState extends State<AccountSecurityScreen> {
+  bool _sendingReset = false;
+
+  Future<void> _sendResetCode() async {
+    if (_sendingReset) return;
+    setState(() => _sendingReset = true);
+    try {
+      await widget.authRepository.sendPasswordResetCode(widget.profile.email);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Şifre sıfırlama bağlantısı ${widget.profile.email} adresine gönderildi.',
+          ),
+        ),
+      );
+    } on AuthFailure catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      if (mounted) setState(() => _sendingReset = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _ProgressPage(
+      title: 'Hesap ve Güvenlik',
+      children: [
+        _InfoCard(
+          icon: Icons.verified_user_outlined,
+          title: 'Supabase Auth',
+          body:
+              'Oturum, e-posta doğrulama ve şifre işlemleri canlı Supabase Auth üzerinden yönetilir.',
+        ),
+        const SizedBox(height: 16),
+        _SettingsSection(
+          title: 'Oturum',
+          rows: [
+            _SettingsRow(
+              Icons.alternate_email_rounded,
+              'Hesap E-postası',
+              value: widget.profile.email,
+              onTap: () async {
+                await Clipboard.setData(
+                  ClipboardData(text: widget.profile.email),
+                );
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('E-posta panoya kopyalandı.')),
+                );
+              },
+            ),
+            _SettingsRow(
+              Icons.password_rounded,
+              _sendingReset
+                  ? 'Şifre bağlantısı gönderiliyor'
+                  : 'Şifre Sıfırlama Bağlantısı Gönder',
+              value: _sendingReset ? 'Bekle' : 'Gönder',
+              onTap: _sendingReset ? null : _sendResetCode,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
@@ -1260,31 +1353,37 @@ class _ProgressPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 116),
-      children: [
-        Row(
+    return Scaffold(
+      backgroundColor: const Color(0xFFF7F9FB),
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 116),
           children: [
-            IconButton(
-              onPressed: () => Navigator.maybePop(context),
-              icon: const Icon(Icons.arrow_back_rounded),
-            ),
-            Expanded(
-              child: Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: PratiCaseColors.navy,
-                  fontWeight: FontWeight.w900,
+            Row(
+              children: [
+                IconButton(
+                  onPressed: () => Navigator.maybePop(context),
+                  icon: const Icon(Icons.arrow_back_rounded),
                 ),
-              ),
+                Expanded(
+                  child: Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: PratiCaseColors.navy,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 48),
+              ],
             ),
-            const SizedBox(width: 48),
+            const SizedBox(height: 16),
+            ...children,
           ],
         ),
-        const SizedBox(height: 16),
-        ...children,
-      ],
+      ),
     );
   }
 }
@@ -2008,11 +2107,13 @@ class _StatsPanel extends StatelessWidget {
 
 class _MenuPanel extends StatelessWidget {
   const _MenuPanel({
+    required this.authRepository,
     required this.repository,
     required this.items,
     required this.onSignOut,
   });
 
+  final AuthRepository authRepository;
   final ProgressRepository repository;
   final List<_MenuItem> items;
   final Future<void> Function() onSignOut;
@@ -2084,6 +2185,7 @@ class _MenuPanel extends StatelessWidget {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => SettingsScreen(
+                        authRepository: authRepository,
                         repository: repository,
                         onSignOut: onSignOut,
                       ),
@@ -2727,6 +2829,64 @@ class _StateBlock extends StatelessWidget {
               color: Color(0xFF66758A),
               height: 1.45,
               fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoCard extends StatelessWidget {
+  const _InfoCard({
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
+
+  final IconData icon;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: _cardDecoration(),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: PratiCaseColors.teal.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: PratiCaseColors.teal),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: PratiCaseColors.navy,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  body,
+                  style: const TextStyle(
+                    color: Color(0xFF66758A),
+                    height: 1.4,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

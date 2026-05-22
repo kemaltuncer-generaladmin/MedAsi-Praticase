@@ -79,10 +79,14 @@ class SupabaseProgressRepository implements ProgressRepository {
             'language,text_size,sound_and_haptics,data_usage,offline_mode,case_downloads_enabled',
           )
           .maybeSingle();
-      if (row == null) return _fallbackProfile();
+      if (row == null) {
+        throw const ProgressDataUnavailable(
+          'Profil kaydı bulunamadı. Lütfen profil kurulumunu tamamlayın.',
+        );
+      }
       return ProfileCard(
         displayName: _string(row, 'display_name').isEmpty
-            ? _fallbackDisplayName()
+            ? _currentUserLabel()
             : _string(row, 'display_name'),
         email: _string(row, 'email').isEmpty
             ? (_client.auth.currentUser?.email ?? '')
@@ -449,37 +453,14 @@ class SupabaseProgressRepository implements ProgressRepository {
     );
   }
 
-  ProfileCard _fallbackProfile() {
-    return ProfileCard(
-      displayName: _fallbackDisplayName(),
-      email: _client.auth.currentUser?.email ?? '',
-      classLevel: '5',
-      target: 'Staj + TUS',
-      totalPoints: 0,
-      solvedCaseCount: 0,
-      correctDiagnosisRate: 0,
-      dailyStreak: 0,
-      successRatePercent: 0,
-      settings: const AppSettings(
-        displayMode: 'Sistem',
-        language: 'Türkçe',
-        textSize: 'Orta',
-        soundAndHaptics: true,
-        dataUsage: 'Standart',
-        offlineMode: false,
-        caseDownloadsEnabled: false,
-      ),
-    );
-  }
-
-  String _fallbackDisplayName() {
+  String _currentUserLabel() {
     final user = _client.auth.currentUser;
     final metadata = user?.userMetadata ?? const <String, dynamic>{};
     final fullName = metadata['full_name'];
     if (fullName is String && fullName.trim().isNotEmpty) {
       return fullName.trim();
     }
-    return user?.email?.split('@').first.trim() ?? 'PratiCase Öğrencisi';
+    return user?.email ?? '';
   }
 
   String? _caseTitle(Object? value) {

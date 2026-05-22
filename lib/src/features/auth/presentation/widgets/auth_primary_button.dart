@@ -68,16 +68,22 @@ class AuthPrimaryButton extends StatelessWidget {
                 : Row(
                     key: const ValueKey('label'),
                     mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
+                    mainAxisSize: MainAxisSize.max,
                     children: [
-                      Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: activeVisual
-                              ? Colors.white
-                              : Color(0xFF718096),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            label,
+                            maxLines: 1,
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: activeVisual
+                                  ? Colors.white
+                                  : Color(0xFF718096),
+                            ),
+                          ),
                         ),
                       ),
                       if (showArrow) ...[

@@ -4,6 +4,7 @@ import 'package:praticase/src/app/praticase_app.dart';
 import 'package:praticase/src/features/auth/data/auth_repository.dart';
 import 'package:praticase/src/features/auth/domain/auth_user.dart';
 import 'package:praticase/src/features/auth/domain/profile_setup.dart';
+import 'package:praticase/src/features/auth/presentation/screens/profile_setup_screen.dart';
 import 'package:praticase/src/features/auth/presentation/screens/register_screen.dart';
 import 'package:praticase/src/features/auth/presentation/screens/reset_password_screen.dart';
 import 'package:praticase/src/features/cases/data/cases_repository.dart';
@@ -86,6 +87,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: SettingsScreen(
+            authRepository: _TestAuthRepository(),
             repository: _ProfileProgressRepository(),
             onSignOut: () async => signedOut = true,
           ),
@@ -105,6 +107,81 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(signedOut, isTrue);
+  });
+
+  testWidgets('profile setup target exam is a live form value on iPhone 14', (
+    tester,
+  ) async {
+    await _setIPhone14Viewport(tester);
+    final repository = _RecordingAuthRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ProfileSetupScreen(
+          repository: repository,
+          fullName: 'Ayse Yilmaz',
+          onBack: () {},
+          onCompleted: () {},
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('OSCE'));
+    await tester.ensureVisible(find.text('PratiCase’e Başla'));
+    await tester.tap(find.text('PratiCase’e Başla'));
+    await tester.pumpAndSettle();
+
+    expect(repository.completedProfile?.targetExam, 'OSCE');
+  });
+
+  testWidgets('account security sends reset email on iPhone 14', (
+    tester,
+  ) async {
+    await _setIPhone14Viewport(tester);
+    final repository = _RecordingAuthRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AccountSecurityScreen(
+          authRepository: repository,
+          profile: const ProfileCard(
+            displayName: 'Ayse Yilmaz',
+            email: 'ayse@example.com',
+            classLevel: '5',
+            target: 'OSCE - Genel Cerrahi',
+            totalPoints: 120,
+            solvedCaseCount: 4,
+            correctDiagnosisRate: 75,
+            dailyStreak: 3,
+            successRatePercent: 82,
+            settings: AppSettings(
+              displayMode: 'Açık',
+              language: 'Türkçe',
+              textSize: 'Orta',
+              soundAndHaptics: true,
+              dataUsage: 'Standart',
+              offlineMode: false,
+              caseDownloadsEnabled: false,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.scrollUntilVisible(
+      find.text('Şifre Sıfırlama Bağlantısı Gönder'),
+      160,
+    );
+    await tester.tap(find.text('Şifre Sıfırlama Bağlantısı Gönder'));
+    await tester.pumpAndSettle();
+
+    expect(repository.resetEmail, 'ayse@example.com');
+    expect(
+      find.text(
+        'Şifre sıfırlama bağlantısı ayse@example.com adresine gönderildi.',
+      ),
+      findsOneWidget,
+    );
   });
 }
 
@@ -141,6 +218,13 @@ class _ProfileProgressRepository extends Fake implements ProgressRepository {
 }
 
 Finder _textFormFieldAt(int index) => find.byType(TextFormField).at(index);
+
+Future<void> _setIPhone14Viewport(WidgetTester tester) async {
+  tester.view.physicalSize = const Size(390, 844);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+}
 
 class _TestAuthRepository implements AuthRepository {
   @override
@@ -202,4 +286,20 @@ class _TestAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() async {}
+}
+
+class _RecordingAuthRepository extends _TestAuthRepository {
+  ProfileSetup? completedProfile;
+  String? resetEmail;
+
+  @override
+  Future<void> sendPasswordResetCode(String email) async {
+    resetEmail = email;
+  }
+
+  @override
+  Future<AuthUser> completeProfile(ProfileSetup setup) async {
+    completedProfile = setup;
+    return super.completeProfile(setup);
+  }
 }

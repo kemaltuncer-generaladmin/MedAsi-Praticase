@@ -209,7 +209,7 @@ class SupabaseAuthRepository implements AuthRepository {
     final profile = <String, dynamic>{
       'id': user.id,
       'email': user.email,
-      'target': 'Staj + TUS',
+      'target': setup == null ? 'Staj + TUS' : _profileTarget(setup),
       'theme_key': 'clinical',
       'updated_at': now,
       if (setup != null) 'class_level': _classLevel(setup.grade),
@@ -256,6 +256,15 @@ class SupabaseAuthRepository implements AuthRepository {
     if (grade.startsWith('5')) return '5';
     if (grade.startsWith('6')) return '6';
     return 'Mezun';
+  }
+
+  String _profileTarget(ProfileSetup setup) {
+    final branches = setup.targetBranches
+        .map((branch) => branch.trim())
+        .where((branch) => branch.isNotEmpty)
+        .join(', ');
+    if (branches.isEmpty) return setup.targetExam;
+    return '${setup.targetExam} - $branches';
   }
 
   String _friendlyMessage(String message) {

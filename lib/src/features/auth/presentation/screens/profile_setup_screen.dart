@@ -26,6 +26,7 @@ class ProfileSetupScreen extends StatefulWidget {
 }
 
 class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
+  String _targetExam = 'TUS';
   String _grade = '5. Sınıf';
   int _dailyGoal = 2;
   final _branches = <String>{};
@@ -42,6 +43,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       await widget.repository.completeProfile(
         ProfileSetup(
           grade: _grade,
+          targetExam: _targetExam,
           targetBranches: _branches.toList(),
           dailyGoal: _dailyGoal,
           examDate: _examDate,
@@ -93,11 +95,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             child: Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: const [
-                _StaticPill(label: 'TUS', selected: true),
-                _StaticPill(label: 'OSCE'),
-                _StaticPill(label: 'Komite'),
-                _StaticPill(label: 'USMLE'),
+              children: [
+                for (final exam in const ['TUS', 'OSCE', 'Komite', 'USMLE'])
+                  _ChoicePill(
+                    label: exam,
+                    selected: _targetExam == exam,
+                    onTap: () => setState(() => _targetExam = exam),
+                  ),
               ],
             ),
           ),
@@ -311,18 +315,6 @@ class _SetupSection extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-class _StaticPill extends StatelessWidget {
-  const _StaticPill({required this.label, this.selected = false});
-
-  final String label;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    return _ChoicePill(label: label, selected: selected, onTap: () {});
   }
 }
 
