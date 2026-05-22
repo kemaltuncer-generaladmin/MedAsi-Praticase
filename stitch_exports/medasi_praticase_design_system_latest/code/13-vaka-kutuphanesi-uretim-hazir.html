@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+
+<html lang="tr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Vaka Kütüphanesi</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts: Plus Jakarta Sans -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "tertiary": "#744f00",
+                      "surface-variant": "#d9e3f1",
+                      "on-primary-fixed-variant": "#00504d",
+                      "on-secondary-container": "#536574",
+                      "on-tertiary-container": "#fff1e1",
+                      "on-tertiary-fixed-variant": "#604100",
+                      "on-primary-container": "#c1fffa",
+                      "surface-container-low": "#edf4ff",
+                      "on-background": "#121c26",
+                      "on-tertiary-fixed": "#281900",
+                      "surface-container": "#e4effd",
+                      "on-tertiary": "#ffffff",
+                      "surface-container-highest": "#d9e3f1",
+                      "on-secondary": "#ffffff",
+                      "surface-dim": "#d1dbe9",
+                      "inverse-primary": "#7cd6d0",
+                      "secondary-fixed": "#d3e5f7",
+                      "error": "#ba1a1a",
+                      "surface-container-high": "#dfe9f7",
+                      "gradient-end": "#006A72",
+                      "inverse-on-surface": "#e8f2ff",
+                      "teal-bright": "#32C8BF",
+                      "tertiary-container": "#946600",
+                      "surface-bright": "#f7f9ff",
+                      "on-primary": "#ffffff",
+                      "background": "#f7f9ff",
+                      "surface-container-lowest": "#ffffff",
+                      "on-secondary-fixed-variant": "#384957",
+                      "error-red": "#E04F5F",
+                      "slate-blue": "#405168",
+                      "secondary-container": "#d0e2f4",
+                      "primary-container": "#0e7c78",
+                      "hairline-border": "#E2E6EA",
+                      "on-primary-fixed": "#00201f",
+                      "success-green": "#2AA765",
+                      "error-container": "#ffdad6",
+                      "muted-text": "#5C6873",
+                      "scaffold-bg": "#F5F6F7",
+                      "outline-variant": "#bdc9c7",
+                      "secondary": "#4f6070",
+                      "on-error-container": "#93000a",
+                      "on-surface-variant": "#3e4948",
+                      "secondary-fixed-dim": "#b7c9da",
+                      "surface": "#f7f9ff",
+                      "gradient-start": "#063443",
+                      "on-error": "#ffffff",
+                      "tertiary-fixed-dim": "#ffba3b",
+                      "primary-fixed": "#98f2ed",
+                      "outline": "#6e7978",
+                      "primary-fixed-dim": "#7cd6d0",
+                      "tertiary-fixed": "#ffdead",
+                      "inverse-surface": "#27313c",
+                      "on-surface": "#121c26",
+                      "on-secondary-fixed": "#0b1d2a",
+                      "primary": "#00615e",
+                      "surface-tint": "#006a66"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "xl": "24px",
+                      "sm": "8px",
+                      "md": "16px",
+                      "lg": "20px",
+                      "margin-mobile": "20px",
+                      "xs": "4px",
+                      "base": "4px",
+                      "gutter": "12px"
+              },
+              "fontFamily": {
+                      "headline-md": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "body-md": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "label-caps": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "display-lg": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "body-sm": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "headline-lg": [
+                              "Plus Jakarta Sans"
+                      ]
+              },
+              "fontSize": {
+                      "headline-md": [
+                              "17px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "800"
+                              }
+                      ],
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "label-caps": [
+                              "11px",
+                              {
+                                      "lineHeight": "14px",
+                                      "letterSpacing": "0.08em",
+                                      "fontWeight": "800"
+                              }
+                      ],
+                      "display-lg": [
+                              "44px",
+                              {
+                                      "lineHeight": "42px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "800"
+                              }
+                      ],
+                      "body-sm": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "headline-lg": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "800"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+    </script>
+<style>
+        /* Ambient Shadow Utility for Interactive Cards */
+        .ambient-shadow {
+            box-shadow: 0 8px 16px -4px rgba(11, 29, 42, 0.04);
+        }
+        /* Hide scrollbar for horizontal scrolling areas */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-scaffold-bg text-on-surface antialiased pb-[120px]">
+<!-- Top Navigation / Header -->
+<header class="bg-surface border-b border-hairline-border px-margin-mobile py-md sticky top-0 z-40">
+<div class="flex justify-between items-center mb-md">
+<h1 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">Vaka Kütüphanesi</h1>
+<button class="w-10 h-10 flex items-center justify-center rounded-full bg-surface-container hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined text-primary">notifications</span>
+</button>
+</div>
+<!-- Search Bar -->
+<div class="relative w-full">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-muted-text">search</span>
+<input class="w-full h-[48px] pl-10 pr-4 rounded-xl border border-hairline-border bg-surface-bright focus:outline-none focus:border-teal-bright focus:ring-1 focus:ring-teal-bright font-body-md text-body-md text-on-surface placeholder:text-muted-text transition-all" placeholder="Vaka, semptom veya branş ara..." type="text"/>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="pt-md">
+<!-- Filters Section -->
+<section class="px-margin-mobile mb-lg">
+<div class="flex items-center justify-between mb-sm">
+<h2 class="font-body-sm text-body-sm text-muted-text uppercase tracking-wider">Branşlar</h2>
+</div>
+<!-- Horizontal scrollable Choice Chips -->
+<div class="flex gap-sm overflow-x-auto no-scrollbar pb-1">
+<button class="h-[42px] px-md rounded-full flex items-center justify-center font-body-md text-body-md whitespace-nowrap transition-colors bg-teal-bright text-on-primary border-none">
+                    Tümü
+                </button>
+<button class="h-[42px] px-md rounded-full flex items-center justify-center font-body-md text-body-md whitespace-nowrap transition-colors bg-transparent border border-outline-variant text-secondary hover:bg-surface-variant">
+                    Dahiliye
+                </button>
+<button class="h-[42px] px-md rounded-full flex items-center justify-center font-body-md text-body-md whitespace-nowrap transition-colors bg-transparent border border-outline-variant text-secondary hover:bg-surface-variant">
+                    Genel Cerrahi
+                </button>
+<button class="h-[42px] px-md rounded-full flex items-center justify-center font-body-md text-body-md whitespace-nowrap transition-colors bg-transparent border border-outline-variant text-secondary hover:bg-surface-variant">
+                    Pediatri
+                </button>
+<button class="h-[42px] px-md rounded-full flex items-center justify-center font-body-md text-body-md whitespace-nowrap transition-colors bg-transparent border border-outline-variant text-secondary hover:bg-surface-variant">
+                    Acil Tıp
+                </button>
+</div>
+</section>
+<section class="px-margin-mobile mb-lg">
+<div class="flex gap-sm overflow-x-auto no-scrollbar pb-1">
+<button class="h-[32px] px-3 rounded-md flex items-center justify-center font-body-sm text-body-sm whitespace-nowrap transition-colors bg-surface border border-hairline-border text-on-surface hover:border-teal-bright">
+<span class="w-2 h-2 rounded-full bg-success-green mr-2"></span> Kolay
+                </button>
+<button class="h-[32px] px-3 rounded-md flex items-center justify-center font-body-sm text-body-sm whitespace-nowrap transition-colors bg-surface border border-hairline-border text-on-surface hover:border-teal-bright">
+<span class="w-2 h-2 rounded-full bg-[#F5A623] mr-2"></span> Orta
+                </button>
+<button class="h-[32px] px-3 rounded-md flex items-center justify-center font-body-sm text-body-sm whitespace-nowrap transition-colors bg-surface border border-hairline-border text-on-surface hover:border-teal-bright">
+<span class="w-2 h-2 rounded-full bg-error-red mr-2"></span> Zor
+                </button>
+</div>
+</section>
+<!-- Case Grid (Bento/Card Layout) -->
+<section class="px-margin-mobile grid grid-cols-1 md:grid-cols-2 gap-md">
+<!-- Card 1: Featured / High Priority (Completed) -->
+<article class="bg-surface rounded-xl border border-hairline-border p-md flex flex-col gap-sm relative overflow-hidden ambient-shadow hover:border-teal-bright hover:border-[1.5px] transition-all cursor-pointer">
+<!-- Status Badge -->
+<div class="absolute top-md right-md flex items-center gap-1 bg-surface-container-low text-primary px-2 py-1 rounded-md font-label-caps text-label-caps border border-hairline-border">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+                    TAMAMLANDI
+                </div>
+<div class="flex items-center gap-2 mb-1">
+<span class="w-2 h-2 rounded-full bg-[#F5A623]"></span>
+<span class="font-body-sm text-body-sm text-muted-text">Orta • Dahiliye</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface pr-12">Akut Göğüs Ağrısı Yönetimi</h3>
+<p class="font-body-sm text-body-sm text-secondary line-clamp-2 mt-1">45 yaşında erkek hasta acil servise eforla gelen ve sol kola yayılan retrosternal göğüs ağrısı şikayetiyle başvurdu.</p>
+<div class="mt-auto pt-md flex items-center justify-between border-t border-hairline-border">
+<div class="flex items-center gap-1 text-muted-text font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+                        15 Dk
+                    </div>
+<div class="flex items-center gap-1">
+<span class="font-body-sm text-body-sm text-muted-text">Son Skor:</span>
+<span class="font-headline-md text-headline-md text-primary">85/100</span>
+</div>
+</div>
+</article>
+<!-- Card 2: New / Not Started -->
+<article class="bg-surface rounded-xl border border-hairline-border p-md flex flex-col gap-sm relative overflow-hidden ambient-shadow hover:border-teal-bright hover:border-[1.5px] transition-all cursor-pointer">
+<div class="flex items-center gap-2 mb-1">
+<span class="w-2 h-2 rounded-full bg-error-red"></span>
+<span class="font-body-sm text-body-sm text-muted-text">Zor • Genel Cerrahi</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface pr-8">Akut Batın ve Şok</h3>
+<p class="font-body-sm text-body-sm text-secondary line-clamp-2 mt-1">Taşikardik, hipotansif ve yaygın karın hassasiyeti olan travma hastasına ilk müdahale ve tanısal yaklaşım.</p>
+<div class="mt-auto pt-md flex items-center justify-between border-t border-hairline-border">
+<div class="flex items-center gap-1 text-muted-text font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+                        25 Dk
+                    </div>
+<button class="font-body-sm text-body-sm text-teal-bright font-bold flex items-center gap-1">
+                        BAŞLA <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+</article>
+<!-- Card 3: In Progress -->
+<article class="bg-surface rounded-xl border-[1.5px] border-primary p-md flex flex-col gap-sm relative overflow-hidden ambient-shadow cursor-pointer">
+<!-- Progress Indicator subtle background -->
+<div class="absolute bottom-0 left-0 h-1 bg-surface-container w-full">
+<div class="h-full bg-primary w-[40%] rounded-r-full"></div>
+</div>
+<div class="absolute top-md right-md flex items-center gap-1 bg-surface-container-low text-primary px-2 py-1 rounded-md font-label-caps text-label-caps border border-hairline-border">
+<span class="material-symbols-outlined text-[14px]">pending</span>
+                    DEVAM EDİYOR
+                </div>
+<div class="flex items-center gap-2 mb-1">
+<span class="w-2 h-2 rounded-full bg-success-green"></span>
+<span class="font-body-sm text-body-sm text-muted-text">Kolay • Pediatri</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface pr-20">Febril Konvülziyon</h3>
+<p class="font-body-sm text-body-sm text-secondary line-clamp-2 mt-1">Ateşli havale geçiren 2 yaşındaki çocuğun ebeveynleriyle iletişim ve ilk müdahale adımları.</p>
+<div class="mt-auto pt-md flex items-center justify-between border-t border-hairline-border pb-2">
+<div class="flex items-center gap-1 text-muted-text font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+                        10 Dk
+                    </div>
+<span class="font-body-sm text-body-sm text-primary font-bold">
+                        Devam Et
+                    </span>
+</div>
+</article>
+<!-- Card 4: New / Not Started -->
+<article class="bg-surface rounded-xl border border-hairline-border p-md flex flex-col gap-sm relative overflow-hidden ambient-shadow hover:border-teal-bright hover:border-[1.5px] transition-all cursor-pointer">
+<div class="flex items-center gap-2 mb-1">
+<span class="w-2 h-2 rounded-full bg-[#F5A623]"></span>
+<span class="font-body-sm text-body-sm text-muted-text">Orta • Acil Tıp</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface pr-8">Anafilaktik Şok Yönetimi</h3>
+<p class="font-body-sm text-body-sm text-secondary line-clamp-2 mt-1">Arı sokması sonrası gelişen solunum sıkıntısı ve hipotansiyon tablosunda acil farmakolojik müdahale.</p>
+<div class="mt-auto pt-md flex items-center justify-between border-t border-hairline-border">
+<div class="flex items-center gap-1 text-muted-text font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+                        12 Dk
+                    </div>
+<button class="font-body-sm text-body-sm text-teal-bright font-bold flex items-center gap-1">
+                        BAŞLA <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+</article>
+</section>
+</main>
+<!-- BottomNavBar (Strictly mapped from JSON, active state: Cases) -->
+<nav class="bg-surface-container-lowest dark:bg-inverse-surface docked full-width bottom-0 rounded-t-xl border-t border-hairline-border dark:border-outline-variant shadow-lg dark:shadow-none fixed left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-2">
+<!-- Home (Inactive) -->
+<a class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">home</span>
+<span class="font-label-caps text-label-caps mt-1">Home</span>
+</a>
+<!-- Cases (Active State applied based on context "Case Library") -->
+<a class="flex flex-col items-center justify-center text-primary dark:text-teal-bright font-bold border-t-2 border-primary dark:border-teal-bright pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">medical_services</span>
+<span class="font-label-caps text-label-caps mt-1">Cases</span>
+</a>
+<!-- Exams (Inactive) -->
+<a class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">assignment</span>
+<span class="font-label-caps text-label-caps mt-1">Exams</span>
+</a>
+<!-- Progress (Inactive) -->
+<a class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">insights</span>
+<span class="font-label-caps text-label-caps mt-1">Progress</span>
+</a>
+<!-- Profile (Inactive) -->
+<a class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">account_circle</span>
+<span class="font-label-caps text-label-caps mt-1">Profile</span>
+</a>
+</nav>
+</body></html>

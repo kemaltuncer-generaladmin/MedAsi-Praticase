@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PratiCase - Notifications</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface": "#f7f9ff",
+                        "on-secondary-container": "#536574",
+                        "secondary-fixed-dim": "#b7c9da",
+                        "hairline-border": "#E2E6EA",
+                        "inverse-surface": "#27313c",
+                        "on-tertiary-fixed": "#281900",
+                        "on-secondary-fixed-variant": "#384957",
+                        "tertiary": "#744f00",
+                        "on-tertiary-container": "#fff1e1",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "tertiary-fixed-dim": "#ffba3b",
+                        "surface-container-lowest": "#ffffff",
+                        "on-surface-variant": "#3e4948",
+                        "on-background": "#121c26",
+                        "on-primary-fixed-variant": "#00504d",
+                        "primary-fixed-dim": "#7cd6d0",
+                        "error": "#ba1a1a",
+                        "surface-container": "#e4effd",
+                        "surface-tint": "#006a66",
+                        "surface-dim": "#d1dbe9",
+                        "primary-container": "#0e7c78",
+                        "surface-container-high": "#dfe9f7",
+                        "error-red": "#E04F5F",
+                        "outline": "#6e7978",
+                        "on-error": "#ffffff",
+                        "inverse-on-surface": "#e8f2ff",
+                        "on-primary": "#ffffff",
+                        "on-surface": "#121c26",
+                        "on-primary-fixed": "#00201f",
+                        "outline-variant": "#bdc9c7",
+                        "background": "#f7f9ff",
+                        "tertiary-container": "#946600",
+                        "secondary": "#4f6070",
+                        "error-container": "#ffdad6",
+                        "gradient-end": "#006A72",
+                        "on-error-container": "#93000a",
+                        "surface-bright": "#f7f9ff",
+                        "primary-fixed": "#98f2ed",
+                        "slate-blue": "#405168",
+                        "secondary-container": "#d0e2f4",
+                        "teal-bright": "#32C8BF",
+                        "secondary-fixed": "#d3e5f7",
+                        "gradient-start": "#063443",
+                        "on-tertiary-fixed-variant": "#604100",
+                        "scaffold-bg": "#F5F6F7",
+                        "surface-container-low": "#edf4ff",
+                        "tertiary-fixed": "#ffdead",
+                        "success-green": "#2AA765",
+                        "on-primary-container": "#c1fffa",
+                        "muted-text": "#5C6873",
+                        "on-secondary-fixed": "#0b1d2a",
+                        "surface-container-highest": "#d9e3f1",
+                        "primary": "#00615e",
+                        "surface-variant": "#d9e3f1",
+                        "inverse-primary": "#7cd6d0"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xl": "24px",
+                        "lg": "20px",
+                        "base": "4px",
+                        "sm": "8px",
+                        "margin-mobile": "20px",
+                        "xs": "4px",
+                        "md": "16px",
+                        "gutter": "12px"
+                    },
+                    "fontFamily": {
+                        "body-sm": ["Plus Jakarta Sans"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "display-lg": ["Plus Jakarta Sans"],
+                        "headline-lg": ["Plus Jakarta Sans"],
+                        "label-caps": ["Plus Jakarta Sans"],
+                        "body-md": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "headline-md": ["17px", { "lineHeight": "24px", "fontWeight": "800" }],
+                        "display-lg": ["44px", { "lineHeight": "42px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "headline-lg": ["24px", { "lineHeight": "32px", "fontWeight": "800" }],
+                        "label-caps": ["11px", { "lineHeight": "14px", "letterSpacing": "0.08em", "fontWeight": "800" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: theme('colors.scaffold-bg');
+            color: theme('colors.on-background');
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        /* Ambient Shadow for Cards */
+        .ambient-shadow {
+            box-shadow: 0px 8px 16px rgba(11, 29, 42, 0.04);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="min-h-screen pb-[100px]">
+<!-- TopAppBar -->
+<header class="bg-surface border-b border-hairline-border flex justify-between items-center w-full px-margin-mobile py-sm sticky top-0 z-50 transition-colors duration-200">
+<button aria-label="Go Back" class="w-10 h-10 flex items-center justify-center text-muted-text hover:bg-surface-container rounded-full transition-colors duration-200">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">arrow_back</span>
+</button>
+<h1 class="font-headline-md text-headline-md text-primary truncate">Notifications</h1>
+<div class="w-10 h-10"></div> <!-- Spacer for centering -->
+</header>
+<!-- Main Content Canvas -->
+<main class="px-margin-mobile pt-lg max-w-2xl mx-auto space-y-md">
+<!-- Filter/Tabs (Optional contextual enhancement) -->
+<div class="flex gap-sm overflow-x-auto pb-sm snap-x hide-scrollbar">
+<button class="flex-shrink-0 h-[42px] px-md rounded-full bg-primary text-on-primary font-body-sm text-body-sm transition-colors snap-start">All</button>
+<button class="flex-shrink-0 h-[42px] px-md rounded-full bg-transparent text-secondary border border-hairline-border font-body-sm text-body-sm transition-colors snap-start">Performance</button>
+<button class="flex-shrink-0 h-[42px] px-md rounded-full bg-transparent text-secondary border border-hairline-border font-body-sm text-body-sm transition-colors snap-start">Content</button>
+</div>
+<div class="space-y-sm">
+<h2 class="font-label-caps text-label-caps text-muted-text pt-sm">Today</h2>
+<!-- Notification Item: Unread (Performance) -->
+<div class="bg-surface-container-low border-l-4 border-primary rounded-lg p-md flex gap-md ambient-shadow relative overflow-hidden transition-all duration-200 hover:bg-surface cursor-pointer">
+<div class="w-2 h-2 bg-primary rounded-full absolute top-md right-md"></div>
+<div class="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center flex-shrink-0 text-primary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">insights</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex justify-between items-start mb-xs">
+<h3 class="font-body-md text-body-md text-on-surface truncate pr-lg">New Score Available!</h3>
+</div>
+<p class="font-body-sm text-body-sm text-secondary line-clamp-2 mb-xs">Your results for "Case: Acute Chest Pain" have been fully processed. Tap to review your detailed performance metrics.</p>
+<span class="font-label-caps text-label-caps text-muted-text">10:42 AM</span>
+</div>
+</div>
+<!-- Notification Item: Unread (Content) -->
+<div class="bg-surface-container-low border-l-4 border-primary rounded-lg p-md flex gap-md ambient-shadow relative overflow-hidden transition-all duration-200 hover:bg-surface cursor-pointer">
+<div class="w-2 h-2 bg-primary rounded-full absolute top-md right-md"></div>
+<div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center flex-shrink-0 text-primary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">medical_services</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex justify-between items-start mb-xs">
+<h3 class="font-body-md text-body-md text-on-surface truncate pr-lg">New Cardiology Case</h3>
+</div>
+<p class="font-body-sm text-body-sm text-secondary line-clamp-2 mb-xs">A new advanced scenario covering Acute Myocardial Infarction is now available in your exam library.</p>
+<span class="font-label-caps text-label-caps text-muted-text">8:15 AM</span>
+</div>
+</div>
+</div>
+<div class="space-y-sm pt-md">
+<h2 class="font-label-caps text-label-caps text-muted-text">Yesterday</h2>
+<!-- Notification Item: Read (Reminder) -->
+<div class="bg-surface border border-hairline-border rounded-lg p-md flex gap-md transition-all duration-200 hover:bg-surface-container-lowest cursor-pointer opacity-75">
+<div class="w-10 h-10 rounded-full bg-surface-dim flex items-center justify-center flex-shrink-0 text-muted-text">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">notifications_active</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex justify-between items-start mb-xs">
+<h3 class="font-body-md text-body-md text-on-surface truncate">Maintain Your Streak</h3>
+</div>
+<p class="font-body-sm text-body-sm text-secondary line-clamp-2 mb-xs">You're on a 4-day learning streak. Complete one case today to keep the momentum going!</p>
+<span class="font-label-caps text-label-caps text-muted-text">Yesterday, 6:00 PM</span>
+</div>
+</div>
+<!-- Notification Item: Read (Performance) -->
+<div class="bg-surface border border-hairline-border rounded-lg p-md flex gap-md transition-all duration-200 hover:bg-surface-container-lowest cursor-pointer opacity-75">
+<div class="w-10 h-10 rounded-full bg-surface-dim flex items-center justify-center flex-shrink-0 text-muted-text">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">verified</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex justify-between items-start mb-xs">
+<h3 class="font-body-md text-body-md text-on-surface truncate">Module Completed</h3>
+</div>
+<p class="font-body-sm text-body-sm text-secondary line-clamp-2 mb-xs">Congratulations on completing the Respiratory Basics module with an average score of 92%.</p>
+<span class="font-label-caps text-label-caps text-muted-text">Yesterday, 2:30 PM</span>
+</div>
+</div>
+</div>
+</main>
+</body></html>

@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>PratiCase - Leaderboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "background": "#f7f9ff",
+                      "primary-container": "#0e7c78",
+                      "on-tertiary-fixed": "#281900",
+                      "on-primary-fixed-variant": "#00504d",
+                      "on-error": "#ffffff",
+                      "error-red": "#E04F5F",
+                      "tertiary-container": "#946600",
+                      "on-primary-fixed": "#00201f",
+                      "on-primary-container": "#c1fffa",
+                      "surface": "#f7f9ff",
+                      "inverse-on-surface": "#e8f2ff",
+                      "muted-text": "#5C6873",
+                      "surface-container-low": "#edf4ff",
+                      "on-secondary-fixed": "#0b1d2a",
+                      "surface-container": "#e4effd",
+                      "tertiary-fixed-dim": "#ffba3b",
+                      "outline-variant": "#bdc9c7",
+                      "on-surface-variant": "#3e4948",
+                      "on-background": "#121c26",
+                      "on-primary": "#ffffff",
+                      "surface-bright": "#f7f9ff",
+                      "outline": "#6e7978",
+                      "on-secondary-container": "#536574",
+                      "secondary-fixed-dim": "#b7c9da",
+                      "surface-tint": "#006a66",
+                      "on-secondary-fixed-variant": "#384957",
+                      "surface-container-highest": "#d9e3f1",
+                      "hairline-border": "#E2E6EA",
+                      "on-error-container": "#93000a",
+                      "on-tertiary": "#ffffff",
+                      "gradient-end": "#006A72",
+                      "secondary-container": "#d0e2f4",
+                      "primary-fixed-dim": "#7cd6d0",
+                      "surface-container-high": "#dfe9f7",
+                      "primary-fixed": "#98f2ed",
+                      "tertiary": "#744f00",
+                      "inverse-primary": "#7cd6d0",
+                      "error-container": "#ffdad6",
+                      "on-secondary": "#ffffff",
+                      "surface-container-lowest": "#ffffff",
+                      "secondary-fixed": "#d3e5f7",
+                      "surface-variant": "#d9e3f1",
+                      "inverse-surface": "#27313c",
+                      "on-tertiary-fixed-variant": "#604100",
+                      "on-surface": "#121c26",
+                      "error": "#ba1a1a",
+                      "primary": "#00615e",
+                      "surface-dim": "#d1dbe9",
+                      "success-green": "#2AA765",
+                      "tertiary-fixed": "#ffdead",
+                      "slate-blue": "#405168",
+                      "teal-bright": "#32C8BF",
+                      "scaffold-bg": "#F5F6F7",
+                      "secondary": "#4f6070",
+                      "on-tertiary-container": "#fff1e1",
+                      "gradient-start": "#063443"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "base": "4px",
+                      "gutter": "12px",
+                      "sm": "8px",
+                      "margin-mobile": "20px",
+                      "xs": "4px",
+                      "lg": "20px",
+                      "xl": "24px",
+                      "md": "16px"
+              },
+              "fontFamily": {
+                      "label-caps": ["Plus Jakarta Sans"],
+                      "headline-md": ["Plus Jakarta Sans"],
+                      "display-lg": ["Plus Jakarta Sans"],
+                      "body-md": ["Plus Jakarta Sans"],
+                      "body-sm": ["Plus Jakarta Sans"],
+                      "headline-lg": ["Plus Jakarta Sans"]
+              },
+              "fontSize": {
+                      "label-caps": ["11px", {"lineHeight": "14px", "letterSpacing": "0.08em", "fontWeight": "800"}],
+                      "headline-md": ["17px", {"lineHeight": "24px", "fontWeight": "800"}],
+                      "display-lg": ["44px", {"lineHeight": "42px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                      "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "600"}],
+                      "body-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                      "headline-lg": ["24px", {"lineHeight": "32px", "fontWeight": "800"}]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .ambient-shadow { box-shadow: 0px 8px 16px rgba(11, 29, 42, 0.04); }
+        .hero-gradient { background: linear-gradient(135deg, #063443 0%, #006A72 100%); }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-scaffold-bg text-on-surface antialiased pb-[100px] min-h-screen">
+<!-- Header -->
+<header class="bg-surface docked full-width top-0 border-b border-hairline-border flat no shadows flex justify-between items-center w-full px-margin-mobile py-sm sticky z-40">
+<div class="flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">emoji_events</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-primary text-center flex-1">Leaderboard</h1>
+<div class="w-6"></div> <!-- Spacer for centering -->
+</header>
+<main class="px-margin-mobile pt-lg pb-xl space-y-xl max-w-2xl mx-auto">
+<!-- Toggle -->
+<div class="flex bg-surface-container-high rounded-full p-1 border border-hairline-border">
+<button class="flex-1 py-2 font-body-sm text-body-sm text-center rounded-full bg-surface shadow-sm text-primary font-bold border border-hairline-border transition-all">Daily</button>
+<button class="flex-1 py-2 font-body-sm text-body-sm text-center rounded-full text-muted-text hover:text-on-surface transition-all">Weekly</button>
+<button class="flex-1 py-2 font-body-sm text-body-sm text-center rounded-full text-muted-text hover:text-on-surface transition-all">All Time</button>
+</div>
+<!-- User Current Rank -->
+<div class="hero-gradient rounded-xl p-md text-on-primary relative overflow-hidden">
+<!-- Decorative wave -->
+<svg class="absolute top-0 right-0 h-full opacity-10" preserveaspectratio="none" viewbox="0 0 100 100">
+<path d="M0,100 C30,80 70,20 100,0 L100,100 Z" fill="currentColor"></path>
+</svg>
+<div class="relative z-10 flex items-center justify-between">
+<div class="flex items-center gap-md">
+<div class="relative">
+<div class="w-[52px] h-[52px] rounded-full border-2 border-on-primary overflow-hidden bg-surface-container-high">
+<img class="w-full h-full object-cover" data-alt="A professional headshot of a confident female physician in her 30s. She is wearing a crisp white lab coat over navy blue scrubs. The lighting is bright and modern, suggesting a clinical or hospital setting. The overall mood is capable, trustworthy, and academic, matching a premium medical application theme." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAZHKXRF-OGhTaOw5yrwTCCVRmbETswPP2XGLoxWrDtwcP2JZX5sBlNw0uaHCxfb-5HByU0qffrrz0N-Wa_gFAaU8uqkowu-6leI_DrI5kGGP6hm_yWmVeLAEeY2o5zfzTfc_0mEcnW-Gqjt2-s65l2vuqyyrildsz9iDH8MwT1yeTOrWH-Zd3TLjqJWZS_wLkGJaRWJ0w1jsZYUQP61GR_4gJyxQISU7Q5LjjMHN3kkyWxvmV6Sx9D3CKMxNUyRLxpylKBsAXx3cZP"/>
+</div>
+<div class="absolute -bottom-2 -right-2 bg-tertiary-fixed text-on-tertiary-fixed font-label-caps text-label-caps px-2 py-0.5 rounded-full border border-surface">#42</div>
+</div>
+<div>
+<h2 class="font-headline-md text-headline-md">Dr. Sarah Jenkins</h2>
+<p class="font-body-sm text-body-sm opacity-80">You are in the top 15%</p>
+</div>
+</div>
+<div class="text-right">
+<div class="font-headline-lg text-headline-lg">1,240</div>
+<div class="font-label-caps text-label-caps opacity-80">PTS</div>
+</div>
+</div>
+</div>
+<!-- Top 3 Podium (Bento Grid Style) -->
+<div class="grid grid-cols-3 gap-gutter items-end mt-xl">
+<!-- Rank 2 -->
+<div class="bg-surface border border-hairline-border rounded-xl p-sm flex flex-col items-center ambient-shadow relative h-[140px] justify-end">
+<div class="absolute -top-6">
+<div class="w-12 h-12 rounded-full border-2 border-surface-container-highest overflow-hidden bg-surface-container-high mx-auto relative">
+<img class="w-full h-full object-cover" data-alt="A portrait of a male medical student looking directly at the camera. He wears a dark grey scrub top. The background is a slightly blurred hospital corridor. The lighting is cool, clinical white light. The atmosphere is serious and focused, aligning with a high-stakes academic simulation platform." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCY8dffZh2Qb-1YI4i67Ic1H6Nv0zIisYsH3n-tLd9fFqN53fCxEKmn89CXthdHojXIqZT0Fy65mpMrWzej47e8oIC5DMW8M_G6TPD7dG9AgwCMtqv9zSVbXsd4hsHFIMGALa_75PLny4JFsF37WL5WeQZI1BgDYCclp5x_gBFU9MzLcVOR0y-anlFi52s91PDHWOSnP7_9p1mKbFHGN3A2orkQAR99hQdn4vh4OCShlDjhsTFgIqESNT1P5IHMMiG0Lqb6VN1EtbvZ"/>
+<div class="absolute bottom-0 inset-x-0 h-4 bg-slate-blue/80 flex items-center justify-center font-label-caps text-[9px] text-white">#2</div>
+</div>
+</div>
+<div class="text-center mt-6 w-full">
+<h3 class="font-body-sm text-body-sm truncate w-full px-1">M. Chen</h3>
+<div class="font-headline-md text-headline-md text-primary mt-1">2,850</div>
+<div class="font-label-caps text-label-caps text-muted-text mt-1">94 CASES</div>
+</div>
+</div>
+<!-- Rank 1 -->
+<div class="bg-surface border-1.5 border-tertiary-fixed-dim rounded-xl p-sm flex flex-col items-center ambient-shadow relative h-[160px] justify-end">
+<div class="absolute -top-8">
+<div class="w-16 h-16 rounded-full border-[3px] border-tertiary-fixed-dim overflow-hidden bg-surface-container-high mx-auto relative shadow-md">
+<img class="w-full h-full object-cover" data-alt="A close-up headshot of a female doctor with a subtle, confident smile. She has dark hair tied back and is wearing a stethoscope around her neck over a teal scrub top. The lighting highlights her face against a bright, sterile white background. The aesthetic is extremely clean, professional, and authoritative." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDNTu-K6Rwdh8ESafIiGEDPcENMefeN9a0UB0ksxONqHr0VClpN7K_dMUR4MToAMYSB4lPRVhuJpfs5XZj6NxKUrJHbnbAnTNBf03MPNV0hugKxKqAjrnFyPLSzpr-N789NE4UvWaU-57Poi3R6KyZA7wukFzS0ndiPYQ0Iq_zP42s-vy7RIGjhlvOFCrAAMAot5qg5JQALoAU5qG3qb_eDiyard12L1E8vTsd8b6JdJCSCoisNiXecLNONExxr9_VA7O9lvdTr2vVu"/>
+<div class="absolute bottom-0 inset-x-0 h-5 bg-tertiary-fixed-dim flex items-center justify-center font-label-caps text-[10px] text-on-tertiary-fixed">#1</div>
+</div>
+</div>
+<div class="text-center mt-8 w-full">
+<h3 class="font-body-md text-body-md truncate w-full px-1">Dr. A. Patel</h3>
+<div class="font-headline-lg text-headline-lg text-tertiary-container mt-1">3,420</div>
+<div class="font-label-caps text-label-caps text-muted-text mt-1">112 CASES</div>
+</div>
+</div>
+<!-- Rank 3 -->
+<div class="bg-surface border border-hairline-border rounded-xl p-sm flex flex-col items-center ambient-shadow relative h-[130px] justify-end">
+<div class="absolute -top-5">
+<div class="w-10 h-10 rounded-full border-2 border-surface-container-highest overflow-hidden bg-surface-container-high mx-auto relative">
+<img class="w-full h-full object-cover" data-alt="Portrait of a young male resident physician looking slightly off-camera. He is wearing a blue surgical cap and matching scrubs. The background is a soft, out-of-focus clinical environment. The lighting is soft but precise. The image conveys focus and dedication in a modern medical setting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA_2XUCOP-MRNoO1UmeWn7EA1ErAMRa3jp-i_01VbX7GL8RkuC08C1jMjBzHA6BUH838zfbC-qD-I1FBtuDppCBNtOEuR23HL8EqBdufS1MEUXYfKLmlKcr_yGAaDMqFDI5jEve-l4wBm7p9CUZlehH7s1uIAjcrD24zYsYlTlOXCIjNf_rjGJisS5kicd5uaLdxDvG6n0fPa-WihAGJXat5d1F-xb8gwG1mMFUee9RyFlBUzoQLfdM2MM7EaXeaUVsI3M4AXsrB_Sz"/>
+<div class="absolute bottom-0 inset-x-0 h-4 bg-secondary-fixed-dim flex items-center justify-center font-label-caps text-[9px] text-on-surface">#3</div>
+</div>
+</div>
+<div class="text-center mt-5 w-full">
+<h3 class="font-body-sm text-body-sm truncate w-full px-1">L. Davis</h3>
+<div class="font-headline-md text-headline-md text-primary mt-1">2,100</div>
+<div class="font-label-caps text-label-caps text-muted-text mt-1">78 CASES</div>
+</div>
+</div>
+</div>
+<!-- Leaderboard List -->
+<div class="mt-xl space-y-2">
+<!-- Rank 4 -->
+<div class="bg-surface border border-hairline-border rounded-xl p-sm flex items-center justify-between ambient-shadow">
+<div class="flex items-center gap-md">
+<div class="font-headline-md text-headline-md text-muted-text w-6 text-center">4</div>
+<div class="w-10 h-10 rounded-full bg-surface-container-high overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A clear, professional headshot of a female nurse practitioner. She is wearing a navy blue scrub top. The background is a plain, bright white wall. The lighting is even and flat, providing a highly legible avatar suitable for a professional medical app leaderboard." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAyIWKI6aNHAx9KgG7Bgqu68SjQUz513057UgqwPQVf2Iq1aw_X1Bq-zNWF4Sh1Th1DlVSjpiy3qiwNiAKHZUBRTOZkkFXVAq0xzjRQrvEJFXVP3ajdQ1FSVDEVt6d6U02tWNg7rx7zYEWZIJ83WXDUH1su9ucrGED3D2txDWKM9wYhFn8vCEtKpjMNu8vq8WficCWnGvcgo_GwM3OMPGOxARa2IZK_65V6x5s8oaV1sbn7E2htvY8x5WVgtMG043ZjNRtHwJPaqW_-"/>
+</div>
+<div>
+<div class="font-body-md text-body-md text-on-surface">J. Smith</div>
+<div class="font-body-sm text-body-sm text-muted-text">65 Cases Solved</div>
+</div>
+</div>
+<div class="text-right">
+<div class="font-headline-md text-headline-md text-primary">1,890</div>
+</div>
+</div>
+<!-- Rank 5 -->
+<div class="bg-surface border border-hairline-border rounded-xl p-sm flex items-center justify-between ambient-shadow">
+<div class="flex items-center gap-md">
+<div class="font-headline-md text-headline-md text-muted-text w-6 text-center">5</div>
+<div class="w-10 h-10 rounded-full bg-surface-container-high overflow-hidden">
+<div class="w-full h-full flex items-center justify-center bg-secondary-container text-on-secondary-container font-headline-md text-headline-md">RK</div>
+</div>
+<div>
+<div class="font-body-md text-body-md text-on-surface">R. Kumar</div>
+<div class="font-body-sm text-body-sm text-muted-text">61 Cases Solved</div>
+</div>
+</div>
+<div class="text-right">
+<div class="font-headline-md text-headline-md text-primary">1,750</div>
+</div>
+</div>
+<!-- Rank 6 -->
+<div class="bg-surface border border-hairline-border rounded-xl p-sm flex items-center justify-between ambient-shadow opacity-90">
+<div class="flex items-center gap-md">
+<div class="font-headline-md text-headline-md text-muted-text w-6 text-center">6</div>
+<div class="w-10 h-10 rounded-full bg-surface-container-high overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A portrait of a male doctor standing with arms crossed. He is wearing a white coat over a light blue shirt. The background is a clean, modern clinic setting with soft natural light coming from a window. The aesthetic is trustworthy and competent, fitting for a clinical leaderboard." src="https://lh3.googleusercontent.com/aida-public/AB6AXuATPDoQJfUIkfR0EmX2sRyscNSV0shhahj_Z0d2Quzw5zxcNMu8zdCaw5LosZ2gLDGaWVvO3xySmV6bgXQDtC5DINDv4lqm6Xun3ZEZlHCkINN7qSJAe6OtTK9iyGJGPXozhmK6fnV6uSB9ebUlQs-l47EE1Bzr-VhjhLJ-p83e6cXPsuIKvVgHJJCkbbSTP5EisSoWGLur-yRn8ZHH6xSoXy7PUyJzkdYLgnzdsWnMTri3NFD5RtvAWyZUtY4S2Zb8530KpN7lOaTB"/>
+</div>
+<div>
+<div class="font-body-md text-body-md text-on-surface">Dr. M. Weber</div>
+<div class="font-body-sm text-body-sm text-muted-text">58 Cases Solved</div>
+</div>
+</div>
+<div class="text-right">
+<div class="font-headline-md text-headline-md text-primary">1,620</div>
+</div>
+</div>
+<div class="py-4 text-center">
+<span class="material-symbols-outlined text-muted-text" style="font-variation-settings: 'FILL' 0;">more_horiz</span>
+</div>
+</div>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="bg-surface-container-lowest dark:bg-inverse-surface docked full-width bottom-0 rounded-t-xl border-t border-hairline-border dark:border-outline-variant shadow-lg dark:shadow-none fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-2">
+<a class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150 group" href="#">
+<span class="material-symbols-outlined mb-1 group-hover:text-primary">home</span>
+<span class="font-label-caps text-label-caps">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150 group" href="#">
+<span class="material-symbols-outlined mb-1 group-hover:text-primary">medical_services</span>
+<span class="font-label-caps text-label-caps">Cases</span>
+</a>
+<a class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150 group" href="#">
+<span class="material-symbols-outlined mb-1 group-hover:text-primary">assignment</span>
+<span class="font-label-caps text-label-caps">Exams</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary dark:text-teal-bright font-bold border-t-2 border-primary dark:border-teal-bright pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150 group" href="#">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 1;">insights</span>
+<span class="font-label-caps text-label-caps">Progress</span>
+</a>
+<a class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150 group" href="#">
+<span class="material-symbols-outlined mb-1 group-hover:text-primary">account_circle</span>
+<span class="font-label-caps text-label-caps">Profile</span>
+</a>
+</nav>
+</body></html>

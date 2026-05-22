@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+
+<html class="light" lang="tr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>PratiCase Onboarding</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-variant": "#d9e3f1",
+                    "primary": "#00615e",
+                    "gradient-start": "#063443",
+                    "on-primary-fixed": "#00201f",
+                    "surface-container": "#e4effd",
+                    "success-green": "#2AA765",
+                    "surface-dim": "#d1dbe9",
+                    "outline": "#6e7978",
+                    "on-tertiary-container": "#fff1e1",
+                    "primary-fixed": "#98f2ed",
+                    "secondary-fixed-dim": "#b7c9da",
+                    "tertiary": "#744f00",
+                    "outline-variant": "#bdc9c7",
+                    "on-secondary": "#ffffff",
+                    "muted-text": "#5C6873",
+                    "on-surface-variant": "#3e4948",
+                    "on-primary-fixed-variant": "#00504d",
+                    "error-container": "#ffdad6",
+                    "surface-container-high": "#dfe9f7",
+                    "secondary": "#4f6070",
+                    "tertiary-container": "#946600",
+                    "surface-tint": "#006a66",
+                    "error": "#ba1a1a",
+                    "primary-fixed-dim": "#7cd6d0",
+                    "surface-container-highest": "#d9e3f1",
+                    "on-tertiary-fixed": "#281900",
+                    "on-primary": "#ffffff",
+                    "on-background": "#121c26",
+                    "hairline-border": "#E2E6EA",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-bright": "#f7f9ff",
+                    "gradient-end": "#006A72",
+                    "on-error": "#ffffff",
+                    "error-red": "#E04F5F",
+                    "teal-bright": "#32C8BF",
+                    "on-error-container": "#93000a",
+                    "primary-container": "#0e7c78",
+                    "on-secondary-fixed": "#0b1d2a",
+                    "on-primary-container": "#c1fffa",
+                    "scaffold-bg": "#F5F6F7",
+                    "on-secondary-fixed-variant": "#384957",
+                    "surface-container-low": "#edf4ff",
+                    "tertiary-fixed-dim": "#ffba3b",
+                    "surface": "#f7f9ff",
+                    "secondary-container": "#d0e2f4",
+                    "on-surface": "#121c26",
+                    "secondary-fixed": "#d3e5f7",
+                    "inverse-surface": "#27313c",
+                    "tertiary-fixed": "#ffdead",
+                    "inverse-primary": "#7cd6d0",
+                    "on-secondary-container": "#536574",
+                    "on-tertiary": "#ffffff",
+                    "inverse-on-surface": "#e8f2ff",
+                    "background": "#f7f9ff",
+                    "on-tertiary-fixed-variant": "#604100",
+                    "slate-blue": "#405168"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "xs": "4px",
+                    "sm": "8px",
+                    "gutter": "12px",
+                    "xl": "24px",
+                    "md": "16px",
+                    "lg": "20px",
+                    "margin-mobile": "20px",
+                    "base": "4px"
+            },
+            "fontFamily": {
+                    "label-caps": ["Plus Jakarta Sans"],
+                    "display-lg": ["Plus Jakarta Sans"],
+                    "body-sm": ["Plus Jakarta Sans"],
+                    "headline-md": ["Plus Jakarta Sans"],
+                    "headline-lg": ["Plus Jakarta Sans"],
+                    "body-md": ["Plus Jakarta Sans"]
+            },
+            "fontSize": {
+                    "label-caps": ["11px", {"lineHeight": "14px", "letterSpacing": "0.08em", "fontWeight": "800"}],
+                    "display-lg": ["44px", {"lineHeight": "42px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                    "body-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                    "headline-md": ["17px", {"lineHeight": "24px", "fontWeight": "800"}],
+                    "headline-lg": ["24px", {"lineHeight": "32px", "fontWeight": "800"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "600"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #F5F6F7; /* scaffold-bg */
+            -webkit-font-smoothing: antialiased;
+        }
+        .bg-wave {
+            background-image: radial-gradient(circle at 50% -20%, rgba(50, 200, 191, 0.15) 0%, transparent 60%),
+                              radial-gradient(circle at 100% 40%, rgba(0, 97, 94, 0.05) 0%, transparent 50%);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="flex flex-col min-h-screen bg-scaffold-bg text-on-surface">
+<!-- Top Spacer for Safe Area -->
+<div class="h-8 md:h-12 w-full"></div>
+<!-- Main Container -->
+<main class="flex-grow flex flex-col px-margin-mobile relative z-10 w-full max-w-md mx-auto items-center justify-between pb-12">
+<!-- Brand/Logo Area -->
+<div class="w-full flex justify-center pt-8 pb-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-teal-bright text-4xl" data-icon="ecg" style="font-variation-settings: 'FILL' 1;">ecg</span>
+<span class="font-headline-lg text-headline-lg text-gradient-start tracking-tight">PratiCase</span>
+</div>
+</div>
+<!-- Illustration/Image Container -->
+<div class="w-full relative flex justify-center items-center mt-4 mb-8">
+<!-- Mathematical Curve Backdrop (CSS handled) -->
+<div class="absolute inset-0 bg-wave rounded-full blur-2xl opacity-70"></div>
+<div class="relative w-64 h-64 md:w-80 md:h-80 rounded-2xl overflow-hidden border border-hairline-border bg-surface-container-lowest shadow-[0_8px_16px_rgba(11,29,42,0.04)] p-2">
+<img alt="Medical Professional using a tablet" class="w-full h-full object-cover rounded-xl" data-alt="A clean, clinical photography showing a modern medical student or young doctor reviewing a patient chart on a digital tablet. The setting is a bright, sterile clinical environment with soft, high-key white lighting. The color palette features crisp whites, subtle light grays, and accents of deep navy and teal, aligning perfectly with a modern, professional medical simulation application aesthetic. The mood is focused, precise, and academic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDpl8F7KJtyuEPpOKzlWO4OC-n3n2kOja7F9Fp7O6yHlY8m-d8jqkumhro6bkpT65djB4fOtECDLTNZ0hpLUur5PlOGcjW9ZoXmg7rstJtMejN6qai-XzMciP4GvEUJN37lBcIL1QvUYyleioNVj0-EDpR7Ph3mlcZZ--1itkcud7uzTujDsmGuC6isVhmjBPUWM50IBLmJr3n6WssEkpbYNIV_lStGERC-8Yyn8M95XZvXtX-9HhY6YIL6y60pdX14u3Lh5-A5Luax"/>
+</div>
+</div>
+<!-- Text Content Area -->
+<div class="text-center w-full px-2 mb-10">
+<h1 class="font-headline-lg text-headline-lg text-on-background mb-4">
+                Klinik Akıl Yürütme Becerini Geliştir
+            </h1>
+<p class="font-body-md text-body-md text-secondary">
+                Gerçekçi vaka simülasyonları ile OSCE sınavlarına güvenle hazırlan.
+            </p>
+</div>
+<!-- Action Area -->
+<div class="w-full flex flex-col gap-4 mt-auto">
+<button class="w-full h-[52px] rounded-xl bg-gradient-to-r from-gradient-start to-gradient-end text-on-primary font-headline-md text-headline-md flex items-center justify-center shadow-lg active:scale-[0.98] transition-transform">
+                Başla
+            </button>
+<div class="text-center mt-2">
+<span class="font-body-sm text-body-sm text-muted-text">Zaten bir hesabın var mı?</span>
+<a class="font-body-md text-body-md text-primary ml-1 hover:text-teal-bright transition-colors" href="#">Giriş Yap</a>
+</div>
+</div>
+</main>
+</body></html>

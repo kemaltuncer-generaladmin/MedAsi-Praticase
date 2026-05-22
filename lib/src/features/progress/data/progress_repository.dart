@@ -9,6 +9,8 @@ abstract interface class ProgressRepository {
 
   Future<List<NotificationCard>> loadNotifications();
 
+  Future<void> markNotificationRead(String notificationId);
+
   Future<List<SimpleContentItem>> loadSupportTopics();
 
   Future<List<SimpleContentItem>> loadFaqItems();
@@ -20,6 +22,10 @@ abstract interface class ProgressRepository {
   Future<List<CaseCollectionItem>> loadFavoriteCases();
 
   Future<List<CaseCollectionItem>> loadCaseHistory();
+
+  Future<List<UserNote>> loadNotes();
+
+  Future<String> exportUserData();
 
   Future<void> createContactRequest({
     required String subject,
@@ -33,6 +39,8 @@ abstract interface class ProgressRepository {
     required String specialty,
     required String educationLevel,
   });
+
+  Future<void> saveAppSettings(AppSettings settings);
 }
 
 class ProgressDataUnavailable implements Exception {

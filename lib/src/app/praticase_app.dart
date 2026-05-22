@@ -40,8 +40,7 @@ class _PratiCaseAppState extends State<PratiCaseApp> {
     final user = await widget.authRepository.currentUser();
     if (!mounted) return;
     setState(() {
-      _authenticated =
-          user?.profileCompleted == true || user?.emailVerified == true;
+      _authenticated = user?.profileCompleted == true;
       _restoringSession = false;
     });
   }

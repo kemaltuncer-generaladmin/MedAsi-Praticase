@@ -11,6 +11,7 @@ class HomeScreen extends StatefulWidget {
     required this.repository,
     required this.casesRepository,
     this.onOpenCases,
+    this.onOpenExams,
     this.onOpenProgress,
     this.onOpenNotifications,
     this.onOpenBadges,
@@ -20,6 +21,7 @@ class HomeScreen extends StatefulWidget {
   final HomeRepository repository;
   final CasesRepository casesRepository;
   final VoidCallback? onOpenCases;
+  final VoidCallback? onOpenExams;
   final VoidCallback? onOpenProgress;
   final VoidCallback? onOpenNotifications;
   final VoidCallback? onOpenBadges;
@@ -89,6 +91,11 @@ class _HomeScreenState extends State<HomeScreen> {
               _BannerCarousel(
                 banners: dashboard.banners,
                 onCta: widget.onOpenCases,
+              ),
+              const SizedBox(height: 24),
+              _QuickActions(
+                onSingleStation: widget.onOpenCases,
+                onMiniOsce: widget.onOpenExams,
               ),
               const SizedBox(height: 24),
               _SectionHeader(
@@ -670,6 +677,99 @@ class _RecommendedCaseCard extends StatelessWidget {
                   color: const Color(0xFF5B6A84),
                 ),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickActions extends StatelessWidget {
+  const _QuickActions({
+    required this.onSingleStation,
+    required this.onMiniOsce,
+  });
+
+  final VoidCallback? onSingleStation;
+  final VoidCallback? onMiniOsce;
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.count(
+      crossAxisCount: 2,
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
+      childAspectRatio: 1.08,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      children: [
+        _QuickActionCard(
+          icon: Icons.assignment_ind_rounded,
+          title: 'Tek İstasyon',
+          subtitle: 'Odaklanmış senaryo',
+          onTap: onSingleStation,
+        ),
+        _QuickActionCard(
+          icon: Icons.view_kanban_rounded,
+          title: 'Mini OSCE',
+          subtitle: '3 istasyonlu deneme',
+          onTap: onMiniOsce,
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickActionCard extends StatelessWidget {
+  const _QuickActionCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Ink(
+        padding: const EdgeInsets.all(16),
+        decoration: _cardDecoration(),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _SoftIcon(icon: icon, color: PratiCaseColors.teal, size: 48),
+            const SizedBox(height: 12),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                title,
+                maxLines: 1,
+                style: const TextStyle(
+                  color: PratiCaseColors.navy,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              subtitle,
+              maxLines: 2,
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF68768E),
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
         ),

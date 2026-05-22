@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+
+<html lang="tr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Vaka Sonuç Karnesi</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "tertiary": "#744f00",
+                      "surface-variant": "#d9e3f1",
+                      "on-primary-fixed-variant": "#00504d",
+                      "on-secondary-container": "#536574",
+                      "on-tertiary-container": "#fff1e1",
+                      "on-tertiary-fixed-variant": "#604100",
+                      "on-primary-container": "#c1fffa",
+                      "surface-container-low": "#edf4ff",
+                      "on-background": "#121c26",
+                      "on-tertiary-fixed": "#281900",
+                      "surface-container": "#e4effd",
+                      "on-tertiary": "#ffffff",
+                      "surface-container-highest": "#d9e3f1",
+                      "on-secondary": "#ffffff",
+                      "surface-dim": "#d1dbe9",
+                      "inverse-primary": "#7cd6d0",
+                      "secondary-fixed": "#d3e5f7",
+                      "error": "#ba1a1a",
+                      "surface-container-high": "#dfe9f7",
+                      "gradient-end": "#006A72",
+                      "inverse-on-surface": "#e8f2ff",
+                      "teal-bright": "#32C8BF",
+                      "tertiary-container": "#946600",
+                      "surface-bright": "#f7f9ff",
+                      "on-primary": "#ffffff",
+                      "background": "#f7f9ff",
+                      "surface-container-lowest": "#ffffff",
+                      "on-secondary-fixed-variant": "#384957",
+                      "error-red": "#E04F5F",
+                      "slate-blue": "#405168",
+                      "secondary-container": "#d0e2f4",
+                      "primary-container": "#0e7c78",
+                      "hairline-border": "#E2E6EA",
+                      "on-primary-fixed": "#00201f",
+                      "success-green": "#2AA765",
+                      "error-container": "#ffdad6",
+                      "muted-text": "#5C6873",
+                      "scaffold-bg": "#F5F6F7",
+                      "outline-variant": "#bdc9c7",
+                      "secondary": "#4f6070",
+                      "on-error-container": "#93000a",
+                      "on-surface-variant": "#3e4948",
+                      "secondary-fixed-dim": "#b7c9da",
+                      "surface": "#f7f9ff",
+                      "gradient-start": "#063443",
+                      "on-error": "#ffffff",
+                      "tertiary-fixed-dim": "#ffba3b",
+                      "primary-fixed": "#98f2ed",
+                      "outline": "#6e7978",
+                      "primary-fixed-dim": "#7cd6d0",
+                      "tertiary-fixed": "#ffdead",
+                      "inverse-surface": "#27313c",
+                      "on-surface": "#121c26",
+                      "on-secondary-fixed": "#0b1d2a",
+                      "primary": "#00615e",
+                      "surface-tint": "#006a66"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "xl": "24px",
+                      "sm": "8px",
+                      "md": "16px",
+                      "lg": "20px",
+                      "margin-mobile": "20px",
+                      "xs": "4px",
+                      "base": "4px",
+                      "gutter": "12px"
+              },
+              "fontFamily": {
+                      "headline-md": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "body-md": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "label-caps": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "display-lg": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "body-sm": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "headline-lg": [
+                              "Plus Jakarta Sans"
+                      ]
+              },
+              "fontSize": {
+                      "headline-md": [
+                              "17px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "800"
+                              }
+                      ],
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "label-caps": [
+                              "11px",
+                              {
+                                      "lineHeight": "14px",
+                                      "letterSpacing": "0.08em",
+                                      "fontWeight": "800"
+                              }
+                      ],
+                      "display-lg": [
+                              "44px",
+                              {
+                                      "lineHeight": "42px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "800"
+                              }
+                      ],
+                      "body-sm": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "headline-lg": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "800"
+                              }
+                      ]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        body {
+            background-color: #F5F6F7;
+        }
+        .hero-gradient {
+            background: linear-gradient(180deg, #063443 0%, #006A72 100%);
+        }
+        .card-shadow {
+            box-shadow: 0px 8px 16px rgba(11, 29, 42, 0.04);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body-md text-on-surface pb-[120px]">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-on-surface docked full-width top-0 border-b border-hairline-border dark:border-outline-variant flat no shadows transition-colors duration-200 flex justify-between items-center w-full px-margin-mobile py-sm sticky z-50">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary dark:text-teal-bright" style="font-variation-settings: 'FILL' 0;">timer</span>
+<h1 class="font-headline-md text-headline-md text-primary dark:text-teal-bright">Case: Acute Chest Pain</h1>
+</div>
+<div class="text-primary dark:text-teal-bright font-body-sm text-body-sm bg-surface-container px-3 py-1 rounded-full border border-hairline-border">
+            Sonuç Karnesi
+        </div>
+</header>
+<main class="px-margin-mobile pt-md pb-xl max-w-4xl mx-auto space-y-md">
+<!-- Hero Scorecard -->
+<section class="hero-gradient rounded-b-[28px] rounded-t-xl p-xl text-center relative overflow-hidden shadow-lg">
+<div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 50% 0%, #ffffff 0%, transparent 70%);"></div>
+<h2 class="font-headline-lg text-headline-lg text-on-primary mb-2 relative z-10">Klinik Performans Skoru</h2>
+<div class="flex items-center justify-center gap-4 relative z-10 my-md">
+<div class="w-32 h-32 rounded-full border-4 border-teal-bright flex items-center justify-center bg-white/10 backdrop-blur-sm">
+<span class="font-display-lg text-display-lg text-on-primary">85</span>
+<span class="font-body-md text-body-md text-surface-variant self-end mb-4 ml-1">/100</span>
+</div>
+</div>
+<p class="font-body-md text-body-md text-surface-variant relative z-10">Yetkin düzeyde klinik muhakeme sergilediniz.</p>
+</section>
+<!-- Score Breakdown Grid -->
+<section class="grid grid-cols-2 gap-gutter mt-lg">
+<div class="bg-on-primary border border-hairline-border rounded-xl p-md flex items-start gap-3 card-shadow bg-primary/5">
+<div class="bg-primary-container p-2 rounded-lg text-on-primary-container">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">history_edu</span>
+</div>
+<div>
+<h3 class="font-body-sm text-body-sm text-muted-text">Anamnez</h3>
+<p class="font-headline-md text-headline-md text-on-surface">18<span class="font-body-sm text-body-sm text-muted-text font-normal">/20</span></p>
+</div>
+</div>
+<div class="bg-on-primary border border-hairline-border rounded-xl p-md flex items-start gap-3 card-shadow bg-primary/5">
+<div class="bg-primary-container p-2 rounded-lg text-on-primary-container">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">stethoscope</span>
+</div>
+<div>
+<h3 class="font-body-sm text-body-sm text-muted-text">Fizik Muayene</h3>
+<p class="font-headline-md text-headline-md text-on-surface">15<span class="font-body-sm text-body-sm text-muted-text font-normal">/20</span></p>
+</div>
+</div>
+<div class="bg-on-primary border border-hairline-border rounded-xl p-md flex items-start gap-3 card-shadow bg-primary/5">
+<div class="bg-primary-container p-2 rounded-lg text-on-primary-container">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">science</span>
+</div>
+<div>
+<h3 class="font-body-sm text-body-sm text-muted-text">Tetkik</h3>
+<p class="font-headline-md text-headline-md text-on-surface">19<span class="font-body-sm text-body-sm text-muted-text font-normal">/20</span></p>
+</div>
+</div>
+<div class="bg-on-primary border border-hairline-border rounded-xl p-md flex items-start gap-3 card-shadow bg-primary/5">
+<div class="bg-primary-container p-2 rounded-lg text-on-primary-container">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">medical_information</span>
+</div>
+<div>
+<h3 class="font-body-sm text-body-sm text-muted-text">Tanı &amp; Yönetim</h3>
+<p class="font-headline-md text-headline-md text-on-surface">33<span class="font-body-sm text-body-sm text-muted-text font-normal">/40</span></p>
+</div>
+</div>
+</section>
+<!-- Feedback Sections -->
+<section class="space-y-md mt-lg">
+<!-- Correct Approaches -->
+<div class="bg-on-primary border border-hairline-border rounded-xl p-md card-shadow border-l-4 border-l-success-green">
+<div class="flex items-center gap-2 mb-3">
+<span class="material-symbols-outlined text-success-green" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<h3 class="font-headline-md text-headline-md text-on-surface">Doğru Yaklaşımlar</h3>
+</div>
+<ul class="space-y-3 font-body-sm text-body-sm text-secondary">
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-muted-text text-[16px] mt-0.5">arrow_right</span>
+<span>Akut koroner sendrom şüphesinde ilk 10 dakika içinde EKG çekilmesi kuralına uyuldu.</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-muted-text text-[16px] mt-0.5">arrow_right</span>
+<span>Troponin I istemi doğru zamanda ve endikasyonda yapıldı.</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-muted-text text-[16px] mt-0.5">arrow_right</span>
+<span>Anti-agregan tedaviye (Aspirin 300mg) zamanında başlandı.</span>
+</li>
+</ul>
+</div>
+<!-- Critical Errors -->
+<div class="bg-on-primary border border-hairline-border rounded-xl p-md card-shadow border-l-4 border-l-error-red">
+<div class="flex items-center gap-2 mb-3">
+<span class="material-symbols-outlined text-error-red" style="font-variation-settings: 'FILL' 1;">error</span>
+<h3 class="font-headline-md text-headline-md text-on-surface">Kritik Hatalar &amp; Eksiklikler</h3>
+</div>
+<ul class="space-y-3 font-body-sm text-body-sm text-secondary">
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-muted-text text-[16px] mt-0.5">arrow_right</span>
+<span>Aort diseksiyonu ayırıcı tanısı için her iki koldan kan basıncı ölçümü atlandı. (Puan Kaybı: -5)</span>
+</li>
+<li class="flex items-start gap-2">
+<span class="material-symbols-outlined text-muted-text text-[16px] mt-0.5">arrow_right</span>
+<span>Hastanın oksijen satürasyonu &gt;90% olmasına rağmen gereksiz oksijen desteği başlandı. (Kılavuz Uyumsuzluğu)</span>
+</li>
+</ul>
+</div>
+<!-- Teaching Points -->
+<div class="bg-surface-container border border-outline-variant rounded-xl p-md card-shadow relative overflow-hidden">
+<div class="absolute -right-4 -top-4 opacity-10">
+<span class="material-symbols-outlined text-[100px]" style="font-variation-settings: 'FILL' 1;">school</span>
+</div>
+<div class="flex items-center gap-2 mb-3 relative z-10">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">lightbulb</span>
+<h3 class="font-headline-md text-headline-md text-primary">Eğitici Notlar</h3>
+</div>
+<div class="font-body-sm text-body-sm text-on-surface-variant relative z-10 space-y-2">
+<p>Göğüs ağrısı ile başvuran hastalarda, EKG'de tipik ST elevasyonu olmasa bile (NSTEMI/USAP), yüksek riskli hastaların erken invaziv strateji açısından değerlendirilmesi kritiktir. GRACE skoru hesaplaması bu vakada yönetim kararınızı güçlendirebilirdi.</p>
+<p class="mt-2 text-primary font-body-md text-body-md">Referans: ESC 2023 Acute Coronary Syndromes Guidelines</p>
+</div>
+</div>
+</section>
+<!-- Actions -->
+<section class="mt-xl flex flex-col gap-3 pb-lg">
+<button class="w-full h-[52px] rounded-xl font-headline-md text-headline-md text-on-primary bg-gradient-to-r from-gradient-start to-gradient-end shadow-md flex items-center justify-center gap-2">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">restart_alt</span>
+                Tekrar Çöz
+            </button>
+<button class="w-full h-[52px] rounded-xl font-headline-md text-headline-md text-slate-blue bg-[#E2E7EF] flex items-center justify-center gap-2">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">library_books</span>
+                Benzer Vaka Önerileri
+            </button>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="bg-surface-container-lowest dark:bg-inverse-surface docked full-width bottom-0 rounded-t-xl border-t border-hairline-border dark:border-outline-variant shadow-lg dark:shadow-none fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-2">
+<a class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 0;">home</span>
+<span class="font-label-caps text-label-caps">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary dark:text-teal-bright font-bold border-t-2 border-primary dark:border-teal-bright pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 1;">medical_services</span>
+<span class="font-label-caps text-label-caps">Cases</span>
+</a>
+<a class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 0;">assignment</span>
+<span class="font-label-caps text-label-caps">Exams</span>
+</a>
+<a class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 0;">insights</span>
+<span class="font-label-caps text-label-caps">Progress</span>
+</a>
+<a class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 0;">account_circle</span>
+<span class="font-label-caps text-label-caps">Profile</span>
+</a>
+</nav>
+</body></html>

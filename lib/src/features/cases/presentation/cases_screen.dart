@@ -7,9 +7,14 @@ import '../data/cases_repository.dart';
 import '../domain/osce_case.dart';
 
 class CasesScreen extends StatefulWidget {
-  const CasesScreen({required this.repository, super.key});
+  const CasesScreen({
+    required this.repository,
+    this.onOpenNotifications,
+    super.key,
+  });
 
   final CasesRepository repository;
+  final VoidCallback? onOpenNotifications;
 
   @override
   State<CasesScreen> createState() => _CasesScreenState();
@@ -18,6 +23,7 @@ class CasesScreen extends StatefulWidget {
 class _CasesScreenState extends State<CasesScreen> {
   final _searchController = TextEditingController();
   Timer? _searchDebounce;
+  String? _branch;
   String? _difficulty;
   late Future<List<OsceCaseSummary>> _casesFuture;
 
@@ -70,12 +76,15 @@ class _CasesScreenState extends State<CasesScreen> {
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: EdgeInsets.fromLTRB(20, 18, 20, bottom),
             children: [
-              const _MobileHeader(title: 'PratiCase'),
-              const SizedBox(height: 22),
+              _MobileHeader(
+                title: 'PratiCase',
+                onOpenNotifications: widget.onOpenNotifications,
+              ),
+              const SizedBox(height: 18),
               const _PageTitle(
-                title: 'Vakalar',
+                title: 'Vaka Kütüphanesi',
                 subtitle:
-                    'Klinik becerini geliştir, vakaları çöz ve puan kazan!',
+                    'Semptom, branş veya zorluk seçerek OSCE istasyonu başlat.',
               ),
               const SizedBox(height: 16),
               _SearchBox(
@@ -83,49 +92,81 @@ class _CasesScreenState extends State<CasesScreen> {
                 onChanged: _scheduleSearch,
                 onSubmitted: _search,
               ),
-              const SizedBox(height: 18),
               if (snapshot.connectionState != ConnectionState.done)
-                const _CenteredState(
-                  icon: Icons.hourglass_empty_rounded,
-                  title: 'Canlı vakalar yükleniyor',
-                  body: 'PratiCase vaka kütüphanesi Supabase’den okunuyor.',
+                const Padding(
+                  padding: EdgeInsets.only(top: 22),
+                  child: _CenteredState(
+                    icon: Icons.hourglass_empty_rounded,
+                    title: 'Canlı vakalar yükleniyor',
+                    body: 'PratiCase vaka kütüphanesi Supabase’den okunuyor.',
+                  ),
                 )
               else if (snapshot.hasError)
-                _CenteredState(
-                  icon: Icons.cloud_off_rounded,
-                  title: 'Canlı veri bağlantısı gerekli',
-                  body: _errorText(snapshot.error),
+                Padding(
+                  padding: const EdgeInsets.only(top: 22),
+                  child: _CenteredState(
+                    icon: Icons.cloud_off_rounded,
+                    title: 'Canlı veri bağlantısı gerekli',
+                    body: _errorText(snapshot.error),
+                  ),
                 )
               else if (snapshot.requireData.isEmpty)
-                const _CenteredState(
-                  icon: Icons.assignment_outlined,
-                  title: 'Yayınlanmış vaka yok',
-                  body: 'Yayınlanan OSCE vakaları burada listelenecek.',
+                const Padding(
+                  padding: EdgeInsets.only(top: 22),
+                  child: _CenteredState(
+                    icon: Icons.assignment_outlined,
+                    title: 'Yayınlanmış vaka yok',
+                    body: 'Yayınlanan OSCE vakaları burada listelenecek.',
+                  ),
                 )
               else ...[
+                const SizedBox(height: 18),
+                _FilterStrip(
+                  label: 'Branşlar',
+                  items: [
+                    'Tümü',
+                    ...{
+                      for (final item in snapshot.requireData)
+                        if (item.branch.trim().isNotEmpty) item.branch,
+                    },
+                  ],
+                  selected: _branch ?? 'Tümü',
+                  onSelected: (value) {
+                    setState(() => _branch = value == 'Tümü' ? null : value);
+                  },
+                ),
+                const SizedBox(height: 14),
+                _FilterStrip(
+                  label: 'Zorluk',
+                  items: const ['Tümü', 'Kolay', 'Orta', 'Zor'],
+                  selected: _difficulty ?? 'Tümü',
+                  onSelected: (value) {
+                    setState(() {
+                      _difficulty = value == 'Tümü' ? null : value;
+                      _casesFuture = widget.repository.loadCases(
+                        query: _searchController.text,
+                        difficulty: _difficulty,
+                      );
+                    });
+                  },
+                ),
+                const SizedBox(height: 18),
                 Row(
                   children: [
                     Expanded(
                       child: Text(
-                        '${snapshot.requireData.length} vaka bulundu',
+                        '${_visibleCases(snapshot.requireData).length} vaka bulundu',
                         style: const TextStyle(
                           color: PratiCaseColors.navy,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
-                    TextButton.icon(
-                      onPressed: _openFilters,
-                      icon: const Icon(Icons.tune_rounded),
-                      label: Text(_difficulty ?? 'Filtrele'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFF506178),
-                      ),
-                    ),
+                    _TinyPill(text: _difficulty ?? 'Tüm zorluklar'),
                   ],
                 ),
                 const SizedBox(height: 10),
-                for (final item in snapshot.requireData) ...[
+                for (final item in _visibleCases(snapshot.requireData)) ...[
                   _CaseListCard(
                     item: item,
                     onTap: () => _openDetail(context, item.id),
@@ -149,21 +190,9 @@ class _CasesScreenState extends State<CasesScreen> {
     );
   }
 
-  Future<void> _openFilters() async {
-    final selected = await Navigator.of(context).push<String?>(
-      MaterialPageRoute<String?>(
-        builder: (_) => CaseSearchFilterScreen(selectedDifficulty: _difficulty),
-      ),
-    );
-    if (!mounted) return;
-    if (selected == null) return;
-    setState(() {
-      _difficulty = selected.isEmpty ? null : selected;
-      _casesFuture = widget.repository.loadCases(
-        query: _searchController.text,
-        difficulty: _difficulty,
-      );
-    });
+  List<OsceCaseSummary> _visibleCases(List<OsceCaseSummary> cases) {
+    if (_branch == null) return cases;
+    return cases.where((item) => item.branch == _branch).toList();
   }
 }
 
@@ -262,6 +291,7 @@ class CaseDetailScreen extends StatefulWidget {
 class _CaseDetailScreenState extends State<CaseDetailScreen> {
   late Future<OsceCaseDetail> _detailFuture;
   bool _starting = false;
+  bool _bookmarking = false;
 
   @override
   void initState() {
@@ -284,6 +314,27 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
       );
     } finally {
       if (mounted) setState(() => _starting = false);
+    }
+  }
+
+  Future<void> _toggleBookmark(OsceCaseDetail detail) async {
+    if (_bookmarking) return;
+    setState(() => _bookmarking = true);
+    try {
+      await widget.repository.setBookmark(
+        caseId: widget.caseId,
+        bookmarked: !detail.summary.isBookmarked,
+      );
+      setState(
+        () => _detailFuture = widget.repository.loadCaseDetail(widget.caseId),
+      );
+    } on CasesDataUnavailable catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      if (mounted) setState(() => _bookmarking = false);
     }
   }
 
@@ -314,7 +365,9 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
               _StepTopBar(
                 title: 'Vaka Detay',
                 trailing: IconButton(
-                  onPressed: () => _showComingSoon(context, 'Favori vaka'),
+                  onPressed: _bookmarking
+                      ? null
+                      : () => _toggleBookmark(detail),
                   icon: Icon(
                     detail.summary.isBookmarked
                         ? Icons.bookmark_rounded
@@ -444,6 +497,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
   @override
   Widget build(BuildContext context) {
     return _FlowScaffold(
+      backgroundColor: PratiCaseColors.navy,
       resizeToAvoidBottomInset: true,
       body: FutureBuilder<_ChatBundle>(
         future: _bundleFuture,
@@ -465,19 +519,17 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
           final bundle = snapshot.requireData;
           return Column(
             children: [
+              _ExamTopBar(
+                session: bundle.session,
+                phase: 'Anamnez',
+                repository: widget.repository,
+                sessionId: widget.sessionId,
+              ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
                 child: Column(
                   children: [
-                    _StepTopBar(
-                      title: 'PratiCase',
-                      step: 1,
-                      subtitle: _examSubtitle(bundle.session),
-                      trailing: _FinishExamButton(
-                        repository: widget.repository,
-                        sessionId: widget.sessionId,
-                      ),
-                    ),
+                    const _PhaseTabs(activeStep: 1),
                     const SizedBox(height: 12),
                     _PatientBanner(session: bundle.session),
                     const SizedBox(height: 10),
@@ -644,16 +696,17 @@ class _PhysicalExamScreenState extends State<PhysicalExamScreen> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
             children: [
-              _StepTopBar(
-                title: 'Fizik Muayene',
-                step: 2,
-                subtitle: _examSubtitle(bundle.session),
-                trailing: _FinishExamButton(
-                  repository: widget.repository,
-                  sessionId: widget.sessionId,
-                ),
+              _ExamTopBar(
+                session: bundle.session,
+                phase: 'Fizik Muayene',
+                repository: widget.repository,
+                sessionId: widget.sessionId,
               ),
+              const SizedBox(height: 14),
+              const _PhaseTabs(activeStep: 2),
               const SizedBox(height: 18),
+              _PatientBanner(session: bundle.session),
+              const SizedBox(height: 16),
               const Text(
                 'Sistem seçerek muayene edin.',
                 style: TextStyle(
@@ -679,7 +732,7 @@ class _PhysicalExamScreenState extends State<PhysicalExamScreen> {
           );
         },
       ),
-      bottom: _BottomAction(label: 'Devam Et', onPressed: _next),
+      bottom: _BottomAction(label: 'Tetkiklere Geç', onPressed: _next),
     );
   }
 }
@@ -781,14 +834,18 @@ class _TestsScreenState extends State<TestsScreen> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
             children: [
-              _StepTopBar(
-                title: 'Tetkik İsteme',
-                step: 3,
-                subtitle: _examSubtitle(bundle.session),
-                trailing: _FinishExamButton(
-                  repository: widget.repository,
-                  sessionId: widget.sessionId,
-                ),
+              _ExamTopBar(
+                session: bundle.session,
+                phase: 'Tetkikler',
+                repository: widget.repository,
+                sessionId: widget.sessionId,
+              ),
+              const SizedBox(height: 14),
+              const _PhaseTabs(activeStep: 3),
+              const SizedBox(height: 18),
+              _SelectionSummary(
+                text: 'İstem Listem ($selectedCount)',
+                subtext: '$selectedCost puan',
               ),
               const SizedBox(height: 18),
               _SegmentScroller(
@@ -815,16 +872,11 @@ class _TestsScreenState extends State<TestsScreen> {
                   title: 'Bu kategoride tetkik yok',
                   body: 'Canlı tetkik seçenekleri eklendiğinde burada görünür.',
                 ),
-              const SizedBox(height: 18),
-              _SelectionSummary(
-                text: 'İstem Listem ($selectedCount)',
-                subtext: '$selectedCost puan',
-              ),
             ],
           );
         },
       ),
-      bottom: _BottomAction(label: 'Devam Et', onPressed: _next),
+      bottom: _BottomAction(label: 'Tanıya Geç', onPressed: _next),
     );
   }
 
@@ -965,24 +1017,23 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 130),
             children: [
-              _StepTopBar(
-                title: 'Tanı ve Ayırıcı Tanı',
-                step: 4,
-                subtitle: _examSubtitle(bundle.session),
-                trailing: _FinishExamButton(
-                  repository: widget.repository,
-                  sessionId: widget.sessionId,
-                ),
+              _ExamTopBar(
+                session: bundle.session,
+                phase: 'Tanı ve Yönetim',
+                repository: widget.repository,
+                sessionId: widget.sessionId,
               ),
+              const SizedBox(height: 14),
+              const _PhaseTabs(activeStep: 4),
               const SizedBox(height: 18),
               _InputBlock(
-                label: 'En olası tanınız nedir?',
+                label: 'Ön Tanı',
                 controller: _primaryController,
-                hint: 'Tanı yazın',
-                maxLines: 1,
+                hint: 'Kesinleşen veya en olası ön tanınızı yazın.',
+                maxLines: 2,
               ),
               const SizedBox(height: 16),
-              const _FormLabel('Ayırıcı Tanılarınızı seçin'),
+              const _FormLabel('Ayırıcı Tanılar'),
               const SizedBox(height: 8),
               for (final option in bundle.options) ...[
                 _DiagnosisTile(
@@ -1008,9 +1059,10 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
                 ),
               const SizedBox(height: 14),
               _InputBlock(
-                label: 'Tanı gerekçenizi yazın',
+                label: 'Tanı Gerekçesi',
                 controller: _reasoningController,
-                hint: 'Klinik bulgular ve laboratuvar sonuçlarını özetleyin.',
+                hint:
+                    'Dışlanması gereken tanıları, klinik bulguları ve tetkik sonuçlarını özetleyin.',
                 maxLines: 6,
               ),
             ],
@@ -1018,7 +1070,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
         },
       ),
       bottom: _BottomAction(
-        label: _saving ? 'Kaydediliyor...' : 'Devam Et',
+        label: _saving ? 'Kaydediliyor...' : 'Yönetim Planına Geç',
         onPressed: _primaryController.text.trim().isEmpty || _saving
             ? null
             : _save,
@@ -1065,11 +1117,16 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
   Future<_ManagementBundle> _load() async {
     final session = await widget.repository.loadSession(widget.sessionId);
     final answer = await widget.repository.loadManagementPlan(widget.sessionId);
+    final diagnosisAnswer = await widget.repository.loadDiagnosisAnswer(
+      widget.sessionId,
+    );
     final options = await widget.repository.loadManagementOptions(
       sessionId: widget.sessionId,
       caseId: widget.caseId,
     );
-    _diagnosisController.text = answer?.diagnosis ?? '';
+    _diagnosisController.text = (answer?.diagnosis.trim().isNotEmpty ?? false)
+        ? answer!.diagnosis
+        : diagnosisAnswer?.primaryDiagnosis ?? '';
     _noteController.text = answer?.note ?? '';
     _selected
       ..clear()
@@ -1129,25 +1186,24 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 130),
             children: [
-              _StepTopBar(
-                title: 'Tedavi / Yönetim Planı',
-                step: 5,
-                subtitle: _examSubtitle(bundle.session),
-                trailing: _FinishExamButton(
-                  repository: widget.repository,
-                  sessionId: widget.sessionId,
-                ),
+              _ExamTopBar(
+                session: bundle.session,
+                phase: 'Tanı ve Yönetim',
+                repository: widget.repository,
+                sessionId: widget.sessionId,
               ),
+              const SizedBox(height: 14),
+              const _PhaseTabs(activeStep: 5),
               const SizedBox(height: 18),
               _InputBlock(
-                label: 'Tanınız',
+                label: 'Ön Tanı',
                 controller: _diagnosisController,
-                hint: 'Tanınızı yazın',
-                maxLines: 1,
+                hint: 'Kesinleşen veya en olası ön tanınızı yazın.',
+                maxLines: 2,
               ),
               const SizedBox(height: 18),
               const Text(
-                'Tedavi Planınızı Oluşturun',
+                'Yönetim Planı',
                 style: TextStyle(
                   color: PratiCaseColors.navy,
                   fontSize: 17,
@@ -1156,7 +1212,7 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
               ),
               const SizedBox(height: 6),
               const Text(
-                'Hastaya yönelik uygun tedavi ve yönetim planınızı seçin.',
+                'Tedavi, konsültasyon ve acil müdahale kararlarını eksiksiz işaretleyin.',
                 style: TextStyle(
                   color: Color(0xFF66758A),
                   fontWeight: FontWeight.w600,
@@ -1172,7 +1228,7 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
               else
                 for (final entry in grouped.entries) ...[
                   _ManagementGroupCard(
-                    title: entry.key,
+                    title: _managementCategoryTitle(entry.key),
                     options: entry.value,
                     selected: _selected,
                     onChanged: (optionId, selected) {
@@ -1188,9 +1244,10 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
                   const SizedBox(height: 14),
                 ],
               _InputBlock(
-                label: 'Planınızı kısaca açıklayın',
+                label: 'Acil Müdahaleler ve Ek Tetkikler',
                 controller: _noteController,
-                hint: 'Yönetim planınızı klinik gerekçesiyle yazın.',
+                hint:
+                    'Acil prosedür, ileri görüntüleme veya ek laboratuvar taleplerini klinik gerekçesiyle yazın.',
                 maxLines: 5,
               ),
               const SizedBox(height: 14),
@@ -1211,7 +1268,8 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
         },
       ),
       bottom: _BottomAction(
-        label: 'Planı Kaydet ve Devam Et',
+        label: 'Sınavı Bitir ve Değerlendir',
+        icon: Icons.check_circle_rounded,
         onPressed: _save,
       ),
     );
@@ -1300,12 +1358,20 @@ class ResultScreen extends StatelessWidget {
               const SizedBox(height: 14),
               _IdealApproachCard(text: result.idealApproach),
               const SizedBox(height: 18),
-              _BottomAction(
-                label: 'Vaka Raporunu İncele',
-                onPressed: () {
+              _ResultActions(
+                onRetry: () =>
+                    Navigator.of(context).popUntil((route) => route.isFirst),
+                onReport: () {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => CaseReportScreen(result: result),
+                    ),
+                  );
+                },
+                onSuggestedCases: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => CasesScreen(repository: repository),
                     ),
                   );
                 },
@@ -1657,6 +1723,12 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
   }
 
   Future<void> _save() async {
+    if (_note.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Not kaydetmek için içerik gir.')),
+      );
+      return;
+    }
     setState(() => _saving = true);
     try {
       await widget.repository.saveNote(
@@ -1666,7 +1738,15 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
         category: 'Vaka',
       );
       if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Not kaydedildi.')));
       Navigator.maybePop(context);
+    } on CasesDataUnavailable catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -1757,17 +1837,19 @@ class _FlowScaffold extends StatelessWidget {
     required this.body,
     this.bottom,
     this.resizeToAvoidBottomInset,
+    this.backgroundColor = const Color(0xFFF7F9FB),
   });
 
   final Widget body;
   final Widget? bottom;
   final bool? resizeToAvoidBottomInset;
+  final Color backgroundColor;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: resizeToAvoidBottomInset,
-      backgroundColor: const Color(0xFFF7F9FB),
+      backgroundColor: backgroundColor,
       body: SafeArea(bottom: false, child: body),
       bottomNavigationBar: bottom == null
           ? null
@@ -1783,18 +1865,16 @@ class _FlowScaffold extends StatelessWidget {
 }
 
 class _MobileHeader extends StatelessWidget {
-  const _MobileHeader({required this.title});
+  const _MobileHeader({required this.title, this.onOpenNotifications});
 
   final String title;
+  final VoidCallback? onOpenNotifications;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        IconButton(
-          onPressed: () => _showComingSoon(context, 'Menü'),
-          icon: const Icon(Icons.menu_rounded, color: PratiCaseColors.navy),
-        ),
+        const SizedBox(width: 48),
         const Spacer(),
         Image.asset('assets/branding/praticase.png', width: 34, height: 34),
         const SizedBox(width: 8),
@@ -1808,7 +1888,7 @@ class _MobileHeader extends StatelessWidget {
         ),
         const Spacer(),
         IconButton(
-          onPressed: () => _showComingSoon(context, 'Bildirimler'),
+          onPressed: onOpenNotifications,
           icon: const Icon(
             Icons.notifications_none_rounded,
             color: PratiCaseColors.navy,
@@ -1820,16 +1900,9 @@ class _MobileHeader extends StatelessWidget {
 }
 
 class _StepTopBar extends StatelessWidget {
-  const _StepTopBar({
-    required this.title,
-    this.step,
-    this.subtitle,
-    this.trailing,
-  });
+  const _StepTopBar({required this.title, this.trailing});
 
   final String title;
-  final int? step;
-  final String? subtitle;
   final Widget? trailing;
 
   @override
@@ -1844,64 +1917,18 @@ class _StepTopBar extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: Column(
-            children: [
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: PratiCaseColors.navy,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              if (subtitle != null)
-                Text(
-                  subtitle!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: PratiCaseColors.teal,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              if (step != null) ...[
-                const SizedBox(height: 8),
-                _StepDots(active: step!),
-              ],
-            ],
+          child: Text(
+            title,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: PratiCaseColors.navy,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ),
         trailing ?? const SizedBox(width: 48),
-      ],
-    );
-  }
-}
-
-class _StepDots extends StatelessWidget {
-  const _StepDots({required this.active});
-
-  final int active;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        for (var index = 1; index <= 5; index++) ...[
-          Container(
-            width: index == active ? 18 : 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: index == active
-                  ? PratiCaseColors.teal
-                  : const Color(0xFFD8DFE8),
-              borderRadius: BorderRadius.circular(99),
-            ),
-          ),
-          if (index != 5) const SizedBox(width: 8),
-        ],
       ],
     );
   }
@@ -1975,6 +2002,67 @@ class _SearchBox extends StatelessWidget {
   }
 }
 
+class _FilterStrip extends StatelessWidget {
+  const _FilterStrip({
+    required this.label,
+    required this.items,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final String label;
+  final List<String> items;
+  final String selected;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: const TextStyle(
+            color: PratiCaseColors.muted,
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 42,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: items.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 8),
+            itemBuilder: (context, index) {
+              final item = items[index];
+              final active = item == selected;
+              return ChoiceChip(
+                selected: active,
+                onSelected: (_) => onSelected(item),
+                label: Text(item),
+                selectedColor: PratiCaseColors.tealBright,
+                backgroundColor: Colors.transparent,
+                side: BorderSide(
+                  color: active
+                      ? PratiCaseColors.tealBright
+                      : PratiCaseColors.border,
+                ),
+                labelStyle: TextStyle(
+                  color: active ? Colors.white : PratiCaseColors.slateBlue,
+                  fontWeight: FontWeight.w800,
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _CaseListCard extends StatelessWidget {
   const _CaseListCard({required this.item, required this.onTap});
 
@@ -1983,64 +2071,262 @@ class _CaseListCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final progress = item.progressPercent;
+    final score = item.lastScore;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Ink(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         decoration: _cardDecoration(),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _SoftIcon(
-              icon: _caseIcon(item.iconKey),
-              color: _difficultyColor(item.difficulty),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: PratiCaseColors.navy,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    item.summary,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF54647A),
-                      height: 1.35,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
+            Row(
+              children: [
+                _SoftIcon(
+                  icon: _caseIcon(item.iconKey),
+                  color: _difficultyColor(item.difficulty),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _ChipTag(label: item.setting),
-                      _ChipTag(label: item.branch),
-                      _TinyPill(text: 'Zorluk: ${item.difficulty.label}'),
-                      _ChipTag(label: '${item.points} Puan'),
+                      Text(
+                        item.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: PratiCaseColors.navy,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          _ChipTag(label: item.branch),
+                          _ChipTag(
+                            label: item.difficulty.label,
+                            tone: _difficultyColor(item.difficulty),
+                          ),
+                          _ChipTag(label: '${item.durationMinutes} dk'),
+                        ],
+                      ),
                     ],
                   ),
-                ],
+                ),
+                const SizedBox(width: 10),
+                const _RoundArrow(),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              item.summary,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF54647A),
+                height: 1.35,
+                fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(width: 10),
-            const _RoundArrow(),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _Metric(
+                  icon: Icons.local_hospital_outlined,
+                  text: item.setting,
+                ),
+                const SizedBox(width: 14),
+                _Metric(
+                  icon: Icons.groups_rounded,
+                  text: '${item.solvedCount} çözen',
+                ),
+                const Spacer(),
+                if (score != null)
+                  _TinyPill(text: 'Son skor $score')
+                else if (progress != null)
+                  _TinyPill(text: '%$progress devam')
+                else
+                  _TinyPill(text: '${item.points} puan'),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
+}
+
+class _ExamTopBar extends StatelessWidget {
+  const _ExamTopBar({
+    required this.session,
+    required this.phase,
+    required this.repository,
+    required this.sessionId,
+  });
+
+  final ExamSessionOverview session;
+  final String phase;
+  final CasesRepository repository;
+  final String sessionId;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+      decoration: const BoxDecoration(
+        color: PratiCaseColors.navy,
+        border: Border(bottom: BorderSide(color: Color(0x1AFFFFFF))),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: () => Navigator.maybePop(context),
+            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  phase.toUpperCase(),
+                  style: const TextStyle(
+                    color: PratiCaseColors.gold,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  session.caseTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _TimerBadge(session: session),
+          const SizedBox(width: 8),
+          _FinishExamButton(repository: repository, sessionId: sessionId),
+        ],
+      ),
+    );
+  }
+}
+
+class _TimerBadge extends StatelessWidget {
+  const _TimerBadge({required this.session});
+
+  final ExamSessionOverview session;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 38,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: PratiCaseColors.gold.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.timer_rounded,
+            color: PratiCaseColors.gold,
+            size: 18,
+          ),
+          const SizedBox(width: 5),
+          Text(
+            _remainingParts(session),
+            style: const TextStyle(
+              color: PratiCaseColors.gold,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PhaseTabs extends StatelessWidget {
+  const _PhaseTabs({required this.activeStep});
+
+  final int activeStep;
+
+  @override
+  Widget build(BuildContext context) {
+    const labels = ['Anamnez', 'Muayene', 'Tetkik', 'Tanı', 'Plan'];
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          for (var index = 0; index < labels.length; index++)
+            Expanded(
+              child: Container(
+                height: 34,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: index + 1 == activeStep
+                      ? Colors.white
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(9),
+                  border: index + 1 == activeStep
+                      ? Border.all(color: PratiCaseColors.border)
+                      : null,
+                ),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    labels[index],
+                    style: TextStyle(
+                      color: index + 1 == activeStep
+                          ? PratiCaseColors.teal
+                          : PratiCaseColors.muted,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+String _remainingParts(ExamSessionOverview session) {
+  final endAt = session.startedAt.add(
+    Duration(minutes: session.durationMinutes),
+  );
+  final remaining = endAt.difference(DateTime.now());
+  final safeRemaining = remaining.isNegative ? Duration.zero : remaining;
+  final minutes = safeRemaining.inMinutes
+      .remainder(60)
+      .toString()
+      .padLeft(2, '0');
+  final seconds = safeRemaining.inSeconds
+      .remainder(60)
+      .toString()
+      .padLeft(2, '0');
+  return '$minutes:$seconds';
 }
 
 class _DetailHero extends StatelessWidget {
@@ -2510,23 +2796,44 @@ class _FindingsCard extends StatelessWidget {
           if (options.isEmpty)
             const Text('Bu sistem için canlı bulgu tanımlanmadı.')
           else
-            for (final item in options)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(item.title),
-                subtitle: item.isSelected && item.finding.isNotEmpty
-                    ? Text(item.finding)
-                    : null,
-                trailing: IconButton(
-                  onPressed: () => onSelect(item.id),
-                  icon: Icon(
-                    item.isSelected
-                        ? Icons.check_circle
-                        : Icons.add_circle_outline,
-                    color: PratiCaseColors.teal,
+            for (final item in options) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                decoration: BoxDecoration(
+                  color: item.isSelected
+                      ? PratiCaseColors.teal.withValues(alpha: 0.08)
+                      : PratiCaseColors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: item.isSelected
+                        ? PratiCaseColors.teal
+                        : PratiCaseColors.border,
+                  ),
+                ),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                  title: Text(
+                    item.title,
+                    style: const TextStyle(
+                      color: PratiCaseColors.navy,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  subtitle: item.isSelected && item.finding.isNotEmpty
+                      ? Text(item.finding)
+                      : null,
+                  trailing: IconButton(
+                    onPressed: () => onSelect(item.id),
+                    icon: Icon(
+                      item.isSelected
+                          ? Icons.check_circle
+                          : Icons.add_circle_outline,
+                      color: PratiCaseColors.teal,
+                    ),
                   ),
                 ),
               ),
+            ],
         ],
       ),
     );
@@ -2547,7 +2854,25 @@ class _TestOptionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: _cardDecoration(),
+      decoration: BoxDecoration(
+        color: item.isSelected
+            ? PratiCaseColors.teal.withValues(alpha: 0.08)
+            : PratiCaseColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: item.isSelected
+              ? PratiCaseColors.teal
+              : PratiCaseColors.border,
+          width: item.isSelected ? 1.5 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: PratiCaseColors.navy.withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
       child: ListTile(
         onTap: item.isSelected ? onOpenDetail : null,
         leading: _SoftIcon(
@@ -2568,11 +2893,17 @@ class _TestOptionTile extends StatelessWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('${item.pointCost} puan'),
+            Text(
+              '${item.pointCost} p',
+              style: const TextStyle(
+                color: PratiCaseColors.muted,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
             IconButton(
               onPressed: onTap,
               icon: Icon(
-                item.isSelected ? Icons.check_circle : Icons.add_box_outlined,
+                item.isSelected ? Icons.check_circle : Icons.add_circle_outline,
                 color: PratiCaseColors.teal,
               ),
             ),
@@ -2672,10 +3003,15 @@ class _FormLabel extends StatelessWidget {
 }
 
 class _BottomAction extends StatelessWidget {
-  const _BottomAction({required this.label, required this.onPressed});
+  const _BottomAction({
+    required this.label,
+    required this.onPressed,
+    this.icon = Icons.arrow_forward_rounded,
+  });
 
   final String label;
   final VoidCallback? onPressed;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
@@ -2684,7 +3020,7 @@ class _BottomAction extends StatelessWidget {
       child: FilledButton.icon(
         onPressed: onPressed,
         label: Text(label),
-        icon: const Icon(Icons.arrow_forward_rounded),
+        icon: Icon(icon),
         style: FilledButton.styleFrom(
           textStyle: const TextStyle(fontWeight: FontWeight.w900),
         ),
@@ -2712,14 +3048,17 @@ class _FinishExamButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextButton(
+    return FilledButton(
       onPressed: () => _finish(context),
-      style: TextButton.styleFrom(
-        foregroundColor: const Color(0xFFE04F5F),
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        textStyle: const TextStyle(fontWeight: FontWeight.w900),
+      style: FilledButton.styleFrom(
+        backgroundColor: PratiCaseColors.errorRed,
+        foregroundColor: PratiCaseColors.white,
+        minimumSize: const Size(0, 40),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        textStyle: const TextStyle(fontWeight: FontWeight.w800),
       ),
-      child: const Text('Bitir'),
+      child: const Text('Sınavı Bitir'),
     );
   }
 }
@@ -3187,6 +3526,24 @@ class _ManagementBundle {
   final List<ManagementOption> options;
 }
 
+String _managementCategoryTitle(String value) {
+  final normalized = value.trim().toLowerCase();
+  if (normalized.contains('kons') || normalized.contains('consult')) {
+    return 'Konsültasyon İstemleri';
+  }
+  if (normalized.contains('acil') ||
+      normalized.contains('emergency') ||
+      normalized.contains('tetkik')) {
+    return 'Acil Müdahaleler ve Ek Tetkikler';
+  }
+  if (normalized.contains('tedavi') ||
+      normalized.contains('treatment') ||
+      normalized.contains('ilaç')) {
+    return 'Tedavi Planı';
+  }
+  return value.trim().isEmpty ? 'Tedavi Planı' : value;
+}
+
 class _ManagementGroupCard extends StatelessWidget {
   const _ManagementGroupCard({
     required this.title,
@@ -3255,46 +3612,15 @@ class _ResultHero extends StatelessWidget {
       child: Column(
         children: [
           const Text(
-            'Tebrikler!',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 28,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '${result.caseTitle} başarıyla tamamlandı.',
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 26),
-          Container(
-            width: 132,
-            height: 132,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: PratiCaseColors.gold.withValues(alpha: 0.18),
-              border: Border.all(color: PratiCaseColors.gold, width: 8),
-            ),
-            child: const Icon(
-              Icons.star_rounded,
-              color: PratiCaseColors.gold,
-              size: 74,
-            ),
-          ),
-          const SizedBox(height: 26),
-          const Text(
-            'Toplam Puanınız',
+            'Klinik Başarı Puanı',
             style: TextStyle(
               color: Colors.white70,
-              fontWeight: FontWeight.w700,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           RichText(
             text: TextSpan(
               children: [
@@ -3302,27 +3628,31 @@ class _ResultHero extends StatelessWidget {
                   text: '${result.totalScore}',
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 42,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 44,
+                    height: 42 / 44,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
                 TextSpan(
-                  text: ' / ${result.maxScore}',
+                  text: '/${result.maxScore}',
                   style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
+                    color: Colors.white60,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ],
             ),
           ),
+          const SizedBox(height: 14),
           Text(
-            '%${result.percentage}',
+            result.percentage >= 80
+                ? 'Mükemmel bir teşhis süreci yönettiniz.'
+                : '${result.caseTitle} için gelişim alanların hazır.',
+            textAlign: TextAlign.center,
             style: const TextStyle(
-              color: Color(0xFF8AF07B),
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -3345,60 +3675,144 @@ class _ScoreGrid extends StatelessWidget {
         body: 'Canlı rubric sonuçları oluştuğunda burada görünür.',
       );
     }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 8),
+          child: Text(
+            'Kategori Performansı',
+            style: TextStyle(
+              color: PratiCaseColors.navy,
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        GridView.count(
+          crossAxisCount: 2,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 1.55,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: [for (final score in scores) _ScoreCard(score: score)],
+        ),
+      ],
+    );
+  }
+}
+
+class _ScoreCard extends StatelessWidget {
+  const _ScoreCard({required this.score});
+
+  final ResultCategoryScore score;
+
+  @override
+  Widget build(BuildContext context) {
+    final percent = score.maxScore == 0 ? 0.0 : score.score / score.maxScore;
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(),
-      child: GridView.count(
-        crossAxisCount: 2,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        childAspectRatio: 2.55,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
+      decoration: BoxDecoration(
+        color: PratiCaseColors.teal.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: PratiCaseColors.teal.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (final score in scores)
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: PratiCaseColors.teal.withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Icon(_scoreIcon(score.title), color: PratiCaseColors.teal),
-                  const SizedBox(width: 9),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          score.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: PratiCaseColors.navy,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          '${score.score}/${score.maxScore}',
-                          style: const TextStyle(
-                            color: PratiCaseColors.teal,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+          const Icon(Icons.verified_outlined, color: PratiCaseColors.teal),
+          const Spacer(),
+          Text(
+            score.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: PratiCaseColors.muted,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
             ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Text(
+                '${score.score}',
+                style: const TextStyle(
+                  color: PratiCaseColors.navy,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              Text(
+                '/${score.maxScore}',
+                style: const TextStyle(
+                  color: PratiCaseColors.muted,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '%${(percent * 100).round()}',
+                style: const TextStyle(
+                  color: PratiCaseColors.teal,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
+    );
+  }
+}
+
+class _ResultActions extends StatelessWidget {
+  const _ResultActions({
+    required this.onRetry,
+    required this.onReport,
+    required this.onSuggestedCases,
+  });
+
+  final VoidCallback onRetry;
+  final VoidCallback onReport;
+  final VoidCallback onSuggestedCases;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: FilledButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.restart_alt_rounded),
+            label: const Text('Tekrar Çöz'),
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: OutlinedButton.icon(
+            onPressed: onReport,
+            icon: const Icon(Icons.description_outlined),
+            label: const Text('Detaylı Rapor'),
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: OutlinedButton.icon(
+            onPressed: onSuggestedCases,
+            icon: const Icon(Icons.library_books_outlined),
+            label: const Text('Benzer Vaka Önerileri'),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -3522,40 +3936,7 @@ IconData _flowIcon(String key) {
   }
 }
 
-IconData _scoreIcon(String title) {
-  final lower = title.toLowerCase();
-  if (lower.contains('anamnez')) return Icons.chat_bubble_outline_rounded;
-  if (lower.contains('muayene')) return Icons.health_and_safety_outlined;
-  if (lower.contains('tetkik')) return Icons.science_outlined;
-  if (lower.contains('tan')) return Icons.psychology_alt_rounded;
-  if (lower.contains('yönet')) return Icons.assignment_turned_in_rounded;
-  return Icons.query_stats_rounded;
-}
-
-String _examSubtitle(ExamSessionOverview session) {
-  final endAt = session.startedAt.add(
-    Duration(minutes: session.durationMinutes),
-  );
-  final remaining = endAt.difference(DateTime.now());
-  final safeRemaining = remaining.isNegative ? Duration.zero : remaining;
-  final minutes = safeRemaining.inMinutes
-      .remainder(60)
-      .toString()
-      .padLeft(2, '0');
-  final seconds = safeRemaining.inSeconds
-      .remainder(60)
-      .toString()
-      .padLeft(2, '0');
-  return 'Süre $minutes:$seconds • Puan ${session.remainingPoints}/${session.budgetPoints}';
-}
-
 String _errorText(Object? error) {
   if (error is CasesDataUnavailable) return error.message;
   return 'Canlı veri alınamadı. Lütfen bağlantı ve yetkileri kontrol edin.';
-}
-
-void _showComingSoon(BuildContext context, String title) {
-  ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(SnackBar(content: Text('$title yakında kullanıma açılacak.')));
 }

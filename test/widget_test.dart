@@ -25,8 +25,8 @@ void main() {
     await tester.pump();
 
     expect(find.byType(Image), findsWidgets);
-    expect(find.text('OSCE’ye gerçek sınav gibi hazırlan.'), findsOneWidget);
-    expect(find.text('Hesap Oluştur'), findsOneWidget);
+    expect(find.text('Klinik Akıl Yürütme Becerini Geliştir'), findsOneWidget);
+    expect(find.text('Başla'), findsOneWidget);
     expect(find.text('Giriş Yap'), findsOneWidget);
   });
 

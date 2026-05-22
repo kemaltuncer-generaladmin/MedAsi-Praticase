@@ -1,23 +1,43 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../app/theme/praticase_colors.dart';
 import '../data/progress_repository.dart';
 import '../domain/progress_models.dart';
 
-class BadgesScreen extends StatelessWidget {
+class BadgesScreen extends StatefulWidget {
   const BadgesScreen({required this.repository, super.key});
 
   final ProgressRepository repository;
 
   @override
+  State<BadgesScreen> createState() => _BadgesScreenState();
+}
+
+class _BadgesScreenState extends State<BadgesScreen> {
+  int _selectedFilter = 0;
+
+  @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<BadgeCard>>(
-      future: repository.loadBadges(),
+      future: widget.repository.loadBadges(),
       builder: (context, snapshot) {
+        final badges = snapshot.data ?? const <BadgeCard>[];
+        final visible = switch (_selectedFilter) {
+          1 => badges.where((badge) => badge.earned).toList(),
+          2 => badges.where((badge) => !badge.earned).toList(),
+          _ => badges,
+        };
         return _ProgressPage(
           title: 'Rozetlerim',
           children: [
-            const _SegmentHeader(items: ['Tümü', 'Kazanılan', 'Kazanılmamış']),
+            _BadgeSummaryHero(badges: badges),
+            const SizedBox(height: 16),
+            _SegmentHeader(
+              items: const ['Tümü', 'Kazanılan', 'Kazanılmamış'],
+              selectedIndex: _selectedFilter,
+              onSelected: (index) => setState(() => _selectedFilter = index),
+            ),
             const SizedBox(height: 16),
             if (snapshot.connectionState != ConnectionState.done)
               const _StateBlock(
@@ -31,11 +51,11 @@ class BadgesScreen extends StatelessWidget {
                 title: 'Rozetler açılamadı',
                 body: _errorText(snapshot.error),
               )
-            else if (snapshot.requireData.isEmpty)
+            else if (visible.isEmpty)
               const _StateBlock(
                 icon: Icons.workspace_premium_outlined,
-                title: 'Rozet tanımı yok',
-                body: 'Rozetler yayınlandığında burada görünecek.',
+                title: 'Bu filtrede rozet yok',
+                body: 'Rozet ilerlemesi oluştuğunda burada görünecek.',
               )
             else
               GridView.count(
@@ -46,8 +66,7 @@ class BadgesScreen extends StatelessWidget {
                 crossAxisSpacing: 12,
                 childAspectRatio: 0.72,
                 children: [
-                  for (final badge in snapshot.requireData)
-                    _BadgeCardView(badge: badge),
+                  for (final badge in visible) _BadgeCardView(badge: badge),
                 ],
               ),
           ],
@@ -57,25 +76,42 @@ class BadgesScreen extends StatelessWidget {
   }
 }
 
-class LeaderboardScreen extends StatelessWidget {
+class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({required this.repository, super.key});
 
   final ProgressRepository repository;
 
   @override
+  State<LeaderboardScreen> createState() => _LeaderboardScreenState();
+}
+
+class _LeaderboardScreenState extends State<LeaderboardScreen> {
+  int _scopeIndex = 0;
+  int _periodIndex = 0;
+
+  @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<LeaderboardEntry>>(
-      future: repository.loadLeaderboard(),
+      future: widget.repository.loadLeaderboard(),
       builder: (context, snapshot) {
-        final entries = snapshot.data ?? const <LeaderboardEntry>[];
+        final allEntries = snapshot.data ?? const <LeaderboardEntry>[];
+        final entries = _filteredEntries(allEntries);
         final currentUsers = entries.where((entry) => entry.isCurrentUser);
         final current = currentUsers.isEmpty ? null : currentUsers.first;
         return _ProgressPage(
-          title: 'Sıralama',
+          title: 'Liderlik Tablosu',
           children: [
-            const _SegmentHeader(items: ['Genel', 'Arkadaşlar', 'Kurum']),
+            _SegmentHeader(
+              items: const ['Genel', 'Arkadaşlar', 'Kurum'],
+              selectedIndex: _scopeIndex,
+              onSelected: (index) => setState(() => _scopeIndex = index),
+            ),
             const SizedBox(height: 12),
-            const _SegmentHeader(items: ['Haftalık', 'Aylık', 'Tüm Zamanlar']),
+            _SegmentHeader(
+              items: const ['Haftalık', 'Aylık', 'Tüm Zamanlar'],
+              selectedIndex: _periodIndex,
+              onSelected: (index) => setState(() => _periodIndex = index),
+            ),
             const SizedBox(height: 18),
             if (snapshot.connectionState != ConnectionState.done)
               const _StateBlock(
@@ -109,6 +145,23 @@ class LeaderboardScreen extends StatelessWidget {
         );
       },
     );
+  }
+
+  List<LeaderboardEntry> _filteredEntries(List<LeaderboardEntry> entries) {
+    final scoped = switch (_scopeIndex) {
+      1 => entries.where((entry) => entry.isCurrentUser).toList(),
+      _ => entries,
+    };
+    final sorted = [...scoped];
+    sorted.sort((a, b) {
+      final primary = switch (_periodIndex) {
+        0 => b.totalPoints.compareTo(a.totalPoints),
+        1 => b.correctDiagnosisRate.compareTo(a.correctDiagnosisRate),
+        _ => a.rank.compareTo(b.rank),
+      };
+      return primary == 0 ? a.rank.compareTo(b.rank) : primary;
+    });
+    return sorted;
   }
 }
 
@@ -165,9 +218,15 @@ class ProfileScreen extends StatelessWidget {
                 _MenuItem(Icons.history_rounded, 'Vaka Geçmişim'),
                 _MenuItem(Icons.favorite_border_rounded, 'Favori Vakalarım'),
                 _MenuItem(Icons.note_alt_outlined, 'Notlarım'),
+                _MenuItem(
+                  Icons.local_fire_department_outlined,
+                  'Günlük Hedefler',
+                ),
+                _MenuItem(Icons.leaderboard_outlined, 'Liderlik Tablosu'),
                 _MenuItem(Icons.notifications_none_rounded, 'Bildirimler'),
                 _MenuItem(Icons.workspace_premium_outlined, 'Başarılarım'),
                 _MenuItem(Icons.settings_outlined, 'Ayarlar'),
+                _MenuItem(Icons.help_outline_rounded, 'Yardım ve Destek'),
                 _MenuItem(Icons.download_rounded, 'İndirmelerim'),
               ],
               onSignOut: onSignOut,
@@ -179,7 +238,7 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
     required this.repository,
     required this.onSignOut,
@@ -190,9 +249,27 @@ class SettingsScreen extends StatelessWidget {
   final Future<void> Function() onSignOut;
 
   @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  late Future<ProfileCard> _profileFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _profileFuture = widget.repository.loadProfile();
+  }
+
+  Future<void> _refresh() async {
+    setState(() => _profileFuture = widget.repository.loadProfile());
+    await _profileFuture;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return FutureBuilder<ProfileCard>(
-      future: repository.loadProfile(),
+      future: _profileFuture,
       builder: (context, snapshot) {
         return _ProgressPage(
           title: 'Ayarlar',
@@ -219,7 +296,7 @@ class SettingsScreen extends StatelessWidget {
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) => ProfileEditScreen(
-                          repository: repository,
+                          repository: widget.repository,
                           profile: snapshot.requireData,
                         ),
                       ),
@@ -228,8 +305,12 @@ class SettingsScreen extends StatelessWidget {
                   _SettingsRow(
                     Icons.lock_outline_rounded,
                     'Hesap ve Güvenlik',
-                    value: 'Hazırlanıyor',
-                    onTap: () => _showComingSoon(context, 'Hesap ve Güvenlik'),
+                    value: 'Supabase Auth',
+                    onTap: () => _showInfo(
+                      context,
+                      'Hesap ve Güvenlik',
+                      'Şifre sıfırlama ve oturum güvenliği Supabase Auth üzerinden yönetiliyor.',
+                    ),
                   ),
                   _SettingsRow(
                     Icons.notifications_none_rounded,
@@ -237,7 +318,7 @@ class SettingsScreen extends StatelessWidget {
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) =>
-                            NotificationsScreen(repository: repository),
+                            NotificationsScreen(repository: widget.repository),
                       ),
                     ),
                   ),
@@ -251,25 +332,76 @@ class SettingsScreen extends StatelessWidget {
                     Icons.visibility_outlined,
                     'Görüntüleme',
                     value: snapshot.requireData.settings.displayMode,
-                    onTap: () => _showComingSoon(context, 'Görüntüleme'),
+                    onTap: () => _chooseSetting(
+                      snapshot.requireData.settings,
+                      title: 'Görüntüleme',
+                      values: const ['Sistem', 'Açık', 'Koyu'],
+                      apply: (settings, value) => AppSettings(
+                        displayMode: value,
+                        language: settings.language,
+                        textSize: settings.textSize,
+                        soundAndHaptics: settings.soundAndHaptics,
+                        dataUsage: settings.dataUsage,
+                        offlineMode: settings.offlineMode,
+                        caseDownloadsEnabled: settings.caseDownloadsEnabled,
+                      ),
+                    ),
                   ),
                   _SettingsRow(
                     Icons.language_rounded,
                     'Dil',
                     value: snapshot.requireData.settings.language,
-                    onTap: () => _showComingSoon(context, 'Dil'),
+                    onTap: () => _chooseSetting(
+                      snapshot.requireData.settings,
+                      title: 'Dil',
+                      values: const ['Türkçe'],
+                      apply: (settings, value) => AppSettings(
+                        displayMode: settings.displayMode,
+                        language: value,
+                        textSize: settings.textSize,
+                        soundAndHaptics: settings.soundAndHaptics,
+                        dataUsage: settings.dataUsage,
+                        offlineMode: settings.offlineMode,
+                        caseDownloadsEnabled: settings.caseDownloadsEnabled,
+                      ),
+                    ),
                   ),
                   _SettingsRow(
                     Icons.text_fields_rounded,
                     'Yazı Boyutu',
                     value: snapshot.requireData.settings.textSize,
-                    onTap: () => _showComingSoon(context, 'Yazı Boyutu'),
+                    onTap: () => _chooseSetting(
+                      snapshot.requireData.settings,
+                      title: 'Yazı Boyutu',
+                      values: const ['Küçük', 'Orta', 'Büyük'],
+                      apply: (settings, value) => AppSettings(
+                        displayMode: settings.displayMode,
+                        language: settings.language,
+                        textSize: value,
+                        soundAndHaptics: settings.soundAndHaptics,
+                        dataUsage: settings.dataUsage,
+                        offlineMode: settings.offlineMode,
+                        caseDownloadsEnabled: settings.caseDownloadsEnabled,
+                      ),
+                    ),
                   ),
                   _SettingsRow(
                     Icons.volume_up_outlined,
                     'Ses ve Titreşim',
                     enabled: snapshot.requireData.settings.soundAndHaptics,
-                    onTap: () => _showComingSoon(context, 'Ses ve Titreşim'),
+                    onTap: () => _saveSettings(
+                      AppSettings(
+                        displayMode: snapshot.requireData.settings.displayMode,
+                        language: snapshot.requireData.settings.language,
+                        textSize: snapshot.requireData.settings.textSize,
+                        soundAndHaptics:
+                            !snapshot.requireData.settings.soundAndHaptics,
+                        dataUsage: snapshot.requireData.settings.dataUsage,
+                        offlineMode: snapshot.requireData.settings.offlineMode,
+                        caseDownloadsEnabled:
+                            snapshot.requireData.settings.caseDownloadsEnabled,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -281,19 +413,56 @@ class SettingsScreen extends StatelessWidget {
                     Icons.data_usage_rounded,
                     'Veri Kullanımı',
                     value: snapshot.requireData.settings.dataUsage,
-                    onTap: () => _showComingSoon(context, 'Veri Kullanımı'),
+                    onTap: () => _chooseSetting(
+                      snapshot.requireData.settings,
+                      title: 'Veri Kullanımı',
+                      values: const ['Düşük', 'Standart', 'Yüksek'],
+                      apply: (settings, value) => AppSettings(
+                        displayMode: settings.displayMode,
+                        language: settings.language,
+                        textSize: settings.textSize,
+                        soundAndHaptics: settings.soundAndHaptics,
+                        dataUsage: value,
+                        offlineMode: settings.offlineMode,
+                        caseDownloadsEnabled: settings.caseDownloadsEnabled,
+                      ),
+                    ),
                   ),
                   _SettingsRow(
                     Icons.wifi_off_rounded,
                     'Çevrimdışı Mod',
                     enabled: snapshot.requireData.settings.offlineMode,
-                    onTap: () => _showComingSoon(context, 'Çevrimdışı Mod'),
+                    onTap: () => _saveSettings(
+                      AppSettings(
+                        displayMode: snapshot.requireData.settings.displayMode,
+                        language: snapshot.requireData.settings.language,
+                        textSize: snapshot.requireData.settings.textSize,
+                        soundAndHaptics:
+                            snapshot.requireData.settings.soundAndHaptics,
+                        dataUsage: snapshot.requireData.settings.dataUsage,
+                        offlineMode: !snapshot.requireData.settings.offlineMode,
+                        caseDownloadsEnabled:
+                            snapshot.requireData.settings.caseDownloadsEnabled,
+                      ),
+                    ),
                   ),
                   _SettingsRow(
                     Icons.text_snippet_outlined,
                     'Vaka İndirmeleri',
                     enabled: snapshot.requireData.settings.caseDownloadsEnabled,
-                    onTap: () => _showComingSoon(context, 'Vaka İndirmeleri'),
+                    onTap: () => _saveSettings(
+                      AppSettings(
+                        displayMode: snapshot.requireData.settings.displayMode,
+                        language: snapshot.requireData.settings.language,
+                        textSize: snapshot.requireData.settings.textSize,
+                        soundAndHaptics:
+                            snapshot.requireData.settings.soundAndHaptics,
+                        dataUsage: snapshot.requireData.settings.dataUsage,
+                        offlineMode: snapshot.requireData.settings.offlineMode,
+                        caseDownloadsEnabled:
+                            !snapshot.requireData.settings.caseDownloadsEnabled,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -307,7 +476,7 @@ class SettingsScreen extends StatelessWidget {
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) =>
-                            HelpCenterScreen(repository: repository),
+                            HelpCenterScreen(repository: widget.repository),
                       ),
                     ),
                   ),
@@ -316,7 +485,8 @@ class SettingsScreen extends StatelessWidget {
                     'Bize Ulaşın',
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (_) => ContactScreen(repository: repository),
+                        builder: (_) =>
+                            ContactScreen(repository: widget.repository),
                       ),
                     ),
                   ),
@@ -324,7 +494,11 @@ class SettingsScreen extends StatelessWidget {
                     Icons.info_outline_rounded,
                     'Hakkında',
                     value: 'v1.2.0',
-                    onTap: () => _showComingSoon(context, 'Hakkında'),
+                    onTap: () => _showInfo(
+                      context,
+                      'Hakkında',
+                      'PratiCase, Medasi ekosistemi için OSCE simülasyon uygulamasıdır.',
+                    ),
                   ),
                 ],
               ),
@@ -337,7 +511,7 @@ class SettingsScreen extends StatelessWidget {
                       builder: (_) => const LogoutConfirmScreen(),
                     ),
                   );
-                  if (confirmed == true) await onSignOut();
+                  if (confirmed == true) await widget.onSignOut();
                 },
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFFE04F5F),
@@ -351,22 +525,147 @@ class SettingsScreen extends StatelessWidget {
       },
     );
   }
+
+  Future<void> _chooseSetting(
+    AppSettings settings, {
+    required String title,
+    required List<String> values,
+    required AppSettings Function(AppSettings settings, String value) apply,
+  }) async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: PratiCaseColors.navy,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            for (final value in values)
+              ListTile(
+                title: Text(value),
+                onTap: () => Navigator.pop(context, value),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (selected == null) return;
+    await _saveSettings(apply(settings, selected));
+  }
+
+  Future<void> _saveSettings(AppSettings settings) async {
+    try {
+      await widget.repository.saveAppSettings(settings);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Ayarlar kaydedildi.')));
+      await _refresh();
+    } on ProgressDataUnavailable catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  }
 }
 
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({required this.repository, super.key});
 
   final ProgressRepository repository;
 
   @override
-  Widget build(BuildContext context) {
-    return _LiveListPage<NotificationCard>(
-      title: 'Bildirimler',
-      future: repository.loadNotifications(),
-      emptyTitle: 'Bildirim yok',
-      emptyBody: 'Canlı bildirimler oluştuğunda burada listelenir.',
-      itemBuilder: (item) => _NotificationTile(item: item),
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  int _selectedFilter = 0;
+  late Future<List<NotificationCard>> _notificationsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _notificationsFuture = widget.repository.loadNotifications();
+  }
+
+  Future<void> _refresh() async {
+    setState(
+      () => _notificationsFuture = widget.repository.loadNotifications(),
     );
+    await _notificationsFuture;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<NotificationCard>>(
+      future: _notificationsFuture,
+      builder: (context, snapshot) {
+        final notifications = snapshot.data ?? const <NotificationCard>[];
+        final visible = switch (_selectedFilter) {
+          1 => notifications.where((item) => !item.isRead).toList(),
+          2 => notifications.where((item) => item.isRead).toList(),
+          _ => notifications,
+        };
+        return _ProgressPage(
+          title: 'Bildirim Merkezi',
+          children: [
+            _SegmentHeader(
+              items: const ['Tümü', 'Okunmamış', 'Okunan'],
+              selectedIndex: _selectedFilter,
+              onSelected: (index) => setState(() => _selectedFilter = index),
+            ),
+            const SizedBox(height: 16),
+            if (snapshot.connectionState != ConnectionState.done)
+              const _StateBlock(
+                icon: Icons.notifications_none_rounded,
+                title: 'Bildirimler yükleniyor',
+                body: 'Canlı bildirimler hazırlanıyor.',
+              )
+            else if (snapshot.hasError)
+              _StateBlock(
+                icon: Icons.cloud_off_rounded,
+                title: 'Bildirimler açılamadı',
+                body: _errorText(snapshot.error),
+              )
+            else if (visible.isEmpty)
+              const _StateBlock(
+                icon: Icons.notifications_none_rounded,
+                title: 'Bu filtrede bildirim yok',
+                body: 'Yeni bildirimler oluştuğunda burada listelenir.',
+              )
+            else
+              for (final item in visible) ...[
+                _NotificationTile(
+                  item: item,
+                  onTap: item.isRead ? null : () => _markRead(item.id),
+                ),
+                const SizedBox(height: 10),
+              ],
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _markRead(String id) async {
+    try {
+      await widget.repository.markNotificationRead(id);
+      await _refresh();
+    } on ProgressDataUnavailable catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
   }
 }
 
@@ -404,6 +703,128 @@ class CaseHistoryScreen extends StatelessWidget {
   }
 }
 
+class WeakAreaAnalysisScreen extends StatelessWidget {
+  const WeakAreaAnalysisScreen({required this.repository, super.key});
+
+  final ProgressRepository repository;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<(ProfileCard, List<CaseCollectionItem>)>(
+      future: _load(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const _ProgressPage(
+            title: 'Zayıf Alan Analizi',
+            children: [
+              _StateBlock(
+                icon: Icons.track_changes_rounded,
+                title: 'Analiz hazırlanıyor',
+                body: 'Canlı performans ve vaka geçmişi okunuyor.',
+              ),
+            ],
+          );
+        }
+        if (snapshot.hasError) {
+          return _ProgressPage(
+            title: 'Zayıf Alan Analizi',
+            children: [
+              _StateBlock(
+                icon: Icons.cloud_off_rounded,
+                title: 'Analiz açılamadı',
+                body: _errorText(snapshot.error),
+              ),
+            ],
+          );
+        }
+
+        final profile = snapshot.requireData.$1;
+        final history = snapshot.requireData.$2;
+        final weakest = _weakAreas(profile, history);
+        final repeatCases = history
+            .where(
+              (item) =>
+                  (item.score ?? 100) < 75 ||
+                  (item.progressPercent ?? 100) < 100,
+            )
+            .take(4)
+            .toList();
+
+        return _ProgressPage(
+          title: 'Zayıf Alan Analizi',
+          children: [
+            _WeakHero(profile: profile),
+            const SizedBox(height: 16),
+            const _SegmentHeader(items: ['Zayıf Alanlar', 'Tekrar', 'Hedef']),
+            const SizedBox(height: 16),
+            for (final area in weakest) ...[
+              _WeakAreaCard(area: area),
+              const SizedBox(height: 10),
+            ],
+            const SizedBox(height: 8),
+            Text(
+              'Tekrar Önerilen Vakalar',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 10),
+            if (repeatCases.isEmpty)
+              const _StateBlock(
+                icon: Icons.verified_rounded,
+                title: 'Tekrar gerektiren vaka yok',
+                body:
+                    'Tamamlanan vakalar eklendikçe öneriler burada güncellenir.',
+              )
+            else
+              for (final item in repeatCases) ...[
+                _CaseCollectionTile(item: item, history: true),
+                const SizedBox(height: 10),
+              ],
+          ],
+        );
+      },
+    );
+  }
+
+  Future<(ProfileCard, List<CaseCollectionItem>)> _load() async {
+    final profile = await repository.loadProfile();
+    final history = await repository.loadCaseHistory();
+    return (profile, history);
+  }
+
+  List<_WeakArea> _weakAreas(
+    ProfileCard profile,
+    List<CaseCollectionItem> history,
+  ) {
+    final incomplete = history
+        .where((item) => (item.progressPercent ?? 100) < 100)
+        .length;
+    final lowScore = history.where((item) => (item.score ?? 100) < 75).length;
+    return [
+      _WeakArea(
+        title: 'Anamnez Derinliği',
+        percent: (profile.successRatePercent - 12).clamp(0, 100).toInt(),
+        note: incomplete > 0
+            ? '$incomplete oturumda anamnez sonrası akış tamamlanmamış.'
+            : 'Kırmızı bayrak ve sistem sorgusunu düzenli tekrar et.',
+      ),
+      _WeakArea(
+        title: 'Ayırıcı Tanı',
+        percent: profile.correctDiagnosisRate.clamp(0, 100).toInt(),
+        note: 'En az 3 kritik ön tanıyı gerekçesiyle yazmaya odaklan.',
+      ),
+      _WeakArea(
+        title: 'Yönetim Planı',
+        percent: (profile.successRatePercent - lowScore * 4)
+            .clamp(0, 100)
+            .toInt(),
+        note: lowScore > 0
+            ? '$lowScore düşük skorlu vaka yönetim planı tekrarı istiyor.'
+            : 'Acil yaklaşım, danışma ve izlem adımlarını netleştir.',
+      ),
+    ];
+  }
+}
+
 class HelpCenterScreen extends StatelessWidget {
   const HelpCenterScreen({required this.repository, super.key});
 
@@ -412,11 +833,90 @@ class HelpCenterScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _LiveListPage<SimpleContentItem>(
-      title: 'Yardım Merkezi',
+      title: 'Yardım ve Destek',
       future: repository.loadSupportTopics(),
       emptyTitle: 'Yardım başlığı yok',
       emptyBody: 'Destek içerikleri canlı tabloda oluştuğunda görünür.',
+      header: _SupportQuickActions(repository: repository),
       itemBuilder: (item) => _SimpleTile(item: item),
+    );
+  }
+}
+
+class DailyGoalsScreen extends StatelessWidget {
+  const DailyGoalsScreen({required this.repository, super.key});
+
+  final ProgressRepository repository;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<ProfileCard>(
+      future: repository.loadProfile(),
+      builder: (context, snapshot) {
+        return _ProgressPage(
+          title: 'Günlük Hedefler',
+          children: [
+            if (snapshot.connectionState != ConnectionState.done)
+              const _StateBlock(
+                icon: Icons.local_fire_department_outlined,
+                title: 'Hedefler yükleniyor',
+                body: 'Canlı seri ve hedef verisi hazırlanıyor.',
+              )
+            else if (snapshot.hasError)
+              _StateBlock(
+                icon: Icons.cloud_off_rounded,
+                title: 'Hedefler açılamadı',
+                body: _errorText(snapshot.error),
+              )
+            else ...[
+              _DailyGoalHero(profile: snapshot.requireData),
+              const SizedBox(height: 16),
+              _SettingsSection(
+                title: 'Bugünkü Plan',
+                rows: [
+                  _SettingsRow(
+                    Icons.timer_outlined,
+                    'Tek İstasyon',
+                    value: '1 vaka',
+                    onTap: () {
+                      Navigator.of(context).popUntil((route) => route.isFirst);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Günlük hedef için Vakalar sekmesinden tek istasyon başlat.',
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  _SettingsRow(
+                    Icons.fact_check_outlined,
+                    'Tanı Tekrarı',
+                    value: '3 ön tanı',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            WeakAreaAnalysisScreen(repository: repository),
+                      ),
+                    ),
+                  ),
+                  _SettingsRow(
+                    Icons.insights_outlined,
+                    'Gelişim Kontrolü',
+                    value: '%${snapshot.requireData.successRatePercent}',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            WeakAreaAnalysisScreen(repository: repository),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 }
@@ -429,7 +929,7 @@ class FaqScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _LiveListPage<SimpleContentItem>(
-      title: 'SSS',
+      title: 'Sık Sorulan Sorular',
       future: repository.loadFaqItems(),
       emptyTitle: 'SSS yok',
       emptyBody: 'Sık sorulan sorular canlı tabloda oluştuğunda görünür.',
@@ -468,25 +968,24 @@ class MyDataScreen extends StatelessWidget {
       emptyTitle: 'Veri başlığı yok',
       emptyBody: 'Hesabına ait veri özetleri hazır olduğunda burada görünür.',
       itemBuilder: (item) => _SimpleTile(item: item),
-      footer: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: _cardDecoration(),
-        child: const Row(
-          children: [
-            Icon(Icons.ios_share_rounded, color: PratiCaseColors.teal),
-            SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Veri Dışa Aktar',
-                style: TextStyle(
-                  color: PratiCaseColors.navy,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+      footer: _ExportDataTile(repository: repository),
+    );
+  }
+}
+
+class NotesScreen extends StatelessWidget {
+  const NotesScreen({required this.repository, super.key});
+
+  final ProgressRepository repository;
+
+  @override
+  Widget build(BuildContext context) {
+    return _LiveListPage<UserNote>(
+      title: 'Notlarım',
+      future: repository.loadNotes(),
+      emptyTitle: 'Kayıtlı not yok',
+      emptyBody: 'OSCE odasında eklediğin vaka notları burada görünür.',
+      itemBuilder: (item) => _NoteTile(item: item),
     );
   }
 }
@@ -529,6 +1028,11 @@ class _ContactScreenState extends State<ContactScreen> {
         const SnackBar(content: Text('Mesajınız canlı destek kaydına alındı.')),
       );
       Navigator.maybePop(context);
+    } on ProgressDataUnavailable catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -629,6 +1133,14 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   }
 
   Future<void> _save() async {
+    if (_name.text.trim().isEmpty ||
+        _email.text.trim().isEmpty ||
+        !_email.text.contains('@')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Geçerli profil bilgilerini gir.')),
+      );
+      return;
+    }
     setState(() => _saving = true);
     try {
       await widget.repository.saveProfile(
@@ -638,7 +1150,15 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         educationLevel: _education.text,
       );
       if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profil güncellendi.')));
       Navigator.maybePop(context);
+    } on ProgressDataUnavailable catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -776,6 +1296,7 @@ class _LiveListPage<T> extends StatelessWidget {
     required this.emptyTitle,
     required this.emptyBody,
     required this.itemBuilder,
+    this.header,
     this.footer,
   });
 
@@ -784,6 +1305,7 @@ class _LiveListPage<T> extends StatelessWidget {
   final String emptyTitle;
   final String emptyBody;
   final Widget Function(T item) itemBuilder;
+  final Widget? header;
   final Widget? footer;
 
   @override
@@ -794,6 +1316,7 @@ class _LiveListPage<T> extends StatelessWidget {
         return _ProgressPage(
           title: title,
           children: [
+            if (header != null) ...[header!, const SizedBox(height: 16)],
             if (snapshot.connectionState != ConnectionState.done)
               const _StateBlock(
                 icon: Icons.hourglass_empty_rounded,
@@ -827,9 +1350,15 @@ class _LiveListPage<T> extends StatelessWidget {
 }
 
 class _SegmentHeader extends StatelessWidget {
-  const _SegmentHeader({required this.items});
+  const _SegmentHeader({
+    required this.items,
+    this.selectedIndex = 0,
+    this.onSelected,
+  });
 
   final List<String> items;
+  final int selectedIndex;
+  final ValueChanged<int>? onSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -843,21 +1372,29 @@ class _SegmentHeader extends StatelessWidget {
         children: [
           for (var index = 0; index < items.length; index++)
             Expanded(
-              child: Container(
-                height: 36,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: index == 0 ? PratiCaseColors.teal : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    items[index],
-                    style: TextStyle(
-                      color: index == 0 ? Colors.white : PratiCaseColors.navy,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 12,
+              child: InkWell(
+                onTap: onSelected == null ? null : () => onSelected!(index),
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  height: 36,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: index == selectedIndex
+                        ? PratiCaseColors.teal
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      items[index],
+                      style: TextStyle(
+                        color: index == selectedIndex
+                            ? Colors.white
+                            : PratiCaseColors.navy,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                 ),
@@ -865,6 +1402,238 @@ class _SegmentHeader extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+class _SupportQuickActions extends StatelessWidget {
+  const _SupportQuickActions({required this.repository});
+
+  final ProgressRepository repository;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _SupportActionButton(
+                icon: Icons.quiz_outlined,
+                label: 'SSS',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => FaqScreen(repository: repository),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _SupportActionButton(
+                icon: Icons.campaign_outlined,
+                label: 'Duyurular',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => AnnouncementsScreen(repository: repository),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        _SupportActionButton(
+          icon: Icons.mail_outline_rounded,
+          label: 'Bize Ulaşın',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => ContactScreen(repository: repository),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SupportActionButton extends StatelessWidget {
+  const _SupportActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Ink(
+        height: 52,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: _cardDecoration(),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: PratiCaseColors.teal),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: PratiCaseColors.navy,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BadgeSummaryHero extends StatelessWidget {
+  const _BadgeSummaryHero({required this.badges});
+
+  final List<BadgeCard> badges;
+
+  @override
+  Widget build(BuildContext context) {
+    final earned = badges.where((badge) => badge.earned).length;
+    final total = badges.length;
+    final active = badges
+        .where((badge) => !badge.earned && badge.progressCount > 0)
+        .take(2)
+        .toList();
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [PratiCaseColors.navy, PratiCaseColors.teal],
+        ),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: PratiCaseColors.navy.withValues(alpha: 0.12),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Kazanılan Toplam',
+            style: TextStyle(
+              color: PratiCaseColors.tealBright,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: RichText(
+                  text: TextSpan(
+                    children: [
+                      TextSpan(
+                        text: '$earned',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 40,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      TextSpan(
+                        text: ' / $total Rozet',
+                        style: const TextStyle(
+                          color: Color(0xFFDDE8EA),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const Icon(
+                Icons.military_tech_rounded,
+                color: PratiCaseColors.tealBright,
+                size: 42,
+              ),
+            ],
+          ),
+          if (active.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            for (final badge in active) ...[
+              _BadgeProgressLine(badge: badge),
+              if (badge != active.last) const SizedBox(height: 10),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _BadgeProgressLine extends StatelessWidget {
+  const _BadgeProgressLine({required this.badge});
+
+  final BadgeCard badge;
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = badge.targetCount == 0
+        ? 0.0
+        : (badge.progressCount / badge.targetCount).clamp(0.0, 1.0);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                badge.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            Text(
+              '${badge.progressCount}/${badge.targetCount}',
+              style: const TextStyle(
+                color: Color(0xFFDDE8EA),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(99),
+          child: LinearProgressIndicator(
+            value: progress,
+            minHeight: 6,
+            backgroundColor: Colors.white24,
+            color: PratiCaseColors.tealBright,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -938,58 +1707,117 @@ class _TopThree extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (entries.isEmpty) return const SizedBox.shrink();
+    final podium = [
+      ...entries.where((entry) => entry.rank == 2),
+      ...entries.where((entry) => entry.rank == 1),
+      ...entries.where((entry) => entry.rank == 3),
+    ];
+    if (podium.isEmpty) podium.addAll(entries);
     return SizedBox(
-      height: 180,
+      height: 188,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          for (final entry in entries)
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  CircleAvatar(
-                    radius: entry.rank == 1 ? 38 : 30,
-                    backgroundColor: PratiCaseColors.teal.withValues(
-                      alpha: 0.14,
-                    ),
-                    child: Text(
-                      _initial(entry.displayName),
-                      style: const TextStyle(
-                        color: PratiCaseColors.teal,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
+          for (final entry in podium.take(3)) ...[
+            Expanded(child: _PodiumCard(entry: entry)),
+            if (entry != podium.take(3).last) const SizedBox(width: 10),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _PodiumCard extends StatelessWidget {
+  const _PodiumCard({required this.entry});
+
+  final LeaderboardEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final isFirst = entry.rank == 1;
+    return Container(
+      height: isFirst ? 168 : 146,
+      padding: const EdgeInsets.fromLTRB(10, 14, 10, 12),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isFirst
+              ? PratiCaseColors.gold.withValues(alpha: 0.62)
+              : PratiCaseColors.border,
+          width: isFirst ? 1.5 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: PratiCaseColors.navy.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Stack(
+            alignment: Alignment.bottomCenter,
+            children: [
+              CircleAvatar(
+                radius: isFirst ? 34 : 28,
+                backgroundColor: PratiCaseColors.teal.withValues(alpha: 0.14),
+                child: Text(
+                  _initial(entry.displayName),
+                  style: const TextStyle(
+                    color: PratiCaseColors.teal,
+                    fontWeight: FontWeight.w900,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${entry.rank}',
-                    style: const TextStyle(
-                      color: PratiCaseColors.gold,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  Text(
-                    entry.displayName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: PratiCaseColors.navy,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  Text(
-                    '${entry.totalPoints} puan',
-                    style: const TextStyle(
-                      color: Color(0xFF66758A),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
+                ),
               ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isFirst ? PratiCaseColors.gold : PratiCaseColors.navy,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: Text(
+                  '#${entry.rank}',
+                  style: TextStyle(
+                    color: isFirst ? PratiCaseColors.navy : Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          Text(
+            entry.displayName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: PratiCaseColors.navy,
+              fontWeight: FontWeight.w900,
             ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            '${entry.totalPoints}',
+            style: TextStyle(
+              color: isFirst ? PratiCaseColors.gold : PratiCaseColors.teal,
+              fontSize: isFirst ? 20 : 17,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          Text(
+            '${entry.solvedCaseCount} vaka',
+            style: const TextStyle(
+              color: Color(0xFF66758A),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
         ],
       ),
     );
@@ -1219,7 +2047,21 @@ class _MenuPanel extends StatelessWidget {
                 if (item.title == 'Notlarım') {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (_) => MyDataScreen(repository: repository),
+                      builder: (_) => NotesScreen(repository: repository),
+                    ),
+                  );
+                }
+                if (item.title == 'Günlük Hedefler') {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => DailyGoalsScreen(repository: repository),
+                    ),
+                  );
+                }
+                if (item.title == 'Liderlik Tablosu') {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => LeaderboardScreen(repository: repository),
                     ),
                   );
                 }
@@ -1248,6 +2090,13 @@ class _MenuPanel extends StatelessWidget {
                     ),
                   );
                 }
+                if (item.title == 'Yardım ve Destek') {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => HelpCenterScreen(repository: repository),
+                    ),
+                  );
+                }
                 if (item.title == 'İndirmelerim') {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
@@ -1257,6 +2106,69 @@ class _MenuPanel extends StatelessWidget {
                 }
               },
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DailyGoalHero extends StatelessWidget {
+  const _DailyGoalHero({required this.profile});
+
+  final ProfileCard profile;
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = (profile.solvedCaseCount % 3) / 3;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [PratiCaseColors.gradientStart, PratiCaseColors.gradientEnd],
+        ),
+        borderRadius: BorderRadius.all(Radius.circular(24)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Günlük Seri',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '${profile.dailyStreak} gün',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 34,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: progress == 0 ? 1 : progress,
+                    minHeight: 8,
+                    backgroundColor: Colors.white24,
+                    color: PratiCaseColors.gold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          const Icon(
+            Icons.local_fire_department_rounded,
+            color: PratiCaseColors.gold,
+            size: 54,
+          ),
         ],
       ),
     );
@@ -1334,22 +2246,120 @@ class _SettingsRow extends StatelessWidget {
 }
 
 class _NotificationTile extends StatelessWidget {
-  const _NotificationTile({required this.item});
+  const _NotificationTile({required this.item, this.onTap});
 
   final NotificationCard item;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: _cardDecoration(),
       child: ListTile(
+        onTap: onTap,
         leading: Icon(
           item.isRead ? Icons.notifications_none_rounded : Icons.star_rounded,
           color: item.isRead ? const Color(0xFF66758A) : PratiCaseColors.gold,
         ),
         title: Text(item.title),
         subtitle: Text(item.body),
-        trailing: const Icon(Icons.chevron_right_rounded),
+        trailing: item.isRead
+            ? const Icon(Icons.check_circle_outline_rounded)
+            : const Text(
+                'Okundu',
+                style: TextStyle(
+                  color: PratiCaseColors.teal,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+      ),
+    );
+  }
+}
+
+class _NoteTile extends StatelessWidget {
+  const _NoteTile({required this.item});
+
+  final UserNote item;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: _cardDecoration(),
+      child: ListTile(
+        leading: const Icon(
+          Icons.note_alt_outlined,
+          color: PratiCaseColors.teal,
+        ),
+        title: Text(item.title),
+        subtitle: Text(
+          [
+            item.category,
+            if (item.caseTitle != null) item.caseTitle!,
+            item.body,
+          ].join(' • '),
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    );
+  }
+}
+
+class _ExportDataTile extends StatefulWidget {
+  const _ExportDataTile({required this.repository});
+
+  final ProgressRepository repository;
+
+  @override
+  State<_ExportDataTile> createState() => _ExportDataTileState();
+}
+
+class _ExportDataTileState extends State<_ExportDataTile> {
+  bool _exporting = false;
+
+  Future<void> _export() async {
+    setState(() => _exporting = true);
+    try {
+      final payload = await widget.repository.exportUserData();
+      await Clipboard.setData(ClipboardData(text: payload));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Kullanıcı verisi panoya kopyalandı.')),
+      );
+    } on ProgressDataUnavailable catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: _exporting ? null : _export,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: _cardDecoration(),
+        child: Row(
+          children: [
+            const Icon(Icons.ios_share_rounded, color: PratiCaseColors.teal),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                _exporting ? 'Dışa aktarılıyor...' : 'Veri Dışa Aktar',
+                style: const TextStyle(
+                  color: PratiCaseColors.navy,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1436,6 +2446,134 @@ class _CaseCollectionTile extends StatelessWidget {
           history ? '${item.score ?? 0}' : '${item.points} Puan',
           style: const TextStyle(fontWeight: FontWeight.w900),
         ),
+      ),
+    );
+  }
+}
+
+class _WeakArea {
+  const _WeakArea({
+    required this.title,
+    required this.percent,
+    required this.note,
+  });
+
+  final String title;
+  final int percent;
+  final String note;
+}
+
+class _WeakHero extends StatelessWidget {
+  const _WeakHero({required this.profile});
+
+  final ProfileCard profile;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [PratiCaseColors.gradientStart, PratiCaseColors.gradientEnd],
+        ),
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Genel Başarı',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '%${profile.successRatePercent}',
+                  style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                    color: PratiCaseColors.white,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Zayıf başlıkları hedefli tekrar sınavına dönüştür.',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(
+            Icons.track_changes_rounded,
+            color: PratiCaseColors.tealBright,
+            size: 52,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeakAreaCard extends StatelessWidget {
+  const _WeakAreaCard({required this.area});
+
+  final _WeakArea area;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = area.percent >= 75
+        ? PratiCaseColors.successGreen
+        : area.percent >= 55
+        ? PratiCaseColors.gold
+        : PratiCaseColors.errorRed;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  area.title,
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+              ),
+              Text(
+                '%${area.percent}',
+                style: TextStyle(color: color, fontWeight: FontWeight.w800),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: area.percent / 100,
+              minHeight: 8,
+              backgroundColor: PratiCaseColors.surfaceContainerHighest,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            area.note,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: PratiCaseColors.muted,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1639,10 +2777,20 @@ String _errorText(Object? error) {
   return 'Canlı veri alınamadı. Lütfen bağlantı ve yetkileri kontrol edin.';
 }
 
-void _showComingSoon(BuildContext context, String title) {
-  ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(SnackBar(content: Text('$title yakında kullanıma açılacak.')));
+void _showInfo(BuildContext context, String title, String body) {
+  showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(title),
+      content: Text(body),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Tamam'),
+        ),
+      ],
+    ),
+  );
 }
 
 String _initial(String value) {

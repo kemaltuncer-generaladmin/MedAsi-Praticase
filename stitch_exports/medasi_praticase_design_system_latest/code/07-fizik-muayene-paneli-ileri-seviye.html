@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+
+<html class="light" lang="tr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Physical Examination - Acute Chest Pain</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "tertiary": "#744f00",
+                      "error-red": "#E04F5F",
+                      "background": "#f7f9ff",
+                      "secondary-container": "#d0e2f4",
+                      "primary-fixed-dim": "#7cd6d0",
+                      "on-secondary": "#ffffff",
+                      "outline-variant": "#bdc9c7",
+                      "gradient-end": "#006A72",
+                      "error-container": "#ffdad6",
+                      "surface-container": "#e4effd",
+                      "secondary-fixed-dim": "#b7c9da",
+                      "on-surface": "#121c26",
+                      "on-error": "#ffffff",
+                      "success-green": "#2AA765",
+                      "on-primary-fixed": "#00201f",
+                      "secondary-fixed": "#d3e5f7",
+                      "primary-container": "#0e7c78",
+                      "surface-container-highest": "#d9e3f1",
+                      "on-tertiary-fixed-variant": "#604100",
+                      "surface-container-low": "#edf4ff",
+                      "outline": "#6e7978",
+                      "surface-dim": "#d1dbe9",
+                      "on-tertiary": "#ffffff",
+                      "on-background": "#121c26",
+                      "surface-bright": "#f7f9ff",
+                      "inverse-primary": "#7cd6d0",
+                      "surface-container-lowest": "#ffffff",
+                      "on-primary-fixed-variant": "#00504d",
+                      "inverse-on-surface": "#e8f2ff",
+                      "surface-variant": "#d9e3f1",
+                      "hairline-border": "#E2E6EA",
+                      "primary": "#0e7c78",
+                      "muted-text": "#5C6873",
+                      "on-surface-variant": "#3e4948",
+                      "inverse-surface": "#27313c",
+                      "scaffold-bg": "#F5F6F7",
+                      "secondary": "#4f6070",
+                      "tertiary-fixed": "#ffdead",
+                      "on-tertiary-container": "#fff1e1",
+                      "surface-tint": "#006a66",
+                      "on-secondary-fixed-variant": "#384957",
+                      "teal-bright": "#32C8BF",
+                      "primary-fixed": "#98f2ed",
+                      "error": "#ba1a1a",
+                      "tertiary-container": "#946600",
+                      "surface": "#f7f9ff",
+                      "gradient-start": "#063443",
+                      "tertiary-fixed-dim": "#ffba3b",
+                      "on-primary-container": "#c1fffa",
+                      "on-secondary-container": "#536574",
+                      "surface-container-high": "#dfe9f7",
+                      "on-tertiary-fixed": "#281900",
+                      "slate-blue": "#405168",
+                      "on-error-container": "#93000a",
+                      "on-primary": "#ffffff",
+                      "on-secondary-fixed": "#0b1d2a"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "sm": "8px",
+                      "gutter": "12px",
+                      "base": "4px",
+                      "xs": "4px",
+                      "md": "16px",
+                      "xl": "24px",
+                      "margin-mobile": "20px",
+                      "lg": "20px"
+              },
+              "fontFamily": {
+                      "headline-md": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "headline-lg": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "display-lg": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "body-md": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "label-caps": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "body-sm": [
+                              "Plus Jakarta Sans"
+                      ]
+              },
+              "fontSize": {
+                      "headline-md": [
+                              "17px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "800"
+                              }
+                      ],
+                      "headline-lg": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "800"
+                              }
+                      ],
+                      "display-lg": [
+                              "44px",
+                              {
+                                      "lineHeight": "42px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "800"
+                              }
+                      ],
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "label-caps": [
+                              "11px",
+                              {
+                                      "lineHeight": "14px",
+                                      "letterSpacing": "0.08em",
+                                      "fontWeight": "800"
+                              }
+                      ],
+                      "body-sm": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "fontWeight": "500"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+<style>
+        body {
+            background-color: #F5F6F7; /* Scaffold bg */
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .ambient-shadow {
+            box-shadow: 0px 8px 16px rgba(11, 29, 42, 0.04);
+        }
+
+        .wave-bg {
+            background-image: radial-gradient(circle at 50% -20%, rgba(14, 124, 120, 0.05) 0%, transparent 70%);
+        }
+
+        .system-card {
+            transition: all 0.2s ease-in-out;
+        }
+
+        .system-card:active {
+            transform: scale(0.98);
+        }
+
+        /* Hide scrollbar for clean horizontal scroll */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+
+        .nav-color {
+            color: #0B1D2A;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="text-on-surface pb-[100px]">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-on-surface font-headline-md text-headline-md docked full-width top-0 border-b border-hairline-border dark:border-outline-variant flat no shadows transition-colors duration-200 flex justify-between items-center w-full px-margin-mobile py-sm sticky z-40">
+<div class="flex items-center gap-sm">
+<button class="flex items-center justify-center p-2 text-primary dark:text-teal-bright hover:bg-surface-container dark:hover:bg-inverse-surface rounded-full transition-colors duration-200">
+<span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+</button>
+<h1 class="font-headline-lg text-headline-lg text-primary dark:text-teal-bright">Case: Acute Chest Pain</h1>
+</div>
+<div class="flex items-center">
+<span class="text-muted-text dark:text-outline-variant font-body-sm text-body-sm mr-2">Step: Physical Exam</span>
+<button class="flex items-center justify-center p-2 text-muted-text dark:text-outline-variant hover:bg-surface-container dark:hover:bg-inverse-surface rounded-full transition-colors duration-200">
+<span class="material-symbols-outlined" data-icon="timer">timer</span>
+</button>
+</div>
+</header>
+<main class="px-margin-mobile pt-md pb-xl wave-bg min-h-screen">
+<!-- Vitals Summary Card -->
+<section class="mb-xl">
+<div class="bg-surface-container-lowest border border-hairline-border rounded-xl p-md ambient-shadow">
+<div class="flex items-center justify-between mb-sm border-b border-hairline-border pb-sm">
+<h2 class="font-headline-md text-headline-md text-on-surface">Initial Vitals</h2>
+<span class="bg-surface-container text-primary font-label-caps text-label-caps px-2 py-1 rounded-full">Triage</span>
+</div>
+<div class="grid grid-cols-4 gap-xs">
+<div class="flex flex-col">
+<span class="font-body-sm text-body-sm text-muted-text">Temp</span>
+<span class="font-body-md text-body-md text-on-surface">37.2 °C</span>
+</div>
+<div class="flex flex-col border-l border-hairline-border pl-xs">
+<span class="font-body-sm text-body-sm text-muted-text">BP</span>
+<span class="font-body-md text-body-md text-error-red font-bold">165/95</span>
+</div>
+<div class="flex flex-col border-l border-hairline-border pl-xs">
+<span class="font-body-sm text-body-sm text-muted-text">HR</span>
+<span class="font-body-md text-body-md text-on-surface">110 bpm</span>
+</div>
+<div class="flex flex-col border-l border-hairline-border pl-xs">
+<span class="font-body-sm text-body-sm text-muted-text">SpO2</span>
+<span class="font-body-md text-body-md text-on-surface">96%</span>
+</div>
+</div>
+</div>
+</section>
+<!-- System Selection -->
+<section>
+<h2 class="font-headline-md text-headline-md text-on-surface mb-md">Select System to Examine</h2>
+<div class="grid grid-cols-2 gap-gutter">
+<!-- Cardiovascular -->
+<button class="system-card bg-surface-container-lowest border-[1.5px] border-primary rounded-xl p-md text-left ambient-shadow relative overflow-hidden h-[120px] flex flex-col justify-between" onclick="toggleFindings('cvs-findings')">
+<div class="absolute top-0 right-0 p-2">
+<span class="material-symbols-outlined text-primary" data-icon="check_circle">check_circle</span>
+</div>
+<div class="absolute top-0 right-0 w-16 h-16 bg-primary opacity-5 rounded-bl-[100px]"></div>
+<div class="bg-surface-container w-10 h-10 rounded-full flex items-center justify-center mb-sm">
+<span class="material-symbols-outlined text-primary" data-icon="favorite">favorite</span>
+</div>
+<div>
+<h3 class="font-body-md text-body-md text-primary font-bold">Cardiovascular</h3>
+<span class="font-label-caps text-label-caps text-muted-text">Auscultation, Pulses</span>
+</div>
+</button>
+<!-- Respiratory -->
+<button class="system-card bg-surface-container-lowest border border-hairline-border rounded-xl p-md text-left ambient-shadow relative overflow-hidden h-[120px] flex flex-col justify-between">
+<div class="bg-surface w-10 h-10 rounded-full flex items-center justify-center mb-sm border border-hairline-border">
+<span class="material-symbols-outlined text-muted-text" data-icon="air">air</span>
+</div>
+<div>
+<h3 class="font-body-md text-body-md text-on-surface">Respiratory</h3>
+<span class="font-label-caps text-label-caps text-muted-text">Lungs, Chest Wall</span>
+</div>
+</button>
+<!-- Abdominal -->
+<button class="system-card bg-surface-container-lowest border border-hairline-border rounded-xl p-md text-left ambient-shadow relative overflow-hidden h-[120px] flex flex-col justify-between">
+<div class="bg-surface w-10 h-10 rounded-full flex items-center justify-center mb-sm border border-hairline-border">
+<span class="material-symbols-outlined text-muted-text" data-icon="restaurant">restaurant</span>
+</div>
+<div>
+<h3 class="font-body-md text-body-md text-on-surface">Gastrointestinal</h3>
+<span class="font-label-caps text-label-caps text-muted-text">Abdomen, Palpation</span>
+</div>
+</button>
+<!-- Neurological -->
+<button class="system-card bg-surface-container-lowest border border-hairline-border rounded-xl p-md text-left ambient-shadow relative overflow-hidden h-[120px] flex flex-col justify-between">
+<div class="bg-surface w-10 h-10 rounded-full flex items-center justify-center mb-sm border border-hairline-border">
+<span class="material-symbols-outlined text-muted-text" data-icon="psychology">psychology</span>
+</div>
+<div>
+<h3 class="font-body-md text-body-md text-on-surface">Neurological</h3>
+<span class="font-label-caps text-label-caps text-muted-text">Cranial, Motor</span>
+</div>
+</button>
+</div>
+</section>
+<!-- Findings Canvas (Revealed when a system is selected) -->
+<section class="mt-xl block" id="cvs-findings">
+<div class="flex items-center justify-between mb-sm">
+<h2 class="font-headline-md text-headline-md text-on-surface">Cardiovascular Findings</h2>
+<button class="text-primary font-body-sm text-body-sm">Edit</button>
+</div>
+<div class="bg-surface-container-lowest border border-hairline-border rounded-xl overflow-hidden ambient-shadow mb-md">
+<!-- Finding Row -->
+<div class="p-md border-b border-hairline-border flex justify-between items-start">
+<div>
+<h4 class="font-body-md text-body-md text-on-surface mb-xs">Heart Sounds</h4>
+<p class="font-body-sm text-body-sm text-muted-text">S1 and S2 present. No murmurs, rubs, or gallops auscultated.</p>
+</div>
+<span class="material-symbols-outlined text-success-green" data-icon="check_circle">check_circle</span>
+</div>
+<!-- Finding Row -->
+<div class="p-md border-b border-hairline-border flex justify-between items-start bg-[rgba(224,79,95,0.05)]">
+<div>
+<h4 class="font-body-md text-body-md text-on-surface mb-xs">Jugular Venous Pressure</h4>
+<p class="font-body-sm text-body-sm text-error-red font-bold">Elevated to 8 cm H2O above sternal angle.</p>
+</div>
+<span class="material-symbols-outlined text-error-red" data-icon="warning">warning</span>
+</div>
+<!-- Finding Row -->
+<div class="p-md flex justify-between items-start">
+<div>
+<h4 class="font-body-md text-body-md text-on-surface mb-xs">Peripheral Pulses</h4>
+<p class="font-body-sm text-body-sm text-muted-text">2+ bilaterally in radial, dorsalis pedis, and posterior tibial arteries. No radio-femoral delay.</p>
+</div>
+<span class="material-symbols-outlined text-success-green" data-icon="check_circle">check_circle</span>
+</div>
+</div>
+<div class="mt-md flex gap-sm">
+<button class="flex-1 h-[52px] bg-primary text-on-primary font-body-md text-body-md font-bold rounded-xl flex items-center justify-center ambient-shadow">
+                    Continue to Tests
+                </button>
+</div>
+</section>
+</main>
+<!-- BottomNavBar (Hidden on desktop, shown on mobile) -->
+<nav class="bg-surface-container-lowest dark:bg-inverse-surface font-label-caps text-label-caps font-headline-md text-headline-md text-primary dark:text-teal-bright docked full-width bottom-0 rounded-t-xl border-t border-hairline-border dark:border-outline-variant shadow-lg dark:shadow-none active:scale-95 transition-transform duration-150 fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-2 md:hidden">
+<button class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright">
+<span class="material-symbols-outlined mb-1" data-icon="home">home</span>
+<span>Home</span>
+</button>
+<button class="flex flex-col items-center justify-center text-primary dark:text-teal-bright font-bold border-t-2 border-primary dark:border-teal-bright pt-2 hover:text-primary dark:hover:text-teal-bright">
+<span class="material-symbols-outlined mb-1" data-icon="medical_services">medical_services</span>
+<span>Cases</span>
+</button>
+<button class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright">
+<span class="material-symbols-outlined mb-1" data-icon="assignment">assignment</span>
+<span>Exams</span>
+</button>
+<button class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright">
+<span class="material-symbols-outlined mb-1" data-icon="insights">insights</span>
+<span>Progress</span>
+</button>
+<button class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright">
+<span class="material-symbols-outlined mb-1" data-icon="account_circle">account_circle</span>
+<span>Profile</span>
+</button>
+</nav>
+<script>
+        // Simple mock interaction for demonstration
+        function toggleFindings(id) {
+            // In a real app, this would fetch data or swap active states
+            const el = document.getElementById(id);
+            if(el) {
+                // Flash effect
+                el.style.opacity = '0.5';
+                setTimeout(() => {
+                    el.style.opacity = '1';
+                }, 150);
+            }
+        }
+    </script>
+</body></html>

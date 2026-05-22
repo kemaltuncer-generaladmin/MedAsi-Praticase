@@ -8,6 +8,8 @@ abstract interface class CasesRepository {
 
   Future<OsceCaseDetail> loadCaseDetail(String caseId);
 
+  Future<void> setBookmark({required String caseId, required bool bookmarked});
+
   Future<ExamSessionOverview> startSession(String caseId);
 
   Future<ExamSessionOverview> loadSession(String sessionId);

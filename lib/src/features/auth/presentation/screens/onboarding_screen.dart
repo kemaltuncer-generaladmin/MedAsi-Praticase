@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/theme/praticase_colors.dart';
-import '../widgets/auth_brand.dart';
 import '../widgets/auth_primary_button.dart';
 import '../widgets/auth_scaffold.dart';
 
@@ -17,72 +16,72 @@ class OnboardingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
     return AuthScaffold(
+      showFooterText: false,
+      topPadding: 20,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const AuthBrand(centered: false),
-          const SizedBox(height: 32),
-          Text(
-            'OSCE’ye gerçek sınav gibi hazırlan.',
-            style: textTheme.headlineMedium?.copyWith(
-              fontSize: 31,
-              height: 1.06,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Sanal hasta ile konuş, anamnez al, muayene planla ve performans karneni gör.',
-            style: textTheme.bodyMedium,
-          ),
           const SizedBox(height: 24),
-          const _OnboardingIllustration(),
-          const SizedBox(height: 18),
-          const _FeatureTile(
-            icon: Icons.timer_rounded,
-            title: 'Süreli OSCE istasyonları',
-            body: 'Gerçek sınav temposunda pratik yap.',
-          ),
-          const _FeatureTile(
-            icon: Icons.record_voice_over_rounded,
-            title: 'Sanal hasta görüşmesi',
-            body: 'Hikayeyi dinle, doğru soruları sor.',
-          ),
-          const _FeatureTile(
-            icon: Icons.assignment_turned_in_rounded,
-            title: 'Rubrik tabanlı puanlama',
-            body: 'Detaylı geri bildirimle gelişimini izle.',
-          ),
-          const SizedBox(height: 22),
-          AuthPrimaryButton(label: 'Hesap Oluştur', onPressed: onCreateAccount),
-          const SizedBox(height: 12),
-          OutlinedButton(
-            onPressed: onLogin,
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(52),
-              foregroundColor: PratiCaseColors.teal,
-              side: const BorderSide(color: PratiCaseColors.border),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
-            child: const Text('Giriş Yap'),
-          ),
-          const SizedBox(height: 18),
           Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(
-                Icons.verified_user_rounded,
-                size: 18,
-                color: PratiCaseColors.teal,
+                Icons.monitor_heart_rounded,
+                color: PratiCaseColors.tealBright,
+                size: 36,
               ),
               const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Medasi hesabınla güvenli şekilde devam et.',
-                  style: textTheme.bodySmall,
+              Text(
+                'PratiCase',
+                style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                  color: PratiCaseColors.gradientStart,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 40),
+          const _OnboardingIllustration(),
+          const SizedBox(height: 34),
+          Text(
+            'Klinik Akıl Yürütme Becerini Geliştir',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+              color: PratiCaseColors.ink,
+              height: 1.18,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Gerçekçi vaka simülasyonları ile OSCE sınavlarına güvenle hazırlan.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: PratiCaseColors.slateBlue,
+              fontWeight: FontWeight.w600,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 54),
+          AuthPrimaryButton(label: 'Başla', onPressed: onCreateAccount),
+          const SizedBox(height: 18),
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                'Zaten bir hesabın var mı?',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: PratiCaseColors.muted),
+              ),
+              TextButton(
+                onPressed: onLogin,
+                child: const Text(
+                  'Giriş Yap',
+                  style: TextStyle(
+                    color: PratiCaseColors.teal,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
             ],
@@ -98,92 +97,50 @@ class _OnboardingIllustration extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 170,
+    return SizedBox(
       width: double.infinity,
-      decoration: BoxDecoration(
-        color: PratiCaseColors.teal.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(28),
-      ),
+      height: 264,
       child: Stack(
+        alignment: Alignment.center,
         children: [
-          Positioned(
-            left: 26,
-            bottom: 24,
-            child: Icon(
-              Icons.chat_bubble_rounded,
-              color: PratiCaseColors.teal.withValues(alpha: 0.38),
-              size: 42,
+          Container(
+            width: 245,
+            height: 245,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  PratiCaseColors.tealBright.withValues(alpha: 0.16),
+                  PratiCaseColors.teal.withValues(alpha: 0.04),
+                  Colors.transparent,
+                ],
+              ),
             ),
           ),
-          Positioned(
-            right: 28,
-            bottom: 0,
-            child: Icon(
-              Icons.medical_services_rounded,
-              color: PratiCaseColors.navy.withValues(alpha: 0.78),
-              size: 132,
-            ),
-          ),
-          Positioned(
-            right: 30,
-            top: 28,
+          SizedBox(
+            width: 256,
+            height: 256,
             child: Container(
-              width: 54,
-              height: 54,
               decoration: BoxDecoration(
                 color: PratiCaseColors.white,
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: PratiCaseColors.border),
+                boxShadow: [
+                  BoxShadow(
+                    color: PratiCaseColors.navy.withValues(alpha: 0.04),
+                    blurRadius: 16,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
               ),
-              child: const Icon(
-                Icons.check_rounded,
-                color: PratiCaseColors.teal,
-                size: 34,
+              padding: const EdgeInsets.all(8),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.asset(
+                  'assets/auth/onboarding_clinical_tablet.png',
+                  fit: BoxFit.cover,
+                ),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FeatureTile extends StatelessWidget {
-  const _FeatureTile({
-    required this.icon,
-    required this.title,
-    required this.body,
-  });
-
-  final IconData icon;
-  final String title;
-  final String body;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: PratiCaseColors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: PratiCaseColors.border),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundColor: PratiCaseColors.teal.withValues(alpha: 0.1),
-            child: Icon(icon, color: PratiCaseColors.teal),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 3),
-                Text(body, style: Theme.of(context).textTheme.bodySmall),
-              ],
             ),
           ),
         ],

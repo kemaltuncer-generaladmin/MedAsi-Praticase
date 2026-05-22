@@ -1,0 +1,278 @@
+<!DOCTYPE html><html class="light" lang="tr"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>PratiCase - Home</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-surface": "#121c26",
+                        "surface-container": "#e4effd",
+                        "primary-fixed": "#98f2ed",
+                        "secondary-fixed-dim": "#b7c9da",
+                        "tertiary-fixed": "#ffdead",
+                        "surface-container-highest": "#d9e3f1",
+                        "on-primary": "#ffffff",
+                        "gradient-start": "#063443",
+                        "tertiary-fixed-dim": "#ffba3b",
+                        "secondary": "#4f6070",
+                        "surface": "#f7f9ff",
+                        "outline": "#6e7978",
+                        "gradient-end": "#006A72",
+                        "surface-bright": "#f7f9ff",
+                        "tertiary": "#744f00",
+                        "teal-bright": "#32C8BF",
+                        "error-red": "#E04F5F",
+                        "muted-text": "#5C6873",
+                        "on-tertiary": "#ffffff",
+                        "error": "#ba1a1a",
+                        "error-container": "#ffdad6",
+                        "outline-variant": "#bdc9c7",
+                        "on-secondary-container": "#536574",
+                        "hairline-border": "#E2E6EA",
+                        "on-error-container": "#93000a",
+                        "secondary-container": "#d0e2f4",
+                        "surface-container-low": "#edf4ff",
+                        "on-tertiary-container": "#fff1e1",
+                        "on-secondary": "#ffffff",
+                        "on-primary-fixed": "#00201f",
+                        "background": "#f7f9ff",
+                        "surface-container-high": "#dfe9f7",
+                        "inverse-surface": "#27313c",
+                        "on-background": "#121c26",
+                        "on-secondary-fixed": "#0b1d2a",
+                        "surface-tint": "#006a66",
+                        "on-primary-container": "#c1fffa",
+                        "on-primary-fixed-variant": "#00504d",
+                        "surface-container-lowest": "#ffffff",
+                        "on-secondary-fixed-variant": "#384957",
+                        "inverse-on-surface": "#e8f2ff",
+                        "primary-container": "#0e7c78",
+                        "inverse-primary": "#7cd6d0",
+                        "secondary-fixed": "#d3e5f7",
+                        "on-tertiary-fixed-variant": "#604100",
+                        "slate-blue": "#405168",
+                        "primary": "#00615e",
+                        "success-green": "#2AA765",
+                        "on-error": "#ffffff",
+                        "scaffold-bg": "#F5F6F7",
+                        "primary-fixed-dim": "#7cd6d0",
+                        "on-tertiary-fixed": "#281900",
+                        "tertiary-container": "#946600",
+                        "on-surface-variant": "#3e4948",
+                        "surface-variant": "#d9e3f1",
+                        "surface-dim": "#d1dbe9"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "base": "4px",
+                        "gutter": "12px",
+                        "xl": "24px",
+                        "sm": "8px",
+                        "lg": "20px",
+                        "md": "16px",
+                        "xs": "4px",
+                        "margin-mobile": "20px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Plus Jakarta Sans"],
+                        "label-caps": ["Plus Jakarta Sans"],
+                        "body-sm": ["Plus Jakarta Sans"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "display-lg": ["Plus Jakarta Sans"],
+                        "body-md": ["Plus Jakarta Sans"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["24px", { "lineHeight": "32px", "fontWeight": "800" }],
+                        "label-caps": ["11px", { "lineHeight": "14px", "letterSpacing": "0.08em", "fontWeight": "800" }],
+                        "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "headline-md": ["17px", { "lineHeight": "24px", "fontWeight": "800" }],
+                        "display-lg": ["44px", { "lineHeight": "42px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "600" }]
+                    },
+                    "boxShadow": {
+                        "ambient": "0px 8px 16px rgba(11, 29, 42, 0.04)"
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: theme('colors.scaffold-bg');
+            color: theme('colors.on-surface');
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Ambient Shadow Utility */
+        .ambient-shadow {
+            box-shadow: 0px 8px 16px rgba(11, 29, 42, 0.04);
+        }
+    </style>
+</head>
+<body class="pb-[100px] flex flex-col min-h-screen">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-on-surface docked full-width top-0 border-b border-hairline-border dark:border-outline-variant flat no shadows transition-colors duration-200 flex justify-between items-center w-full px-margin-mobile py-sm sticky z-40">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary dark:text-teal-bright" data-icon="medical_services">medical_services</span>
+<h1 class="font-headline-lg text-headline-lg text-primary dark:text-teal-bright">PratiCase</h1>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary dark:text-teal-bright hover:bg-surface-container dark:hover:bg-inverse-surface rounded-full p-1 cursor-pointer" data-icon="notifications">notifications</span>
+<div class="w-8 h-8 rounded-full bg-surface-container-highest overflow-hidden border border-hairline-border flex items-center justify-center">
+<span class="material-symbols-outlined text-muted-text text-[20px]" data-icon="person">person</span>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 w-full max-w-screen-md mx-auto px-margin-mobile pt-lg flex flex-col gap-lg">
+<!-- Welcome Section -->
+<section>
+<p class="font-body-sm text-body-sm text-muted-text">Tekrar hoş geldiniz,</p>
+<h2 class="font-headline-lg text-headline-lg text-on-surface">Dr. Yılmaz</h2>
+</section>
+<!-- Featured Case: Case of the Day -->
+<section>
+<div class="bg-[#FFFFFF] border border-hairline-border rounded-xl ambient-shadow p-md flex flex-col gap-sm relative overflow-hidden">
+<!-- Mathematical Curve Pattern (Subtle Background) -->
+<div class="absolute inset-0 opacity-10 pointer-events-none" style="background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, theme('colors.primary-container') 10px, theme('colors.primary-container') 11px);"></div>
+<div class="flex justify-between items-start relative z-10">
+<span class="font-label-caps text-label-caps bg-surface-container-highest text-primary px-2 py-1 rounded-full uppercase">Günün Vakası</span>
+<span class="material-symbols-outlined text-primary" data-icon="star">star</span>
+</div>
+<div class="relative z-10 mt-sm">
+<h3 class="font-headline-md text-headline-md text-on-surface mb-xs">Akut Miyokard Enfarktüsü</h3>
+<p class="font-body-sm text-body-sm text-muted-text">54 y/o male presenting with sudden onset, crushing substernal chest pain radiating to the left arm.</p>
+</div>
+<div class="flex gap-sm mt-md relative z-10">
+<button class="h-[52px] flex-1 bg-gradient-to-r from-gradient-start to-gradient-end text-on-primary font-body-md text-body-md font-bold rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-95"><span class="material-symbols-outlined" data-icon="play_arrow">play_arrow</span>Simülasyonu Başlat</button>
+</div>
+</div>
+</section>
+<!-- Quick Actions Bento Grid -->
+<section class="grid grid-cols-2 gap-gutter">
+<!-- Single Station -->
+<button class="bg-[#FFFFFF] border border-hairline-border rounded-xl ambient-shadow p-md flex flex-col items-center justify-center gap-sm transition-transform active:scale-95 active:border-primary active:border-[1.5px]">
+<div class="w-12 h-12 rounded-full bg-surface-container flex items-center justify-center text-primary mb-xs">
+<span class="material-symbols-outlined" data-icon="assignment_ind">assignment_ind</span>
+</div>
+<span class="font-headline-md text-headline-md text-on-surface">Tek İstasyon</span>
+<span class="font-body-sm text-body-sm text-muted-text text-center">Focused scenario</span>
+</button>
+<!-- Mini OSCE -->
+<button class="bg-[#FFFFFF] border border-hairline-border rounded-xl ambient-shadow p-md flex flex-col items-center justify-center gap-sm transition-transform active:scale-95 active:border-primary active:border-[1.5px]">
+<div class="w-12 h-12 rounded-full bg-surface-container flex items-center justify-center text-primary mb-xs">
+<span class="material-symbols-outlined" data-icon="view_kanban">view_kanban</span>
+</div>
+<span class="font-headline-md text-headline-md text-on-surface">Mini OSCE</span>
+<span class="font-body-sm text-body-sm text-muted-text text-center">3-Station Mock Exam</span>
+</button>
+</section>
+<!-- Stats Overview Scorecard -->
+<section>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-sm">Performans Özeti</h3>
+<div class="bg-gradient-to-b from-gradient-start to-gradient-end rounded-t-xl rounded-b-[28px] p-lg flex flex-col gap-md text-on-primary">
+<div class="flex justify-between items-center">
+<div>
+<span class="font-label-caps text-label-caps opacity-80 uppercase block mb-xs">Genel Başarı</span>
+<span class="font-display-lg text-display-lg">84%</span>
+</div>
+<!-- Circular Progress Indicator (CSS implementation) -->
+<div class="relative w-20 h-20">
+<svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+<path class="text-white/20" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="100, 100" stroke-width="4"></path>
+<path class="text-teal-bright" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="84, 100" stroke-width="4"></path>
+</svg>
+<div class="absolute inset-0 flex items-center justify-center">
+<span class="material-symbols-outlined text-teal-bright" data-icon="trending_up">trending_up</span>
+</div>
+</div>
+</div>
+<!-- Metric Grid -->
+<div class="grid grid-cols-2 gap-gutter">
+<div class="bg-primary-container/20 rounded-xl p-sm flex items-center gap-sm">
+<span class="material-symbols-outlined text-teal-bright" data-icon="fact_check">fact_check</span>
+<div>
+<span class="font-body-sm text-body-sm block opacity-80">Çözülen Vakalar</span>
+<span class="font-headline-md text-headline-md block font-bold">42</span>
+</div>
+</div>
+<div class="bg-primary-container/20 rounded-xl p-sm flex items-center gap-sm">
+<span class="material-symbols-outlined text-teal-bright" data-icon="schedule">schedule</span>
+<div>
+<span class="font-body-sm text-body-sm block opacity-80">Ort. Süre</span>
+<span class="font-headline-md text-headline-md block font-bold">8m 30s</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Recently Solved Cases List -->
+<section class="pb-lg">
+<div class="flex justify-between items-center mb-sm">
+<h3 class="font-headline-md text-headline-md text-on-surface">Son Vakalar</h3>
+<button class="font-body-sm text-body-sm text-primary font-semibold">Tümünü Gör</button>
+</div>
+<div class="flex flex-col gap-sm">
+<!-- List Item 1 -->
+<div class="bg-[#FFFFFF] border border-hairline-border rounded-xl p-sm flex items-center gap-md transition-colors hover:bg-surface">
+<div class="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-primary flex-shrink-0">
+<span class="material-symbols-outlined" data-icon="pulmonology">pulmonology</span>
+</div>
+<div class="flex-1 min-w-0">
+<h4 class="font-body-md text-body-md text-on-surface truncate">COPD Exacerbation</h4>
+<span class="font-body-sm text-body-sm text-muted-text">Score: 92% • 2 days ago</span>
+</div>
+<span class="material-symbols-outlined text-muted-text" data-icon="chevron_right">chevron_right</span>
+</div>
+<!-- List Item 2 -->
+<div class="bg-[#FFFFFF] border border-hairline-border rounded-xl p-sm flex items-center gap-md transition-colors hover:bg-surface">
+<div class="w-10 h-10 rounded-lg bg-error-container flex items-center justify-center text-error flex-shrink-0">
+<span class="material-symbols-outlined" data-icon="neurology">neurology</span>
+</div>
+<div class="flex-1 min-w-0">
+<h4 class="font-body-md text-body-md text-on-surface truncate">Acute Ischemic Stroke</h4>
+<span class="font-body-sm text-body-sm text-muted-text">Score: 65% (Review) • 4 days ago</span>
+</div>
+<span class="material-symbols-outlined text-muted-text" data-icon="chevron_right">chevron_right</span>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="bg-surface-container-lowest dark:bg-inverse-surface docked full-width bottom-0 rounded-t-xl border-t border-hairline-border dark:border-outline-variant shadow-lg dark:shadow-none fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-2">
+<button class="flex flex-col items-center justify-center text-primary dark:text-teal-bright font-bold border-t-2 border-primary dark:border-teal-bright pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150 flex-1">
+<span class="material-symbols-outlined" data-icon="home" style="font-variation-settings: 'FILL' 1;">home</span>
+<span class="font-label-caps text-label-caps mt-1">Ana Sayfa</span>
+</button>
+<button class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150 flex-1">
+<span class="material-symbols-outlined" data-icon="medical_services">medical_services</span>
+<span class="font-label-caps text-label-caps mt-1">Vakalar</span>
+</button>
+<button class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150 flex-1">
+<span class="material-symbols-outlined" data-icon="assignment">assignment</span>
+<span class="font-label-caps text-label-caps mt-1">Sınavlar</span>
+</button>
+<button class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150 flex-1">
+<span class="material-symbols-outlined" data-icon="insights">insights</span>
+<span class="font-label-caps text-label-caps mt-1">Gelişim</span>
+</button>
+<button class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150 flex-1">
+<span class="material-symbols-outlined" data-icon="account_circle">account_circle</span>
+<span class="font-label-caps text-label-caps mt-1">Profil</span>
+</button>
+</nav>
+
+
+</body></html>

@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+
+<html lang="tr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Gelişim Dashboard - PratiCase</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-surface-variant": "#3e4948",
+                      "gradient-start": "#063443",
+                      "error": "#ba1a1a",
+                      "error-red": "#E04F5F",
+                      "surface-container-low": "#edf4ff",
+                      "surface-container-highest": "#d9e3f1",
+                      "on-background": "#121c26",
+                      "on-primary-fixed": "#00201f",
+                      "on-error": "#ffffff",
+                      "outline-variant": "#bdc9c7",
+                      "surface-variant": "#d9e3f1",
+                      "gradient-end": "#006A72",
+                      "hairline-border": "#E2E6EA",
+                      "surface-dim": "#d1dbe9",
+                      "secondary-fixed-dim": "#b7c9da",
+                      "primary": "#00615e",
+                      "inverse-primary": "#7cd6d0",
+                      "slate-blue": "#405168",
+                      "surface-container-high": "#dfe9f7",
+                      "surface-container": "#e4effd",
+                      "tertiary-fixed": "#ffdead",
+                      "on-secondary-container": "#536574",
+                      "on-secondary-fixed-variant": "#384957",
+                      "on-surface": "#121c26",
+                      "secondary-fixed": "#d3e5f7",
+                      "on-tertiary-fixed": "#281900",
+                      "primary-fixed-dim": "#7cd6d0",
+                      "on-secondary": "#ffffff",
+                      "teal-bright": "#32C8BF",
+                      "surface-tint": "#006a66",
+                      "on-tertiary-container": "#fff1e1",
+                      "secondary-container": "#d0e2f4",
+                      "tertiary": "#744f00",
+                      "on-secondary-fixed": "#0b1d2a",
+                      "on-primary": "#ffffff",
+                      "tertiary-fixed-dim": "#ffba3b",
+                      "surface-container-lowest": "#ffffff",
+                      "surface-bright": "#f7f9ff",
+                      "on-tertiary-fixed-variant": "#604100",
+                      "error-container": "#ffdad6",
+                      "success-green": "#2AA765",
+                      "on-error-container": "#93000a",
+                      "background": "#f7f9ff",
+                      "on-primary-fixed-variant": "#00504d",
+                      "on-primary-container": "#c1fffa",
+                      "tertiary-container": "#946600",
+                      "surface": "#f7f9ff",
+                      "primary-container": "#0e7c78",
+                      "on-tertiary": "#ffffff",
+                      "secondary": "#4f6070",
+                      "muted-text": "#5C6873",
+                      "inverse-surface": "#27313c",
+                      "outline": "#6e7978",
+                      "inverse-on-surface": "#e8f2ff",
+                      "scaffold-bg": "#F5F6F7",
+                      "primary-fixed": "#98f2ed"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "xl": "24px",
+                      "lg": "20px",
+                      "sm": "8px",
+                      "base": "4px",
+                      "md": "16px",
+                      "margin-mobile": "20px",
+                      "xs": "4px",
+                      "gutter": "12px"
+              },
+              "fontFamily": {
+                      "body-sm": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "body-md": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "display-lg": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "label-caps": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "headline-md": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "headline-lg": [
+                              "Plus Jakarta Sans"
+                      ]
+              },
+              "fontSize": {
+                      "body-sm": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "body-md": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "display-lg": [
+                              "44px",
+                              {
+                                      "lineHeight": "42px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "800"
+                              }
+                      ],
+                      "label-caps": [
+                              "11px",
+                              {
+                                      "lineHeight": "14px",
+                                      "letterSpacing": "0.08em",
+                                      "fontWeight": "800"
+                              }
+                      ],
+                      "headline-md": [
+                              "17px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "800"
+                              }
+                      ],
+                      "headline-lg": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "800"
+                              }
+                      ]
+              }
+            },
+          },
+        }
+      </script>
+<style>
+        body {
+            background-color: #F5F6F7; /* scaffold-bg */
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Ambient Shadow for cards */
+        .ambient-shadow {
+            box-shadow: 0px 8px 16px rgba(11, 29, 42, 0.04);
+        }
+
+        /* Circular Progress Chart SVG styling */
+        .progress-ring__circle {
+            transition: stroke-dashoffset 1s ease-in-out;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+
+        /* Math Curves Background */
+        .math-curves-bg {
+            background-image: url("data:image/svg+xml,%3Csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 50 Q 25 10 50 50 T 100 50' stroke='%2332C8BF' stroke-width='1' fill='none' opacity='0.2'/%3E%3C/svg%3E");
+            background-size: 100px 100px;
+        }
+
+        /* Ensure bottom clearance for Nav */
+        .main-content {
+            padding-bottom: 100px;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body-md text-on-surface">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-on-surface docked full-width top-0 border-b border-hairline-border dark:border-outline-variant flat no shadows flex justify-between items-center w-full px-margin-mobile py-sm sticky z-40">
+<div class="flex items-center gap-sm transition-colors duration-200">
+<span class="material-symbols-outlined text-primary dark:text-teal-bright text-xl">analytics</span>
+<h1 class="font-headline-lg text-headline-lg text-primary dark:text-teal-bright tracking-tight">Gelişim Analizi</h1>
+</div>
+<div class="flex items-center">
+<span class="font-body-sm text-body-sm text-muted-text dark:text-outline-variant">Son 30 Gün</span>
+</div>
+</header>
+<main class="main-content px-margin-mobile pt-md space-y-lg max-w-3xl mx-auto">
+<!-- Overall Performance Hero Card -->
+<section class="bg-gradient-to-b from-gradient-start to-gradient-end rounded-b-[28px] rounded-t-xl p-lg relative overflow-hidden text-on-primary">
+<!-- Decorative curve -->
+<div class="absolute inset-0 opacity-10 pointer-events-none">
+<svg height="100%" preserveaspectratio="none" viewbox="0 0 100 100" width="100%">
+<path d="M0,50 C30,80 70,20 100,50 L100,100 L0,100 Z" fill="currentColor"></path>
+</svg>
+</div>
+<div class="relative z-10 flex flex-col items-center">
+<h2 class="font-body-md text-body-md text-inverse-primary uppercase tracking-widest mb-md">Genel Performans Skoru</h2>
+<!-- Circular Chart -->
+<div class="relative w-32 h-32 mb-sm flex items-center justify-center">
+<svg class="w-full h-full" viewbox="0 0 100 100">
+<circle class="text-slate-blue opacity-30 stroke-current" cx="50" cy="50" fill="transparent" r="40" stroke-width="8"></circle>
+<circle class="text-teal-bright progress-ring__circle stroke-current" cx="50" cy="50" fill="transparent" r="40" stroke-dasharray="251.2" stroke-dashoffset="45.2" stroke-linecap="round" stroke-width="8"></circle>
+</svg>
+<div class="absolute flex flex-col items-center">
+<span class="font-display-lg text-display-lg text-on-primary">82</span>
+<span class="font-body-sm text-body-sm text-secondary-fixed-dim">/100</span>
+</div>
+</div>
+<p class="font-body-sm text-body-sm text-secondary-fixed-dim mt-sm text-center">Son 30 günde <strong class="text-teal-bright">+4%</strong> artış gösterdiniz.</p>
+</div>
+</section>
+<!-- Skill Breakdown Bento Grid -->
+<section>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-md">Beceri Dağılımı</h3>
+<div class="grid grid-cols-2 gap-gutter">
+<!-- Anamnesis Card -->
+<div class="bg-surface border border-hairline-border rounded-xl p-md ambient-shadow flex flex-col gap-sm">
+<div class="flex items-center gap-xs text-primary">
+<span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">record_voice_over</span>
+<span class="font-body-md text-body-md">Anamnez</span>
+</div>
+<div class="flex items-end justify-between mt-auto">
+<span class="font-headline-lg text-headline-lg text-on-surface">92%</span>
+<span class="material-symbols-outlined text-success-green text-sm">trending_up</span>
+</div>
+<div class="w-full bg-surface-container-high h-1 rounded-full overflow-hidden mt-xs">
+<div class="bg-success-green h-full rounded-full w-[92%]"></div>
+</div>
+</div>
+<!-- Physical Exam Card -->
+<div class="bg-surface border border-hairline-border rounded-xl p-md ambient-shadow flex flex-col gap-sm">
+<div class="flex items-center gap-xs text-primary">
+<span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">accessibility_new</span>
+<span class="font-body-md text-body-md">Fizik Muayene</span>
+</div>
+<div class="flex items-end justify-between mt-auto">
+<span class="font-headline-lg text-headline-lg text-on-surface">78%</span>
+<span class="material-symbols-outlined text-tertiary-fixed-dim text-sm">trending_flat</span>
+</div>
+<div class="w-full bg-surface-container-high h-1 rounded-full overflow-hidden mt-xs">
+<div class="bg-primary h-full rounded-full w-[78%]"></div>
+</div>
+</div>
+<!-- Investigations Card -->
+<div class="bg-surface border border-hairline-border rounded-xl p-md ambient-shadow flex flex-col gap-sm">
+<div class="flex items-center gap-xs text-primary">
+<span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">biotech</span>
+<span class="font-body-md text-body-md">Tetkikler</span>
+</div>
+<div class="flex items-end justify-between mt-auto">
+<span class="font-headline-lg text-headline-lg text-on-surface">85%</span>
+<span class="material-symbols-outlined text-success-green text-sm">trending_up</span>
+</div>
+<div class="w-full bg-surface-container-high h-1 rounded-full overflow-hidden mt-xs">
+<div class="bg-primary h-full rounded-full w-[85%]"></div>
+</div>
+</div>
+<!-- Management Card -->
+<div class="bg-surface border border-hairline-border rounded-xl p-md ambient-shadow flex flex-col gap-sm border-l-2 border-l-error-red">
+<div class="flex items-center gap-xs text-error-red">
+<span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">medical_services</span>
+<span class="font-body-md text-body-md">Yönetim</span>
+</div>
+<div class="flex items-end justify-between mt-auto">
+<span class="font-headline-lg text-headline-lg text-on-surface">64%</span>
+<span class="material-symbols-outlined text-error-red text-sm">trending_down</span>
+</div>
+<div class="w-full bg-surface-container-high h-1 rounded-full overflow-hidden mt-xs">
+<div class="bg-error-red h-full rounded-full w-[64%]"></div>
+</div>
+</div>
+</div>
+</section>
+<!-- Weak Areas Focus List -->
+<section>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-md">Gelişim Alanları</h3>
+<div class="bg-surface border border-hairline-border rounded-xl p-sm ambient-shadow flex flex-col">
+<!-- Item 1 -->
+<div class="flex items-start gap-md p-sm border-b border-hairline-border last:border-0 pb-md">
+<div class="bg-error-container text-on-error-container p-sm rounded-lg flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">monitor_heart</span>
+</div>
+<div class="flex flex-col flex-grow">
+<h4 class="font-body-md text-body-md text-on-surface">Kardiyoloji: EKG Yorumlama</h4>
+<p class="font-body-sm text-body-sm text-muted-text mt-xs">Akut iskemi bulgularını atlama oranınız yüksek.</p>
+<div class="flex items-center gap-xs mt-sm">
+<span class="font-label-caps text-label-caps text-error-red px-2 py-1 bg-error-container rounded-md">ÖNCELİKLİ</span>
+</div>
+</div>
+</div>
+<!-- Item 2 -->
+<div class="flex items-start gap-md p-sm pt-md">
+<div class="bg-tertiary-fixed text-on-tertiary-fixed p-sm rounded-lg flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">healing</span>
+</div>
+<div class="flex flex-col flex-grow">
+<h4 class="font-body-md text-body-md text-on-surface">Genel Cerrahi: Akut Batın</h4>
+<p class="font-body-sm text-body-sm text-muted-text mt-xs">Ayırıcı tanı aşamasında süreyi verimli kullanamıyorsunuz.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Recent Achievements -->
+<section>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-md">Son Başarılar</h3>
+<div class="bg-surface border border-hairline-border rounded-xl p-md ambient-shadow flex items-center justify-between">
+<div class="flex items-center gap-md">
+<div class="bg-surface-container text-primary p-2 rounded-full border border-teal-bright border-opacity-30">
+<span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">military_tech</span>
+</div>
+<div>
+<h4 class="font-body-md text-body-md text-on-surface">Usta Anamnezci</h4>
+<p class="font-body-sm text-body-sm text-muted-text">Son 5 vakada eksiksiz anamnez.</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-muted-text text-sm">chevron_right</span>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="bg-surface-container-lowest dark:bg-inverse-surface docked full-width bottom-0 rounded-t-xl border-t border-hairline-border dark:border-outline-variant shadow-lg dark:shadow-none fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-2 md:hidden">
+<a class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150 group" href="#">
+<span class="material-symbols-outlined mb-1 group-hover:scale-110 transition-transform">home</span>
+<span class="font-label-caps text-label-caps">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150 group" href="#">
+<span class="material-symbols-outlined mb-1 group-hover:scale-110 transition-transform">medical_services</span>
+<span class="font-label-caps text-label-caps">Cases</span>
+</a>
+<a class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150 group" href="#">
+<span class="material-symbols-outlined mb-1 group-hover:scale-110 transition-transform">assignment</span>
+<span class="font-label-caps text-label-caps">Exams</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary dark:text-teal-bright font-bold border-t-2 border-primary dark:border-teal-bright pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150 group" href="#">
+<span class="material-symbols-outlined mb-1" style="font-variation-settings: 'FILL' 1;">insights</span>
+<span class="font-label-caps text-label-caps">Progress</span>
+</a>
+<a class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150 group" href="#">
+<span class="material-symbols-outlined mb-1 group-hover:scale-110 transition-transform">account_circle</span>
+<span class="font-label-caps text-label-caps">Profile</span>
+</a>
+</nav>
+<script>
+        // Micro-interaction for circular progress animation on load
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                const circle = document.querySelector('.progress-ring__circle');
+                if(circle) {
+                    // target offset = circumference - (percent / 100) * circumference
+                    // 251.2 - (82 / 100) * 251.2 = 45.216
+                    circle.style.strokeDashoffset = '45.2';
+                }
+            }, 100);
+        });
+    </script>
+</body></html>

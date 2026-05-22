@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+
+<html class="light" lang="tr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Gelişim Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary": "#744f00",
+                        "surface-variant": "#d9e3f1",
+                        "on-primary-fixed-variant": "#00504d",
+                        "on-secondary-container": "#536574",
+                        "on-tertiary-container": "#fff1e1",
+                        "on-tertiary-fixed-variant": "#604100",
+                        "on-primary-container": "#c1fffa",
+                        "surface-container-low": "#edf4ff",
+                        "on-background": "#121c26",
+                        "on-tertiary-fixed": "#281900",
+                        "surface-container": "#e4effd",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-highest": "#d9e3f1",
+                        "on-secondary": "#ffffff",
+                        "surface-dim": "#d1dbe9",
+                        "inverse-primary": "#7cd6d0",
+                        "secondary-fixed": "#d3e5f7",
+                        "error": "#ba1a1a",
+                        "surface-container-high": "#dfe9f7",
+                        "gradient-end": "#006A72",
+                        "inverse-on-surface": "#e8f2ff",
+                        "teal-bright": "#32C8BF",
+                        "tertiary-container": "#946600",
+                        "surface-bright": "#f7f9ff",
+                        "on-primary": "#ffffff",
+                        "background": "#f7f9ff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-secondary-fixed-variant": "#384957",
+                        "error-red": "#E04F5F",
+                        "slate-blue": "#405168",
+                        "secondary-container": "#d0e2f4",
+                        "primary-container": "#0e7c78",
+                        "hairline-border": "#E2E6EA",
+                        "on-primary-fixed": "#00201f",
+                        "success-green": "#2AA765",
+                        "error-container": "#ffdad6",
+                        "muted-text": "#5C6873",
+                        "scaffold-bg": "#F5F6F7",
+                        "outline-variant": "#bdc9c7",
+                        "secondary": "#4f6070",
+                        "on-error-container": "#93000a",
+                        "on-surface-variant": "#3e4948",
+                        "secondary-fixed-dim": "#b7c9da",
+                        "surface": "#f7f9ff",
+                        "gradient-start": "#063443",
+                        "on-error": "#ffffff",
+                        "tertiary-fixed-dim": "#ffba3b",
+                        "primary-fixed": "#98f2ed",
+                        "outline": "#6e7978",
+                        "primary-fixed-dim": "#7cd6d0",
+                        "tertiary-fixed": "#ffdead",
+                        "inverse-surface": "#27313c",
+                        "on-surface": "#121c26",
+                        "on-secondary-fixed": "#0b1d2a",
+                        "primary": "#00615e",
+                        "surface-tint": "#006a66"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xl": "24px",
+                        "sm": "8px",
+                        "md": "16px",
+                        "lg": "20px",
+                        "margin-mobile": "20px",
+                        "xs": "4px",
+                        "base": "4px",
+                        "gutter": "12px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Plus Jakarta Sans", "sans-serif"],
+                        "body-md": ["Plus Jakarta Sans", "sans-serif"],
+                        "label-caps": ["Plus Jakarta Sans", "sans-serif"],
+                        "display-lg": ["Plus Jakarta Sans", "sans-serif"],
+                        "body-sm": ["Plus Jakarta Sans", "sans-serif"],
+                        "headline-lg": ["Plus Jakarta Sans", "sans-serif"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["17px", {"lineHeight": "24px", "fontWeight": "800"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "600"}],
+                        "label-caps": ["11px", {"lineHeight": "14px", "letterSpacing": "0.08em", "fontWeight": "800"}],
+                        "display-lg": ["44px", {"lineHeight": "42px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                        "body-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                        "headline-lg": ["24px", {"lineHeight": "32px", "fontWeight": "800"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .ambient-shadow {
+            box-shadow: 0px 8px 16px rgba(11, 29, 42, 0.04);
+        }
+        .nav-shell-padding {
+            padding-bottom: 100px; /* Safe area for bottom nav */
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-scaffold-bg text-on-surface min-h-screen flex flex-col antialiased">
+<!-- Top App Bar (Modified for Dashboard Context) -->
+<header class="bg-surface docked full-width top-0 z-40">
+<div class="flex justify-between items-center w-full px-margin-mobile py-sm border-b border-hairline-border">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">insights</span>
+<h1 class="font-headline-lg text-headline-lg text-primary">Gelişim</h1>
+</div>
+<div>
+<span class="material-symbols-outlined text-muted-text">more_vert</span>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-grow px-margin-mobile pt-lg nav-shell-padding w-full max-w-3xl mx-auto space-y-xl">
+<!-- Hero Scorecard -->
+<section class="bg-gradient-to-b from-gradient-start to-gradient-end rounded-[28px] p-lg text-on-primary ambient-shadow flex flex-col items-center justify-center text-center">
+<h2 class="font-body-sm text-body-sm text-surface-container-low mb-xs">Genel Ortalama</h2>
+<div class="font-display-lg text-display-lg mb-sm">82<span class="text-headline-md font-headline-md opacity-80">%</span></div>
+<div class="flex items-center gap-1 bg-surface-tint px-3 py-1 rounded-full border border-primary-container">
+<span class="material-symbols-outlined text-[14px] text-teal-bright">trending_up</span>
+<span class="font-label-caps text-label-caps text-teal-bright">+4% geçen aya göre</span>
+</div>
+</section>
+<!-- Skill Radar / Progress Bars -->
+<section class="space-y-md">
+<h3 class="font-headline-md text-headline-md text-on-secondary-fixed">Klinik Beceriler</h3>
+<div class="bg-surface border border-hairline-border rounded-xl p-md ambient-shadow space-y-4">
+<!-- Skill 1 -->
+<div>
+<div class="flex justify-between items-end mb-1">
+<span class="font-body-md text-body-md text-on-surface">Anamnez</span>
+<span class="font-body-sm text-body-sm text-secondary">88%</span>
+</div>
+<div class="w-full bg-surface-variant rounded-full h-2">
+<div class="bg-primary h-2 rounded-full" style="width: 88%"></div>
+</div>
+</div>
+<!-- Skill 2 -->
+<div>
+<div class="flex justify-between items-end mb-1">
+<span class="font-body-md text-body-md text-on-surface">Fizik Muayene</span>
+<span class="font-body-sm text-body-sm text-secondary">75%</span>
+</div>
+<div class="w-full bg-surface-variant rounded-full h-2">
+<div class="bg-teal-bright h-2 rounded-full" style="width: 75%"></div>
+</div>
+</div>
+<!-- Skill 3 -->
+<div>
+<div class="flex justify-between items-end mb-1">
+<span class="font-body-md text-body-md text-on-surface">Tetkik İnceleme</span>
+<span class="font-body-sm text-body-sm text-secondary">92%</span>
+</div>
+<div class="w-full bg-surface-variant rounded-full h-2">
+<div class="bg-primary h-2 rounded-full" style="width: 92%"></div>
+</div>
+</div>
+<!-- Skill 4 -->
+<div>
+<div class="flex justify-between items-end mb-1">
+<span class="font-body-md text-body-md text-on-surface">Yönetim &amp; Tedavi</span>
+<span class="font-body-sm text-body-sm text-secondary">65%</span>
+</div>
+<div class="w-full bg-surface-variant rounded-full h-2">
+<div class="bg-tertiary h-2 rounded-full" style="width: 65%"></div>
+</div>
+</div>
+</div>
+</section>
+<!-- Branch Success Rates (2 Column Grid) -->
+<section class="space-y-md">
+<h3 class="font-headline-md text-headline-md text-on-secondary-fixed">Branş Başarısı</h3>
+<div class="grid grid-cols-2 gap-gutter">
+<!-- Branch Card 1 -->
+<div class="bg-primary/5 border border-primary/10 rounded-xl p-md flex flex-col items-start gap-2 ambient-shadow">
+<div class="bg-surface rounded-full p-2 text-primary shadow-sm">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">stethoscope</span>
+</div>
+<div class="w-full">
+<div class="font-body-sm text-body-sm text-secondary mb-xs">Dahiliye</div>
+<div class="font-headline-lg text-headline-lg text-on-secondary-fixed">85%</div>
+</div>
+</div>
+<!-- Branch Card 2 -->
+<div class="bg-teal-bright/5 border border-teal-bright/20 rounded-xl p-md flex flex-col items-start gap-2 ambient-shadow">
+<div class="bg-surface rounded-full p-2 text-teal-bright shadow-sm">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">cut</span>
+</div>
+<div class="w-full">
+<div class="font-body-sm text-body-sm text-secondary mb-xs">Cerrahi</div>
+<div class="font-headline-lg text-headline-lg text-on-secondary-fixed">70%</div>
+</div>
+</div>
+<!-- Branch Card 3 -->
+<div class="bg-tertiary/5 border border-tertiary/20 rounded-xl p-md flex flex-col items-start gap-2 ambient-shadow">
+<div class="bg-surface rounded-full p-2 text-tertiary shadow-sm">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">pediatrics</span>
+</div>
+<div class="w-full">
+<div class="font-body-sm text-body-sm text-secondary mb-xs">Pediatri</div>
+<div class="font-headline-lg text-headline-lg text-on-secondary-fixed">90%</div>
+</div>
+</div>
+<!-- Branch Card 4 -->
+<div class="bg-error/5 border border-error/10 rounded-xl p-md flex flex-col items-start gap-2 ambient-shadow">
+<div class="bg-surface rounded-full p-2 text-error shadow-sm">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">emergency</span>
+</div>
+<div class="w-full">
+<div class="font-body-sm text-body-sm text-secondary mb-xs">Acil</div>
+<div class="font-headline-lg text-headline-lg text-on-secondary-fixed">60%</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar (Generated from JSON constraints) -->
+<nav class="bg-surface-container-lowest docked full-width bottom-0 rounded-t-xl shadow-lg border-t border-hairline-border fixed left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-2">
+<!-- Home -->
+<a class="flex flex-col items-center justify-center text-muted-text pt-2 hover:text-primary active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined text-[24px]">home</span>
+<span class="font-label-caps text-label-caps mt-1">Home</span>
+</a>
+<!-- Cases -->
+<a class="flex flex-col items-center justify-center text-muted-text pt-2 hover:text-primary active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined text-[24px]">medical_services</span>
+<span class="font-label-caps text-label-caps mt-1">Cases</span>
+</a>
+<!-- Exams -->
+<a class="flex flex-col items-center justify-center text-muted-text pt-2 hover:text-primary active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined text-[24px]">assignment</span>
+<span class="font-label-caps text-label-caps mt-1">Exams</span>
+</a>
+<!-- Progress (Active) -->
+<a class="flex flex-col items-center justify-center text-primary font-bold border-t-2 border-primary pt-2 active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined text-[24px]" style="font-variation-settings: 'FILL' 1;">insights</span>
+<span class="font-label-caps text-label-caps mt-1">Progress</span>
+</a>
+<!-- Profile -->
+<a class="flex flex-col items-center justify-center text-muted-text pt-2 hover:text-primary active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined text-[24px]">account_circle</span>
+<span class="font-label-caps text-label-caps mt-1">Profile</span>
+</a>
+</nav>
+</body></html>
