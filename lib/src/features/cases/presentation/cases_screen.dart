@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../app/theme/praticase_colors.dart';
 import '../data/cases_repository.dart';
@@ -1847,19 +1848,26 @@ class _FlowScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      resizeToAvoidBottomInset: resizeToAvoidBottomInset,
-      backgroundColor: backgroundColor,
-      body: SafeArea(bottom: false, child: body),
-      bottomNavigationBar: bottom == null
-          ? null
-          : SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
-                child: bottom,
+    final overlayStyle =
+        ThemeData.estimateBrightnessForColor(backgroundColor) == Brightness.dark
+        ? SystemUiOverlayStyle.light
+        : SystemUiOverlayStyle.dark;
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: overlayStyle,
+      child: Scaffold(
+        resizeToAvoidBottomInset: resizeToAvoidBottomInset,
+        backgroundColor: backgroundColor,
+        body: SafeArea(bottom: false, child: body),
+        bottomNavigationBar: bottom == null
+            ? null
+            : SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
+                  child: bottom,
+                ),
               ),
-            ),
+      ),
     );
   }
 }

@@ -17,66 +17,15 @@ class SupabaseHomeRepository implements HomeRepository {
     }
 
     try {
-      final profileFuture = _client
-          .from('profiles')
-          .select('first_name,last_name,email')
-          .eq('id', authUser.id)
-          .maybeSingle();
-      final bannersFuture = _client
-          .schema('praticase')
-          .from('home_banners')
-          .select('id,title,subtitle,cta_label')
-          .eq('is_active', true)
-          .order('sort_order')
-          .limit(5);
-      final statsFuture = _client
-          .schema('praticase')
-          .from('user_dashboard_stats')
-          .select(
-            'solved_case_count,success_rate_percent,total_points,daily_streak,'
-            'solved_delta_percent,success_delta_percent,points_delta_percent,'
-            'streak_label',
-          )
-          .eq('user_id', authUser.id)
-          .maybeSingle();
-      final continuedFuture = _client
-          .schema('praticase')
-          .from('user_home_case_progress')
-          .select('case_id,title,branch,difficulty,progress_percent,updated_at')
-          .eq('user_id', authUser.id)
-          .order('updated_at', ascending: false)
-          .limit(1)
-          .maybeSingle();
-      final recommendationsFuture = _client
-          .schema('praticase')
-          .from('user_recommended_cases')
-          .select(
-            'case_id,title,branch,difficulty,points,icon_key,is_bookmarked,sort_order',
-          )
-          .eq('user_id', authUser.id)
-          .order('sort_order')
-          .limit(8);
-      final badgeFuture = _client
-          .schema('praticase')
-          .from('user_badge_summary')
-          .select('title,subtitle,action_label')
-          .eq('user_id', authUser.id)
-          .maybeSingle();
-      final notificationsFuture = _client
-          .schema('praticase')
-          .from('user_notifications')
-          .select('id')
-          .eq('user_id', authUser.id)
-          .eq('is_read', false)
-          .count(CountOption.exact);
-
-      final profile = await profileFuture;
-      final banners = await bannersFuture;
-      final stats = await statsFuture;
-      final continued = await continuedFuture;
-      final recommendations = await recommendationsFuture;
-      final badge = await badgeFuture;
-      final notifications = await notificationsFuture;
+      final profile = await _loadProfile(authUser.id);
+      final banners = await _loadBanners();
+      final stats = await _loadStats(authUser.id);
+      final continued = await _loadContinuedCase(authUser.id);
+      final recommendations = await _loadRecommendations(authUser.id);
+      final badge = await _loadBadgeSummary(authUser.id);
+      final unreadNotifications = await _loadUnreadNotificationCount(
+        authUser.id,
+      );
 
       return HomeDashboard(
         user: HomeUser(
@@ -91,10 +40,142 @@ class SupabaseHomeRepository implements HomeRepository {
           for (final row in recommendations) _recommendedFromRow(row),
         ],
         badgeSummary: badge == null ? null : _badgeFromRow(badge),
-        unreadNotificationCount: notifications.count,
+        unreadNotificationCount: unreadNotifications,
       );
     } on PostgrestException catch (error) {
       throw HomeDataUnavailable(_friendlyDatabaseMessage(error));
+    }
+  }
+
+  Future<Map<String, dynamic>?> _loadProfile(String userId) {
+    return _client
+        .from('profiles')
+        .select('first_name,last_name,email')
+        .eq('id', userId)
+        .maybeSingle();
+  }
+
+  Future<List<Map<String, dynamic>>> _loadBanners() async {
+    try {
+      return await _client
+          .schema('praticase')
+          .from('home_banners')
+          .select('id,title,subtitle,cta_label')
+          .eq('is_active', true)
+          .order('sort_order')
+          .limit(5);
+    } on PostgrestException catch (error) {
+      if (_isOptionalSourceMissing(error)) return const [];
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>?> _loadStats(String userId) async {
+    try {
+      return await _client
+          .schema('praticase')
+          .from('user_dashboard_stats')
+          .select(
+            'solved_case_count,success_rate_percent,total_points,daily_streak,'
+            'solved_delta_percent,success_delta_percent,points_delta_percent,'
+            'streak_label',
+          )
+          .eq('user_id', userId)
+          .maybeSingle();
+    } on PostgrestException catch (error) {
+      if (_isOptionalSourceMissing(error)) return null;
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>?> _loadContinuedCase(String userId) async {
+    try {
+      return await _client
+          .schema('praticase')
+          .from('user_home_case_progress')
+          .select('case_id,title,branch,difficulty,progress_percent,updated_at')
+          .eq('user_id', userId)
+          .order('updated_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+    } on PostgrestException catch (error) {
+      if (_isOptionalSourceMissing(error)) return null;
+      rethrow;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _loadRecommendations(String userId) async {
+    try {
+      final rows = await _client
+          .schema('praticase')
+          .from('user_recommended_cases')
+          .select(
+            'case_id,title,branch,difficulty,points,icon_key,is_bookmarked,sort_order',
+          )
+          .eq('user_id', userId)
+          .order('sort_order')
+          .limit(8);
+      if (rows.isNotEmpty) return rows;
+    } on PostgrestException catch (error) {
+      if (!_isOptionalSourceMissing(error)) rethrow;
+    }
+    return _loadPublishedCases();
+  }
+
+  Future<List<Map<String, dynamic>>> _loadPublishedCases() async {
+    try {
+      final rows = await _client
+          .schema('praticase')
+          .from('cases')
+          .select('id,title,branch,difficulty,points,icon_key')
+          .eq('is_published', true)
+          .order('created_at', ascending: false)
+          .limit(8);
+      return [
+        for (final row in rows)
+          {
+            'case_id': row['id'],
+            'title': row['title'],
+            'branch': row['branch'],
+            'difficulty': row['difficulty'],
+            'points': row['points'],
+            'icon_key': row['icon_key'],
+            'is_bookmarked': false,
+          },
+      ];
+    } on PostgrestException catch (error) {
+      if (_isOptionalSourceMissing(error)) return const [];
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>?> _loadBadgeSummary(String userId) async {
+    try {
+      return await _client
+          .schema('praticase')
+          .from('user_badge_summary')
+          .select('title,subtitle,action_label')
+          .eq('user_id', userId)
+          .maybeSingle();
+    } on PostgrestException catch (error) {
+      if (_isOptionalSourceMissing(error)) return null;
+      rethrow;
+    }
+  }
+
+  Future<int> _loadUnreadNotificationCount(String userId) async {
+    try {
+      final response = await _client
+          .schema('praticase')
+          .from('user_notifications')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('is_read', false)
+          .count(CountOption.exact);
+      return response.count;
+    } on PostgrestException catch (error) {
+      if (_isOptionalSourceMissing(error)) return 0;
+      rethrow;
     }
   }
 
@@ -182,5 +263,14 @@ class SupabaseHomeRepository implements HomeRepository {
       return 'Ana ekran verisi şu anda hazırlanıyor. Lütfen daha sonra tekrar deneyin.';
     }
     return 'Ana ekran canlı verisi alınamadı. Lütfen bağlantı ve yetkileri kontrol edin.';
+  }
+
+  bool _isOptionalSourceMissing(PostgrestException error) {
+    final message = error.message.toLowerCase();
+    return error.code == '42P01' ||
+        error.code == 'PGRST205' ||
+        message.contains('schema cache') ||
+        message.contains('could not find') ||
+        message.contains('does not exist');
   }
 }
