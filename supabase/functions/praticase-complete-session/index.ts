@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
+import { corsHeaders, isAllowedOrigin, jsonResponse } from "../_shared/cors.ts";
 import {
   evaluationModel,
   generateVertexText,
@@ -22,12 +22,21 @@ type AiScore = {
 };
 
 Deno.serve(async (request) => {
+  const origin = request.headers.get("Origin");
+
   if (request.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    if (!isAllowedOrigin(origin)) {
+      return jsonResponse({ error: "Origin not allowed" }, 403, origin);
+    }
+    return new Response("ok", { headers: corsHeaders(origin) });
+  }
+
+  if (!isAllowedOrigin(origin)) {
+    return jsonResponse({ error: "Origin not allowed" }, 403, origin);
   }
 
   if (request.method !== "POST") {
-    return jsonResponse({ error: "Method not allowed" }, 405);
+    return jsonResponse({ error: "Method not allowed" }, 405, origin);
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -38,18 +47,23 @@ Deno.serve(async (request) => {
     return jsonResponse(
       { error: "Live Supabase configuration is missing" },
       500,
+      origin,
     );
   }
 
   if (!vertexConfigured()) {
-    return jsonResponse({ error: "Vertex AI configuration is missing" }, 500);
+    return jsonResponse(
+      { error: "Vertex AI configuration is missing" },
+      500,
+      origin,
+    );
   }
 
   const body = await request.json().catch(() => ({}));
   const sessionId = String(body.sessionId ?? body.session_id ?? "").trim();
 
   if (!sessionId) {
-    return jsonResponse({ error: "sessionId is required" }, 400);
+    return jsonResponse({ error: "sessionId is required" }, 400, origin);
   }
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -61,7 +75,7 @@ Deno.serve(async (request) => {
     sessionId,
   );
   if (contextError) {
-    return jsonResponse({ error: contextError }, 400);
+    return jsonResponse({ error: contextError }, 400, origin);
   }
 
   let score: AiScore;
@@ -93,6 +107,7 @@ Deno.serve(async (request) => {
     return jsonResponse(
       { error: "Vertex AI scoring failed", detail: errorMessage(error) },
       502,
+      origin,
     );
   }
 
@@ -113,13 +128,13 @@ Deno.serve(async (request) => {
     });
 
   if (error) {
-    return jsonResponse({ error: error.message }, 400);
+    return jsonResponse({ error: error.message }, 400, origin);
   }
 
   return jsonResponse({
     result: Array.isArray(data) ? data[0] : data,
     model: evaluationModel(),
-  });
+  }, 200, origin);
 });
 
 async function buildScoringContext(

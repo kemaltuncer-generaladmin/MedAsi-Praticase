@@ -21,14 +21,17 @@ class AuthPrimaryButton extends StatelessWidget {
     final activeVisual = onPressed != null || loading;
     return SizedBox(
       width: double.infinity,
-      height: 56,
+      height: 52,
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: activeVisual ? null : const Color(0xFFE2E7EF),
           borderRadius: BorderRadius.circular(12),
           gradient: activeVisual
               ? const LinearGradient(
-                  colors: [PratiCaseColors.teal, PratiCaseColors.navy],
+                  colors: [
+                    PratiCaseColors.gradientStart,
+                    PratiCaseColors.gradientEnd,
+                  ],
                 )
               : null,
           boxShadow: activeVisual
@@ -71,7 +74,7 @@ class AuthPrimaryButton extends StatelessWidget {
                         label,
                         style: TextStyle(
                           fontSize: 20,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w800,
                           color: activeVisual
                               ? Colors.white
                               : Color(0xFF718096),

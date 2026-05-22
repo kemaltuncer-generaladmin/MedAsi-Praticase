@@ -31,3 +31,20 @@ AUTH_REDIRECT_URL=https://praticase.medasi.com.tr/auth/callback
 ```
 
 Coolify domain target: `praticase.medasi.com.tr`.
+
+## Vertex AI Edge Functions
+
+PratiCase uses Supabase Edge Functions for live AI. Patient anamnesis turns use
+`gemini-2.5-flash`; final OSCE scoring uses `gemini-3.5-flash`.
+
+Required Edge Function secrets:
+
+```bash
+VERTEX_AI_LOCATION=global
+VERTEX_AI_HISTORY_MODEL=gemini-2.5-flash
+VERTEX_AI_EVALUATION_MODEL=gemini-3.5-flash
+GOOGLE_VERTEX_SERVICE_ACCOUNT_JSON_BASE64=<base64 encoded service account json>
+```
+
+Keep the service account out of Flutter code, screenshots, logs, and committed
+files. Set it only as a Supabase secret.

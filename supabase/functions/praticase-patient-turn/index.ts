@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
+import { corsHeaders, isAllowedOrigin, jsonResponse } from "../_shared/cors.ts";
 import {
   generateVertexText,
   historyModel,
@@ -7,12 +7,21 @@ import {
 } from "../_shared/vertex_ai.ts";
 
 Deno.serve(async (request) => {
+  const origin = request.headers.get("Origin");
+
   if (request.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    if (!isAllowedOrigin(origin)) {
+      return jsonResponse({ error: "Origin not allowed" }, 403, origin);
+    }
+    return new Response("ok", { headers: corsHeaders(origin) });
+  }
+
+  if (!isAllowedOrigin(origin)) {
+    return jsonResponse({ error: "Origin not allowed" }, 403, origin);
   }
 
   if (request.method !== "POST") {
-    return jsonResponse({ error: "Method not allowed" }, 405);
+    return jsonResponse({ error: "Method not allowed" }, 405, origin);
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -23,6 +32,7 @@ Deno.serve(async (request) => {
     return jsonResponse(
       { error: "Live Supabase configuration is missing" },
       500,
+      origin,
     );
   }
 
@@ -31,11 +41,19 @@ Deno.serve(async (request) => {
   const message = String(body.message ?? "").trim();
 
   if (!sessionId || !message) {
-    return jsonResponse({ error: "sessionId and message are required" }, 400);
+    return jsonResponse(
+      { error: "sessionId and message are required" },
+      400,
+      origin,
+    );
   }
 
   if (!vertexConfigured()) {
-    return jsonResponse({ error: "Vertex AI configuration is missing" }, 500);
+    return jsonResponse(
+      { error: "Vertex AI configuration is missing" },
+      500,
+      origin,
+    );
   }
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -53,7 +71,7 @@ Deno.serve(async (request) => {
     .single();
 
   if (sessionError || !session) {
-    return jsonResponse({ error: "Exam session not found" }, 404);
+    return jsonResponse({ error: "Exam session not found" }, 404, origin);
   }
 
   const { data: previousMessages, error: messagesError } = await supabase
@@ -65,7 +83,7 @@ Deno.serve(async (request) => {
     .limit(12);
 
   if (messagesError) {
-    return jsonResponse({ error: messagesError.message }, 400);
+    return jsonResponse({ error: messagesError.message }, 400, origin);
   }
 
   const caseData = Array.isArray(session.cases)
@@ -117,6 +135,7 @@ Deno.serve(async (request) => {
     return jsonResponse(
       { error: "Vertex AI patient turn failed", detail: errorMessage(error) },
       502,
+      origin,
     );
   }
 
@@ -126,7 +145,7 @@ Deno.serve(async (request) => {
     .insert({ session_id: sessionId, sender: "candidate", message });
 
   if (insertCandidateError) {
-    return jsonResponse({ error: insertCandidateError.message }, 400);
+    return jsonResponse({ error: insertCandidateError.message }, 400, origin);
   }
 
   const { data: patientMessage, error: insertPatientError } = await supabase
@@ -137,14 +156,14 @@ Deno.serve(async (request) => {
     .single();
 
   if (insertPatientError) {
-    return jsonResponse({ error: insertPatientError.message }, 400);
+    return jsonResponse({ error: insertPatientError.message }, 400, origin);
   }
 
   return jsonResponse({
     patientMessageId: patientMessage?.id ?? null,
     response: aiResponse,
     model: historyModel(),
-  });
+  }, 200, origin);
 });
 
 function errorMessage(error: unknown): string {

@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Achievements - PratiCase</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "background": "#f7f9ff",
+                        "primary-container": "#0e7c78",
+                        "on-tertiary-fixed": "#281900",
+                        "on-primary-fixed-variant": "#00504d",
+                        "on-error": "#ffffff",
+                        "error-red": "#E04F5F",
+                        "tertiary-container": "#946600",
+                        "on-primary-fixed": "#00201f",
+                        "on-primary-container": "#c1fffa",
+                        "surface": "#f7f9ff",
+                        "inverse-on-surface": "#e8f2ff",
+                        "muted-text": "#5C6873",
+                        "surface-container-low": "#edf4ff",
+                        "on-secondary-fixed": "#0b1d2a",
+                        "surface-container": "#e4effd",
+                        "tertiary-fixed-dim": "#ffba3b",
+                        "outline-variant": "#bdc9c7",
+                        "on-surface-variant": "#3e4948",
+                        "on-background": "#121c26",
+                        "on-primary": "#ffffff",
+                        "surface-bright": "#f7f9ff",
+                        "outline": "#6e7978",
+                        "on-secondary-container": "#536574",
+                        "secondary-fixed-dim": "#b7c9da",
+                        "surface-tint": "#006a66",
+                        "on-secondary-fixed-variant": "#384957",
+                        "surface-container-highest": "#d9e3f1",
+                        "hairline-border": "#E2E6EA",
+                        "on-error-container": "#93000a",
+                        "on-tertiary": "#ffffff",
+                        "gradient-end": "#006A72",
+                        "secondary-container": "#d0e2f4",
+                        "primary-fixed-dim": "#7cd6d0",
+                        "surface-container-high": "#dfe9f7",
+                        "primary-fixed": "#98f2ed",
+                        "tertiary": "#744f00",
+                        "inverse-primary": "#7cd6d0",
+                        "error-container": "#ffdad6",
+                        "on-secondary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "secondary-fixed": "#d3e5f7",
+                        "surface-variant": "#d9e3f1",
+                        "inverse-surface": "#27313c",
+                        "on-tertiary-fixed-variant": "#604100",
+                        "on-surface": "#121c26",
+                        "error": "#ba1a1a",
+                        "primary": "#00615e",
+                        "surface-dim": "#d1dbe9",
+                        "success-green": "#2AA765",
+                        "tertiary-fixed": "#ffdead",
+                        "slate-blue": "#405168",
+                        "teal-bright": "#32C8BF",
+                        "scaffold-bg": "#F5F6F7",
+                        "secondary": "#4f6070",
+                        "on-tertiary-container": "#fff1e1",
+                        "gradient-start": "#063443"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "base": "4px",
+                        "gutter": "12px",
+                        "sm": "8px",
+                        "margin-mobile": "20px",
+                        "xs": "4px",
+                        "lg": "20px",
+                        "xl": "24px",
+                        "md": "16px"
+                    },
+                    fontFamily: {
+                        "label-caps": ["Plus Jakarta Sans"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "display-lg": ["Plus Jakarta Sans"],
+                        "body-md": ["Plus Jakarta Sans"],
+                        "body-sm": ["Plus Jakarta Sans"],
+                        "headline-lg": ["Plus Jakarta Sans"]
+                    },
+                    fontSize: {
+                        "label-caps": ["11px", { lineHeight: "14px", letterSpacing: "0.08em", fontWeight: "800" }],
+                        "headline-md": ["17px", { lineHeight: "24px", fontWeight: "800" }],
+                        "display-lg": ["44px", { lineHeight: "42px", letterSpacing: "-0.02em", fontWeight: "800" }],
+                        "body-md": ["14px", { lineHeight: "20px", fontWeight: "600" }],
+                        "body-sm": ["12px", { lineHeight: "16px", fontWeight: "500" }],
+                        "headline-lg": ["24px", { lineHeight: "32px", fontWeight: "800" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #F5F6F7; }
+        .ambient-shadow { box-shadow: 0 8px 16px rgba(11, 29, 42, 0.04); }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-scaffold-bg text-on-surface min-h-screen pb-[100px]">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-on-surface docked full-width top-0 border-b border-hairline-border dark:border-outline-variant flat no shadows transition-colors duration-200 flex justify-between items-center w-full px-margin-mobile py-sm sticky z-40">
+<div class="flex items-center gap-sm">
+<button class="text-primary dark:text-teal-bright hover:bg-surface-container dark:hover:bg-inverse-surface p-2 rounded-full transition-colors">
+<span class="material-symbols-outlined" data-icon="arrow_back" style="font-variation-settings: 'FILL' 0;">arrow_back</span>
+</button>
+<h1 class="font-headline-lg text-headline-lg text-primary dark:text-teal-bright tracking-tight">Achievements</h1>
+</div>
+<div>
+<span class="material-symbols-outlined text-muted-text" data-icon="emoji_events">emoji_events</span>
+</div>
+</header>
+<main class="px-margin-mobile py-lg max-w-3xl mx-auto space-y-xl">
+<!-- Hero Stats -->
+<section class="bg-gradient-to-b from-gradient-start to-gradient-end rounded-[28px] p-lg text-on-primary flex items-center justify-between ambient-shadow">
+<div>
+<p class="font-body-sm text-body-sm text-teal-bright mb-xs uppercase tracking-wider">Total Earned</p>
+<div class="flex items-baseline gap-2">
+<span class="font-display-lg text-display-lg">12</span>
+<span class="font-body-md text-body-md text-secondary-container">/ 30 Badges</span>
+</div>
+</div>
+<div class="h-16 w-16 bg-white/10 rounded-full flex items-center justify-center border border-white/20">
+<span class="material-symbols-outlined text-3xl text-teal-bright" style="font-variation-settings: 'FILL' 1;">military_tech</span>
+</div>
+</section>
+<!-- In Progress -->
+<section class="space-y-md">
+<h2 class="font-headline-md text-headline-md text-on-surface">In Progress</h2>
+<div class="bg-surface border border-hairline-border rounded-xl p-md ambient-shadow flex gap-md items-center">
+<div class="h-12 w-12 rounded-full bg-surface-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-muted-text" data-icon="stethoscope">stethoscope</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-center mb-1">
+<h3 class="font-body-md text-body-md">Anamnesis Master</h3>
+<span class="font-body-sm text-body-sm text-muted-text">3/5 Cases</span>
+</div>
+<div class="h-2 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-teal-bright rounded-full" style="width: 60%;"></div>
+</div>
+</div>
+</div>
+<div class="bg-surface border border-hairline-border rounded-xl p-md ambient-shadow flex gap-md items-center">
+<div class="h-12 w-12 rounded-full bg-surface-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-muted-text" data-icon="bolt">bolt</span>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-center mb-1">
+<h3 class="font-body-md text-body-md">Quick Diagnosis</h3>
+<span class="font-body-sm text-body-sm text-muted-text">8/10 Mins</span>
+</div>
+<div class="h-2 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full" style="width: 80%;"></div>
+</div>
+</div>
+</div>
+</section>
+<!-- Earned Badges -->
+<section class="space-y-md">
+<h2 class="font-headline-md text-headline-md text-on-surface">Earned Badges</h2>
+<div class="grid grid-cols-2 md:grid-cols-3 gap-gutter">
+<!-- Earned Badge 1 -->
+<div class="bg-surface border border-hairline-border rounded-xl p-md ambient-shadow flex flex-col items-center text-center gap-sm">
+<div class="h-16 w-16 rounded-full bg-surface-container-high border-2 border-primary flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-3xl text-primary" data-icon="school" style="font-variation-settings: 'FILL' 1;">school</span>
+</div>
+<div>
+<h4 class="font-body-md text-body-md">First Steps</h4>
+<p class="font-body-sm text-body-sm text-muted-text">Completed Tutorial</p>
+</div>
+</div>
+<!-- Earned Badge 2 -->
+<div class="bg-surface border border-hairline-border rounded-xl p-md ambient-shadow flex flex-col items-center text-center gap-sm">
+<div class="h-16 w-16 rounded-full bg-tertiary-fixed-dim/20 border-2 border-tertiary-container flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-3xl text-tertiary-container" data-icon="favorite" style="font-variation-settings: 'FILL' 1;">favorite</span>
+</div>
+<div>
+<h4 class="font-body-md text-body-md">Empathy</h4>
+<p class="font-body-sm text-body-sm text-muted-text">High Patient Rating</p>
+</div>
+</div>
+<!-- Earned Badge 3 -->
+<div class="bg-surface border border-hairline-border rounded-xl p-md ambient-shadow flex flex-col items-center text-center gap-sm">
+<div class="h-16 w-16 rounded-full bg-primary-fixed-dim/20 border-2 border-primary flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-3xl text-primary" data-icon="biotech" style="font-variation-settings: 'FILL' 1;">biotech</span>
+</div>
+<div>
+<h4 class="font-body-md text-body-md">Lab Tech</h4>
+<p class="font-body-sm text-body-sm text-muted-text">10 Tests Ordered</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Locked Badges -->
+<section class="space-y-md">
+<h2 class="font-headline-md text-headline-md text-on-surface">Locked</h2>
+<div class="grid grid-cols-2 md:grid-cols-3 gap-gutter opacity-60">
+<!-- Locked Badge 1 -->
+<div class="bg-surface border border-hairline-border rounded-xl p-md flex flex-col items-center text-center gap-sm relative grayscale">
+<div class="absolute top-2 right-2 text-muted-text">
+<span class="material-symbols-outlined text-sm" data-icon="lock">lock</span>
+</div>
+<div class="h-16 w-16 rounded-full bg-surface-container-highest border border-outline-variant flex items-center justify-center">
+<span class="material-symbols-outlined text-3xl text-muted-text" data-icon="emergency">emergency</span>
+</div>
+<div>
+<h4 class="font-body-md text-body-md text-muted-text">Trauma Hero</h4>
+<p class="font-body-sm text-body-sm text-outline">Complete 5 Trauma Cases</p>
+</div>
+</div>
+<!-- Locked Badge 2 -->
+<div class="bg-surface border border-hairline-border rounded-xl p-md flex flex-col items-center text-center gap-sm relative grayscale">
+<div class="absolute top-2 right-2 text-muted-text">
+<span class="material-symbols-outlined text-sm" data-icon="lock">lock</span>
+</div>
+<div class="h-16 w-16 rounded-full bg-surface-container-highest border border-outline-variant flex items-center justify-center">
+<span class="material-symbols-outlined text-3xl text-muted-text" data-icon="prescriptions">prescriptions</span>
+</div>
+<div>
+<h4 class="font-body-md text-body-md text-muted-text">Pharmacologist</h4>
+<p class="font-body-sm text-body-sm text-outline">Perfect Rx 10 times</p>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="md:hidden bg-surface-container-lowest dark:bg-inverse-surface docked full-width bottom-0 rounded-t-xl border-t border-hairline-border dark:border-outline-variant shadow-lg dark:shadow-none fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-2">
+<a class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150 group" href="#">
+<span class="material-symbols-outlined mb-1 group-hover:text-primary" data-icon="home">home</span>
+<span class="font-label-caps text-label-caps">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150 group" href="#">
+<span class="material-symbols-outlined mb-1 group-hover:text-primary" data-icon="medical_services">medical_services</span>
+<span class="font-label-caps text-label-caps">Cases</span>
+</a>
+<a class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150 group" href="#">
+<span class="material-symbols-outlined mb-1 group-hover:text-primary" data-icon="assignment">assignment</span>
+<span class="font-label-caps text-label-caps">Exams</span>
+</a>
+<a class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150 group" href="#">
+<span class="material-symbols-outlined mb-1 group-hover:text-primary" data-icon="insights">insights</span>
+<span class="font-label-caps text-label-caps">Progress</span>
+</a>
+<!-- Active Tab: Profile (Achievements typically sit under Profile) -->
+<a class="flex flex-col items-center justify-center text-primary dark:text-teal-bright font-bold border-t-2 border-primary dark:border-teal-bright pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="account_circle" style="font-variation-settings: 'FILL' 1;">account_circle</span>
+<span class="font-label-caps text-label-caps">Profile</span>
+</a>
+</nav>
+</body></html>

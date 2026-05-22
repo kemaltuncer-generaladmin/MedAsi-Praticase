@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+
+<html class="light" lang="tr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PratiCase - Vaka Kütüphanesi</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-surface": "#121c26",
+                    "surface-container": "#e4effd",
+                    "primary-fixed": "#98f2ed",
+                    "secondary-fixed-dim": "#b7c9da",
+                    "tertiary-fixed": "#ffdead",
+                    "surface-container-highest": "#d9e3f1",
+                    "on-primary": "#ffffff",
+                    "gradient-start": "#063443",
+                    "tertiary-fixed-dim": "#ffba3b",
+                    "secondary": "#4f6070",
+                    "surface": "#f7f9ff",
+                    "outline": "#6e7978",
+                    "gradient-end": "#006A72",
+                    "surface-bright": "#f7f9ff",
+                    "tertiary": "#744f00",
+                    "teal-bright": "#32C8BF",
+                    "error-red": "#E04F5F",
+                    "muted-text": "#5C6873",
+                    "on-tertiary": "#ffffff",
+                    "error": "#ba1a1a",
+                    "error-container": "#ffdad6",
+                    "outline-variant": "#bdc9c7",
+                    "on-secondary-container": "#536574",
+                    "hairline-border": "#E2E6EA",
+                    "on-error-container": "#93000a",
+                    "secondary-container": "#d0e2f4",
+                    "surface-container-low": "#edf4ff",
+                    "on-tertiary-container": "#fff1e1",
+                    "on-secondary": "#ffffff",
+                    "on-primary-fixed": "#00201f",
+                    "background": "#f7f9ff",
+                    "surface-container-high": "#dfe9f7",
+                    "inverse-surface": "#27313c",
+                    "on-background": "#121c26",
+                    "on-secondary-fixed": "#0b1d2a",
+                    "surface-tint": "#006a66",
+                    "on-primary-container": "#c1fffa",
+                    "on-primary-fixed-variant": "#00504d",
+                    "surface-container-lowest": "#ffffff",
+                    "on-secondary-fixed-variant": "#384957",
+                    "inverse-on-surface": "#e8f2ff",
+                    "primary-container": "#0e7c78",
+                    "inverse-primary": "#7cd6d0",
+                    "secondary-fixed": "#d3e5f7",
+                    "on-tertiary-fixed-variant": "#604100",
+                    "slate-blue": "#405168",
+                    "primary": "#00615e",
+                    "success-green": "#2AA765",
+                    "on-error": "#ffffff",
+                    "scaffold-bg": "#F5F6F7",
+                    "primary-fixed-dim": "#7cd6d0",
+                    "on-tertiary-fixed": "#281900",
+                    "tertiary-container": "#946600",
+                    "on-surface-variant": "#3e4948",
+                    "surface-variant": "#d9e3f1",
+                    "surface-dim": "#d1dbe9"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "base": "4px",
+                    "gutter": "12px",
+                    "xl": "24px",
+                    "sm": "8px",
+                    "lg": "20px",
+                    "md": "16px",
+                    "xs": "4px",
+                    "margin-mobile": "20px"
+            },
+            "fontFamily": {
+                    "headline-lg": ["Plus Jakarta Sans"],
+                    "label-caps": ["Plus Jakarta Sans"],
+                    "body-sm": ["Plus Jakarta Sans"],
+                    "headline-md": ["Plus Jakarta Sans"],
+                    "display-lg": ["Plus Jakarta Sans"],
+                    "body-md": ["Plus Jakarta Sans"]
+            },
+            "fontSize": {
+                    "headline-lg": ["24px", { "lineHeight": "32px", "fontWeight": "800" }],
+                    "label-caps": ["11px", { "lineHeight": "14px", "letterSpacing": "0.08em", "fontWeight": "800" }],
+                    "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                    "headline-md": ["17px", { "lineHeight": "24px", "fontWeight": "800" }],
+                    "display-lg": ["44px", { "lineHeight": "42px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                    "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "600" }]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .icon-fill {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        /* Ambient Shadow from Design System */
+        .ambient-shadow {
+            box-shadow: 0 8px 16px rgba(11, 29, 42, 0.04);
+        }
+
+        /* Mathematical Curve Pattern for Header Background */
+        .bg-math-curve {
+            background-image: radial-gradient(circle at 100% 0%, rgba(50, 200, 191, 0.1) 0%, transparent 40%),
+                              radial-gradient(circle at 0% 100%, rgba(0, 97, 94, 0.05) 0%, transparent 40%);
+        }
+
+        /* Hide scrollbar for horizontal lists */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-scaffold-bg text-on-surface font-body-md pb-[120px] min-h-screen">
+<!-- Header Section -->
+<header class="bg-surface-container-lowest border-b border-hairline-border pt-12 pb-lg px-margin-mobile bg-math-curve rounded-b-3xl ambient-shadow relative z-10">
+<div class="flex justify-between items-center mb-md">
+<div>
+<h1 class="font-headline-lg text-headline-lg text-gradient-start">Vaka Kütüphanesi</h1>
+<p class="font-body-sm text-body-sm text-muted-text mt-xs">Klinik pratiğinizi geliştirmek için bir vaka seçin.</p>
+</div>
+<div class="w-10 h-10 rounded-full bg-surface-container-low flex items-center justify-center border border-hairline-border cursor-pointer">
+<span class="material-symbols-outlined text-primary" data-icon="tune">tune</span>
+</div>
+</div>
+<!-- Search Bar -->
+<div class="relative w-full mb-md">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-muted-text" data-icon="search">search</span>
+<input class="w-full h-[52px] bg-scaffold-bg border border-hairline-border rounded-[14px] pl-12 pr-4 font-body-sm text-body-sm text-on-surface focus:outline-none focus:border-teal-bright focus:ring-1 focus:ring-teal-bright transition-all" placeholder="Semptom, tanı veya branş ara..." type="text"/>
+</div>
+<!-- Choice Chips (Filters) -->
+<div class="flex overflow-x-auto gap-sm no-scrollbar pb-xs">
+<button class="h-[42px] px-4 rounded-full bg-teal-bright text-on-primary font-label-caps text-label-caps flex-shrink-0 flex items-center justify-center border-none transition-colors">
+                Tümü
+            </button>
+<button class="h-[42px] px-4 rounded-full bg-transparent border border-outline text-on-surface font-label-caps text-label-caps flex-shrink-0 flex items-center justify-center hover:bg-surface-container-low transition-colors">
+                Dahiliye
+            </button>
+<button class="h-[42px] px-4 rounded-full bg-transparent border border-outline text-on-surface font-label-caps text-label-caps flex-shrink-0 flex items-center justify-center hover:bg-surface-container-low transition-colors">
+                Cerrahi
+            </button>
+<button class="h-[42px] px-4 rounded-full bg-transparent border border-outline text-on-surface font-label-caps text-label-caps flex-shrink-0 flex items-center justify-center hover:bg-surface-container-low transition-colors">
+                Pediatri
+            </button>
+</div>
+<!-- Difficulty Filters -->
+<div class="flex overflow-x-auto gap-sm no-scrollbar mt-sm">
+<button class="h-[32px] px-3 rounded-md bg-transparent border border-hairline-border text-muted-text font-body-sm text-body-sm flex-shrink-0 flex items-center justify-center hover:border-teal-bright transition-colors">
+                Kolay
+            </button>
+<button class="h-[32px] px-3 rounded-md bg-transparent border border-hairline-border text-muted-text font-body-sm text-body-sm flex-shrink-0 flex items-center justify-center hover:border-teal-bright transition-colors">
+                Orta
+            </button>
+<button class="h-[32px] px-3 rounded-md bg-transparent border border-hairline-border text-muted-text font-body-sm text-body-sm flex-shrink-0 flex items-center justify-center hover:border-teal-bright transition-colors">
+                Zor
+            </button>
+</div>
+</header>
+<!-- Main Content Canvas (Bento Grid) -->
+<main class="px-margin-mobile pt-lg flex flex-col gap-md md:grid md:grid-cols-2 lg:grid-cols-3">
+<!-- Featured Case Card -->
+<article class="col-span-full bg-surface-container-lowest border border-hairline-border rounded-[12px] p-md ambient-shadow flex flex-col gap-md relative overflow-hidden group hover:border-teal-bright hover:border-[1.5px] transition-all cursor-pointer">
+<!-- Decorative Background accent -->
+<div class="absolute -right-10 -top-10 w-32 h-32 bg-teal-bright opacity-[0.03] rounded-full group-hover:scale-150 transition-transform duration-500"></div>
+<div class="flex justify-between items-start z-10">
+<div class="flex flex-col gap-xs">
+<div class="flex gap-2 items-center">
+<span class="bg-primary/10 text-primary font-label-caps text-[10px] px-2 py-1 rounded-sm uppercase">Dahiliye</span>
+<span class="bg-tertiary-fixed-dim/20 text-tertiary font-label-caps text-[10px] px-2 py-1 rounded-sm uppercase">Orta</span>
+</div>
+<h2 class="font-headline-md text-headline-md text-gradient-start mt-2">Sağ Alt Kadran Ağrısı ve Ateş</h2>
+<p class="font-body-sm text-body-sm text-muted-text line-clamp-2 mt-1">24 yaşında erkek hasta, 12 saattir devam eden ve giderek şiddetlenen karın ağrısı şikayetiyle acil servise başvuruyor.</p>
+</div>
+<div class="w-12 h-12 rounded-full border-[3px] border-surface-container-low flex items-center justify-center flex-shrink-0 relative">
+<!-- Circular Progress Placeholder -->
+<svg class="w-full h-full -rotate-90 absolute top-0 left-0" viewbox="0 0 36 36">
+<path class="text-hairline-border" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="3"></path>
+<path class="text-success-green" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="75, 100" stroke-width="3"></path>
+</svg>
+<span class="font-label-caps text-[10px] font-bold text-gradient-start">75%</span>
+</div>
+</div>
+<div class="flex items-center justify-between border-t border-hairline-border pt-md z-10">
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-1 text-muted-text">
+<span class="material-symbols-outlined text-[16px]" data-icon="schedule">schedule</span>
+<span class="font-body-sm text-[11px]">15 dk</span>
+</div>
+<div class="flex items-center gap-1 text-muted-text">
+<span class="material-symbols-outlined text-[16px]" data-icon="clinical_notes">clinical_notes</span>
+<span class="font-body-sm text-[11px]">OSCE Uyumlu</span>
+</div>
+</div>
+<!-- Primary Button 52px -->
+<button class="h-[52px] px-6 bg-gradient-to-r from-gradient-start to-gradient-end text-on-primary font-body-md font-bold rounded-[12px] flex items-center justify-center gap-2 shadow-sm hover:opacity-90 transition-opacity">
+                    Vaka Başlat
+                    <span class="material-symbols-outlined text-[20px]" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</div>
+</article>
+<!-- Standard Case Card 1 -->
+<article class="bg-surface-container-lowest border border-hairline-border rounded-[12px] p-md ambient-shadow flex flex-col gap-4 hover:border-teal-bright hover:border-[1.5px] transition-all cursor-pointer">
+<div class="flex justify-between items-start">
+<div class="flex flex-col gap-xs">
+<div class="flex gap-2 items-center">
+<span class="bg-secondary/10 text-secondary font-label-caps text-[10px] px-2 py-1 rounded-sm uppercase">Cerrahi</span>
+<span class="bg-error-red/10 text-error-red font-label-caps text-[10px] px-2 py-1 rounded-sm uppercase">Zor</span>
+</div>
+<h2 class="font-body-md font-bold text-gradient-start mt-2">Akut Taşlı Kolesistit</h2>
+</div>
+<div class="w-8 h-8 rounded-full bg-surface-container-low flex items-center justify-center text-muted-text border border-hairline-border">
+<span class="material-symbols-outlined text-[16px]" data-icon="lock_open">lock_open</span>
+</div>
+</div>
+<div class="flex items-center justify-between border-t border-hairline-border pt-3 mt-auto">
+<div class="flex items-center gap-1 text-muted-text">
+<span class="material-symbols-outlined text-[14px]" data-icon="schedule">schedule</span>
+<span class="font-body-sm text-[11px]">20 dk</span>
+</div>
+<button class="text-teal-bright font-body-sm font-bold flex items-center gap-1 group">
+                    Başlat
+                    <span class="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</article>
+<!-- Standard Case Card 2 -->
+<article class="bg-surface-container-lowest border border-hairline-border rounded-[12px] p-md ambient-shadow flex flex-col gap-4 hover:border-teal-bright hover:border-[1.5px] transition-all cursor-pointer">
+<div class="flex justify-between items-start">
+<div class="flex flex-col gap-xs">
+<div class="flex gap-2 items-center">
+<span class="bg-primary/10 text-primary font-label-caps text-[10px] px-2 py-1 rounded-sm uppercase">Dahiliye</span>
+<span class="bg-success-green/10 text-success-green font-label-caps text-[10px] px-2 py-1 rounded-sm uppercase">Kolay</span>
+</div>
+<h2 class="font-body-md font-bold text-gradient-start mt-2">Tip 2 Diyabet Regülasyonu</h2>
+</div>
+<div class="w-8 h-8 rounded-full bg-success-green/10 flex items-center justify-center text-success-green border border-success-green/30">
+<span class="material-symbols-outlined text-[16px]" data-icon="check">check</span>
+</div>
+</div>
+<div class="flex items-center justify-between border-t border-hairline-border pt-3 mt-auto">
+<div class="flex items-center gap-1 text-muted-text">
+<span class="material-symbols-outlined text-[14px]" data-icon="schedule">schedule</span>
+<span class="font-body-sm text-[11px]">10 dk</span>
+</div>
+<button class="text-muted-text font-body-sm flex items-center gap-1 hover:text-teal-bright transition-colors">
+                    Tekrar Çöz
+                </button>
+</div>
+</article>
+<!-- Standard Case Card 3 -->
+<article class="bg-surface-container-lowest border border-hairline-border rounded-[12px] p-md ambient-shadow flex flex-col gap-4 hover:border-teal-bright hover:border-[1.5px] transition-all cursor-pointer">
+<div class="flex justify-between items-start">
+<div class="flex flex-col gap-xs">
+<div class="flex gap-2 items-center">
+<span class="bg-tertiary-container/10 text-tertiary-container font-label-caps text-[10px] px-2 py-1 rounded-sm uppercase">Pediatri</span>
+<span class="bg-tertiary-fixed-dim/20 text-tertiary font-label-caps text-[10px] px-2 py-1 rounded-sm uppercase">Orta</span>
+</div>
+<h2 class="font-body-md font-bold text-gradient-start mt-2">Hışıltılı Çocuk Yaklaşımı</h2>
+</div>
+<div class="w-8 h-8 rounded-full bg-surface-container-low flex items-center justify-center text-muted-text border border-hairline-border">
+<span class="material-symbols-outlined text-[16px]" data-icon="lock_open">lock_open</span>
+</div>
+</div>
+<div class="flex items-center justify-between border-t border-hairline-border pt-3 mt-auto">
+<div class="flex items-center gap-1 text-muted-text">
+<span class="material-symbols-outlined text-[14px]" data-icon="schedule">schedule</span>
+<span class="font-body-sm text-[11px]">15 dk</span>
+</div>
+<button class="text-teal-bright font-body-sm font-bold flex items-center gap-1 group">
+                    Başlat
+                    <span class="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</article>
+</main>
+<!-- BottomNavBar (Generated exactly from JSON rules) -->
+<nav class="bg-surface-container-lowest dark:bg-inverse-surface docked full-width bottom-0 rounded-t-xl border-t border-hairline-border dark:border-outline-variant shadow-lg dark:shadow-none fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-2 md:hidden">
+<!-- Home (Inactive) -->
+<button class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150 group">
+<span class="material-symbols-outlined text-[24px] mb-1 group-hover:icon-fill transition-all" data-icon="home">home</span>
+<span class="font-label-caps text-label-caps">Home</span>
+</button>
+<!-- Cases (Active - Based on logic mapping to Vaka Kütüphanesi) -->
+<button class="flex flex-col items-center justify-center text-primary dark:text-teal-bright font-bold border-t-2 border-primary dark:border-teal-bright pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150">
+<span class="material-symbols-outlined text-[24px] mb-1 icon-fill" data-icon="medical_services">medical_services</span>
+<span class="font-label-caps text-label-caps">Cases</span>
+</button>
+<!-- Exams (Inactive) -->
+<button class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150 group">
+<span class="material-symbols-outlined text-[24px] mb-1 group-hover:icon-fill transition-all" data-icon="assignment">assignment</span>
+<span class="font-label-caps text-label-caps">Exams</span>
+</button>
+<!-- Progress (Inactive) -->
+<button class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150 group">
+<span class="material-symbols-outlined text-[24px] mb-1 group-hover:icon-fill transition-all" data-icon="insights">insights</span>
+<span class="font-label-caps text-label-caps">Progress</span>
+</button>
+<!-- Profile (Inactive) -->
+<button class="flex flex-col items-center justify-center text-muted-text dark:text-outline-variant pt-2 hover:text-primary dark:hover:text-teal-bright active:scale-95 transition-transform duration-150 group">
+<span class="material-symbols-outlined text-[24px] mb-1 group-hover:icon-fill transition-all" data-icon="account_circle">account_circle</span>
+<span class="font-label-caps text-label-caps">Profile</span>
+</button>
+</nav>
+<!-- Desktop Navigation Alternative (Since BottomNav is md:hidden per strict rule usually applied to mobile-first apps, though instruction said responsive pivot on md) -->
+<!-- Note: Keeping BottomNav visible on all screen sizes here for demonstration as responsive rules specifically requested hiding it on md+ if Top Nav cluster exists, but since we built a specific library header without full app navigation, we let the structural layout handle it or keep it simple. Let's add the standard md:hidden class to adhere to the mandate. -->
+<script>
+        // Simple micro-interaction for choice chips
+        document.querySelectorAll('header button').forEach(btn => {
+            btn.addEventListener('click', function() {
+                if(this.textContent.trim() === 'Tümü' || this.textContent.trim() === 'Dahiliye' || this.textContent.trim() === 'Cerrahi' || this.textContent.trim() === 'Pediatri') {
+                    // Reset others in the same group
+                    let siblings = this.parentElement.querySelectorAll('button');
+                    siblings.forEach(s => {
+                        s.classList.remove('bg-teal-bright', 'text-on-primary', 'border-none');
+                        s.classList.add('bg-transparent', 'text-on-surface', 'border', 'border-outline');
+                    });
+                    // Set active
+                    this.classList.remove('bg-transparent', 'text-on-surface', 'border', 'border-outline');
+                    this.classList.add('bg-teal-bright', 'text-on-primary', 'border-none');
+                }
+            });
+        });
+    </script>
+</body></html>

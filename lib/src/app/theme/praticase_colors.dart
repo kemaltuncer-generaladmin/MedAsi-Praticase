@@ -10,4 +10,12 @@ abstract final class PratiCaseColors {
   static const ink = Color(0xFF17212B);
   static const muted = Color(0xFF5C6873);
   static const border = Color(0xFFE2E6EA);
+  static const surfaceContainer = Color(0xFFE4EFFD);
+  static const surfaceContainerLow = Color(0xFFEDF4FF);
+  static const surfaceContainerHighest = Color(0xFFD9E3F1);
+  static const slateBlue = Color(0xFF405168);
+  static const errorRed = Color(0xFFE04F5F);
+  static const successGreen = Color(0xFF2AA765);
+  static const gradientStart = Color(0xFF063443);
+  static const gradientEnd = Color(0xFF006A72);
 }

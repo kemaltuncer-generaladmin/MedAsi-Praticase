@@ -13,6 +13,7 @@ abstract final class PratiCaseTheme {
 
     return ThemeData(
       useMaterial3: true,
+      fontFamily: 'Plus Jakarta Sans',
       colorScheme: colorScheme,
       scaffoldBackgroundColor: PratiCaseColors.softSurface,
       appBarTheme: const AppBarTheme(
@@ -26,7 +27,7 @@ abstract final class PratiCaseTheme {
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           side: const BorderSide(color: PratiCaseColors.border),
         ),
       ),
@@ -45,17 +46,37 @@ abstract final class PratiCaseTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: PratiCaseColors.teal,
+          backgroundColor: PratiCaseColors.gradientEnd,
           foregroundColor: PratiCaseColors.white,
           minimumSize: const Size.fromHeight(52),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
           ),
         ),
       ),
       textTheme: const TextTheme(
+        displayLarge: TextStyle(
+          color: PratiCaseColors.navy,
+          fontSize: 44,
+          height: 42 / 44,
+          fontWeight: FontWeight.w800,
+        ),
+        headlineLarge: TextStyle(
+          color: PratiCaseColors.navy,
+          fontSize: 24,
+          height: 32 / 24,
+          fontWeight: FontWeight.w800,
+        ),
         headlineMedium: TextStyle(
           color: PratiCaseColors.navy,
+          fontSize: 24,
+          height: 32 / 24,
+          fontWeight: FontWeight.w800,
+        ),
+        headlineSmall: TextStyle(
+          color: PratiCaseColors.navy,
+          fontSize: 17,
+          height: 24 / 17,
           fontWeight: FontWeight.w800,
         ),
         titleLarge: TextStyle(

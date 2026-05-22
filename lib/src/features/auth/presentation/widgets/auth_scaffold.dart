@@ -26,7 +26,7 @@ class AuthScaffold extends StatelessWidget {
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      backgroundColor: PratiCaseColors.white,
+      backgroundColor: PratiCaseColors.softSurface,
       body: Stack(
         children: [
           Positioned.fill(
@@ -65,9 +65,9 @@ class AuthScaffold extends StatelessWidget {
                             keyboardDismissBehavior:
                                 ScrollViewKeyboardDismissBehavior.onDrag,
                             padding: EdgeInsets.fromLTRB(
-                              24,
+                              20,
                               topPadding,
-                              24,
+                              20,
                               bottomPadding,
                             ),
                             child: Column(
@@ -84,7 +84,7 @@ class AuthScaffold extends StatelessWidget {
                         ),
                         if (bottom != null)
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
                             child: bottom,
                           ),
                       ],

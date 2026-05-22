@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../../app/theme/praticase_colors.dart';
 import '../../data/auth_repository.dart';
 import '../../domain/profile_setup.dart';
-import '../widgets/auth_brand.dart';
 import '../widgets/auth_primary_button.dart';
 import '../widgets/auth_scaffold.dart';
 import '../widgets/auth_status_card.dart';
@@ -68,110 +67,131 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
     return AuthScaffold(
       onBack: widget.onBack,
+      showFooterText: false,
+      topPadding: 12,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AuthBrand(),
-          const SizedBox(height: 30),
+          const _SetupProgressHeader(),
+          const SizedBox(height: 24),
           Text(
-            'Pratiğini kişiselleştirelim',
-            style: Theme.of(context).textTheme.headlineMedium,
+            'Profilini Özelleştir',
+            style: Theme.of(context).textTheme.headlineLarge,
           ),
           const SizedBox(height: 8),
           Text(
-            'Sana özel bir deneyim sunmak için bazı bilgileri öğrenelim.',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 22),
-          Text('Sınıf / Dönem', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            initialValue: _grade,
-            items: ['4. Sınıf', '5. Sınıf', '6. Sınıf', 'Mezun']
-                .map(
-                  (grade) => DropdownMenuItem(value: grade, child: Text(grade)),
-                )
-                .toList(),
-            onChanged: (value) => setState(() => _grade = value ?? _grade),
-            decoration: const InputDecoration(
-              filled: true,
-              fillColor: PratiCaseColors.white,
+            'Klinik simülasyon deneyimini sana özel hale getirelim.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: PratiCaseColors.muted,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 22),
-          Text(
-            'Hedef Branşlar',
-            style: Theme.of(context).textTheme.titleMedium,
+          const SizedBox(height: 24),
+          _SetupSection(
+            icon: Icons.track_changes_rounded,
+            title: 'Hedef Sınav',
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: const [
+                _StaticPill(label: 'TUS', selected: true),
+                _StaticPill(label: 'OSCE'),
+                _StaticPill(label: 'Komite'),
+                _StaticPill(label: 'USMLE'),
+              ],
+            ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            'En fazla 3 seçim yapabilirsin.',
-            style: Theme.of(context).textTheme.bodySmall,
+          const SizedBox(height: 16),
+          _SetupSection(
+            icon: Icons.school_rounded,
+            title: 'Klinik Seviye',
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final grade in const [
+                  '4. Sınıf',
+                  '5. Sınıf',
+                  '6. Sınıf',
+                  'Mezun',
+                ])
+                  _ChoicePill(
+                    label: grade,
+                    selected: _grade == grade,
+                    onTap: () => setState(() => _grade = grade),
+                  ),
+              ],
+            ),
           ),
-          const SizedBox(height: 10),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              return Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  for (final branch in branches)
-                    _BranchChip(
-                      width: (constraints.maxWidth - 10) / 2,
-                      icon: branch.$1,
-                      label: branch.$2,
-                      selected: _branches.contains(branch.$2),
-                      onTap: () {
-                        setState(() {
-                          if (_branches.contains(branch.$2)) {
-                            _branches.remove(branch.$2);
-                          } else if (_branches.length < 3) {
-                            _branches.add(branch.$2);
-                          }
-                        });
-                      },
-                    ),
-                ],
-              );
-            },
+          const SizedBox(height: 16),
+          _SetupSection(
+            icon: Icons.favorite_rounded,
+            title: 'İlgi Alanları',
+            subtitle: 'Birden fazla seçebilirsiniz',
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    for (final branch in branches)
+                      _BranchChip(
+                        width: (constraints.maxWidth - 10) / 2,
+                        icon: branch.$1,
+                        label: branch.$2,
+                        selected: _branches.contains(branch.$2),
+                        onTap: () {
+                          setState(() {
+                            if (_branches.contains(branch.$2)) {
+                              _branches.remove(branch.$2);
+                            } else if (_branches.length < 3) {
+                              _branches.add(branch.$2);
+                            }
+                          });
+                        },
+                      ),
+                  ],
+                );
+              },
+            ),
           ),
-          const SizedBox(height: 22),
-          Text(
-            'Günlük Hedefin',
-            style: Theme.of(context).textTheme.titleMedium,
+          const SizedBox(height: 16),
+          _SetupSection(
+            icon: Icons.flag_rounded,
+            title: 'Günlük Hedef',
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final goal in const [1, 2, 5])
+                  _ChoicePill(
+                    label: '$goal Vaka',
+                    selected: _dailyGoal == goal,
+                    onTap: () => setState(() => _dailyGoal = goal),
+                  ),
+              ],
+            ),
           ),
-          const SizedBox(height: 10),
-          SegmentedButton<int>(
-            segments: const [
-              ButtonSegment(value: 1, label: Text('1 Vaka')),
-              ButtonSegment(value: 2, label: Text('2 Vaka')),
-              ButtonSegment(value: 5, label: Text('5 Vaka')),
-            ],
-            selected: {_dailyGoal},
-            onSelectionChanged: (value) =>
-                setState(() => _dailyGoal = value.first),
-          ),
-          const SizedBox(height: 22),
-          Text(
-            'OSCE Sınav Tarihin',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: () async {
-              final date = await showDatePicker(
-                context: context,
-                initialDate: _examDate ?? DateTime.now(),
-                firstDate: DateTime(2026),
-                lastDate: DateTime(2030),
-              );
-              if (date != null) setState(() => _examDate = date);
-            },
-            icon: const Icon(Icons.calendar_today_rounded, size: 18),
-            label: Text(_formatDate(_examDate)),
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(50),
-              alignment: Alignment.centerLeft,
+          const SizedBox(height: 16),
+          _SetupSection(
+            icon: Icons.calendar_month_rounded,
+            title: 'OSCE Sınav Tarihi',
+            child: OutlinedButton.icon(
+              onPressed: () async {
+                final date = await showDatePicker(
+                  context: context,
+                  initialDate: _examDate ?? DateTime.now(),
+                  firstDate: DateTime(2026),
+                  lastDate: DateTime(2030),
+                );
+                if (date != null) setState(() => _examDate = date);
+              },
+              icon: const Icon(Icons.calendar_today_rounded, size: 18),
+              label: Text(_formatDate(_examDate)),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(50),
+                alignment: Alignment.centerLeft,
+              ),
             ),
           ),
           const SizedBox(height: 24),
@@ -195,6 +215,157 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   }
 }
 
+class _SetupProgressHeader extends StatelessWidget {
+  const _SetupProgressHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Text(
+              'Adım 2 / 3',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: PratiCaseColors.teal,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(99),
+          child: const LinearProgressIndicator(
+            value: 0.66,
+            minHeight: 6,
+            backgroundColor: PratiCaseColors.surfaceContainerHighest,
+            color: PratiCaseColors.teal,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SetupSection extends StatelessWidget {
+  const _SetupSection({
+    required this.icon,
+    required this.title,
+    required this.child,
+    this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: PratiCaseColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: PratiCaseColors.navy.withValues(alpha: 0.02),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: PratiCaseColors.teal, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    if (subtitle != null)
+                      Text(
+                        subtitle!,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: PratiCaseColors.muted,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _StaticPill extends StatelessWidget {
+  const _StaticPill({required this.label, this.selected = false});
+
+  final String label;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return _ChoicePill(label: label, selected: selected, onTap: () {});
+  }
+}
+
+class _ChoicePill extends StatelessWidget {
+  const _ChoicePill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        height: 42,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        decoration: BoxDecoration(
+          color: selected ? PratiCaseColors.teal : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected ? PratiCaseColors.teal : PratiCaseColors.border,
+          ),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? PratiCaseColors.white : PratiCaseColors.ink,
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _BranchChip extends StatelessWidget {
   const _BranchChip({
     required this.width,
@@ -214,59 +385,45 @@ class _BranchChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(999),
       child: Container(
         width: width.clamp(132, 190),
-        height: 74,
-        padding: const EdgeInsets.all(8),
+        height: 42,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: selected
-              ? PratiCaseColors.teal.withValues(alpha: 0.09)
-              : PratiCaseColors.white,
-          borderRadius: BorderRadius.circular(14),
+          color: selected ? PratiCaseColors.teal : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected ? PratiCaseColors.teal : PratiCaseColors.border,
           ),
         ),
-        child: Stack(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Align(
-              alignment: Alignment.center,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    icon,
-                    color: selected
-                        ? PratiCaseColors.teal
-                        : PratiCaseColors.muted,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    label,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
+            if (selected) ...[
+              const Icon(
+                Icons.check_rounded,
+                color: PratiCaseColors.white,
+                size: 16,
               ),
-            ),
-            if (selected)
-              const Align(
-                alignment: Alignment.topRight,
-                child: CircleAvatar(
-                  radius: 9,
-                  backgroundColor: PratiCaseColors.teal,
-                  child: Icon(
-                    Icons.check_rounded,
-                    color: PratiCaseColors.white,
-                    size: 12,
-                  ),
+              const SizedBox(width: 4),
+            ] else ...[
+              Icon(icon, color: PratiCaseColors.muted, size: 16),
+              const SizedBox(width: 4),
+            ],
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: selected ? PratiCaseColors.white : PratiCaseColors.ink,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
                 ),
               ),
+            ),
           ],
         ),
       ),

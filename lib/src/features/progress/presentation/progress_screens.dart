@@ -4,20 +4,37 @@ import '../../../app/theme/praticase_colors.dart';
 import '../data/progress_repository.dart';
 import '../domain/progress_models.dart';
 
-class BadgesScreen extends StatelessWidget {
+class BadgesScreen extends StatefulWidget {
   const BadgesScreen({required this.repository, super.key});
 
   final ProgressRepository repository;
 
   @override
+  State<BadgesScreen> createState() => _BadgesScreenState();
+}
+
+class _BadgesScreenState extends State<BadgesScreen> {
+  int _selectedFilter = 0;
+
+  @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<BadgeCard>>(
-      future: repository.loadBadges(),
+      future: widget.repository.loadBadges(),
       builder: (context, snapshot) {
+        final badges = snapshot.data ?? const <BadgeCard>[];
+        final visible = switch (_selectedFilter) {
+          1 => badges.where((badge) => badge.earned).toList(),
+          2 => badges.where((badge) => !badge.earned).toList(),
+          _ => badges,
+        };
         return _ProgressPage(
           title: 'Rozetlerim',
           children: [
-            const _SegmentHeader(items: ['Tümü', 'Kazanılan', 'Kazanılmamış']),
+            _SegmentHeader(
+              items: const ['Tümü', 'Kazanılan', 'Kazanılmamış'],
+              selectedIndex: _selectedFilter,
+              onSelected: (index) => setState(() => _selectedFilter = index),
+            ),
             const SizedBox(height: 16),
             if (snapshot.connectionState != ConnectionState.done)
               const _StateBlock(
@@ -31,11 +48,11 @@ class BadgesScreen extends StatelessWidget {
                 title: 'Rozetler açılamadı',
                 body: _errorText(snapshot.error),
               )
-            else if (snapshot.requireData.isEmpty)
+            else if (visible.isEmpty)
               const _StateBlock(
                 icon: Icons.workspace_premium_outlined,
-                title: 'Rozet tanımı yok',
-                body: 'Rozetler yayınlandığında burada görünecek.',
+                title: 'Bu filtrede rozet yok',
+                body: 'Rozet ilerlemesi oluştuğunda burada görünecek.',
               )
             else
               GridView.count(
@@ -46,8 +63,7 @@ class BadgesScreen extends StatelessWidget {
                 crossAxisSpacing: 12,
                 childAspectRatio: 0.72,
                 children: [
-                  for (final badge in snapshot.requireData)
-                    _BadgeCardView(badge: badge),
+                  for (final badge in visible) _BadgeCardView(badge: badge),
                 ],
               ),
           ],
@@ -57,25 +73,42 @@ class BadgesScreen extends StatelessWidget {
   }
 }
 
-class LeaderboardScreen extends StatelessWidget {
+class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({required this.repository, super.key});
 
   final ProgressRepository repository;
 
   @override
+  State<LeaderboardScreen> createState() => _LeaderboardScreenState();
+}
+
+class _LeaderboardScreenState extends State<LeaderboardScreen> {
+  int _scopeIndex = 0;
+  int _periodIndex = 0;
+
+  @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<LeaderboardEntry>>(
-      future: repository.loadLeaderboard(),
+      future: widget.repository.loadLeaderboard(),
       builder: (context, snapshot) {
-        final entries = snapshot.data ?? const <LeaderboardEntry>[];
+        final allEntries = snapshot.data ?? const <LeaderboardEntry>[];
+        final entries = _filteredEntries(allEntries);
         final currentUsers = entries.where((entry) => entry.isCurrentUser);
         final current = currentUsers.isEmpty ? null : currentUsers.first;
         return _ProgressPage(
-          title: 'Sıralama',
+          title: 'Liderlik Tablosu',
           children: [
-            const _SegmentHeader(items: ['Genel', 'Arkadaşlar', 'Kurum']),
+            _SegmentHeader(
+              items: const ['Genel', 'Arkadaşlar', 'Kurum'],
+              selectedIndex: _scopeIndex,
+              onSelected: (index) => setState(() => _scopeIndex = index),
+            ),
             const SizedBox(height: 12),
-            const _SegmentHeader(items: ['Haftalık', 'Aylık', 'Tüm Zamanlar']),
+            _SegmentHeader(
+              items: const ['Haftalık', 'Aylık', 'Tüm Zamanlar'],
+              selectedIndex: _periodIndex,
+              onSelected: (index) => setState(() => _periodIndex = index),
+            ),
             const SizedBox(height: 18),
             if (snapshot.connectionState != ConnectionState.done)
               const _StateBlock(
@@ -109,6 +142,23 @@ class LeaderboardScreen extends StatelessWidget {
         );
       },
     );
+  }
+
+  List<LeaderboardEntry> _filteredEntries(List<LeaderboardEntry> entries) {
+    final scoped = switch (_scopeIndex) {
+      1 => entries.where((entry) => entry.isCurrentUser).toList(),
+      _ => entries,
+    };
+    final sorted = [...scoped];
+    sorted.sort((a, b) {
+      final primary = switch (_periodIndex) {
+        0 => b.totalPoints.compareTo(a.totalPoints),
+        1 => b.correctDiagnosisRate.compareTo(a.correctDiagnosisRate),
+        _ => a.rank.compareTo(b.rank),
+      };
+      return primary == 0 ? a.rank.compareTo(b.rank) : primary;
+    });
+    return sorted;
   }
 }
 
@@ -165,9 +215,15 @@ class ProfileScreen extends StatelessWidget {
                 _MenuItem(Icons.history_rounded, 'Vaka Geçmişim'),
                 _MenuItem(Icons.favorite_border_rounded, 'Favori Vakalarım'),
                 _MenuItem(Icons.note_alt_outlined, 'Notlarım'),
+                _MenuItem(
+                  Icons.local_fire_department_outlined,
+                  'Günlük Hedefler',
+                ),
+                _MenuItem(Icons.leaderboard_outlined, 'Liderlik Tablosu'),
                 _MenuItem(Icons.notifications_none_rounded, 'Bildirimler'),
                 _MenuItem(Icons.workspace_premium_outlined, 'Başarılarım'),
                 _MenuItem(Icons.settings_outlined, 'Ayarlar'),
+                _MenuItem(Icons.help_outline_rounded, 'Yardım ve Destek'),
                 _MenuItem(Icons.download_rounded, 'İndirmelerim'),
               ],
               onSignOut: onSignOut,
@@ -353,19 +409,64 @@ class SettingsScreen extends StatelessWidget {
   }
 }
 
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({required this.repository, super.key});
 
   final ProgressRepository repository;
 
   @override
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  int _selectedFilter = 0;
+
+  @override
   Widget build(BuildContext context) {
-    return _LiveListPage<NotificationCard>(
-      title: 'Bildirimler',
-      future: repository.loadNotifications(),
-      emptyTitle: 'Bildirim yok',
-      emptyBody: 'Canlı bildirimler oluştuğunda burada listelenir.',
-      itemBuilder: (item) => _NotificationTile(item: item),
+    return FutureBuilder<List<NotificationCard>>(
+      future: widget.repository.loadNotifications(),
+      builder: (context, snapshot) {
+        final notifications = snapshot.data ?? const <NotificationCard>[];
+        final visible = switch (_selectedFilter) {
+          1 => notifications.where((item) => !item.isRead).toList(),
+          2 => notifications.where((item) => item.isRead).toList(),
+          _ => notifications,
+        };
+        return _ProgressPage(
+          title: 'Bildirim Merkezi',
+          children: [
+            _SegmentHeader(
+              items: const ['Tümü', 'Okunmamış', 'Okunan'],
+              selectedIndex: _selectedFilter,
+              onSelected: (index) => setState(() => _selectedFilter = index),
+            ),
+            const SizedBox(height: 16),
+            if (snapshot.connectionState != ConnectionState.done)
+              const _StateBlock(
+                icon: Icons.notifications_none_rounded,
+                title: 'Bildirimler yükleniyor',
+                body: 'Canlı bildirimler hazırlanıyor.',
+              )
+            else if (snapshot.hasError)
+              _StateBlock(
+                icon: Icons.cloud_off_rounded,
+                title: 'Bildirimler açılamadı',
+                body: _errorText(snapshot.error),
+              )
+            else if (visible.isEmpty)
+              const _StateBlock(
+                icon: Icons.notifications_none_rounded,
+                title: 'Bu filtrede bildirim yok',
+                body: 'Yeni bildirimler oluştuğunda burada listelenir.',
+              )
+            else
+              for (final item in visible) ...[
+                _NotificationTile(item: item),
+                const SizedBox(height: 10),
+              ],
+          ],
+        );
+      },
     );
   }
 }
@@ -404,6 +505,128 @@ class CaseHistoryScreen extends StatelessWidget {
   }
 }
 
+class WeakAreaAnalysisScreen extends StatelessWidget {
+  const WeakAreaAnalysisScreen({required this.repository, super.key});
+
+  final ProgressRepository repository;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<(ProfileCard, List<CaseCollectionItem>)>(
+      future: _load(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const _ProgressPage(
+            title: 'Zayıf Alan Analizi',
+            children: [
+              _StateBlock(
+                icon: Icons.track_changes_rounded,
+                title: 'Analiz hazırlanıyor',
+                body: 'Canlı performans ve vaka geçmişi okunuyor.',
+              ),
+            ],
+          );
+        }
+        if (snapshot.hasError) {
+          return _ProgressPage(
+            title: 'Zayıf Alan Analizi',
+            children: [
+              _StateBlock(
+                icon: Icons.cloud_off_rounded,
+                title: 'Analiz açılamadı',
+                body: _errorText(snapshot.error),
+              ),
+            ],
+          );
+        }
+
+        final profile = snapshot.requireData.$1;
+        final history = snapshot.requireData.$2;
+        final weakest = _weakAreas(profile, history);
+        final repeatCases = history
+            .where(
+              (item) =>
+                  (item.score ?? 100) < 75 ||
+                  (item.progressPercent ?? 100) < 100,
+            )
+            .take(4)
+            .toList();
+
+        return _ProgressPage(
+          title: 'Zayıf Alan Analizi',
+          children: [
+            _WeakHero(profile: profile),
+            const SizedBox(height: 16),
+            const _SegmentHeader(items: ['Zayıf Alanlar', 'Tekrar', 'Hedef']),
+            const SizedBox(height: 16),
+            for (final area in weakest) ...[
+              _WeakAreaCard(area: area),
+              const SizedBox(height: 10),
+            ],
+            const SizedBox(height: 8),
+            Text(
+              'Tekrar Önerilen Vakalar',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 10),
+            if (repeatCases.isEmpty)
+              const _StateBlock(
+                icon: Icons.verified_rounded,
+                title: 'Tekrar gerektiren vaka yok',
+                body:
+                    'Tamamlanan vakalar eklendikçe öneriler burada güncellenir.',
+              )
+            else
+              for (final item in repeatCases) ...[
+                _CaseCollectionTile(item: item, history: true),
+                const SizedBox(height: 10),
+              ],
+          ],
+        );
+      },
+    );
+  }
+
+  Future<(ProfileCard, List<CaseCollectionItem>)> _load() async {
+    final profile = await repository.loadProfile();
+    final history = await repository.loadCaseHistory();
+    return (profile, history);
+  }
+
+  List<_WeakArea> _weakAreas(
+    ProfileCard profile,
+    List<CaseCollectionItem> history,
+  ) {
+    final incomplete = history
+        .where((item) => (item.progressPercent ?? 100) < 100)
+        .length;
+    final lowScore = history.where((item) => (item.score ?? 100) < 75).length;
+    return [
+      _WeakArea(
+        title: 'Anamnez Derinliği',
+        percent: (profile.successRatePercent - 12).clamp(0, 100).toInt(),
+        note: incomplete > 0
+            ? '$incomplete oturumda anamnez sonrası akış tamamlanmamış.'
+            : 'Kırmızı bayrak ve sistem sorgusunu düzenli tekrar et.',
+      ),
+      _WeakArea(
+        title: 'Ayırıcı Tanı',
+        percent: profile.correctDiagnosisRate.clamp(0, 100).toInt(),
+        note: 'En az 3 kritik ön tanıyı gerekçesiyle yazmaya odaklan.',
+      ),
+      _WeakArea(
+        title: 'Yönetim Planı',
+        percent: (profile.successRatePercent - lowScore * 4)
+            .clamp(0, 100)
+            .toInt(),
+        note: lowScore > 0
+            ? '$lowScore düşük skorlu vaka yönetim planı tekrarı istiyor.'
+            : 'Acil yaklaşım, danışma ve izlem adımlarını netleştir.',
+      ),
+    ];
+  }
+}
+
 class HelpCenterScreen extends StatelessWidget {
   const HelpCenterScreen({required this.repository, super.key});
 
@@ -412,11 +635,90 @@ class HelpCenterScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _LiveListPage<SimpleContentItem>(
-      title: 'Yardım Merkezi',
+      title: 'Yardım ve Destek',
       future: repository.loadSupportTopics(),
       emptyTitle: 'Yardım başlığı yok',
       emptyBody: 'Destek içerikleri canlı tabloda oluştuğunda görünür.',
+      header: _SupportQuickActions(repository: repository),
       itemBuilder: (item) => _SimpleTile(item: item),
+    );
+  }
+}
+
+class DailyGoalsScreen extends StatelessWidget {
+  const DailyGoalsScreen({required this.repository, super.key});
+
+  final ProgressRepository repository;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<ProfileCard>(
+      future: repository.loadProfile(),
+      builder: (context, snapshot) {
+        return _ProgressPage(
+          title: 'Günlük Hedefler',
+          children: [
+            if (snapshot.connectionState != ConnectionState.done)
+              const _StateBlock(
+                icon: Icons.local_fire_department_outlined,
+                title: 'Hedefler yükleniyor',
+                body: 'Canlı seri ve hedef verisi hazırlanıyor.',
+              )
+            else if (snapshot.hasError)
+              _StateBlock(
+                icon: Icons.cloud_off_rounded,
+                title: 'Hedefler açılamadı',
+                body: _errorText(snapshot.error),
+              )
+            else ...[
+              _DailyGoalHero(profile: snapshot.requireData),
+              const SizedBox(height: 16),
+              _SettingsSection(
+                title: 'Bugünkü Plan',
+                rows: [
+                  _SettingsRow(
+                    Icons.timer_outlined,
+                    'Tek İstasyon',
+                    value: '1 vaka',
+                    onTap: () {
+                      Navigator.of(context).popUntil((route) => route.isFirst);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Günlük hedef için Vakalar sekmesinden tek istasyon başlat.',
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  _SettingsRow(
+                    Icons.fact_check_outlined,
+                    'Tanı Tekrarı',
+                    value: '3 ön tanı',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            WeakAreaAnalysisScreen(repository: repository),
+                      ),
+                    ),
+                  ),
+                  _SettingsRow(
+                    Icons.insights_outlined,
+                    'Gelişim Kontrolü',
+                    value: '%${snapshot.requireData.successRatePercent}',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            WeakAreaAnalysisScreen(repository: repository),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 }
@@ -429,7 +731,7 @@ class FaqScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _LiveListPage<SimpleContentItem>(
-      title: 'SSS',
+      title: 'Sık Sorulan Sorular',
       future: repository.loadFaqItems(),
       emptyTitle: 'SSS yok',
       emptyBody: 'Sık sorulan sorular canlı tabloda oluştuğunda görünür.',
@@ -776,6 +1078,7 @@ class _LiveListPage<T> extends StatelessWidget {
     required this.emptyTitle,
     required this.emptyBody,
     required this.itemBuilder,
+    this.header,
     this.footer,
   });
 
@@ -784,6 +1087,7 @@ class _LiveListPage<T> extends StatelessWidget {
   final String emptyTitle;
   final String emptyBody;
   final Widget Function(T item) itemBuilder;
+  final Widget? header;
   final Widget? footer;
 
   @override
@@ -794,6 +1098,7 @@ class _LiveListPage<T> extends StatelessWidget {
         return _ProgressPage(
           title: title,
           children: [
+            if (header != null) ...[header!, const SizedBox(height: 16)],
             if (snapshot.connectionState != ConnectionState.done)
               const _StateBlock(
                 icon: Icons.hourglass_empty_rounded,
@@ -827,9 +1132,15 @@ class _LiveListPage<T> extends StatelessWidget {
 }
 
 class _SegmentHeader extends StatelessWidget {
-  const _SegmentHeader({required this.items});
+  const _SegmentHeader({
+    required this.items,
+    this.selectedIndex = 0,
+    this.onSelected,
+  });
 
   final List<String> items;
+  final int selectedIndex;
+  final ValueChanged<int>? onSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -843,27 +1154,129 @@ class _SegmentHeader extends StatelessWidget {
         children: [
           for (var index = 0; index < items.length; index++)
             Expanded(
-              child: Container(
-                height: 36,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: index == 0 ? PratiCaseColors.teal : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    items[index],
-                    style: TextStyle(
-                      color: index == 0 ? Colors.white : PratiCaseColors.navy,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 12,
+              child: InkWell(
+                onTap: onSelected == null ? null : () => onSelected!(index),
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  height: 36,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: index == selectedIndex
+                        ? PratiCaseColors.teal
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      items[index],
+                      style: TextStyle(
+                        color: index == selectedIndex
+                            ? Colors.white
+                            : PratiCaseColors.navy,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _SupportQuickActions extends StatelessWidget {
+  const _SupportQuickActions({required this.repository});
+
+  final ProgressRepository repository;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _SupportActionButton(
+                icon: Icons.quiz_outlined,
+                label: 'SSS',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => FaqScreen(repository: repository),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _SupportActionButton(
+                icon: Icons.campaign_outlined,
+                label: 'Duyurular',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => AnnouncementsScreen(repository: repository),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        _SupportActionButton(
+          icon: Icons.mail_outline_rounded,
+          label: 'Bize Ulaşın',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => ContactScreen(repository: repository),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SupportActionButton extends StatelessWidget {
+  const _SupportActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Ink(
+        height: 52,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: _cardDecoration(),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: PratiCaseColors.teal),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: PratiCaseColors.navy,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1223,6 +1636,20 @@ class _MenuPanel extends StatelessWidget {
                     ),
                   );
                 }
+                if (item.title == 'Günlük Hedefler') {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => DailyGoalsScreen(repository: repository),
+                    ),
+                  );
+                }
+                if (item.title == 'Liderlik Tablosu') {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => LeaderboardScreen(repository: repository),
+                    ),
+                  );
+                }
                 if (item.title == 'Bildirimler') {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
@@ -1248,6 +1675,13 @@ class _MenuPanel extends StatelessWidget {
                     ),
                   );
                 }
+                if (item.title == 'Yardım ve Destek') {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => HelpCenterScreen(repository: repository),
+                    ),
+                  );
+                }
                 if (item.title == 'İndirmelerim') {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
@@ -1257,6 +1691,69 @@ class _MenuPanel extends StatelessWidget {
                 }
               },
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DailyGoalHero extends StatelessWidget {
+  const _DailyGoalHero({required this.profile});
+
+  final ProfileCard profile;
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = (profile.solvedCaseCount % 3) / 3;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [PratiCaseColors.gradientStart, PratiCaseColors.gradientEnd],
+        ),
+        borderRadius: BorderRadius.all(Radius.circular(24)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Günlük Seri',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '${profile.dailyStreak} gün',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 34,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: progress == 0 ? 1 : progress,
+                    minHeight: 8,
+                    backgroundColor: Colors.white24,
+                    color: PratiCaseColors.gold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          const Icon(
+            Icons.local_fire_department_rounded,
+            color: PratiCaseColors.gold,
+            size: 54,
+          ),
         ],
       ),
     );
@@ -1436,6 +1933,134 @@ class _CaseCollectionTile extends StatelessWidget {
           history ? '${item.score ?? 0}' : '${item.points} Puan',
           style: const TextStyle(fontWeight: FontWeight.w900),
         ),
+      ),
+    );
+  }
+}
+
+class _WeakArea {
+  const _WeakArea({
+    required this.title,
+    required this.percent,
+    required this.note,
+  });
+
+  final String title;
+  final int percent;
+  final String note;
+}
+
+class _WeakHero extends StatelessWidget {
+  const _WeakHero({required this.profile});
+
+  final ProfileCard profile;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [PratiCaseColors.gradientStart, PratiCaseColors.gradientEnd],
+        ),
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Genel Başarı',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '%${profile.successRatePercent}',
+                  style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                    color: PratiCaseColors.white,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Zayıf başlıkları hedefli tekrar sınavına dönüştür.',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(
+            Icons.track_changes_rounded,
+            color: PratiCaseColors.tealBright,
+            size: 52,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeakAreaCard extends StatelessWidget {
+  const _WeakAreaCard({required this.area});
+
+  final _WeakArea area;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = area.percent >= 75
+        ? PratiCaseColors.successGreen
+        : area.percent >= 55
+        ? PratiCaseColors.gold
+        : PratiCaseColors.errorRed;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  area.title,
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+              ),
+              Text(
+                '%${area.percent}',
+                style: TextStyle(color: color, fontWeight: FontWeight.w800),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: area.percent / 100,
+              minHeight: 8,
+              backgroundColor: PratiCaseColors.surfaceContainerHighest,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            area.note,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: PratiCaseColors.muted,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
