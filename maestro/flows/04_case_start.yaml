@@ -1,0 +1,36 @@
+appId: com.medasi.praticase
+name: 04 case start - open continued case from home, verify OSCE room loads
+tags:
+  - cases
+env:
+  USERNAME: ${MAESTRO_USERNAME}
+  PASSWORD: ${MAESTRO_PASSWORD}
+---
+- runFlow: ../shared/login.yaml
+# Home shows the continued case card. Tap it to open the case detail
+# screen with the prominent "Vaka Çözümüne Başla" CTA.
+- scrollUntilVisible:
+    element:
+      id: "home.continued-case"
+    direction: DOWN
+    timeout: 15000
+- tapOn:
+    id: "home.continued-case"
+- waitForAnimationToEnd:
+    timeout: 8000
+- takeScreenshot: artifacts/04a_case_detail
+# Detail screen primary CTA carries a stable identifier.
+- assertVisible:
+    id: "cta.start-case"
+- tapOn:
+    id: "cta.start-case"
+# After tapping start, the OSCE room loads (anamnez chat).
+# Wait for OSCE room — AI session init can take up to 60 s on first load.
+- extendedWaitUntil:
+    visible: "Anamnez"
+    timeout: 60000
+- takeScreenshot: artifacts/04b_patient_chat
+- back
+- waitForAnimationToEnd:
+    timeout: 4000
+- takeScreenshot: artifacts/04c_back_to_detail

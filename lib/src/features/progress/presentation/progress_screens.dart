@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../app/theme/praticase_colors.dart';
+import '../../../app/theme/praticase_tokens.dart';
 import '../../auth/data/auth_repository.dart';
 import '../data/progress_repository.dart';
 import '../domain/progress_models.dart';
@@ -227,8 +228,9 @@ class ProfileScreen extends StatelessWidget {
           );
         }
         final profile = snapshot.requireData;
+        final bottomInset = MediaQuery.paddingOf(context).bottom;
         return ListView(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 126),
+          padding: EdgeInsets.fromLTRB(20, 20, 20, bottomInset + 136),
           children: [
             _ProfileBrandHeader(
               repository: repository,
@@ -245,19 +247,20 @@ class ProfileScreen extends StatelessWidget {
               authRepository: authRepository,
               repository: repository,
               items: const [
-                _MenuItem(Icons.history_rounded, 'Vaka Geçmişim'),
-                _MenuItem(Icons.favorite_border_rounded, 'Favori Vakalarım'),
-                _MenuItem(Icons.note_alt_outlined, 'Notlarım'),
+                _MenuItem(Icons.history_rounded, 'Vaka Geçmişim', semanticsId: 'menu.case-history'),
+                _MenuItem(Icons.favorite_border_rounded, 'Favori Vakalarım', semanticsId: 'menu.favorites'),
+                _MenuItem(Icons.note_alt_outlined, 'Notlarım', semanticsId: 'menu.notes'),
                 _MenuItem(
                   Icons.local_fire_department_outlined,
                   'Günlük Hedefler',
+                  semanticsId: 'menu.daily-goals',
                 ),
-                _MenuItem(Icons.leaderboard_outlined, 'Liderlik Tablosu'),
-                _MenuItem(Icons.notifications_none_rounded, 'Bildirimler'),
-                _MenuItem(Icons.workspace_premium_outlined, 'Başarılarım'),
-                _MenuItem(Icons.settings_outlined, 'Ayarlar'),
-                _MenuItem(Icons.help_outline_rounded, 'Yardım ve Destek'),
-                _MenuItem(Icons.download_rounded, 'İndirmelerim'),
+                _MenuItem(Icons.leaderboard_outlined, 'Liderlik Tablosu', semanticsId: 'menu.leaderboard'),
+                _MenuItem(Icons.notifications_none_rounded, 'Bildirimler', semanticsId: 'menu.notifications'),
+                _MenuItem(Icons.workspace_premium_outlined, 'Başarılarım', semanticsId: 'menu.badges'),
+                _MenuItem(Icons.settings_outlined, 'Ayarlar', semanticsId: 'menu.settings'),
+                _MenuItem(Icons.help_outline_rounded, 'Yardım ve Destek', semanticsId: 'menu.help'),
+                _MenuItem(Icons.download_rounded, 'İndirmelerim', semanticsId: 'menu.downloads'),
               ],
               onSignOut: onSignOut,
             ),
@@ -1598,8 +1601,9 @@ class _ProgressPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
     final list = ListView(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 116),
+      padding: EdgeInsets.fromLTRB(20, 18, 20, bottomInset + 136),
       children: [
         Row(
           children: [
@@ -3338,7 +3342,9 @@ class _MenuPanel extends StatelessWidget {
         child: Column(
           children: [
             for (var index = 0; index < items.length; index++) ...[
-              ListTile(
+              Semantics(
+                identifier: items[index].semanticsId ?? '',
+                child: ListTile(
                 leading: Icon(items[index].icon, color: PratiCaseColors.teal),
                 title: Text(items[index].title),
                 trailing: const Icon(Icons.chevron_right_rounded),
@@ -3425,6 +3431,7 @@ class _MenuPanel extends StatelessWidget {
                     );
                   }
                 },
+              ),
               ),
               if (index != items.length - 1)
                 const Divider(height: 1, indent: 56, endIndent: 16),
@@ -4329,24 +4336,19 @@ class _SmallTag extends StatelessWidget {
 }
 
 class _MenuItem {
-  const _MenuItem(this.icon, this.title);
+  const _MenuItem(this.icon, this.title, {this.semanticsId});
 
   final IconData icon;
   final String title;
+  final String? semanticsId;
 }
 
 BoxDecoration _cardDecoration() {
   return BoxDecoration(
     color: Colors.white,
-    borderRadius: BorderRadius.circular(20),
+    borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
     border: Border.all(color: PratiCaseColors.border),
-    boxShadow: [
-      BoxShadow(
-        color: PratiCaseColors.navy.withValues(alpha: 0.04),
-        blurRadius: 16,
-        offset: const Offset(0, 8),
-      ),
-    ],
+    boxShadow: PratiCaseShadows.card,
   );
 }
 

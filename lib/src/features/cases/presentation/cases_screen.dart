@@ -4,8 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../app/theme/praticase_colors.dart';
+import '../../../app/theme/praticase_tokens.dart';
+import '../../../shared/ui/ui.dart';
 import '../data/cases_repository.dart';
 import '../domain/osce_case.dart';
+
+part 'widgets/cases_chat.dart';
+part 'widgets/cases_lab.dart';
+part 'widgets/cases_imaging.dart';
+part 'widgets/cases_result.dart';
 
 class CasesScreen extends StatefulWidget {
   const CasesScreen({
@@ -70,14 +77,21 @@ class _CasesScreenState extends State<CasesScreen> {
     return FutureBuilder<List<OsceCaseSummary>>(
       future: _casesFuture,
       builder: (context, snapshot) {
-        final bottom = MediaQuery.paddingOf(context).bottom + 106;
+        final bottom =
+            MediaQuery.paddingOf(context).bottom +
+            PratiCaseSpacing.bottomNavReserve;
         final allCases = snapshot.data ?? const <OsceCaseSummary>[];
         final visibleCases = _visibleCases(allCases);
         return RefreshIndicator(
           onRefresh: _refresh,
           child: ListView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: EdgeInsets.fromLTRB(20, 20, 20, bottom),
+            padding: EdgeInsets.fromLTRB(
+              PratiCaseSpacing.pageHorizontal,
+              PratiCaseSpacing.pageTop,
+              PratiCaseSpacing.pageHorizontal,
+              bottom,
+            ),
             children: [
               _MobileHeader(
                 onOpenNotifications: widget.onOpenNotifications,
@@ -605,6 +619,7 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
         },
       ),
       bottom: _BottomAction(
+        identifier: 'cta.start-case',
         label: _starting ? 'Başlatılıyor...' : 'Vaka Çözümüne Başla',
         onPressed: _starting ? null : _start,
       ),
@@ -1334,6 +1349,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
                       controller: _primaryController,
                       hint: 'Kesinleşen veya en olası ön tanınızı yazın.',
                       maxLines: 2,
+                      semanticsIdentifier: 'input.primary-diagnosis',
                     ),
                     const SizedBox(height: 16),
                     const _FormLabel('Ayırıcı Tanılar'),
@@ -1560,6 +1576,7 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
                       hint:
                           'Acil prosedür, ileri görüntüleme veya ek laboratuvar taleplerini klinik gerekçesiyle yazın.',
                       maxLines: 5,
+                      semanticsIdentifier: 'input.management-plan',
                     ),
                     const SizedBox(height: 14),
                     OutlinedButton.icon(
@@ -1879,184 +1896,6 @@ class LabResultScreen extends StatelessWidget {
   }
 }
 
-class _LabResultHero extends StatelessWidget {
-  const _LabResultHero({required this.title, required this.measuredAt});
-
-  final String title;
-  final DateTime? measuredAt;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: PratiCaseColors.navy,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: PratiCaseColors.navy.withValues(alpha: 0.12),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(
-              Icons.biotech_outlined,
-              color: PratiCaseColors.tealBright,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  measuredAt == null
-                      ? 'İstenen tetkik sonucu'
-                      : 'Ölçüm: ${_shortDateTime(measuredAt!)}',
-                  style: const TextStyle(
-                    color: Color(0xFFDDE8EA),
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LabParametersCard extends StatelessWidget {
-  const _LabParametersCard({required this.parameters});
-
-  final List<LabParameter> parameters;
-
-  @override
-  Widget build(BuildContext context) {
-    return _SectionCard(
-      title: 'Parametreler',
-      child: Column(
-        children: [
-          if (parameters.isEmpty)
-            const Text('Bu laboratuvar sonucu için parametre tanımlanmadı.')
-          else
-            for (final item in parameters) ...[
-              _LabParameterTile(parameter: item),
-              const SizedBox(height: 10),
-            ],
-        ],
-      ),
-    );
-  }
-}
-
-class _LabParameterTile extends StatelessWidget {
-  const _LabParameterTile({required this.parameter});
-
-  final LabParameter parameter;
-
-  @override
-  Widget build(BuildContext context) {
-    final abnormal = _labParameterAbnormal(parameter.status);
-    final color = abnormal ? PratiCaseColors.errorRed : PratiCaseColors.teal;
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: abnormal
-            ? PratiCaseColors.errorRed.withValues(alpha: 0.06)
-            : PratiCaseColors.teal.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.18)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  parameter.name,
-                  style: const TextStyle(
-                    color: PratiCaseColors.navy,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                if (parameter.referenceRange.trim().isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    parameter.referenceRange,
-                    style: const TextStyle(
-                      color: PratiCaseColors.muted,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          Flexible(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  parameter.value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.end,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                if (parameter.status.trim().isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    parameter.status,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.end,
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class ImagingResultScreen extends StatelessWidget {
   const ImagingResultScreen({
     required this.repository,
@@ -2160,161 +1999,6 @@ class ImagingResultScreen extends StatelessWidget {
             ],
           );
         },
-      ),
-    );
-  }
-}
-
-class _ImagingHero extends StatelessWidget {
-  const _ImagingHero({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: PratiCaseColors.navy,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: PratiCaseColors.navy.withValues(alpha: 0.12),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(
-              Icons.image_search_rounded,
-              color: PratiCaseColors.tealBright,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'İstenen görüntüleme sonucu',
-                  style: TextStyle(
-                    color: Color(0xFFDDE8EA),
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ImagingPreviewCard extends StatelessWidget {
-  const _ImagingPreviewCard({required this.imageUrl, required this.title});
-
-  final String imageUrl;
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    if (imageUrl.trim().isEmpty) {
-      return _ImagingPlaceholderCard(title: title);
-    }
-    return Container(
-      height: 230,
-      decoration: _cardDecoration(),
-      clipBehavior: Clip.antiAlias,
-      child: Image.network(
-        imageUrl,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return _ImagingPlaceholderCard(
-            title: title,
-            message: 'Görüntü yüklenemedi. Rapor metni aşağıda.',
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _ImagingPlaceholderCard extends StatelessWidget {
-  const _ImagingPlaceholderCard({this.title, this.message});
-
-  final String? title;
-  final String? message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 178,
-      padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: PratiCaseColors.teal.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: const Icon(
-              Icons.image_not_supported_outlined,
-              color: PratiCaseColors.teal,
-              size: 28,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            title?.trim().isNotEmpty == true
-                ? title!.trim()
-                : 'Görüntüleme Önizlemesi',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: PratiCaseColors.navy,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            message ?? 'Görüntü dosyası yok. Klinik rapor ve sonuçla devam et.',
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: PratiCaseColors.muted,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -2556,6 +2240,7 @@ class _FlowScaffold extends StatelessWidget {
             ? null
             : SafeArea(
                 top: false,
+                minimum: const EdgeInsets.only(bottom: 6),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     color: PratiCaseColors.white,
@@ -2564,16 +2249,14 @@ class _FlowScaffold extends StatelessWidget {
                         color: PratiCaseColors.navy.withValues(alpha: 0.06),
                       ),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: PratiCaseColors.navy.withValues(alpha: 0.08),
-                        blurRadius: 18,
-                        offset: const Offset(0, -8),
-                      ),
-                    ],
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
+                    padding: const EdgeInsets.fromLTRB(
+                      PratiCaseSpacing.pageHorizontal,
+                      10,
+                      PratiCaseSpacing.pageHorizontal,
+                      12,
+                    ),
                     child: bottom,
                   ),
                 ),
@@ -3023,14 +2706,16 @@ class _CaseListCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final progress = item.progressPercent;
     final score = item.lastScore;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(22),
-      child: Ink(
-        padding: const EdgeInsets.all(16),
-        decoration: _cardDecoration(radius: 22),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return Semantics(
+      identifier: 'case-list-item',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Ink(
+          padding: const EdgeInsets.all(16),
+          decoration: _cardDecoration(radius: 22),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
@@ -3106,6 +2791,7 @@ class _CaseListCard extends StatelessWidget {
               ],
             ),
           ],
+          ),
         ),
       ),
     );
@@ -3578,39 +3264,79 @@ class _FlowCard extends StatelessWidget {
       title: 'Vaka Akışı',
       child: steps.isEmpty
           ? const Text('Canlı vaka akışı tanımlanmadı.')
-          : Row(
-              children: [
-                for (var index = 0; index < steps.length; index++) ...[
-                  Expanded(
-                    child: Column(
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                final tight = constraints.maxWidth / steps.length < 64;
+                if (tight) {
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        _SoftIcon(
-                          icon: _flowIcon(steps[index].iconKey),
-                          color: PratiCaseColors.teal,
-                          size: 42,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          steps[index].title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: PratiCaseColors.navy,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
+                        for (var index = 0; index < steps.length; index++) ...[
+                          SizedBox(
+                            width: 72,
+                            child: _FlowStepIcon(step: steps[index]),
                           ),
-                        ),
+                          if (index != steps.length - 1)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 2),
+                              child: Icon(
+                                Icons.chevron_right_rounded,
+                                color: Color(0xFF9AA8BA),
+                              ),
+                            ),
+                        ],
                       ],
                     ),
-                  ),
-                  if (index != steps.length - 1)
-                    const Icon(
-                      Icons.chevron_right_rounded,
-                      color: Color(0xFF9AA8BA),
-                    ),
-                ],
-              ],
+                  );
+                }
+                return Row(
+                  children: [
+                    for (var index = 0; index < steps.length; index++) ...[
+                      Expanded(child: _FlowStepIcon(step: steps[index])),
+                      if (index != steps.length - 1)
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          color: Color(0xFF9AA8BA),
+                        ),
+                    ],
+                  ],
+                );
+              },
             ),
+    );
+  }
+}
+
+class _FlowStepIcon extends StatelessWidget {
+  const _FlowStepIcon({required this.step});
+
+  final CaseFlowStep step;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _SoftIcon(
+          icon: _flowIcon(step.iconKey),
+          color: PratiCaseColors.teal,
+          size: 42,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          step.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: PratiCaseColors.navy,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -3624,35 +3350,40 @@ class _PatientInfoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return _SectionCard(
       title: 'Hasta Bilgileri',
-      child: GridView.count(
-        crossAxisCount: 2,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-        childAspectRatio: 2.45,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        children: [
-          _InfoCell(
-            icon: Icons.cake_outlined,
-            title: 'Yaş',
-            value: patient.age,
-          ),
-          _InfoCell(
-            icon: Icons.favorite_border_rounded,
-            title: 'Cinsiyet',
-            value: patient.gender,
-          ),
-          _InfoCell(
-            icon: Icons.local_hospital_outlined,
-            title: 'Başvuru',
-            value: patient.applicationSetting,
-          ),
-          _InfoCell(
-            icon: Icons.schedule_rounded,
-            title: 'Süre',
-            value: patient.complaintDuration,
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 320;
+          return GridView.count(
+            crossAxisCount: 2,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: compact ? 1.9 : 2.3,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            children: [
+              _InfoCell(
+                icon: Icons.cake_outlined,
+                title: 'Yaş',
+                value: patient.age,
+              ),
+              _InfoCell(
+                icon: Icons.favorite_border_rounded,
+                title: 'Cinsiyet',
+                value: patient.gender,
+              ),
+              _InfoCell(
+                icon: Icons.local_hospital_outlined,
+                title: 'Başvuru',
+                value: patient.applicationSetting,
+              ),
+              _InfoCell(
+                icon: Icons.schedule_rounded,
+                title: 'Süre',
+                value: patient.complaintDuration,
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -4033,389 +3764,6 @@ class _ConversationPanel extends StatelessWidget {
   }
 }
 
-class _PatientBanner extends StatelessWidget {
-  const _PatientBanner({required this.session});
-
-  final ExamSessionOverview session;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: PratiCaseColors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: PratiCaseColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: PratiCaseColors.navy.withValues(alpha: 0.05),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 58,
-            height: 58,
-            decoration: BoxDecoration(
-              color: PratiCaseColors.teal.withValues(alpha: 0.10),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: PratiCaseColors.teal.withValues(alpha: 0.18),
-              ),
-            ),
-            child: const Icon(
-              Icons.person_rounded,
-              color: PratiCaseColors.teal,
-              size: 30,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  session.patient.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: PratiCaseColors.navy,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  children: [
-                    _PatientMiniPill(
-                      icon: Icons.cake_outlined,
-                      text: '${session.patient.age}, ${session.patient.gender}',
-                    ),
-                    _PatientMiniPill(
-                      icon: Icons.local_hospital_outlined,
-                      text: session.patient.applicationSetting,
-                    ),
-                    _PatientMiniPill(
-                      icon: Icons.schedule_rounded,
-                      text: session.patient.complaintDuration,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          IconButton.outlined(
-            onPressed: () => showModalBottomSheet<void>(
-              context: context,
-              showDragHandle: true,
-              builder: (context) => SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        session.patient.name,
-                        style: const TextStyle(
-                          color: PratiCaseColors.navy,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text('${session.patient.age}, ${session.patient.gender}'),
-                      Text(session.patient.mainComplaint),
-                      Text(session.patient.applicationSetting),
-                      Text(session.patient.complaintDuration),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            tooltip: 'Hasta bilgileri',
-            icon: const Icon(Icons.badge_outlined, size: 20),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PatientMiniPill extends StatelessWidget {
-  const _PatientMiniPill({required this.icon, required this.text});
-
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    if (text.trim().isEmpty) return const SizedBox.shrink();
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F8),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: PratiCaseColors.muted, size: 13),
-          const SizedBox(width: 4),
-          Text(
-            text,
-            style: const TextStyle(
-              color: PratiCaseColors.muted,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ChatBubble extends StatelessWidget {
-  const _ChatBubble({
-    required this.message,
-    required this.fromCandidate,
-    this.isOpening = false,
-    this.isPending = false,
-  });
-
-  final String message;
-  final bool fromCandidate;
-  final bool isOpening;
-  final bool isPending;
-
-  @override
-  Widget build(BuildContext context) {
-    final label = fromCandidate
-        ? isPending
-              ? 'Aday - gönderiliyor'
-              : 'Aday'
-        : isOpening
-        ? 'Hasta - açılış'
-        : 'Hasta';
-    return Align(
-      alignment: fromCandidate ? Alignment.centerRight : Alignment.centerLeft,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width * 0.78,
-        ),
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-        decoration: BoxDecoration(
-          color: fromCandidate ? PratiCaseColors.teal : PratiCaseColors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(fromCandidate ? 16 : 5),
-            bottomRight: Radius.circular(fromCandidate ? 5 : 16),
-          ),
-          border: fromCandidate
-              ? null
-              : Border.all(color: PratiCaseColors.border),
-          boxShadow: [
-            BoxShadow(
-              color: PratiCaseColors.navy.withValues(alpha: 0.05),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  fromCandidate ? Icons.school_outlined : Icons.person_rounded,
-                  color: fromCandidate
-                      ? PratiCaseColors.white.withValues(alpha: 0.82)
-                      : PratiCaseColors.teal,
-                  size: 14,
-                ),
-                const SizedBox(width: 5),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: fromCandidate
-                        ? PratiCaseColors.white.withValues(alpha: 0.82)
-                        : PratiCaseColors.teal,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              message,
-              style: TextStyle(
-                color: fromCandidate
-                    ? PratiCaseColors.white.withValues(
-                        alpha: isPending ? 0.82 : 1,
-                      )
-                    : PratiCaseColors.navy,
-                height: 1.36,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TypingBubble extends StatelessWidget {
-  const _TypingBubble();
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF6FAFA),
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(16),
-            topRight: Radius.circular(16),
-            bottomLeft: Radius.circular(5),
-            bottomRight: Radius.circular(16),
-          ),
-          border: Border.all(color: PratiCaseColors.border),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: PratiCaseColors.teal,
-              ),
-            ),
-            SizedBox(width: 8),
-            Text(
-              'Hasta yanıtlıyor...',
-              style: TextStyle(
-                color: PratiCaseColors.teal,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ChatComposer extends StatelessWidget {
-  const _ChatComposer({
-    required this.controller,
-    required this.sending,
-    required this.onSend,
-    required this.onNext,
-  });
-
-  final TextEditingController controller;
-  final bool sending;
-  final VoidCallback onSend;
-  final VoidCallback? onNext;
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: PratiCaseColors.white,
-          border: const Border(top: BorderSide(color: PratiCaseColors.border)),
-          boxShadow: [
-            BoxShadow(
-              color: PratiCaseColors.navy.withValues(alpha: 0.08),
-              blurRadius: 18,
-              offset: const Offset(0, -8),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: controller,
-                      minLines: 1,
-                      maxLines: 4,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => sending ? null : onSend(),
-                      decoration: const InputDecoration(
-                        hintText: 'Hastaya sorunuzu yazın...',
-                        prefixIcon: Icon(Icons.record_voice_over_outlined),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    width: 52,
-                    height: 52,
-                    child: IconButton.filled(
-                      onPressed: sending ? null : onSend,
-                      tooltip: 'Gönder',
-                      style: IconButton.styleFrom(
-                        backgroundColor: PratiCaseColors.teal,
-                        foregroundColor: PratiCaseColors.white,
-                      ),
-                      icon: sending
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: PratiCaseColors.white,
-                              ),
-                            )
-                          : const Icon(Icons.send_rounded),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: OutlinedButton.icon(
-                  onPressed: onNext,
-                  icon: const Icon(Icons.health_and_safety_outlined),
-                  label: const Text('Muayeneye Geç'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _SegmentScroller extends StatelessWidget {
   const _SegmentScroller({
     required this.items,
@@ -4602,14 +3950,23 @@ class _FindingsCard extends StatelessWidget {
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12),
                   title: Text(
                     item.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: PratiCaseColors.navy,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                   subtitle: item.isSelected && item.finding.isNotEmpty
-                      ? Text(item.finding)
+                      ? Text(
+                          item.finding,
+                          style: const TextStyle(
+                            color: Color(0xFF4F5E72),
+                            height: 1.35,
+                          ),
+                        )
                       : null,
+                  isThreeLine: item.isSelected && item.finding.isNotEmpty,
                   trailing: IconButton(
                     onPressed: () => onSelect(item.id),
                     icon: Icon(
@@ -4810,13 +4167,7 @@ class _TestOptionTile extends StatelessWidget {
               : PratiCaseColors.border,
           width: item.isSelected ? 1.5 : 1,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: PratiCaseColors.navy.withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        boxShadow: PratiCaseShadows.card,
       ),
       child: ListTile(
         onTap: item.isSelected ? onOpenDetail : onRequest,
@@ -4827,14 +4178,21 @@ class _TestOptionTile extends StatelessWidget {
         ),
         title: Text(
           item.title,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             color: PratiCaseColors.navy,
             fontWeight: FontWeight.w800,
           ),
         ),
         subtitle: item.isSelected && item.result.isNotEmpty
-            ? Text(item.result)
+            ? Text(
+                item.result,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              )
             : null,
+        isThreeLine: item.isSelected && item.result.isNotEmpty,
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -4897,12 +4255,14 @@ class _InputBlock extends StatelessWidget {
     required this.controller,
     required this.hint,
     required this.maxLines,
+    this.semanticsIdentifier,
   });
 
   final String label;
   final TextEditingController controller;
   final String hint;
   final int maxLines;
+  final String? semanticsIdentifier;
 
   @override
   Widget build(BuildContext context) {
@@ -4911,7 +4271,9 @@ class _InputBlock extends StatelessWidget {
       children: [
         _FormLabel(label),
         const SizedBox(height: 8),
-        TextField(
+        Semantics(
+          identifier: semanticsIdentifier ?? '',
+          child: TextField(
           controller: controller,
           maxLines: maxLines,
           decoration: InputDecoration(
@@ -4926,6 +4288,7 @@ class _InputBlock extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
               borderSide: const BorderSide(color: PratiCaseColors.border),
             ),
+          ),
           ),
         ),
       ],
@@ -4955,31 +4318,38 @@ class _BottomAction extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.icon = Icons.arrow_forward_rounded,
+    this.identifier = 'cta.bottom-action',
   });
 
   final String label;
   final VoidCallback? onPressed;
   final IconData icon;
+  final String identifier;
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 180),
-      opacity: onPressed == null ? 0.55 : 1,
-      child: SizedBox(
-        height: 58,
-        child: FilledButton.icon(
-          onPressed: onPressed,
-          label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-          icon: Icon(icon),
-          style: FilledButton.styleFrom(
-            backgroundColor: PratiCaseColors.teal,
-            foregroundColor: PratiCaseColors.white,
-            textStyle: const TextStyle(fontWeight: FontWeight.w900),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
+    return Semantics(
+      identifier: identifier,
+      button: true,
+      label: label,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 180),
+        opacity: onPressed == null ? 0.55 : 1,
+        child: SizedBox(
+          height: 58,
+          child: FilledButton.icon(
+            onPressed: onPressed,
+            label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+            icon: Icon(icon),
+            style: FilledButton.styleFrom(
+              backgroundColor: PratiCaseColors.teal,
+              foregroundColor: PratiCaseColors.white,
+              textStyle: const TextStyle(fontWeight: FontWeight.w900),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              elevation: 0,
             ),
-            elevation: 0,
           ),
         ),
       ),
@@ -5333,14 +4703,12 @@ class _SoftIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.13),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Icon(icon, color: color, size: size * 0.52),
+    return SoftIconBadge(
+      icon: icon,
+      color: color,
+      size: size,
+      iconSize: size * 0.52,
+      radius: 14,
     );
   }
 }
@@ -5575,298 +4943,13 @@ class _ManagementGroupCard extends StatelessWidget {
   }
 }
 
-class _ResultHero extends StatelessWidget {
-  const _ResultHero({required this.result});
-
-  final ExamResultSummary result;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(22, 46, 22, 30),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF063443), Color(0xFF006A72)],
-        ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
-      ),
-      child: Column(
-        children: [
-          const Text(
-            'Klinik Başarı Puanı',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.8,
-            ),
-          ),
-          const SizedBox(height: 12),
-          RichText(
-            text: TextSpan(
-              children: [
-                TextSpan(
-                  text: '${result.totalScore}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 44,
-                    height: 42 / 44,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                TextSpan(
-                  text: '/${result.maxScore}',
-                  style: const TextStyle(
-                    color: Colors.white60,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            result.percentage >= 80
-                ? 'Mükemmel bir teşhis süreci yönettiniz.'
-                : '${result.caseTitle} için gelişim alanların hazır.',
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ScoreGrid extends StatelessWidget {
-  const _ScoreGrid({required this.scores});
-
-  final List<ResultCategoryScore> scores;
-
-  @override
-  Widget build(BuildContext context) {
-    if (scores.isEmpty) {
-      return const _CenteredState(
-        icon: Icons.query_stats_rounded,
-        title: 'Puan dağılımı yok',
-        body: 'Canlı rubric sonuçları oluştuğunda burada görünür.',
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 8),
-          child: Text(
-            'Kategori Performansı',
-            style: TextStyle(
-              color: PratiCaseColors.navy,
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        GridView.count(
-          crossAxisCount: 2,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 1.55,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          children: [for (final score in scores) _ScoreCard(score: score)],
-        ),
-      ],
-    );
-  }
-}
-
-class _ScoreCard extends StatelessWidget {
-  const _ScoreCard({required this.score});
-
-  final ResultCategoryScore score;
-
-  @override
-  Widget build(BuildContext context) {
-    final percent = score.maxScore == 0 ? 0.0 : score.score / score.maxScore;
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: PratiCaseColors.teal.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: PratiCaseColors.teal.withValues(alpha: 0.12)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.verified_outlined, color: PratiCaseColors.teal),
-          const Spacer(),
-          Text(
-            score.title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: PratiCaseColors.muted,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Text(
-                '${score.score}',
-                style: const TextStyle(
-                  color: PratiCaseColors.navy,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              Text(
-                '/${score.maxScore}',
-                style: const TextStyle(
-                  color: PratiCaseColors.muted,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                '%${(percent * 100).round()}',
-                style: const TextStyle(
-                  color: PratiCaseColors.teal,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ResultActions extends StatelessWidget {
-  const _ResultActions({
-    required this.onRetry,
-    required this.onReport,
-    required this.onSuggestedCases,
-  });
-
-  final VoidCallback onRetry;
-  final VoidCallback onReport;
-  final VoidCallback onSuggestedCases;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: FilledButton.icon(
-            onPressed: onRetry,
-            icon: const Icon(Icons.restart_alt_rounded),
-            label: const Text('Tekrar Çöz'),
-          ),
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: OutlinedButton.icon(
-            onPressed: onReport,
-            icon: const Icon(Icons.description_outlined),
-            label: const Text('Detaylı Rapor'),
-          ),
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: OutlinedButton.icon(
-            onPressed: onSuggestedCases,
-            icon: const Icon(Icons.library_books_outlined),
-            label: const Text('Benzer Vaka Önerileri'),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _FeedbackCard extends StatelessWidget {
-  const _FeedbackCard({
-    required this.title,
-    required this.icon,
-    required this.color,
-    required this.items,
-  });
-
-  final String title;
-  final IconData icon;
-  final Color color;
-  final List<String> items;
-
-  @override
-  Widget build(BuildContext context) {
-    return _SectionCard(
-      title: title,
-      child: Column(
-        children: [
-          if (items.isEmpty)
-            const Text('Canlı karne maddesi henüz oluşmadı.')
-          else
-            for (final item in items)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(icon, color: color),
-                title: Text(item),
-              ),
-        ],
-      ),
-    );
-  }
-}
-
-class _IdealApproachCard extends StatelessWidget {
-  const _IdealApproachCard({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return _SectionCard(
-      title: 'İdeal Yaklaşım Özeti',
-      child: Text(
-        text.isEmpty ? 'Canlı karne özeti henüz oluşmadı.' : text,
-        style: const TextStyle(
-          color: Color(0xFF405168),
-          fontWeight: FontWeight.w700,
-          height: 1.45,
-        ),
-      ),
-    );
-  }
-}
 
 BoxDecoration _cardDecoration({double radius = 16}) {
   return BoxDecoration(
     color: PratiCaseColors.white,
     borderRadius: BorderRadius.circular(radius),
     border: Border.all(color: PratiCaseColors.border),
-    boxShadow: [
-      BoxShadow(
-        color: PratiCaseColors.navy.withValues(alpha: 0.04),
-        blurRadius: 16,
-        offset: const Offset(0, 8),
-      ),
-    ],
+    boxShadow: PratiCaseShadows.card,
   );
 }
 

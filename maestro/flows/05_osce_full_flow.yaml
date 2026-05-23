@@ -1,0 +1,134 @@
+appId: com.medasi.praticase
+name: 05 osce full flow - anamnez → muayene → tetkik → tanı → yönetim → sonuç
+tags:
+  - osce
+  - cases
+env:
+  USERNAME: ${MAESTRO_USERNAME}
+  PASSWORD: ${MAESTRO_PASSWORD}
+---
+# Full golden-path OSCE walk-through.
+# Starts a case from the Vakalar tab, sends one patient message,
+# advances through all clinical phases and lands on the result screen.
+- runFlow: ../shared/login.yaml
+
+# --- Navigate to Vakalar tab ---
+- tapOn:
+    id: "nav.cases"
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: artifacts/05a_cases_list
+
+# --- Open first case (scroll past filter chips) ---
+- scrollUntilVisible:
+    element:
+      id: "case-list-item"
+    direction: DOWN
+    timeout: 15000
+- tapOn:
+    id: "case-list-item"
+    index: 0
+- waitForAnimationToEnd:
+    timeout: 8000
+- takeScreenshot: artifacts/05b_case_detail
+
+# --- Start OSCE session ---
+- assertVisible:
+    id: "cta.start-case"
+- tapOn:
+    id: "cta.start-case"
+
+# Wait for Anamnez OSCE room to load
+- extendedWaitUntil:
+    visible: "Anamnez"
+    timeout: 60000
+- takeScreenshot: artifacts/05c_anamnez_loaded
+
+# --- Send a patient message (ASCII only - Maestro limitation) ---
+- tapOn: "Hastaya sorunuzu yazın..."
+- inputText: "Merhaba, ne zaman basladi?"
+- tapOn:
+    id: "chat.send"
+# Wait for AI patient response
+- waitForAnimationToEnd:
+    timeout: 25000
+- takeScreenshot: artifacts/05d_after_message
+
+# --- Advance to Physical Exam via composer button ---
+- scrollUntilVisible:
+    element:
+      text: "Muayeneye Gec"
+    direction: DOWN
+    timeout: 10000
+    optional: true
+- tapOn: "Muayeneye Geç"
+- waitForAnimationToEnd:
+    timeout: 8000
+- takeScreenshot: artifacts/05e_physical_exam
+
+# --- Select a physical exam finding if available ---
+- runFlow:
+    when:
+      visible: "Genel"
+    commands:
+      - tapOn: "Genel"
+      - waitForAnimationToEnd:
+          timeout: 5000
+
+# --- Advance to Tests ---
+- tapOn:
+    id: "cta.bottom-action"
+- waitForAnimationToEnd:
+    timeout: 8000
+- takeScreenshot: artifacts/05f_tests
+
+# --- Select a lab test if available ---
+- runFlow:
+    when:
+      visible: "Hemogram"
+    commands:
+      - tapOn: "Hemogram"
+      - waitForAnimationToEnd:
+          timeout: 5000
+
+# --- Advance to Diagnosis ---
+- tapOn:
+    id: "cta.bottom-action"
+- waitForAnimationToEnd:
+    timeout: 8000
+- takeScreenshot: artifacts/05g_diagnosis
+
+# --- Enter a primary diagnosis (required for next button to activate) ---
+- tapOn:
+    id: "input.primary-diagnosis"
+- inputText: "Travma"
+- hideKeyboard
+- waitForAnimationToEnd:
+    timeout: 2000
+
+# --- Advance to Management Plan ---
+- tapOn:
+    id: "cta.bottom-action"
+- waitForAnimationToEnd:
+    timeout: 8000
+- takeScreenshot: artifacts/05h_management
+
+# --- Enter additional management note ---
+- runFlow:
+    when:
+      visible:
+        id: "input.management-plan"
+    commands:
+      - tapOn:
+          id: "input.management-plan"
+      - inputText: "Vital stabilizasyon, damar yolu, monitorizasyon."
+      - hideKeyboard
+
+# --- Complete session and wait for result ---
+- tapOn:
+    id: "cta.bottom-action"
+# AI scoring can take up to 90 seconds
+- extendedWaitUntil:
+    visible: "Sonuc"
+    timeout: 90000
+- takeScreenshot: artifacts/05i_result
