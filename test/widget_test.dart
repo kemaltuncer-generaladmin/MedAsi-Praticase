@@ -291,7 +291,7 @@ void main() {
   testWidgets('anamnesis room keeps opening line and sends patient turns', (
     tester,
   ) async {
-    await _setIPhone14Viewport(tester);
+    await _setViewport(tester, const Size(390, 1040));
     final repository = _ChatFlowCasesRepository();
 
     await tester.pumpWidget(
@@ -316,9 +316,23 @@ void main() {
     await tester.tap(find.byTooltip('Gönder'));
     await tester.pumpAndSettle();
 
+    final conversation = find.byType(ListView);
+    final questionBubble = find.descendant(
+      of: conversation,
+      matching: find.text('Ağrınız ne zaman başladı?'),
+    );
+    final answerBubble = find.descendant(
+      of: conversation,
+      matching: find.text('Dün akşam başladı, giderek arttı.'),
+    );
+
     expect(repository.lastQuestion, 'Ağrınız ne zaman başladı?');
-    expect(find.text('Ağrınız ne zaman başladı?'), findsOneWidget);
-    expect(find.text('Dün akşam başladı, giderek arttı.'), findsOneWidget);
+    expect(questionBubble, findsOneWidget);
+    expect(answerBubble, findsOneWidget);
+    expect(
+      tester.getTopLeft(questionBubble).dy,
+      lessThan(tester.getTopLeft(answerBubble).dy),
+    );
   });
 
   testWidgets('home screen renders with live empty optional sections', (
@@ -562,7 +576,7 @@ class _ChatFlowCasesRepository extends Fake implements CasesRepository {
 
   @override
   Future<List<ChatMessage>> loadMessages(String sessionId) async {
-    return List<ChatMessage>.unmodifiable(_messages);
+    return List<ChatMessage>.unmodifiable(_messages.reversed);
   }
 
   @override
@@ -618,7 +632,11 @@ class _EmptyLiveHomeRepository extends Fake implements HomeRepository {
 Finder _textFormFieldAt(int index) => find.byType(TextFormField).at(index);
 
 Future<void> _setIPhone14Viewport(WidgetTester tester) async {
-  tester.view.physicalSize = const Size(390, 844);
+  await _setViewport(tester, const Size(390, 844));
+}
+
+Future<void> _setViewport(WidgetTester tester, Size size) async {
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);

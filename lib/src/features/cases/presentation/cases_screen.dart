@@ -651,7 +651,11 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
     final session = await widget.repository.loadSession(widget.sessionId);
     final detail = await widget.repository.loadCaseDetail(session.caseId);
     final messages = await widget.repository.loadMessages(widget.sessionId);
-    return _ChatBundle(session: session, detail: detail, messages: messages);
+    return _ChatBundle(
+      session: session,
+      detail: detail,
+      messages: _chronologicalMessages(messages),
+    );
   }
 
   Future<void> _send() async {
@@ -671,7 +675,9 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
       final bundle = await _bundleFuture;
       final messages = await widget.repository.loadMessages(widget.sessionId);
       setState(
-        () => _bundleFuture = Future.value(bundle.copyWith(messages: messages)),
+        () => _bundleFuture = Future.value(
+          bundle.copyWith(messages: _chronologicalMessages(messages)),
+        ),
       );
       await _bundleFuture;
       _scheduleScrollToBottom();
@@ -697,6 +703,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
           _sending = false;
           _pendingCandidateMessage = null;
         });
+        _scheduleScrollToBottom();
       }
     }
   }
@@ -819,6 +826,19 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
       ),
     );
   }
+}
+
+List<ChatMessage> _chronologicalMessages(List<ChatMessage> messages) {
+  final sorted = [...messages];
+  sorted.sort((a, b) {
+    final byTime = a.createdAt.compareTo(b.createdAt);
+    if (byTime != 0) return byTime;
+    if (a.fromCandidate != b.fromCandidate) {
+      return a.fromCandidate ? -1 : 1;
+    }
+    return a.id.compareTo(b.id);
+  });
+  return sorted;
 }
 
 class PhysicalExamScreen extends StatefulWidget {
