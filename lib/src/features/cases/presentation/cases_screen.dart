@@ -1046,6 +1046,8 @@ class _TestsScreenState extends State<TestsScreen> {
   }
 
   Future<void> _request(String optionId) async {
+    final bundle = await _bundleFuture;
+    final option = bundle.options.firstWhere((item) => item.id == optionId);
     await widget.repository.requestTest(
       sessionId: widget.sessionId,
       optionId: optionId,
@@ -1053,6 +1055,8 @@ class _TestsScreenState extends State<TestsScreen> {
     setState(() {
       _bundleFuture = _load();
     });
+    if (!mounted) return;
+    _openTestDetail(option);
   }
 
   Future<void> _next() async {
@@ -1093,9 +1097,16 @@ class _TestsScreenState extends State<TestsScreen> {
             );
           }
           final bundle = snapshot.requireData;
-          final groupId =
-              _selectedGroupId ??
-              (bundle.groups.isNotEmpty ? bundle.groups.first.id : null);
+          final groupId = _selectedGroupId;
+          TestGroup? selectedGroup;
+          if (groupId != null) {
+            for (final group in bundle.groups) {
+              if (group.id == groupId) {
+                selectedGroup = group;
+                break;
+              }
+            }
+          }
           final visible = bundle.options
               .where((item) => item.groupId == groupId)
               .toList();
@@ -1124,33 +1135,36 @@ class _TestsScreenState extends State<TestsScreen> {
                       subtext: '$selectedCost puan',
                     ),
                     const SizedBox(height: 18),
-                    _SegmentScroller(
-                      items: bundle.groups.map((item) => item.title).toList(),
-                      selectedIndex: bundle.groups.indexWhere(
-                        (item) => item.id == groupId,
-                      ),
-                      onSelected: (index) {
-                        setState(
-                          () => _selectedGroupId = bundle.groups[index].id,
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 18),
-                    for (final item in visible) ...[
-                      _TestOptionTile(
-                        item: item,
-                        onTap: () => _request(item.id),
-                        onOpenDetail: () => _openTestDetail(item),
-                      ),
-                      const SizedBox(height: 10),
-                    ],
-                    if (visible.isEmpty)
+                    if (bundle.groups.isEmpty)
                       const _CenteredState(
                         icon: Icons.science_outlined,
-                        title: 'Bu kategoride tetkik yok',
+                        title: 'Tetkik grubu yok',
                         body:
-                            'Canlı tetkik seçenekleri eklendiğinde burada görünür.',
+                            'Bu vaka için canlı tetkik kategorisi tanımlanmadı.',
+                      )
+                    else if (selectedGroup == null)
+                      _TestGroupPicker(
+                        groups: bundle.groups,
+                        options: bundle.options,
+                        onSelected: (groupId) {
+                          setState(() => _selectedGroupId = groupId);
+                        },
+                      )
+                    else ...[
+                      OutlinedButton.icon(
+                        onPressed: () =>
+                            setState(() => _selectedGroupId = null),
+                        icon: const Icon(Icons.arrow_back_rounded),
+                        label: const Text('Tetkik Grubu Değiştir'),
                       ),
+                      const SizedBox(height: 14),
+                      _TestOptionsCard(
+                        title: '${selectedGroup.title} Tetkikleri',
+                        options: visible,
+                        onRequest: _request,
+                        onOpenDetail: _openTestDetail,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1184,6 +1198,8 @@ class _TestsScreenState extends State<TestsScreen> {
         builder: (_) => LabResultScreen(
           repository: widget.repository,
           testOptionId: item.id,
+          fallbackTitle: item.title,
+          fallbackResult: item.result,
         ),
       ),
     );
@@ -1770,11 +1786,15 @@ class LabResultScreen extends StatelessWidget {
   const LabResultScreen({
     required this.repository,
     required this.testOptionId,
+    this.fallbackTitle,
+    this.fallbackResult,
     super.key,
   });
 
   final CasesRepository repository;
   final String testOptionId;
+  final String? fallbackTitle;
+  final String? fallbackResult;
 
   @override
   Widget build(BuildContext context) {
@@ -1798,10 +1818,30 @@ class LabResultScreen extends StatelessWidget {
           }
           final detail = snapshot.data;
           if (detail == null) {
-            return const _CenteredState(
-              icon: Icons.biotech_outlined,
-              title: 'Laboratuvar detayı yok',
-              body: 'Bu tetkik için canlı lab_result_details kaydı bulunamadı.',
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+              children: [
+                _StepTopBar(title: fallbackTitle ?? 'Laboratuvar Sonucu'),
+                const SizedBox(height: 18),
+                _LabResultHero(
+                  title: fallbackTitle ?? 'Laboratuvar Sonucu',
+                  measuredAt: null,
+                ),
+                const SizedBox(height: 14),
+                _SectionCard(
+                  title: 'Sonuç',
+                  child: Text(
+                    (fallbackResult?.trim().isNotEmpty ?? false)
+                        ? fallbackResult!.trim()
+                        : 'Bu tetkik için canlı sonuç metni henüz tanımlanmadı.',
+                    style: const TextStyle(
+                      color: PratiCaseColors.navy,
+                      fontWeight: FontWeight.w700,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
             );
           }
           return ListView(
@@ -1809,36 +1849,207 @@ class LabResultScreen extends StatelessWidget {
             children: [
               _StepTopBar(title: detail.title),
               const SizedBox(height: 18),
-              _SectionCard(
-                title: 'Parametreler',
-                child: Column(
-                  children: [
-                    for (final item in detail.parameters)
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(item.name),
-                        subtitle: Text(item.referenceRange),
-                        trailing: Text(
-                          item.value,
-                          style: TextStyle(
-                            color: item.status.toLowerCase().contains('yük')
-                                ? const Color(0xFFE04F5F)
-                                : PratiCaseColors.navy,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+              _LabResultHero(
+                title: detail.title,
+                measuredAt: detail.measuredAt,
               ),
+              const SizedBox(height: 14),
+              _LabParametersCard(parameters: detail.parameters),
               const SizedBox(height: 14),
               _SectionCard(
                 title: 'Değerlendirme',
-                child: Text(detail.interpretation),
+                child: Text(
+                  detail.interpretation.trim().isEmpty
+                      ? 'Bu laboratuvar sonucu için değerlendirme metni henüz tanımlanmadı.'
+                      : detail.interpretation,
+                  style: const TextStyle(
+                    color: PratiCaseColors.navy,
+                    fontWeight: FontWeight.w700,
+                    height: 1.4,
+                  ),
+                ),
               ),
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _LabResultHero extends StatelessWidget {
+  const _LabResultHero({required this.title, required this.measuredAt});
+
+  final String title;
+  final DateTime? measuredAt;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.navy,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: PratiCaseColors.navy.withValues(alpha: 0.12),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.biotech_outlined,
+              color: PratiCaseColors.tealBright,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  measuredAt == null
+                      ? 'İstenen tetkik sonucu'
+                      : 'Ölçüm: ${_shortDateTime(measuredAt!)}',
+                  style: const TextStyle(
+                    color: Color(0xFFDDE8EA),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LabParametersCard extends StatelessWidget {
+  const _LabParametersCard({required this.parameters});
+
+  final List<LabParameter> parameters;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SectionCard(
+      title: 'Parametreler',
+      child: Column(
+        children: [
+          if (parameters.isEmpty)
+            const Text('Bu laboratuvar sonucu için parametre tanımlanmadı.')
+          else
+            for (final item in parameters) ...[
+              _LabParameterTile(parameter: item),
+              const SizedBox(height: 10),
+            ],
+        ],
+      ),
+    );
+  }
+}
+
+class _LabParameterTile extends StatelessWidget {
+  const _LabParameterTile({required this.parameter});
+
+  final LabParameter parameter;
+
+  @override
+  Widget build(BuildContext context) {
+    final abnormal = _labParameterAbnormal(parameter.status);
+    final color = abnormal ? PratiCaseColors.errorRed : PratiCaseColors.teal;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: abnormal
+            ? PratiCaseColors.errorRed.withValues(alpha: 0.06)
+            : PratiCaseColors.teal.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  parameter.name,
+                  style: const TextStyle(
+                    color: PratiCaseColors.navy,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                if (parameter.referenceRange.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    parameter.referenceRange,
+                    style: const TextStyle(
+                      color: PratiCaseColors.muted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  parameter.value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                if (parameter.status.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    parameter.status,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -3083,6 +3294,25 @@ String _remainingParts(ExamSessionOverview session) {
   return '$minutes:$seconds';
 }
 
+String _shortDateTime(DateTime value) {
+  final local = value.toLocal();
+  final day = local.day.toString().padLeft(2, '0');
+  final month = local.month.toString().padLeft(2, '0');
+  final hour = local.hour.toString().padLeft(2, '0');
+  final minute = local.minute.toString().padLeft(2, '0');
+  return '$day.$month.${local.year} $hour:$minute';
+}
+
+bool _labParameterAbnormal(String status) {
+  final normalized = status.trim().toLowerCase();
+  return normalized.contains('yük') ||
+      normalized.contains('düş') ||
+      normalized.contains('pozitif') ||
+      normalized.contains('abnormal') ||
+      normalized.contains('high') ||
+      normalized.contains('low');
+}
+
 class _DetailHero extends StatelessWidget {
   const _DetailHero({required this.detail});
 
@@ -4212,15 +4442,172 @@ class _FindingsCard extends StatelessWidget {
   }
 }
 
+class _TestGroupPicker extends StatelessWidget {
+  const _TestGroupPicker({
+    required this.groups,
+    required this.options,
+    required this.onSelected,
+  });
+
+  final List<TestGroup> groups;
+  final List<TestOption> options;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Önce tetkik grubunu seç.',
+          style: TextStyle(
+            color: Color(0xFF4F5E72),
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 12),
+        for (final group in groups) ...[
+          _TestGroupTile(
+            group: group,
+            optionCount: options
+                .where((option) => option.groupId == group.id)
+                .length,
+            selectedCount: options
+                .where(
+                  (option) => option.groupId == group.id && option.isSelected,
+                )
+                .length,
+            selectedCost: options
+                .where(
+                  (option) => option.groupId == group.id && option.isSelected,
+                )
+                .fold<int>(0, (sum, option) => sum + option.pointCost),
+            onTap: () => onSelected(group.id),
+          ),
+          const SizedBox(height: 10),
+        ],
+      ],
+    );
+  }
+}
+
+class _TestGroupTile extends StatelessWidget {
+  const _TestGroupTile({
+    required this.group,
+    required this.optionCount,
+    required this.selectedCount,
+    required this.selectedCost,
+    required this.onTap,
+  });
+
+  final TestGroup group;
+  final int optionCount;
+  final int selectedCount;
+  final int selectedCost;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Ink(
+        padding: const EdgeInsets.all(14),
+        decoration: _cardDecoration(radius: 16),
+        child: Row(
+          children: [
+            _SoftIcon(
+              icon: Icons.biotech_outlined,
+              color: selectedCount > 0
+                  ? PratiCaseColors.successGreen
+                  : PratiCaseColors.teal,
+              size: 44,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    group.title,
+                    style: const TextStyle(
+                      color: PratiCaseColors.navy,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    selectedCount == 0
+                        ? '$optionCount tetkik seçeneği'
+                        : '$selectedCount/$optionCount istendi · $selectedCost puan',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: PratiCaseColors.muted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: PratiCaseColors.teal,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TestOptionsCard extends StatelessWidget {
+  const _TestOptionsCard({
+    required this.title,
+    required this.options,
+    required this.onRequest,
+    required this.onOpenDetail,
+  });
+
+  final String title;
+  final List<TestOption> options;
+  final ValueChanged<String> onRequest;
+  final ValueChanged<TestOption> onOpenDetail;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SectionCard(
+      title: title,
+      child: Column(
+        children: [
+          if (options.isEmpty)
+            const Text('Bu grupta canlı tetkik tanımlanmadı.')
+          else
+            for (final item in options) ...[
+              _TestOptionTile(
+                item: item,
+                onRequest: () => onRequest(item.id),
+                onOpenDetail: () => onOpenDetail(item),
+              ),
+              const SizedBox(height: 10),
+            ],
+        ],
+      ),
+    );
+  }
+}
+
 class _TestOptionTile extends StatelessWidget {
   const _TestOptionTile({
     required this.item,
-    required this.onTap,
+    required this.onRequest,
     required this.onOpenDetail,
   });
 
   final TestOption item;
-  final VoidCallback onTap;
+  final VoidCallback onRequest;
   final VoidCallback onOpenDetail;
 
   @override
@@ -4246,7 +4633,7 @@ class _TestOptionTile extends StatelessWidget {
         ],
       ),
       child: ListTile(
-        onTap: item.isSelected ? onOpenDetail : null,
+        onTap: item.isSelected ? onOpenDetail : onRequest,
         leading: _SoftIcon(
           icon: Icons.science_outlined,
           color: PratiCaseColors.teal,
@@ -4273,9 +4660,12 @@ class _TestOptionTile extends StatelessWidget {
               ),
             ),
             IconButton(
-              onPressed: onTap,
+              tooltip: item.isSelected ? 'Sonucu aç' : 'Tetkik iste',
+              onPressed: item.isSelected ? onOpenDetail : onRequest,
               icon: Icon(
-                item.isSelected ? Icons.check_circle : Icons.add_circle_outline,
+                item.isSelected
+                    ? Icons.visibility_outlined
+                    : Icons.add_circle_outline,
                 color: PratiCaseColors.teal,
               ),
             ),

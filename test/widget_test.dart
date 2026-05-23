@@ -364,6 +364,44 @@ void main() {
     expect(find.text('Sistem Değiştir'), findsOneWidget);
   });
 
+  testWidgets('tests screen asks for group and opens lab fallback result', (
+    tester,
+  ) async {
+    await _setIPhone14Viewport(tester);
+    final repository = _LabCasesRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TestsScreen(
+          repository: repository,
+          sessionId: 'session-1',
+          caseId: 'case-1',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Önce tetkik grubunu seç.'), findsOneWidget);
+    expect(find.text('Laboratuvar'), findsOneWidget);
+    expect(find.text('Hemogram'), findsNothing);
+
+    await tester.tap(find.text('Laboratuvar'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Laboratuvar Tetkikleri'), findsOneWidget);
+    expect(find.text('Hemogram'), findsOneWidget);
+
+    await tester.tap(find.text('Hemogram'));
+    await tester.pumpAndSettle();
+
+    expect(repository.requested, contains('hemogram'));
+    expect(find.text('Sonuç'), findsOneWidget);
+    expect(
+      find.text('Lökosit yüksek, nötrofil hakimiyeti var.'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('home screen renders with live empty optional sections', (
     tester,
   ) async {
@@ -701,6 +739,81 @@ class _PhysicalExamCasesRepository extends Fake implements CasesRepository {
   }) async {
     _selected.add(optionId);
   }
+
+  @override
+  Future<void> advanceSession({
+    required String sessionId,
+    required String step,
+  }) async {}
+}
+
+class _LabCasesRepository extends Fake implements CasesRepository {
+  _LabCasesRepository()
+    : _session = ExamSessionOverview(
+        id: 'session-1',
+        caseId: 'case-1',
+        caseTitle: 'Akut Apandisit',
+        patient: _ChatFlowCasesRepository._patient,
+        currentStep: 'tests',
+        remainingPoints: 300,
+        budgetPoints: 300,
+        durationMinutes: 7,
+        startedAt: DateTime.now().subtract(const Duration(minutes: 3)),
+      );
+
+  final ExamSessionOverview _session;
+  final Set<String> requested = {};
+
+  @override
+  Future<ExamSessionOverview> loadSession(String sessionId) async => _session;
+
+  @override
+  Future<List<TestGroup>> loadTestGroups(String caseId) async {
+    return const [
+      TestGroup(id: 'lab', title: 'Laboratuvar'),
+      TestGroup(id: 'imaging', title: 'Görüntüleme'),
+    ];
+  }
+
+  @override
+  Future<List<TestOption>> loadTestOptions({
+    required String sessionId,
+    required String caseId,
+  }) async {
+    return [
+      TestOption(
+        id: 'hemogram',
+        groupId: 'lab',
+        title: 'Hemogram',
+        result: 'Lökosit yüksek, nötrofil hakimiyeti var.',
+        pointCost: 2,
+        isSelected: requested.contains('hemogram'),
+      ),
+      TestOption(
+        id: 'usg',
+        groupId: 'imaging',
+        title: 'Batın USG',
+        result: 'Sağ alt kadranda inflamasyon ile uyumlu görünüm.',
+        pointCost: 4,
+        isSelected: requested.contains('usg'),
+      ),
+    ];
+  }
+
+  @override
+  Future<void> requestTest({
+    required String sessionId,
+    required String optionId,
+  }) async {
+    requested.add(optionId);
+  }
+
+  @override
+  Future<LabResultDetail?> loadLabResult(String testOptionId) async => null;
+
+  @override
+  Future<ImagingResultDetail?> loadImagingResult(String testOptionId) async =>
+      null;
 
   @override
   Future<void> advanceSession({
