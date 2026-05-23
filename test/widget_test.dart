@@ -402,6 +402,38 @@ void main() {
     );
   });
 
+  testWidgets('tests screen opens imaging fallback result', (tester) async {
+    await _setIPhone14Viewport(tester);
+    final repository = _LabCasesRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TestsScreen(
+          repository: repository,
+          sessionId: 'session-1',
+          caseId: 'case-1',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Görüntüleme'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Görüntüleme Tetkikleri'), findsOneWidget);
+    expect(find.text('Batın USG'), findsOneWidget);
+
+    await tester.tap(find.text('Batın USG'));
+    await tester.pumpAndSettle();
+
+    expect(repository.requested, contains('usg'));
+    expect(find.text('Batın USG'), findsWidgets);
+    expect(
+      find.text('Sağ alt kadranda inflamasyon ile uyumlu görünüm.'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('home screen renders with live empty optional sections', (
     tester,
   ) async {

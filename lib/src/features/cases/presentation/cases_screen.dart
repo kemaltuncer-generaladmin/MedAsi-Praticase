@@ -1188,6 +1188,8 @@ class _TestsScreenState extends State<TestsScreen> {
           builder: (_) => ImagingResultScreen(
             repository: widget.repository,
             testOptionId: item.id,
+            fallbackTitle: item.title,
+            fallbackResult: item.result,
           ),
         ),
       );
@@ -2059,11 +2061,15 @@ class ImagingResultScreen extends StatelessWidget {
   const ImagingResultScreen({
     required this.repository,
     required this.testOptionId,
+    this.fallbackTitle,
+    this.fallbackResult,
     super.key,
   });
 
   final CasesRepository repository;
   final String testOptionId;
+  final String? fallbackTitle;
+  final String? fallbackResult;
 
   @override
   Widget build(BuildContext context) {
@@ -2087,11 +2093,29 @@ class ImagingResultScreen extends StatelessWidget {
           }
           final detail = snapshot.data;
           if (detail == null) {
-            return const _CenteredState(
-              icon: Icons.image_search_rounded,
-              title: 'Görüntüleme detayı yok',
-              body:
-                  'Bu tetkik için canlı imaging_result_details kaydı bulunamadı.',
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+              children: [
+                _StepTopBar(title: fallbackTitle ?? 'Görüntüleme Sonucu'),
+                const SizedBox(height: 18),
+                _ImagingHero(title: fallbackTitle ?? 'Görüntüleme Sonucu'),
+                const SizedBox(height: 14),
+                _ImagingPlaceholderCard(title: fallbackTitle),
+                const SizedBox(height: 14),
+                _SectionCard(
+                  title: 'Sonuç',
+                  child: Text(
+                    (fallbackResult?.trim().isNotEmpty ?? false)
+                        ? fallbackResult!.trim()
+                        : 'Bu görüntüleme için canlı sonuç metni henüz tanımlanmadı.',
+                    style: const TextStyle(
+                      color: PratiCaseColors.navy,
+                      fontWeight: FontWeight.w700,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
             );
           }
           return ListView(
@@ -2099,36 +2123,198 @@ class ImagingResultScreen extends StatelessWidget {
             children: [
               _StepTopBar(title: detail.title),
               const SizedBox(height: 18),
-              Container(
-                height: 230,
-                decoration: _cardDecoration(),
-                clipBehavior: Clip.antiAlias,
-                child: detail.imageUrl.isEmpty
-                    ? const Center(child: Icon(Icons.image_outlined, size: 54))
-                    : Image.network(
-                        detail.imageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.broken_image_outlined, size: 54),
-                                SizedBox(height: 8),
-                                Text('Görüntü yüklenemedi'),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
+              _ImagingHero(title: detail.title),
+              const SizedBox(height: 14),
+              _ImagingPreviewCard(
+                imageUrl: detail.imageUrl,
+                title: detail.title,
               ),
               const SizedBox(height: 14),
-              _SectionCard(title: 'Rapor', child: Text(detail.report)),
+              _SectionCard(
+                title: 'Rapor',
+                child: Text(
+                  detail.report.trim().isEmpty
+                      ? 'Bu görüntüleme için rapor metni henüz tanımlanmadı.'
+                      : detail.report,
+                  style: const TextStyle(
+                    color: PratiCaseColors.navy,
+                    fontWeight: FontWeight.w700,
+                    height: 1.4,
+                  ),
+                ),
+              ),
               const SizedBox(height: 14),
-              _SectionCard(title: 'Sonuç', child: Text(detail.conclusion)),
+              _SectionCard(
+                title: 'Sonuç',
+                child: Text(
+                  detail.conclusion.trim().isEmpty
+                      ? 'Bu görüntüleme için sonuç metni henüz tanımlanmadı.'
+                      : detail.conclusion,
+                  style: const TextStyle(
+                    color: PratiCaseColors.navy,
+                    fontWeight: FontWeight.w800,
+                    height: 1.4,
+                  ),
+                ),
+              ),
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _ImagingHero extends StatelessWidget {
+  const _ImagingHero({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.navy,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: PratiCaseColors.navy.withValues(alpha: 0.12),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.image_search_rounded,
+              color: PratiCaseColors.tealBright,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'İstenen görüntüleme sonucu',
+                  style: TextStyle(
+                    color: Color(0xFFDDE8EA),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ImagingPreviewCard extends StatelessWidget {
+  const _ImagingPreviewCard({required this.imageUrl, required this.title});
+
+  final String imageUrl;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    if (imageUrl.trim().isEmpty) {
+      return _ImagingPlaceholderCard(title: title);
+    }
+    return Container(
+      height: 230,
+      decoration: _cardDecoration(),
+      clipBehavior: Clip.antiAlias,
+      child: Image.network(
+        imageUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return _ImagingPlaceholderCard(
+            title: title,
+            message: 'Görüntü yüklenemedi. Rapor metni aşağıda.',
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ImagingPlaceholderCard extends StatelessWidget {
+  const _ImagingPlaceholderCard({this.title, this.message});
+
+  final String? title;
+  final String? message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 178,
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              color: PratiCaseColors.teal.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: const Icon(
+              Icons.image_not_supported_outlined,
+              color: PratiCaseColors.teal,
+              size: 28,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            title?.trim().isNotEmpty == true
+                ? title!.trim()
+                : 'Görüntüleme Önizlemesi',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: PratiCaseColors.navy,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            message ?? 'Görüntü dosyası yok. Klinik rapor ve sonuçla devam et.',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: PratiCaseColors.muted,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
