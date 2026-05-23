@@ -129,6 +129,7 @@ class SupabaseHomeRepository implements HomeRepository {
           .from('cases')
           .select('id,title,branch,difficulty,points,icon_key')
           .eq('is_published', true)
+          .like('slug', 'admin-%')
           .order('created_at', ascending: false)
           .limit(8);
       return [

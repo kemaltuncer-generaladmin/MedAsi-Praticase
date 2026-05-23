@@ -8,6 +8,7 @@ import 'src/features/auth/data/auth_repository_factory.dart';
 import 'src/features/cases/data/supabase_cases_repository.dart';
 import 'src/features/home/data/supabase_home_repository.dart';
 import 'src/features/progress/data/supabase_progress_repository.dart';
+import 'src/features/theoretical_exam/data/supabase_theoretical_exam_repository.dart';
 import 'src/shared/data/repository_timeout.dart';
 
 Future<void> main() async {
@@ -26,6 +27,9 @@ Future<void> main() async {
         ),
         progressRepository: TimeoutProgressRepository(
           SupabaseProgressRepository(client: client),
+        ),
+        theoreticalExamRepository: TimeoutTheoreticalExamRepository(
+          SupabaseTheoreticalExamRepository(client: client),
         ),
       ),
     );

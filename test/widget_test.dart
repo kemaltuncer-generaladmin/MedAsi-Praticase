@@ -8,12 +8,15 @@ import 'package:praticase/src/features/auth/presentation/screens/profile_setup_s
 import 'package:praticase/src/features/auth/presentation/screens/register_screen.dart';
 import 'package:praticase/src/features/auth/presentation/screens/reset_password_screen.dart';
 import 'package:praticase/src/features/cases/data/cases_repository.dart';
+import 'package:praticase/src/features/cases/domain/osce_case.dart';
+import 'package:praticase/src/features/cases/presentation/cases_screen.dart';
 import 'package:praticase/src/features/home/data/home_repository.dart';
 import 'package:praticase/src/features/home/domain/home_dashboard.dart';
 import 'package:praticase/src/features/home/presentation/home_screen.dart';
 import 'package:praticase/src/features/progress/data/progress_repository.dart';
 import 'package:praticase/src/features/progress/domain/progress_models.dart';
 import 'package:praticase/src/features/progress/presentation/progress_screens.dart';
+import 'package:praticase/src/features/theoretical_exam/data/theoretical_exam_repository.dart';
 
 void main() {
   testWidgets('PratiCase auth onboarding renders', (tester) async {
@@ -23,6 +26,7 @@ void main() {
         homeRepository: _FakeHomeRepository(),
         casesRepository: _FakeCasesRepository(),
         progressRepository: _FakeProgressRepository(),
+        theoreticalExamRepository: _FakeTheoreticalExamRepository(),
       ),
     );
     await tester.pump();
@@ -204,9 +208,84 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('kemal.tuncer'), findsOneWidget);
     expect(find.text('kemal.tuncer@medasi.com.tr'), findsOneWidget);
+    expect(find.text('PratiCase Üyesi'), findsOneWidget);
     expect(find.text('İstatistiklerim'), findsOneWidget);
+  });
+
+  testWidgets('weak area analysis renders category score results', (
+    tester,
+  ) async {
+    await _setIPhone14Viewport(tester);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: WeakAreaAnalysisScreen(repository: _ClinicalProgressRepository()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Zayıf Alan Analizi'), findsOneWidget);
+    expect(find.text('Anamnez Derinliği'), findsOneWidget);
+    expect(find.text('%40'), findsOneWidget);
+    expect(find.text('%60'), findsOneWidget);
+    expect(find.text('%70'), findsOneWidget);
+  });
+
+  testWidgets('notifications mark all read and notify live headers', (
+    tester,
+  ) async {
+    await _setIPhone14Viewport(tester);
+    final repository = _NotificationsProgressRepository();
+    var changeCount = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NotificationsScreen(
+          repository: repository,
+          onChanged: () async => changeCount++,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 okunmamış bildirim var.'), findsOneWidget);
+    await tester.tap(find.text('Tümünü Oku'));
+    await tester.pumpAndSettle();
+
+    expect(repository.markedAllRead, isTrue);
+    expect(changeCount, 1);
+    expect(find.text('Okunmamış bildirimin yok.'), findsOneWidget);
+  });
+
+  testWidgets('case library header exposes live notifications and profile', (
+    tester,
+  ) async {
+    await _setIPhone14Viewport(tester);
+    var openedNotifications = false;
+    var openedProfile = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CasesScreen(
+            repository: _CasesHeaderRepository(),
+            unreadNotificationCount: 3,
+            onOpenNotifications: () => openedNotifications = true,
+            onOpenProfile: () => openedProfile = true,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Bildirimler'), findsOneWidget);
+    expect(find.byTooltip('Profilim'), findsOneWidget);
+    await tester.tap(find.byTooltip('Bildirimler'));
+    await tester.tap(find.byTooltip('Profilim'));
+
+    expect(openedNotifications, isTrue);
+    expect(openedProfile, isTrue);
   });
 
   testWidgets('home screen renders with live empty optional sections', (
@@ -227,7 +306,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Canlı veri bağlantısı gerekli'), findsNothing);
-    expect(find.text('Devam Edilen Vaka'), findsOneWidget);
+    expect(find.text('Tek İstasyon'), findsOneWidget);
+    expect(find.text('Genel Bakış'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('Önerilen Vakalar'),
       300,
@@ -242,6 +322,9 @@ class _FakeHomeRepository extends Fake implements HomeRepository {}
 class _FakeCasesRepository extends Fake implements CasesRepository {}
 
 class _FakeProgressRepository extends Fake implements ProgressRepository {}
+
+class _FakeTheoreticalExamRepository extends Fake
+    implements TheoreticalExamRepository {}
 
 class _ProfileProgressRepository extends Fake implements ProgressRepository {
   @override
@@ -292,6 +375,101 @@ class _LongEmailProgressRepository extends Fake implements ProgressRepository {
         caseDownloadsEnabled: false,
       ),
     );
+  }
+}
+
+class _ClinicalProgressRepository extends _ProfileProgressRepository {
+  @override
+  Future<ClinicalProgressSummary> loadClinicalProgressSummary() async {
+    return const ClinicalProgressSummary(
+      sessionCount: 2,
+      categoryScores: [
+        ClinicalSkillScore(
+          category: 'history',
+          label: 'Anamnez',
+          score: 24,
+          maxScore: 60,
+        ),
+        ClinicalSkillScore(
+          category: 'diagnosis',
+          label: 'Ayırıcı Tanı',
+          score: 18,
+          maxScore: 30,
+        ),
+        ClinicalSkillScore(
+          category: 'management',
+          label: 'Yönetim & Tedavi',
+          score: 14,
+          maxScore: 20,
+        ),
+      ],
+    );
+  }
+
+  @override
+  Future<List<CaseCollectionItem>> loadCaseHistory() async => const [];
+}
+
+class _NotificationsProgressRepository extends Fake
+    implements ProgressRepository {
+  bool markedAllRead = false;
+  List<NotificationCard> notifications = [
+    NotificationCard(
+      id: '1',
+      title: 'Yeni vaka',
+      body: 'Akut batın istasyonu yayınlandı.',
+      isRead: false,
+      createdAt: DateTime(2026, 5, 23),
+    ),
+    NotificationCard(
+      id: '2',
+      title: 'Karne hazır',
+      body: 'Sonucun görüntülenmeye hazır.',
+      isRead: false,
+      createdAt: DateTime(2026, 5, 22),
+    ),
+  ];
+
+  @override
+  Future<List<NotificationCard>> loadNotifications() async => notifications;
+
+  @override
+  Future<void> markAllNotificationsRead() async {
+    markedAllRead = true;
+    notifications = [
+      for (final item in notifications)
+        NotificationCard(
+          id: item.id,
+          title: item.title,
+          body: item.body,
+          isRead: true,
+          createdAt: item.createdAt,
+        ),
+    ];
+  }
+}
+
+class _CasesHeaderRepository extends Fake implements CasesRepository {
+  @override
+  Future<List<OsceCaseSummary>> loadCases({
+    String query = '',
+    String? difficulty,
+  }) async {
+    return const [
+      OsceCaseSummary(
+        id: 'case-1',
+        title: 'Akut Apandisit',
+        branch: 'Genel Cerrahi',
+        setting: 'Acil',
+        difficulty: OsceDifficulty.medium,
+        durationMinutes: 7,
+        points: 100,
+        solvedCount: 0,
+        summary: 'Karın ağrısı ile başvuran hastayı değerlendiriniz.',
+        iconKey: 'abdomen',
+        isBookmarked: false,
+      ),
+    ];
   }
 }
 

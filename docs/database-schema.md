@@ -190,6 +190,19 @@ graph TD
 | `created_at` | timestamptz | |
 | `updated_at` | timestamptz | |
 
+#### Checklist kaynak tabloları
+> Admin paneldeki Swift `PraticaseAIImportClient` tarafından üretilen ham AI JSON paketleri. Bu kayıtlar vaka üretiminin ana kaynağıdır; kullanıcı vaka listesini buradan türeyen `praticase.cases` kayıtlarından görür, AI hasta/skor bağlamı da aynı `payload` paketlerini okur.
+
+| Tablo | Amaç |
+|---|---|
+| `praticase.praticase_history_checklists` | `anamnez.json` formatındaki anamnez AI paketi |
+| `praticase.praticase_physical_exam_checklists` | `fizik_muayene.json` formatındaki fizik muayene AI paketi |
+| `praticase.praticase_laboratory_checklists` | `laboratuvar.json` formatındaki laboratuvar/tetkik AI paketi |
+| `praticase.praticase_imaging_checklists` | `goruntuleme.json` formatındaki görüntüleme AI paketi |
+| `praticase.praticase_diagnostic_checklists` | `on_tani_ayirici_tani.json` formatındaki ön tanı/ayırıcı tanı AI paketi |
+
+Admin panel her tabloya şu ortak kolonlarla POST eder: `course`, `case_name`, `difficulty`, `diagnosis_name`, `content_type`, `payload`, `ai_provider`, `ai_model`, `source_format_file`, `generated_at`, opsiyonel `created_by_admin_user_id`. Insert/update trigger'ları bu paketi `case_id` ile yayınlanmış `praticase.cases` kaydına bağlar ve mevcut mobil akışın kullandığı `case_patient_response_rules`, `physical_exam_options`, `test_options`, `lab_result_details`, `imaging_result_details` ve `diagnosis_options` tablolarına uyumluluk kaydı üretir.
+
 ---
 
 #### `praticase.badge_definitions`

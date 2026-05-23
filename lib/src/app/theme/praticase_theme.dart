@@ -16,6 +16,7 @@ abstract final class PratiCaseTheme {
       fontFamily: 'Plus Jakarta Sans',
       colorScheme: colorScheme,
       scaffoldBackgroundColor: PratiCaseColors.softSurface,
+      visualDensity: VisualDensity.standard,
       appBarTheme: const AppBarTheme(
         backgroundColor: PratiCaseColors.white,
         foregroundColor: PratiCaseColors.navy,
@@ -53,6 +54,83 @@ abstract final class PratiCaseTheme {
             borderRadius: BorderRadius.circular(12),
           ),
         ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: PratiCaseColors.teal,
+          side: const BorderSide(color: PratiCaseColors.border),
+          minimumSize: const Size.fromHeight(48),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: PratiCaseColors.teal,
+          textStyle: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          foregroundColor: PratiCaseColors.navy,
+          minimumSize: const Size(44, 44),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+      ),
+      inputDecorationTheme: InputDecorationThemeData(
+        filled: true,
+        fillColor: PratiCaseColors.white,
+        hintStyle: const TextStyle(
+          color: Color(0xFF8A96A6),
+          fontWeight: FontWeight.w600,
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 15,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: PratiCaseColors.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: PratiCaseColors.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: PratiCaseColors.teal, width: 1.4),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: PratiCaseColors.white,
+        selectedColor: PratiCaseColors.teal,
+        disabledColor: PratiCaseColors.surfaceContainerHighest,
+        side: const BorderSide(color: PratiCaseColors.border),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        labelStyle: const TextStyle(
+          color: PratiCaseColors.slateBlue,
+          fontWeight: FontWeight.w800,
+        ),
+        secondaryLabelStyle: const TextStyle(
+          color: PratiCaseColors.white,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: PratiCaseColors.navy,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        contentTextStyle: const TextStyle(
+          color: PratiCaseColors.white,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: PratiCaseColors.white,
+        surfaceTintColor: PratiCaseColors.white,
+        showDragHandle: true,
       ),
       textTheme: const TextTheme(
         displayLarge: TextStyle(

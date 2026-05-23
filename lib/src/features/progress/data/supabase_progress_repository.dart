@@ -12,6 +12,30 @@ class SupabaseProgressRepository implements ProgressRepository {
   final SupabaseClient _client;
 
   @override
+  Future<List<ExamModeItem>> loadExamModes() async {
+    try {
+      final rows = await _client
+          .schema('praticase')
+          .from('exam_mode_cards')
+          .select('id,title,subtitle,icon_key,action_key,sort_order')
+          .eq('is_active', true)
+          .order('sort_order');
+      return [
+        for (final row in rows)
+          ExamModeItem(
+            id: _string(row, 'id'),
+            title: _string(row, 'title'),
+            subtitle: _string(row, 'subtitle'),
+            iconKey: _string(row, 'icon_key'),
+            actionKey: _string(row, 'action_key'),
+          ),
+      ];
+    } on PostgrestException catch (error) {
+      throw ProgressDataUnavailable(_message(error));
+    }
+  }
+
+  @override
   Future<List<BadgeCard>> loadBadges() async {
     try {
       final rows = await _client
@@ -126,6 +150,48 @@ class SupabaseProgressRepository implements ProgressRepository {
   }
 
   @override
+  Future<ClinicalProgressSummary> loadClinicalProgressSummary() async {
+    try {
+      final rows = await _client
+          .schema('praticase')
+          .from('session_result_cards')
+          .select('category_scores');
+      final totals = <String, (int, int)>{
+        'history': (0, 0),
+        'physical': (0, 0),
+        'tests': (0, 0),
+        'diagnosis': (0, 0),
+        'management': (0, 0),
+      };
+      for (final row in rows) {
+        final categories = row['category_scores'] as List<dynamic>? ?? [];
+        for (final value in categories) {
+          if (value is! Map<String, dynamic>) continue;
+          final key = _categoryKey(_string(value, 'title'));
+          if (key == null) continue;
+          final current = totals[key]!;
+          totals[key] = (
+            current.$1 + _int(value, 'score'),
+            current.$2 + _int(value, 'maxScore'),
+          );
+        }
+      }
+      return ClinicalProgressSummary(
+        sessionCount: rows.length,
+        categoryScores: [
+          _skillScore('history', 'Anamnez', totals),
+          _skillScore('physical', 'Fizik Muayene', totals),
+          _skillScore('tests', 'Tetkik İnceleme', totals),
+          _skillScore('diagnosis', 'Ayırıcı Tanı', totals),
+          _skillScore('management', 'Yönetim & Tedavi', totals),
+        ],
+      );
+    } on PostgrestException catch (error) {
+      throw ProgressDataUnavailable(_message(error));
+    }
+  }
+
+  @override
   Future<List<NotificationCard>> loadNotifications() async {
     try {
       final rows = await _client
@@ -150,6 +216,21 @@ class SupabaseProgressRepository implements ProgressRepository {
   }
 
   @override
+  Future<int> loadUnreadNotificationCount() async {
+    try {
+      final response = await _client
+          .schema('praticase')
+          .from('user_notifications')
+          .select('id')
+          .eq('is_read', false)
+          .count(CountOption.exact);
+      return response.count;
+    } on PostgrestException catch (error) {
+      throw ProgressDataUnavailable(_message(error));
+    }
+  }
+
+  @override
   Future<void> markNotificationRead(String notificationId) async {
     if (notificationId.trim().isEmpty) return;
     try {
@@ -158,6 +239,19 @@ class SupabaseProgressRepository implements ProgressRepository {
           .from('user_notifications')
           .update({'is_read': true})
           .eq('id', notificationId);
+    } on PostgrestException catch (error) {
+      throw ProgressDataUnavailable(_message(error));
+    }
+  }
+
+  @override
+  Future<void> markAllNotificationsRead() async {
+    try {
+      await _client
+          .schema('praticase')
+          .from('user_notifications')
+          .update({'is_read': true})
+          .eq('is_read', false);
     } on PostgrestException catch (error) {
       throw ProgressDataUnavailable(_message(error));
     }
@@ -490,6 +584,38 @@ class SupabaseProgressRepository implements ProgressRepository {
   int? _nullableInt(Map<String, dynamic> row, String key) {
     if (row[key] == null) return null;
     return _int(row, key);
+  }
+
+  ClinicalSkillScore _skillScore(
+    String category,
+    String label,
+    Map<String, (int, int)> totals,
+  ) {
+    final total = totals[category] ?? (0, 0);
+    return ClinicalSkillScore(
+      category: category,
+      label: label,
+      score: total.$1,
+      maxScore: total.$2,
+    );
+  }
+
+  String? _categoryKey(String title) {
+    final normalized = title.toLowerCase();
+    if (normalized.contains('anamnez')) return 'history';
+    if (normalized.contains('fizik') || normalized.contains('muayene')) {
+      return 'physical';
+    }
+    if (normalized.contains('tetkik')) return 'tests';
+    if (normalized.contains('tanı') || normalized.contains('tani')) {
+      return 'diagnosis';
+    }
+    if (normalized.contains('yönetim') ||
+        normalized.contains('yonetim') ||
+        normalized.contains('tedavi')) {
+      return 'management';
+    }
+    return null;
   }
 
   String _message(PostgrestException error) {

@@ -17,11 +17,25 @@ class BadgesScreen extends StatefulWidget {
 
 class _BadgesScreenState extends State<BadgesScreen> {
   int _selectedFilter = 0;
+  late Future<List<BadgeCard>> _badgesFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _badgesFuture = widget.repository.loadBadges();
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      _badgesFuture = widget.repository.loadBadges();
+    });
+    await _badgesFuture;
+  }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<BadgeCard>>(
-      future: widget.repository.loadBadges(),
+      future: _badgesFuture,
       builder: (context, snapshot) {
         final badges = snapshot.data ?? const <BadgeCard>[];
         final visible = switch (_selectedFilter) {
@@ -30,7 +44,8 @@ class _BadgesScreenState extends State<BadgesScreen> {
           _ => badges,
         };
         return _ProgressPage(
-          title: 'Rozetlerim',
+          title: 'Başarılarım',
+          onRefresh: _refresh,
           children: [
             _BadgeSummaryHero(badges: badges),
             const SizedBox(height: 16),
@@ -171,12 +186,16 @@ class ProfileScreen extends StatelessWidget {
     required this.authRepository,
     required this.repository,
     required this.onSignOut,
+    this.unreadNotificationCount = 0,
+    this.onOpenNotifications,
     super.key,
   });
 
   final AuthRepository authRepository;
   final ProgressRepository repository;
   final Future<void> Function() onSignOut;
+  final int unreadNotificationCount;
+  final VoidCallback? onOpenNotifications;
 
   @override
   Widget build(BuildContext context) {
@@ -209,8 +228,15 @@ class ProfileScreen extends StatelessWidget {
         }
         final profile = snapshot.requireData;
         return ListView(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 116),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 126),
           children: [
+            _ProfileBrandHeader(
+              repository: repository,
+              profile: profile,
+              unreadNotificationCount: unreadNotificationCount,
+              onOpenNotifications: onOpenNotifications,
+            ),
+            const SizedBox(height: 24),
             _ProfileHero(profile: profile),
             const SizedBox(height: 16),
             _StatsPanel(profile: profile),
@@ -268,7 +294,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _refresh() async {
-    setState(() => _profileFuture = widget.repository.loadProfile());
+    setState(() {
+      _profileFuture = widget.repository.loadProfile();
+    });
     await _profileFuture;
   }
 
@@ -293,6 +321,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 body: _errorText(snapshot.error),
               )
             else ...[
+              _SettingsHero(settings: snapshot.requireData.settings),
+              const SizedBox(height: 16),
               _SettingsSection(
                 title: 'Hesap',
                 rows: [
@@ -588,9 +618,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 }
 
 class NotificationsScreen extends StatefulWidget {
-  const NotificationsScreen({required this.repository, super.key});
+  const NotificationsScreen({
+    required this.repository,
+    this.onChanged,
+    super.key,
+  });
 
   final ProgressRepository repository;
+  final Future<void> Function()? onChanged;
 
   @override
   State<NotificationsScreen> createState() => _NotificationsScreenState();
@@ -691,10 +726,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _refresh() async {
-    setState(
-      () => _notificationsFuture = widget.repository.loadNotifications(),
-    );
+    setState(() {
+      _notificationsFuture = widget.repository.loadNotifications();
+    });
     await _notificationsFuture;
+    await widget.onChanged?.call();
   }
 
   @override
@@ -710,7 +746,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         };
         return _ProgressPage(
           title: 'Bildirim Merkezi',
+          onRefresh: _refresh,
           children: [
+            _NotificationsHero(
+              notifications: notifications,
+              onMarkAllRead: _markAllRead,
+            ),
+            const SizedBox(height: 16),
             _SegmentHeader(
               items: const ['Tümü', 'Okunmamış', 'Okunan'],
               selectedIndex: _selectedFilter,
@@ -760,6 +802,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       ).showSnackBar(SnackBar(content: Text(error.message)));
     }
   }
+
+  Future<void> _markAllRead() async {
+    final notifications = await _notificationsFuture;
+    final unread = notifications.where((item) => !item.isRead).toList();
+    if (unread.isEmpty) return;
+    try {
+      await widget.repository.markAllNotificationsRead();
+      await _refresh();
+    } on ProgressDataUnavailable catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  }
 }
 
 class FavoriteCasesScreen extends StatelessWidget {
@@ -769,12 +826,13 @@ class FavoriteCasesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _LiveListPage<CaseCollectionItem>(
+    return _CaseCollectionPage(
       title: 'Favori Vakalarım',
       future: repository.loadFavoriteCases(),
+      mode: _CaseCollectionMode.favorites,
       emptyTitle: 'Favori vaka yok',
-      emptyBody: 'Favoriye alınan canlı vakalar burada görünür.',
-      itemBuilder: (item) => _CaseCollectionTile(item: item),
+      emptyBody:
+          'Vaka detayından favoriye eklediğin istasyonlar burada görünür.',
     );
   }
 }
@@ -786,12 +844,13 @@ class CaseHistoryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _LiveListPage<CaseCollectionItem>(
+    return _CaseCollectionPage(
       title: 'Vaka Geçmişim',
       future: repository.loadCaseHistory(),
+      mode: _CaseCollectionMode.history,
       emptyTitle: 'Vaka geçmişi yok',
-      emptyBody: 'Başlatılan canlı OSCE oturumları burada listelenir.',
-      itemBuilder: (item) => _CaseCollectionTile(item: item, history: true),
+      emptyBody:
+          'Başlatılan OSCE oturumları ve tamamlanma durumları burada listelenir.',
     );
   }
 }
@@ -803,7 +862,9 @@ class WeakAreaAnalysisScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<(ProfileCard, List<CaseCollectionItem>)>(
+    return FutureBuilder<
+      (ProfileCard, ClinicalProgressSummary, List<CaseCollectionItem>)
+    >(
       future: _load(),
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
@@ -832,8 +893,9 @@ class WeakAreaAnalysisScreen extends StatelessWidget {
         }
 
         final profile = snapshot.requireData.$1;
-        final history = snapshot.requireData.$2;
-        final weakest = _weakAreas(profile, history);
+        final summary = snapshot.requireData.$2;
+        final history = snapshot.requireData.$3;
+        final weakest = _weakAreas(summary, history);
         final repeatCases = history
             .where(
               (item) =>
@@ -878,38 +940,57 @@ class WeakAreaAnalysisScreen extends StatelessWidget {
     );
   }
 
-  Future<(ProfileCard, List<CaseCollectionItem>)> _load() async {
-    final profile = await repository.loadProfile();
-    final history = await repository.loadCaseHistory();
-    return (profile, history);
+  Future<(ProfileCard, ClinicalProgressSummary, List<CaseCollectionItem>)>
+  _load() async {
+    final profile = repository.loadProfile();
+    final summary = repository.loadClinicalProgressSummary();
+    final history = repository.loadCaseHistory();
+    return (await profile, await summary, await history);
   }
 
   List<_WeakArea> _weakAreas(
-    ProfileCard profile,
+    ClinicalProgressSummary summary,
     List<CaseCollectionItem> history,
   ) {
     final incomplete = history
         .where((item) => (item.progressPercent ?? 100) < 100)
         .length;
     final lowScore = history.where((item) => (item.score ?? 100) < 75).length;
+    if (summary.sessionCount == 0) {
+      return const [
+        _WeakArea(
+          title: 'Anamnez Derinliği',
+          percent: 0,
+          note: 'Tamamlanan oturum sonucu henüz bulunmuyor.',
+        ),
+        _WeakArea(
+          title: 'Ayırıcı Tanı',
+          percent: 0,
+          note: 'Tamamlanan oturum sonucu henüz bulunmuyor.',
+        ),
+        _WeakArea(
+          title: 'Yönetim Planı',
+          percent: 0,
+          note: 'Tamamlanan oturum sonucu henüz bulunmuyor.',
+        ),
+      ];
+    }
     return [
       _WeakArea(
         title: 'Anamnez Derinliği',
-        percent: (profile.successRatePercent - 12).clamp(0, 100).toInt(),
+        percent: summary.percentFor('history'),
         note: incomplete > 0
             ? '$incomplete oturumda anamnez sonrası akış tamamlanmamış.'
             : 'Kırmızı bayrak ve sistem sorgusunu düzenli tekrar et.',
       ),
       _WeakArea(
         title: 'Ayırıcı Tanı',
-        percent: profile.correctDiagnosisRate.clamp(0, 100).toInt(),
+        percent: summary.percentFor('diagnosis'),
         note: 'En az 3 kritik ön tanıyı gerekçesiyle yazmaya odaklan.',
       ),
       _WeakArea(
         title: 'Yönetim Planı',
-        percent: (profile.successRatePercent - lowScore * 4)
-            .clamp(0, 100)
-            .toInt(),
+        percent: summary.percentFor('management'),
         note: lowScore > 0
             ? '$lowScore düşük skorlu vaka yönetim planı tekrarı istiyor.'
             : 'Acil yaklaşım, danışma ve izlem adımlarını netleştir.',
@@ -1073,12 +1154,171 @@ class NotesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _LiveListPage<UserNote>(
-      title: 'Notlarım',
-      future: repository.loadNotes(),
-      emptyTitle: 'Kayıtlı not yok',
-      emptyBody: 'OSCE odasında eklediğin vaka notları burada görünür.',
-      itemBuilder: (item) => _NoteTile(item: item),
+    return _NotesPage(repository: repository);
+  }
+}
+
+class DownloadsScreen extends StatefulWidget {
+  const DownloadsScreen({required this.repository, super.key});
+
+  final ProgressRepository repository;
+
+  @override
+  State<DownloadsScreen> createState() => _DownloadsScreenState();
+}
+
+class _DownloadsScreenState extends State<DownloadsScreen> {
+  late Future<(ProfileCard, List<CaseCollectionItem>, List<CaseCollectionItem>)>
+  _future;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  Future<(ProfileCard, List<CaseCollectionItem>, List<CaseCollectionItem>)>
+  _load() async {
+    final profile = widget.repository.loadProfile();
+    final favorites = widget.repository.loadFavoriteCases();
+    final history = widget.repository.loadCaseHistory();
+    return (await profile, await favorites, await history);
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      _future = _load();
+    });
+    await _future;
+  }
+
+  Future<void> _toggleDownloads(ProfileCard profile) async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    final settings = profile.settings;
+    try {
+      await widget.repository.saveAppSettings(
+        AppSettings(
+          displayMode: settings.displayMode,
+          language: settings.language,
+          textSize: settings.textSize,
+          soundAndHaptics: settings.soundAndHaptics,
+          dataUsage: settings.dataUsage,
+          offlineMode: settings.offlineMode,
+          caseDownloadsEnabled: !settings.caseDownloadsEnabled,
+        ),
+      );
+      await _refresh();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            settings.caseDownloadsEnabled
+                ? 'Vaka indirmeleri kapatıldı.'
+                : 'Vaka indirmeleri açıldı.',
+          ),
+        ),
+      );
+    } on ProgressDataUnavailable catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<
+      (ProfileCard, List<CaseCollectionItem>, List<CaseCollectionItem>)
+    >(
+      future: _future,
+      builder: (context, snapshot) {
+        return _ProgressPage(
+          title: 'İndirmelerim',
+          onRefresh: _refresh,
+          children: [
+            if (snapshot.connectionState != ConnectionState.done)
+              const _StateBlock(
+                icon: Icons.download_rounded,
+                title: 'İndirme ayarları yükleniyor',
+                body: 'Favori ve geçmiş vaka paketlerin hazırlanıyor.',
+              )
+            else if (snapshot.hasError)
+              _StateBlock(
+                icon: Icons.cloud_off_rounded,
+                title: 'İndirmeler açılamadı',
+                body: _errorText(snapshot.error),
+              )
+            else ...[
+              _DownloadsHero(
+                profile: snapshot.requireData.$1,
+                favorites: snapshot.requireData.$2,
+                history: snapshot.requireData.$3,
+                saving: _saving,
+                onToggle: () => _toggleDownloads(snapshot.requireData.$1),
+              ),
+              const SizedBox(height: 16),
+              _SettingsSection(
+                title: 'Çevrimdışı Hazırlık',
+                rows: [
+                  _SettingsRow(
+                    Icons.favorite_border_rounded,
+                    'Favori Vakalar',
+                    value: '${snapshot.requireData.$2.length} vaka',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            FavoriteCasesScreen(repository: widget.repository),
+                      ),
+                    ),
+                  ),
+                  _SettingsRow(
+                    Icons.history_rounded,
+                    'Son Oturumlar',
+                    value: '${snapshot.requireData.$3.length} kayıt',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            CaseHistoryScreen(repository: widget.repository),
+                      ),
+                    ),
+                  ),
+                  _SettingsRow(
+                    Icons.wifi_off_rounded,
+                    'Çevrimdışı Mod',
+                    value: snapshot.requireData.$1.settings.offlineMode
+                        ? 'Açık'
+                        : 'Kapalı',
+                    onTap: null,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'İndirmeye Hazır Vakalar',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 10),
+              if (snapshot.requireData.$2.isEmpty)
+                const _StateBlock(
+                  icon: Icons.favorite_border_rounded,
+                  title: 'İndirilecek favori vaka yok',
+                  body:
+                      'Vaka detayından favori eklediğinde çevrimdışı hazırlık listesi burada oluşur.',
+                )
+              else
+                for (final item in snapshot.requireData.$2.take(6)) ...[
+                  _CaseCollectionTile(item: item, compact: true),
+                  const SizedBox(height: 10),
+                ],
+            ],
+          ],
+        );
+      },
     );
   }
 }
@@ -1346,43 +1586,51 @@ class LogoutConfirmScreen extends StatelessWidget {
 }
 
 class _ProgressPage extends StatelessWidget {
-  const _ProgressPage({required this.title, required this.children});
+  const _ProgressPage({
+    required this.title,
+    required this.children,
+    this.onRefresh,
+  });
 
   final String title;
   final List<Widget> children;
+  final Future<void> Function()? onRefresh;
 
   @override
   Widget build(BuildContext context) {
+    final list = ListView(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 116),
+      children: [
+        Row(
+          children: [
+            IconButton(
+              onPressed: () => Navigator.maybePop(context),
+              icon: const Icon(Icons.arrow_back_rounded),
+            ),
+            Expanded(
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: PratiCaseColors.navy,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            const SizedBox(width: 48),
+          ],
+        ),
+        const SizedBox(height: 16),
+        ...children,
+      ],
+    );
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9FB),
       body: SafeArea(
         bottom: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 116),
-          children: [
-            Row(
-              children: [
-                IconButton(
-                  onPressed: () => Navigator.maybePop(context),
-                  icon: const Icon(Icons.arrow_back_rounded),
-                ),
-                Expanded(
-                  child: Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: PratiCaseColors.navy,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 48),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ...children,
-          ],
-        ),
+        child: onRefresh == null
+            ? list
+            : RefreshIndicator(onRefresh: onRefresh!, child: list),
       ),
     );
   }
@@ -1448,6 +1696,251 @@ class _LiveListPage<T> extends StatelessWidget {
   }
 }
 
+enum _CaseCollectionMode { favorites, history }
+
+class _CaseCollectionPage extends StatefulWidget {
+  const _CaseCollectionPage({
+    required this.title,
+    required this.future,
+    required this.mode,
+    required this.emptyTitle,
+    required this.emptyBody,
+  });
+
+  final String title;
+  final Future<List<CaseCollectionItem>> future;
+  final _CaseCollectionMode mode;
+  final String emptyTitle;
+  final String emptyBody;
+
+  @override
+  State<_CaseCollectionPage> createState() => _CaseCollectionPageState();
+}
+
+class _CaseCollectionPageState extends State<_CaseCollectionPage> {
+  final _searchController = TextEditingController();
+  int _selectedFilter = 0;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filterItems = widget.mode == _CaseCollectionMode.history
+        ? const ['Tümü', 'Tamamlanan', 'Devam', 'Düşük Skor']
+        : const ['Tümü', 'Kolay', 'Orta', 'Zor'];
+    return FutureBuilder<List<CaseCollectionItem>>(
+      future: widget.future,
+      builder: (context, snapshot) {
+        final items = snapshot.data ?? const <CaseCollectionItem>[];
+        final visible = _visibleItems(items, filterItems);
+        return _ProgressPage(
+          title: widget.title,
+          children: [
+            _CaseCollectionHero(items: items, mode: widget.mode),
+            const SizedBox(height: 14),
+            _SearchField(
+              controller: _searchController,
+              hintText: widget.mode == _CaseCollectionMode.history
+                  ? 'Geçmişte vaka ara'
+                  : 'Favorilerde vaka ara',
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
+            _SegmentHeader(
+              items: filterItems,
+              selectedIndex: _selectedFilter,
+              onSelected: (index) => setState(() => _selectedFilter = index),
+            ),
+            const SizedBox(height: 16),
+            if (snapshot.connectionState != ConnectionState.done)
+              const _StateBlock(
+                icon: Icons.hourglass_empty_rounded,
+                title: 'Canlı veri yükleniyor',
+                body: 'PratiCase vaka kayıtların Supabase’den okunuyor.',
+              )
+            else if (snapshot.hasError)
+              _StateBlock(
+                icon: Icons.cloud_off_rounded,
+                title: 'Ekran açılamadı',
+                body: _errorText(snapshot.error),
+              )
+            else if (items.isEmpty)
+              _StateBlock(
+                icon: widget.mode == _CaseCollectionMode.history
+                    ? Icons.history_rounded
+                    : Icons.favorite_border_rounded,
+                title: widget.emptyTitle,
+                body: widget.emptyBody,
+              )
+            else if (visible.isEmpty)
+              const _StateBlock(
+                icon: Icons.search_off_rounded,
+                title: 'Sonuç bulunamadı',
+                body: 'Arama veya filtreyi değiştirerek tekrar deneyebilirsin.',
+              )
+            else
+              for (final item in visible) ...[
+                _CaseCollectionTile(
+                  item: item,
+                  history: widget.mode == _CaseCollectionMode.history,
+                ),
+                const SizedBox(height: 10),
+              ],
+          ],
+        );
+      },
+    );
+  }
+
+  List<CaseCollectionItem> _visibleItems(
+    List<CaseCollectionItem> items,
+    List<String> filters,
+  ) {
+    final query = _searchController.text.trim().toLowerCase();
+    final filter = filters[_selectedFilter];
+    return items.where((item) {
+      final haystack = [
+        item.title,
+        item.branch,
+        item.difficulty,
+      ].join(' ').toLowerCase();
+      final matchesQuery = query.isEmpty || haystack.contains(query);
+      if (!matchesQuery) return false;
+      if (filter == 'Tümü') return true;
+      if (widget.mode == _CaseCollectionMode.favorites) {
+        return item.difficulty.toLowerCase() == filter.toLowerCase();
+      }
+      if (filter == 'Tamamlanan') return (item.progressPercent ?? 0) >= 100;
+      if (filter == 'Devam') return (item.progressPercent ?? 0) < 100;
+      if (filter == 'Düşük Skor') return (item.score ?? 100) < 75;
+      return true;
+    }).toList();
+  }
+}
+
+class _NotesPage extends StatefulWidget {
+  const _NotesPage({required this.repository});
+
+  final ProgressRepository repository;
+
+  @override
+  State<_NotesPage> createState() => _NotesPageState();
+}
+
+class _NotesPageState extends State<_NotesPage> {
+  final _searchController = TextEditingController();
+  late Future<List<UserNote>> _future;
+  String _selectedCategory = 'Tümü';
+
+  @override
+  void initState() {
+    super.initState();
+    _future = widget.repository.loadNotes();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      _future = widget.repository.loadNotes();
+    });
+    await _future;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<UserNote>>(
+      future: _future,
+      builder: (context, snapshot) {
+        final notes = snapshot.data ?? const <UserNote>[];
+        final categories = [
+          'Tümü',
+          ...{
+            for (final note in notes)
+              if (note.category.trim().isNotEmpty) note.category.trim(),
+          },
+        ];
+        if (!categories.contains(_selectedCategory)) {
+          _selectedCategory = 'Tümü';
+        }
+        final visible = _visibleNotes(notes);
+        return _ProgressPage(
+          title: 'Notlarım',
+          onRefresh: _refresh,
+          children: [
+            _NotesHero(notes: notes),
+            const SizedBox(height: 14),
+            _SearchField(
+              controller: _searchController,
+              hintText: 'Notlarda ara',
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
+            _FilterChips(
+              items: categories,
+              selected: _selectedCategory,
+              onSelected: (value) => setState(() => _selectedCategory = value),
+            ),
+            const SizedBox(height: 16),
+            if (snapshot.connectionState != ConnectionState.done)
+              const _StateBlock(
+                icon: Icons.note_alt_outlined,
+                title: 'Notlar yükleniyor',
+                body: 'OSCE odasında aldığın notlar hazırlanıyor.',
+              )
+            else if (snapshot.hasError)
+              _StateBlock(
+                icon: Icons.cloud_off_rounded,
+                title: 'Notlar açılamadı',
+                body: _errorText(snapshot.error),
+              )
+            else if (notes.isEmpty)
+              const _StateBlock(
+                icon: Icons.note_alt_outlined,
+                title: 'Kayıtlı not yok',
+                body: 'OSCE odasında eklediğin vaka notları burada görünür.',
+              )
+            else if (visible.isEmpty)
+              const _StateBlock(
+                icon: Icons.search_off_rounded,
+                title: 'Not bulunamadı',
+                body: 'Arama veya kategori filtresini değiştir.',
+              )
+            else
+              for (final note in visible) ...[
+                _NoteTile(item: note),
+                const SizedBox(height: 10),
+              ],
+          ],
+        );
+      },
+    );
+  }
+
+  List<UserNote> _visibleNotes(List<UserNote> notes) {
+    final query = _searchController.text.trim().toLowerCase();
+    return notes.where((note) {
+      final matchesCategory =
+          _selectedCategory == 'Tümü' || note.category == _selectedCategory;
+      final haystack = [
+        note.title,
+        note.body,
+        note.category,
+        note.caseTitle ?? '',
+      ].join(' ').toLowerCase();
+      return matchesCategory && (query.isEmpty || haystack.contains(query));
+    }).toList();
+  }
+}
+
 class _SegmentHeader extends StatelessWidget {
   const _SegmentHeader({
     required this.items,
@@ -1499,6 +1992,570 @@ class _SegmentHeader extends StatelessWidget {
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SearchField extends StatelessWidget {
+  const _SearchField({
+    required this.controller,
+    required this.hintText,
+    required this.onChanged,
+  });
+
+  final TextEditingController controller;
+  final String hintText;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      onChanged: onChanged,
+      textInputAction: TextInputAction.search,
+      decoration: InputDecoration(
+        hintText: hintText,
+        prefixIcon: const Icon(Icons.search_rounded),
+        suffixIcon: controller.text.isEmpty
+            ? null
+            : IconButton(
+                tooltip: 'Temizle',
+                onPressed: () {
+                  controller.clear();
+                  onChanged('');
+                },
+                icon: const Icon(Icons.close_rounded),
+              ),
+      ),
+    );
+  }
+}
+
+class _FilterChips extends StatelessWidget {
+  const _FilterChips({
+    required this.items,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final List<String> items;
+  final String selected;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (final item in items) ...[
+            ChoiceChip(
+              label: Text(item),
+              selected: selected == item,
+              onSelected: (_) => onSelected(item),
+            ),
+            const SizedBox(width: 8),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _CaseCollectionHero extends StatelessWidget {
+  const _CaseCollectionHero({required this.items, required this.mode});
+
+  final List<CaseCollectionItem> items;
+  final _CaseCollectionMode mode;
+
+  @override
+  Widget build(BuildContext context) {
+    final completed = items
+        .where((item) => (item.progressPercent ?? 0) >= 100)
+        .length;
+    final average = _averageScore(items);
+    final title = mode == _CaseCollectionMode.history
+        ? 'OSCE Yolculuğun'
+        : 'Klinik Kısa Listen';
+    final body = mode == _CaseCollectionMode.history
+        ? 'Tamamlanan ve devam eden istasyonlarını tek yerden izle.'
+        : 'Tekrar çözmek istediğin vakaları sınav öncesi hızlıca aç.';
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [PratiCaseColors.gradientStart, PratiCaseColors.gradientEnd],
+        ),
+        borderRadius: BorderRadius.all(Radius.circular(24)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              Icon(
+                mode == _CaseCollectionMode.history
+                    ? Icons.timeline_rounded
+                    : Icons.favorite_rounded,
+                color: PratiCaseColors.tealBright,
+                size: 34,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            body,
+            style: const TextStyle(
+              color: Color(0xFFDDE8EA),
+              height: 1.35,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _HeroMetric(
+                  label: mode == _CaseCollectionMode.history
+                      ? 'Toplam Oturum'
+                      : 'Favori Vaka',
+                  value: '${items.length}',
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _HeroMetric(
+                  label: mode == _CaseCollectionMode.history
+                      ? 'Tamamlanan'
+                      : 'Branş',
+                  value: mode == _CaseCollectionMode.history
+                      ? '$completed'
+                      : '${_distinctBranches(items)}',
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _HeroMetric(
+                  label: mode == _CaseCollectionMode.history
+                      ? 'Ortalama'
+                      : 'Toplam Puan',
+                  value: mode == _CaseCollectionMode.history
+                      ? (average == null ? '-' : '%$average')
+                      : '${items.fold<int>(0, (sum, item) => sum + item.points)}',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NotesHero extends StatelessWidget {
+  const _NotesHero({required this.notes});
+
+  final List<UserNote> notes;
+
+  @override
+  Widget build(BuildContext context) {
+    final caseLinked = notes.where((note) => note.caseTitle != null).length;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: _cardDecoration(),
+      child: Row(
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              color: PratiCaseColors.gold.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: const Icon(
+              Icons.note_alt_rounded,
+              color: PratiCaseColors.gold,
+              size: 30,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Klinik Not Defteri',
+                  style: TextStyle(
+                    color: PratiCaseColors.navy,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  '${notes.length} not • $caseLinked vaka bağlantılı',
+                  style: const TextStyle(
+                    color: Color(0xFF66758A),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NotificationsHero extends StatelessWidget {
+  const _NotificationsHero({
+    required this.notifications,
+    required this.onMarkAllRead,
+  });
+
+  final List<NotificationCard> notifications;
+  final Future<void> Function() onMarkAllRead;
+
+  @override
+  Widget build(BuildContext context) {
+    final unread = notifications.where((item) => !item.isRead).length;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: _cardDecoration(),
+      child: Row(
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  color: PratiCaseColors.teal.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Icon(
+                  Icons.notifications_active_outlined,
+                  color: PratiCaseColors.teal,
+                  size: 30,
+                ),
+              ),
+              if (unread > 0)
+                Positioned(
+                  right: -3,
+                  top: -3,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: PratiCaseColors.gold,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                    child: Text(
+                      '$unread',
+                      style: const TextStyle(
+                        color: PratiCaseColors.navy,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Bildirim Kutusu',
+                  style: TextStyle(
+                    color: PratiCaseColors.navy,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  unread == 0
+                      ? 'Okunmamış bildirimin yok.'
+                      : '$unread okunmamış bildirim var.',
+                  style: const TextStyle(
+                    color: Color(0xFF66758A),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: unread == 0 ? null : onMarkAllRead,
+            child: const Text('Tümünü Oku'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingsHero extends StatelessWidget {
+  const _SettingsHero({required this.settings});
+
+  final AppSettings settings;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [PratiCaseColors.navy, PratiCaseColors.teal],
+        ),
+        borderRadius: BorderRadius.all(Radius.circular(24)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Uygulama Tercihleri',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Sınav odağı, erişilebilirlik ve veri kullanımını buradan yönet.',
+            style: TextStyle(
+              color: Color(0xFFDDE8EA),
+              height: 1.35,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _StatusPill(
+                icon: Icons.visibility_outlined,
+                label: settings.displayMode,
+              ),
+              _StatusPill(
+                icon: Icons.text_fields_rounded,
+                label: settings.textSize,
+              ),
+              _StatusPill(
+                icon: Icons.data_usage_rounded,
+                label: settings.dataUsage,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DownloadsHero extends StatelessWidget {
+  const _DownloadsHero({
+    required this.profile,
+    required this.favorites,
+    required this.history,
+    required this.saving,
+    required this.onToggle,
+  });
+
+  final ProfileCard profile;
+  final List<CaseCollectionItem> favorites;
+  final List<CaseCollectionItem> history;
+  final bool saving;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = profile.settings.caseDownloadsEnabled;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: enabled ? PratiCaseColors.navy : PratiCaseColors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: enabled
+              ? PratiCaseColors.tealBright.withValues(alpha: 0.5)
+              : PratiCaseColors.border,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  enabled ? 'İndirmeler Açık' : 'İndirmeler Kapalı',
+                  style: TextStyle(
+                    color: enabled ? Colors.white : PratiCaseColors.navy,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              Switch(
+                value: enabled,
+                onChanged: saving ? null : (_) => onToggle(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Favori vakalar ve son oturumlar çevrimdışı çalışma hazırlığı için listelenir.',
+            style: TextStyle(
+              color: enabled ? const Color(0xFFDDE8EA) : PratiCaseColors.muted,
+              height: 1.35,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _HeroMetric(
+                  label: 'Favori',
+                  value: '${favorites.length}',
+                  dark: enabled,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _HeroMetric(
+                  label: 'Geçmiş',
+                  value: '${history.length}',
+                  dark: enabled,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _HeroMetric(
+                  label: 'Veri',
+                  value: profile.settings.dataUsage,
+                  dark: enabled,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroMetric extends StatelessWidget {
+  const _HeroMetric({
+    required this.label,
+    required this.value,
+    this.dark = true,
+  });
+
+  final String label;
+  final String value;
+  final bool dark;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: dark
+            ? Colors.white.withValues(alpha: 0.1)
+            : PratiCaseColors.softSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: dark
+              ? Colors.white.withValues(alpha: 0.18)
+              : PratiCaseColors.border,
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: TextStyle(
+                color: dark ? Colors.white : PratiCaseColors.navy,
+                fontSize: 17,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: dark ? const Color(0xFFDDE8EA) : PratiCaseColors.muted,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: PratiCaseColors.tealBright, size: 16),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
         ],
       ),
     );
@@ -1978,6 +3035,128 @@ class _RankSummary extends StatelessWidget {
   }
 }
 
+class _ProfileBrandHeader extends StatelessWidget {
+  const _ProfileBrandHeader({
+    required this.repository,
+    required this.profile,
+    required this.unreadNotificationCount,
+    this.onOpenNotifications,
+  });
+
+  final ProgressRepository repository;
+  final ProfileCard profile;
+  final int unreadNotificationCount;
+  final VoidCallback? onOpenNotifications;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.asset(
+            'assets/branding/praticase.png',
+            width: 44,
+            height: 44,
+          ),
+        ),
+        const SizedBox(width: 12),
+        const Expanded(
+          child: Text.rich(
+            TextSpan(
+              style: TextStyle(
+                color: PratiCaseColors.navy,
+                fontSize: 26,
+                fontWeight: FontWeight.w900,
+              ),
+              children: [
+                TextSpan(text: 'Prati'),
+                TextSpan(
+                  text: 'Case',
+                  style: TextStyle(color: PratiCaseColors.teal),
+                ),
+              ],
+            ),
+          ),
+        ),
+        _ProfileNotificationBell(
+          count: unreadNotificationCount,
+          onTap:
+              onOpenNotifications ??
+              () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => NotificationsScreen(repository: repository),
+                ),
+              ),
+        ),
+        const SizedBox(width: 8),
+        CircleAvatar(
+          radius: 22,
+          backgroundColor: PratiCaseColors.teal.withValues(alpha: 0.12),
+          child: Text(
+            _initial(
+              profile.displayName.trim().isEmpty
+                  ? profile.email
+                  : profile.displayName,
+            ),
+            style: const TextStyle(
+              color: PratiCaseColors.teal,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileNotificationBell extends StatelessWidget {
+  const _ProfileNotificationBell({required this.count, required this.onTap});
+
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        IconButton(
+          tooltip: 'Bildirimler',
+          onPressed: onTap,
+          icon: const Icon(
+            Icons.notifications_none_rounded,
+            color: PratiCaseColors.navy,
+            size: 30,
+          ),
+        ),
+        if (count > 0)
+          Positioned(
+            top: 2,
+            right: 2,
+            child: Container(
+              alignment: Alignment.center,
+              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+              padding: const EdgeInsets.symmetric(horizontal: 5),
+              decoration: const BoxDecoration(
+                color: PratiCaseColors.gold,
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                count > 9 ? '9+' : '$count',
+                style: const TextStyle(
+                  color: PratiCaseColors.navy,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _ProfileHero extends StatelessWidget {
   const _ProfileHero({required this.profile});
 
@@ -1985,17 +3164,19 @@ class _ProfileHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasDisplayName = profile.displayName.trim().isNotEmpty;
-    final title = hasDisplayName
+    final avatarTitle = profile.displayName.trim().isNotEmpty
         ? profile.displayName.trim()
         : _emailName(profile.email);
+    final title = profile.email.trim().isNotEmpty
+        ? profile.email.trim()
+        : avatarTitle;
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 34, 20, 26),
-      decoration: const BoxDecoration(
+      padding: const EdgeInsets.fromLTRB(20, 26, 20, 24),
+      decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF005263), Color(0xFF007179)],
+          colors: [PratiCaseColors.gradientStart, PratiCaseColors.gradientEnd],
         ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
         children: [
@@ -2003,7 +3184,7 @@ class _ProfileHero extends StatelessWidget {
             radius: 46,
             backgroundColor: Colors.white,
             child: Text(
-              _initial(title),
+              _initial(avatarTitle),
               style: const TextStyle(
                 color: PratiCaseColors.teal,
                 fontSize: 28,
@@ -2012,33 +3193,18 @@ class _ProfileHero extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              title,
-              maxLines: 1,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-              ),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 19,
+              fontWeight: FontWeight.w900,
             ),
           ),
-          if (!hasDisplayName && profile.email.trim().isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(
-              profile.email.trim(),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             [
               profile.target,
@@ -2055,13 +3221,25 @@ class _ProfileHero extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
             ),
-            child: const Text(
-              'PratiCase Üyesi',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w900,
-              ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.verified_user_outlined,
+                  color: Colors.white,
+                  size: 18,
+                ),
+                SizedBox(width: 8),
+                Text(
+                  'PratiCase Üyesi',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -2078,7 +3256,7 @@ class _StatsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2116,7 +3294,7 @@ class _StatsPanel extends StatelessWidget {
                   _MiniMetric(
                     width: width,
                     label: 'Ortalama',
-                    value: '${profile.successRatePercent}',
+                    value: '%${profile.successRatePercent}',
                   ),
                   _MiniMetric(
                     width: width,
@@ -2159,13 +3337,14 @@ class _MenuPanel extends StatelessWidget {
         decoration: _cardDecoration(),
         child: Column(
           children: [
-            for (final item in items)
+            for (var index = 0; index < items.length; index++) ...[
               ListTile(
-                leading: Icon(item.icon, color: PratiCaseColors.navy),
-                title: Text(item.title),
+                leading: Icon(items[index].icon, color: PratiCaseColors.teal),
+                title: Text(items[index].title),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () {
-                  if (item.title == 'Vaka Geçmişim') {
+                  final title = items[index].title;
+                  if (title == 'Vaka Geçmişim') {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) =>
@@ -2173,7 +3352,7 @@ class _MenuPanel extends StatelessWidget {
                       ),
                     );
                   }
-                  if (item.title == 'Favori Vakalarım') {
+                  if (title == 'Favori Vakalarım') {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) =>
@@ -2181,14 +3360,14 @@ class _MenuPanel extends StatelessWidget {
                       ),
                     );
                   }
-                  if (item.title == 'Notlarım') {
+                  if (title == 'Notlarım') {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) => NotesScreen(repository: repository),
                       ),
                     );
                   }
-                  if (item.title == 'Günlük Hedefler') {
+                  if (title == 'Günlük Hedefler') {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) =>
@@ -2196,7 +3375,7 @@ class _MenuPanel extends StatelessWidget {
                       ),
                     );
                   }
-                  if (item.title == 'Liderlik Tablosu') {
+                  if (title == 'Liderlik Tablosu') {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) =>
@@ -2204,7 +3383,7 @@ class _MenuPanel extends StatelessWidget {
                       ),
                     );
                   }
-                  if (item.title == 'Bildirimler') {
+                  if (title == 'Bildirimler') {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) =>
@@ -2212,14 +3391,14 @@ class _MenuPanel extends StatelessWidget {
                       ),
                     );
                   }
-                  if (item.title == 'Başarılarım') {
+                  if (title == 'Başarılarım') {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) => BadgesScreen(repository: repository),
                       ),
                     );
                   }
-                  if (item.title == 'Ayarlar') {
+                  if (title == 'Ayarlar') {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) => SettingsScreen(
@@ -2230,7 +3409,7 @@ class _MenuPanel extends StatelessWidget {
                       ),
                     );
                   }
-                  if (item.title == 'Yardım ve Destek') {
+                  if (title == 'Yardım ve Destek') {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) =>
@@ -2238,15 +3417,18 @@ class _MenuPanel extends StatelessWidget {
                       ),
                     );
                   }
-                  if (item.title == 'İndirmelerim') {
+                  if (title == 'İndirmelerim') {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (_) => MyDataScreen(repository: repository),
+                        builder: (_) => DownloadsScreen(repository: repository),
                       ),
                     );
                   }
                 },
               ),
+              if (index != items.length - 1)
+                const Divider(height: 1, indent: 56, endIndent: 16),
+            ],
           ],
         ),
       ),
@@ -2396,19 +3578,41 @@ class _NotificationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      padding: const EdgeInsets.symmetric(vertical: 4),
       decoration: _cardDecoration(),
       child: ListTile(
         onTap: onTap,
-        leading: Icon(
-          item.isRead ? Icons.notifications_none_rounded : Icons.star_rounded,
-          color: item.isRead ? const Color(0xFF66758A) : PratiCaseColors.gold,
+        leading: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: (item.isRead ? PratiCaseColors.muted : PratiCaseColors.gold)
+                .withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Icon(
+            item.isRead ? Icons.notifications_none_rounded : Icons.star_rounded,
+            color: item.isRead ? const Color(0xFF66758A) : PratiCaseColors.gold,
+          ),
         ),
-        title: Text(item.title),
-        subtitle: Text(item.body),
+        title: Text(
+          item.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontWeight: FontWeight.w900),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            '${_shortDate(item.createdAt)} • ${item.body}',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
         trailing: item.isRead
             ? const Icon(Icons.check_circle_outline_rounded)
             : const Text(
-                'Okundu',
+                'Oku',
                 style: TextStyle(
                   color: PratiCaseColors.teal,
                   fontWeight: FontWeight.w900,
@@ -2427,22 +3631,91 @@ class _NoteTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(),
-      child: ListTile(
-        leading: const Icon(
-          Icons.note_alt_outlined,
-          color: PratiCaseColors.teal,
-        ),
-        title: Text(item.title),
-        subtitle: Text(
-          [
-            item.category,
-            if (item.caseTitle != null) item.caseTitle!,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: PratiCaseColors.teal.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.note_alt_outlined,
+                  color: PratiCaseColors.teal,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: PratiCaseColors.navy,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      _shortDate(item.updatedAt),
+                      style: const TextStyle(
+                        color: Color(0xFF66758A),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _SmallTag(label: item.category),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
             item.body,
-          ].join(' • '),
-          maxLines: 3,
-          overflow: TextOverflow.ellipsis,
-        ),
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: PratiCaseColors.ink,
+              height: 1.42,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (item.caseTitle != null) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(
+                  Icons.local_hospital_outlined,
+                  color: PratiCaseColors.muted,
+                  size: 16,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    item.caseTitle!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: PratiCaseColors.muted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -2556,38 +3829,118 @@ class _FaqTile extends StatelessWidget {
 }
 
 class _CaseCollectionTile extends StatelessWidget {
-  const _CaseCollectionTile({required this.item, this.history = false});
+  const _CaseCollectionTile({
+    required this.item,
+    this.history = false,
+    this.compact = false,
+  });
 
   final CaseCollectionItem item;
   final bool history;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    final progress = ((item.progressPercent ?? 0) / 100).clamp(0.0, 1.0);
+    final score = item.score;
+    final scoreColor = score == null
+        ? PratiCaseColors.muted
+        : score >= 80
+        ? PratiCaseColors.successGreen
+        : score >= 60
+        ? PratiCaseColors.gold
+        : PratiCaseColors.errorRed;
     return Container(
+      padding: const EdgeInsets.all(14),
       decoration: _cardDecoration(),
-      child: ListTile(
-        leading: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: PratiCaseColors.teal.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: PratiCaseColors.teal.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  _caseIcon(item.iconKey),
+                  color: PratiCaseColors.teal,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: PratiCaseColors.navy,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        if (item.branch.isNotEmpty)
+                          _SmallTag(label: _statusLabel(item.branch)),
+                        if (item.difficulty.isNotEmpty)
+                          _SmallTag(label: item.difficulty),
+                        if (item.updatedAt != null)
+                          _SmallTag(label: _shortDate(item.updatedAt!)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                history ? (score == null ? '-' : '$score') : '${item.points}',
+                style: TextStyle(
+                  color: history ? scoreColor : PratiCaseColors.teal,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
           ),
-          child: const Icon(
-            Icons.local_hospital_rounded,
-            color: PratiCaseColors.teal,
-          ),
-        ),
-        title: Text(item.title),
-        subtitle: Text(
-          history
-              ? 'İlerleme: %${item.progressPercent ?? 0}'
-              : '${item.branch} • ${item.difficulty}',
-        ),
-        trailing: Text(
-          history ? '${item.score ?? 0}' : '${item.points} Puan',
-          style: const TextStyle(fontWeight: FontWeight.w900),
-        ),
+          if (history && !compact) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(99),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 7,
+                      backgroundColor: PratiCaseColors.surfaceContainerHighest,
+                      color: progress >= 1
+                          ? PratiCaseColors.successGreen
+                          : PratiCaseColors.teal,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  '%${item.progressPercent ?? 0}',
+                  style: const TextStyle(
+                    color: PratiCaseColors.muted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -2613,12 +3966,12 @@ class _WeakHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(22, 24, 18, 24),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [PratiCaseColors.gradientStart, PratiCaseColors.gradientEnd],
         ),
-        borderRadius: BorderRadius.all(Radius.circular(16)),
+        borderRadius: BorderRadius.all(Radius.circular(24)),
       ),
       child: Row(
         children: [
@@ -2631,7 +3984,7 @@ class _WeakHero extends StatelessWidget {
                   style: TextStyle(
                     color: Colors.white70,
                     fontWeight: FontWeight.w800,
-                    fontSize: 12,
+                    fontSize: 15,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -2639,6 +3992,7 @@ class _WeakHero extends StatelessWidget {
                   '%${profile.successRatePercent}',
                   style: Theme.of(context).textTheme.displayLarge?.copyWith(
                     color: PratiCaseColors.white,
+                    fontSize: 52,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -2656,7 +4010,7 @@ class _WeakHero extends StatelessWidget {
           const Icon(
             Icons.track_changes_rounded,
             color: PratiCaseColors.tealBright,
-            size: 52,
+            size: 68,
           ),
         ],
       ),
@@ -2677,7 +4031,7 @@ class _WeakAreaCard extends StatelessWidget {
         ? PratiCaseColors.gold
         : PratiCaseColors.errorRed;
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2946,6 +4300,34 @@ class _InfoCard extends StatelessWidget {
   }
 }
 
+class _SmallTag extends StatelessWidget {
+  const _SmallTag({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.softSurface,
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: PratiCaseColors.border),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          color: PratiCaseColors.slateBlue,
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
 class _MenuItem {
   const _MenuItem(this.icon, this.title);
 
@@ -2956,7 +4338,7 @@ class _MenuItem {
 BoxDecoration _cardDecoration() {
   return BoxDecoration(
     color: Colors.white,
-    borderRadius: BorderRadius.circular(16),
+    borderRadius: BorderRadius.circular(20),
     border: Border.all(color: PratiCaseColors.border),
     boxShadow: [
       BoxShadow(
@@ -2981,6 +4363,66 @@ Color _tierColor(String tier) {
     default:
       return const Color(0xFFB6754D);
   }
+}
+
+IconData _caseIcon(String? iconKey) {
+  switch ((iconKey ?? '').toLowerCase()) {
+    case 'heart':
+      return Icons.monitor_heart_outlined;
+    case 'abdomen':
+      return Icons.medical_services_outlined;
+    case 'surgery':
+      return Icons.local_hospital_outlined;
+    case 'urology':
+      return Icons.water_drop_outlined;
+    case 'gynecology':
+      return Icons.female_rounded;
+    case 'history':
+      return Icons.history_rounded;
+    default:
+      return Icons.local_hospital_rounded;
+  }
+}
+
+String _statusLabel(String value) {
+  switch (value.toLowerCase()) {
+    case 'history':
+      return 'Anamnez';
+    case 'physical_exam':
+      return 'Muayene';
+    case 'tests':
+      return 'Tetkik';
+    case 'diagnosis':
+      return 'Tanı';
+    case 'management':
+      return 'Yönetim';
+    case 'completed':
+      return 'Tamamlandı';
+    default:
+      return value;
+  }
+}
+
+String _shortDate(DateTime value) {
+  final day = value.day.toString().padLeft(2, '0');
+  final month = value.month.toString().padLeft(2, '0');
+  return '$day.$month.${value.year}';
+}
+
+int? _averageScore(List<CaseCollectionItem> items) {
+  final scores = [
+    for (final item in items)
+      if (item.score != null) item.score!,
+  ];
+  if (scores.isEmpty) return null;
+  return (scores.reduce((a, b) => a + b) / scores.length).round();
+}
+
+int _distinctBranches(List<CaseCollectionItem> items) {
+  return {
+    for (final item in items)
+      if (item.branch.trim().isNotEmpty) item.branch.trim(),
+  }.length;
 }
 
 String _errorText(Object? error) {

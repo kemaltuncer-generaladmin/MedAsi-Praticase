@@ -1,15 +1,23 @@
 import '../domain/progress_models.dart';
 
 abstract interface class ProgressRepository {
+  Future<List<ExamModeItem>> loadExamModes();
+
   Future<List<BadgeCard>> loadBadges();
 
   Future<List<LeaderboardEntry>> loadLeaderboard();
 
   Future<ProfileCard> loadProfile();
 
+  Future<ClinicalProgressSummary> loadClinicalProgressSummary();
+
   Future<List<NotificationCard>> loadNotifications();
 
+  Future<int> loadUnreadNotificationCount();
+
   Future<void> markNotificationRead(String notificationId);
+
+  Future<void> markAllNotificationsRead();
 
   Future<List<SimpleContentItem>> loadSupportTopics();
 

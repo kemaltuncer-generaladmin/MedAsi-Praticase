@@ -6,6 +6,7 @@ import '../features/cases/data/cases_repository.dart';
 import '../features/home/data/home_repository.dart';
 import '../features/progress/data/progress_repository.dart';
 import '../features/shell/presentation/praticase_shell.dart';
+import '../features/theoretical_exam/data/theoretical_exam_repository.dart';
 import 'theme/praticase_theme.dart';
 
 class PratiCaseApp extends StatefulWidget {
@@ -14,6 +15,7 @@ class PratiCaseApp extends StatefulWidget {
     required this.homeRepository,
     required this.casesRepository,
     required this.progressRepository,
+    required this.theoreticalExamRepository,
     super.key,
   });
 
@@ -21,6 +23,7 @@ class PratiCaseApp extends StatefulWidget {
   final HomeRepository homeRepository;
   final CasesRepository casesRepository;
   final ProgressRepository progressRepository;
+  final TheoreticalExamRepository theoreticalExamRepository;
 
   @override
   State<PratiCaseApp> createState() => _PratiCaseAppState();
@@ -65,6 +68,7 @@ class _PratiCaseAppState extends State<PratiCaseApp> {
               homeRepository: widget.homeRepository,
               casesRepository: widget.casesRepository,
               progressRepository: widget.progressRepository,
+              theoreticalExamRepository: widget.theoreticalExamRepository,
               onSignOut: _signOut,
             )
           : AuthFlow(

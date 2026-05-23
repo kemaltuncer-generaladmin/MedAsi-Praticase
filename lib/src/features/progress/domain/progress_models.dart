@@ -20,6 +20,22 @@ class BadgeCard {
   final bool earned;
 }
 
+class ExamModeItem {
+  const ExamModeItem({
+    required this.id,
+    required this.title,
+    required this.subtitle,
+    required this.iconKey,
+    required this.actionKey,
+  });
+
+  final String id;
+  final String title;
+  final String subtitle;
+  final String iconKey;
+  final String actionKey;
+}
+
 class LeaderboardEntry {
   const LeaderboardEntry({
     required this.rank,
@@ -64,6 +80,41 @@ class ProfileCard {
   final int dailyStreak;
   final int successRatePercent;
   final AppSettings settings;
+}
+
+class ClinicalProgressSummary {
+  const ClinicalProgressSummary({
+    required this.sessionCount,
+    required this.categoryScores,
+  });
+
+  final int sessionCount;
+  final List<ClinicalSkillScore> categoryScores;
+
+  int percentFor(String category) {
+    for (final score in categoryScores) {
+      if (score.category == category) return score.percent;
+    }
+    return 0;
+  }
+}
+
+class ClinicalSkillScore {
+  const ClinicalSkillScore({
+    required this.category,
+    required this.label,
+    required this.score,
+    required this.maxScore,
+  });
+
+  final String category;
+  final String label;
+  final int score;
+  final int maxScore;
+
+  int get percent => maxScore <= 0
+      ? 0
+      : ((score / maxScore) * 100).round().clamp(0, 100).toInt();
 }
 
 class AppSettings {

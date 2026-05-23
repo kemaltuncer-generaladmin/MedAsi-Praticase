@@ -5,6 +5,10 @@ import {
   generateVertexText,
   vertexConfigured,
 } from "../_shared/vertex_ai.ts";
+import {
+  loadCaseChecklists,
+  mergeCaseChecklistContext,
+} from "../_shared/case_checklists.ts";
 
 type JsonMap = Record<string, unknown>;
 
@@ -131,10 +135,14 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: error.message }, 400, origin);
   }
 
-  return jsonResponse({
-    result: Array.isArray(data) ? data[0] : data,
-    model: evaluationModel(),
-  }, 200, origin);
+  return jsonResponse(
+    {
+      result: Array.isArray(data) ? data[0] : data,
+      model: evaluationModel(),
+    },
+    200,
+    origin,
+  );
 });
 
 async function buildScoringContext(
@@ -208,6 +216,10 @@ async function buildScoringContext(
   const caseData = Array.isArray(session.cases)
     ? session.cases[0]
     : session.cases;
+  const checklists = await loadCaseChecklists(
+    supabase,
+    String(session.case_id ?? ""),
+  );
   return {
     data: {
       session: {
@@ -217,7 +229,7 @@ async function buildScoringContext(
         startedAt: session.started_at,
         endedAt: session.ended_at,
       },
-      case: caseData,
+      case: mergeCaseChecklistContext(caseData ?? {}, checklists),
       transcript: messages.data ?? [],
       selectedPhysicalExam: physical.data ?? [],
       requestedTests: tests.data ?? [],

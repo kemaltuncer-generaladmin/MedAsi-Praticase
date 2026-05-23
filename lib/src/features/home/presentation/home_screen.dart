@@ -14,7 +14,9 @@ class HomeScreen extends StatefulWidget {
     this.onOpenExams,
     this.onOpenProgress,
     this.onOpenNotifications,
+    this.onOpenProfile,
     this.onOpenBadges,
+    this.unreadNotificationCount,
     super.key,
   });
 
@@ -24,7 +26,9 @@ class HomeScreen extends StatefulWidget {
   final VoidCallback? onOpenExams;
   final VoidCallback? onOpenProgress;
   final VoidCallback? onOpenNotifications;
+  final VoidCallback? onOpenProfile;
   final VoidCallback? onOpenBadges;
+  final int? unreadNotificationCount;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -72,53 +76,71 @@ class _HomeScreenState extends State<HomeScreen> {
               _HomeHeader(
                 dashboard: dashboard,
                 onOpenNotifications: widget.onOpenNotifications,
+                onOpenProfile: widget.onOpenProfile,
+                unreadNotificationCount: widget.unreadNotificationCount,
               ),
-              const SizedBox(height: 26),
+              const SizedBox(height: 30),
               _Greeting(user: dashboard.user, onSearch: widget.onOpenCases),
-              const SizedBox(height: 22),
-              _SectionHeader(
-                title: 'Devam Edilen Vaka',
-                onViewAll: widget.onOpenCases,
-              ),
-              const SizedBox(height: 12),
-              _ContinuedCaseCard(
-                continuedCase: dashboard.continuedCase,
-                onOpenCase: dashboard.continuedCase == null
-                    ? null
-                    : () => _openCaseDetail(dashboard.continuedCase!.caseId),
-              ),
-              const SizedBox(height: 24),
-              _BannerCarousel(
-                banners: dashboard.banners,
-                onCta: widget.onOpenCases,
-              ),
-              const SizedBox(height: 24),
-              _QuickActions(
-                onSingleStation: widget.onOpenCases,
-                onMiniOsce: widget.onOpenExams,
-              ),
-              const SizedBox(height: 24),
-              _SectionHeader(
-                title: 'Genel Bakış',
-                onViewAll: widget.onOpenProgress,
-              ),
-              const SizedBox(height: 12),
-              _StatsStrip(stats: dashboard.stats),
               const SizedBox(height: 28),
-              _SectionHeader(
-                title: 'Önerilen Vakalar',
-                onViewAll: widget.onOpenCases,
-              ),
-              const SizedBox(height: 12),
-              _RecommendedCases(
-                cases: dashboard.recommendedCases,
-                onOpenCase: _openCaseDetail,
-              ),
-              const SizedBox(height: 26),
-              _BadgePanel(
-                summary: dashboard.badgeSummary,
-                onOpenBadges: widget.onOpenBadges,
-              ),
+              if (dashboard.continuedCase != null) ...[
+                _SectionHeader(
+                  title: 'Devam Edilen Vaka',
+                  onViewAll: widget.onOpenCases,
+                ),
+                const SizedBox(height: 14),
+                _ContinuedCaseCard(
+                  continuedCase: dashboard.continuedCase,
+                  onOpenCase: () =>
+                      _openCaseDetail(dashboard.continuedCase!.caseId),
+                ),
+                if (dashboard.banners.isNotEmpty) ...[
+                  const SizedBox(height: 26),
+                  _BannerCarousel(
+                    banners: dashboard.banners,
+                    onCta: widget.onOpenCases,
+                  ),
+                ],
+              ] else ...[
+                _QuickActions(
+                  onSingleStation: widget.onOpenCases,
+                  onMiniOsce: widget.onOpenExams,
+                ),
+                const SizedBox(height: 28),
+                _SectionHeader(
+                  title: 'Genel Bakış',
+                  onViewAll: widget.onOpenProgress,
+                ),
+                const SizedBox(height: 14),
+                _StatsStrip(stats: dashboard.stats),
+              ],
+              if (dashboard.recommendedCases.isNotEmpty ||
+                  dashboard.continuedCase == null) ...[
+                const SizedBox(height: 28),
+                _SectionHeader(
+                  title: 'Önerilen Vakalar',
+                  onViewAll: widget.onOpenCases,
+                ),
+                const SizedBox(height: 14),
+                _RecommendedCases(
+                  cases: dashboard.recommendedCases,
+                  onOpenCase: _openCaseDetail,
+                ),
+              ],
+              if (dashboard.badgeSummary != null) ...[
+                const SizedBox(height: 28),
+                _BadgePanel(
+                  summary: dashboard.badgeSummary,
+                  onOpenBadges: widget.onOpenBadges,
+                ),
+              ],
+              if (dashboard.continuedCase == null &&
+                  dashboard.banners.isNotEmpty) ...[
+                const SizedBox(height: 28),
+                _BannerCarousel(
+                  banners: dashboard.banners,
+                  onCta: widget.onOpenCases,
+                ),
+              ],
             ],
           ),
         );
@@ -142,10 +164,14 @@ class _HomeHeader extends StatelessWidget {
   const _HomeHeader({
     required this.dashboard,
     required this.onOpenNotifications,
+    required this.onOpenProfile,
+    required this.unreadNotificationCount,
   });
 
   final HomeDashboard dashboard;
   final VoidCallback? onOpenNotifications;
+  final VoidCallback? onOpenProfile;
+  final int? unreadNotificationCount;
 
   @override
   Widget build(BuildContext context) {
@@ -155,12 +181,12 @@ class _HomeHeader extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           child: Image.asset(
             'assets/branding/praticase.png',
-            width: 40,
-            height: 40,
+            width: 44,
+            height: 44,
             fit: BoxFit.cover,
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 12),
         Expanded(
           child: FittedBox(
             alignment: Alignment.centerLeft,
@@ -170,7 +196,7 @@ class _HomeHeader extends StatelessWidget {
               text: const TextSpan(
                 style: TextStyle(
                   color: PratiCaseColors.navy,
-                  fontSize: 25,
+                  fontSize: 27,
                   fontWeight: FontWeight.w900,
                 ),
                 children: [
@@ -184,20 +210,27 @@ class _HomeHeader extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
         _NotificationBell(
-          count: dashboard.unreadNotificationCount,
+          count: unreadNotificationCount ?? dashboard.unreadNotificationCount,
           onTap: onOpenNotifications,
         ),
         const SizedBox(width: 10),
-        CircleAvatar(
-          radius: 21,
-          backgroundColor: PratiCaseColors.teal.withValues(alpha: 0.14),
-          child: Text(
-            dashboard.user.initials,
-            style: const TextStyle(
-              color: PratiCaseColors.teal,
-              fontWeight: FontWeight.w900,
+        Tooltip(
+          message: 'Profilim',
+          child: InkWell(
+            onTap: onOpenProfile,
+            borderRadius: BorderRadius.circular(24),
+            child: CircleAvatar(
+              radius: 22,
+              backgroundColor: PratiCaseColors.teal.withValues(alpha: 0.14),
+              child: Text(
+                dashboard.user.initials,
+                style: const TextStyle(
+                  color: PratiCaseColors.teal,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
             ),
           ),
         ),
@@ -214,37 +247,30 @@ class _Greeting extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Merhaba, ${user.firstName}!',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: PratiCaseColors.navy,
-                  fontSize: 30,
-                  fontWeight: FontWeight.w900,
-                  height: 1.08,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Bugün pratiğe ne dersin?',
-                style: TextStyle(
-                  color: Color(0xFF617086),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+        Text(
+          'Merhaba, ${user.firstName}!',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: PratiCaseColors.navy,
+            fontSize: 32,
+            fontWeight: FontWeight.w900,
+            height: 1.08,
           ),
         ),
-        const SizedBox(width: 14),
+        const SizedBox(height: 8),
+        const Text(
+          'Bugün pratiğe ne dersin?',
+          style: TextStyle(
+            color: Color(0xFF617086),
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 24),
         _SearchPill(onTap: onSearch),
       ],
     );
@@ -290,7 +316,7 @@ class _BannerCarouselState extends State<_BannerCarousel> {
     return Column(
       children: [
         SizedBox(
-          height: 210,
+          height: 224,
           child: PageView.builder(
             controller: _controller,
             onPageChanged: (index) => setState(() => _activeIndex = index),
@@ -308,15 +334,16 @@ class _BannerCarouselState extends State<_BannerCarousel> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             for (var index = 0; index < widget.banners.length; index++)
-              Container(
-                width: index == _activeIndex ? 9 : 8,
-                height: index == _activeIndex ? 9 : 8,
-                margin: const EdgeInsets.symmetric(horizontal: 5),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: index == _activeIndex ? 18 : 8,
+                height: 8,
+                margin: const EdgeInsets.symmetric(horizontal: 4),
                 decoration: BoxDecoration(
                   color: index == _activeIndex
                       ? PratiCaseColors.teal
                       : const Color(0xFFD1D8E1),
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(999),
                 ),
               ),
           ],
@@ -336,7 +363,7 @@ class _HeroBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -351,7 +378,7 @@ class _HeroBanner extends StatelessWidget {
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         child: Stack(
           children: [
             const Positioned(
@@ -361,7 +388,7 @@ class _HeroBanner extends StatelessWidget {
               child: _ClinicalIllustration(),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(18, 18, 110, 18),
+              padding: const EdgeInsets.fromLTRB(20, 20, 110, 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -376,7 +403,7 @@ class _HeroBanner extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: PratiCaseColors.white,
-                            fontSize: 19,
+                            fontSize: 20,
                             height: 1.2,
                             fontWeight: FontWeight.w900,
                           ),
@@ -586,27 +613,35 @@ class _RecommendedCases extends StatelessWidget {
       );
     }
 
-    return SizedBox(
-      height: 220,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: cases.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 14),
-        itemBuilder: (context, index) => _RecommendedCaseCard(
-          recommendedCase: cases[index],
-          onTap: () => onOpenCase(cases[index].caseId),
-        ),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = (constraints.maxWidth - 12) / 2;
+        return SizedBox(
+          height: 250,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: cases.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 12),
+            itemBuilder: (context, index) => _RecommendedCaseCard(
+              width: width,
+              recommendedCase: cases[index],
+              onTap: () => onOpenCase(cases[index].caseId),
+            ),
+          ),
+        );
+      },
     );
   }
 }
 
 class _RecommendedCaseCard extends StatelessWidget {
   const _RecommendedCaseCard({
+    required this.width,
     required this.recommendedCase,
     required this.onTap,
   });
 
+  final double width;
   final RecommendedCase recommendedCase;
   final VoidCallback onTap;
 
@@ -614,9 +649,9 @@ class _RecommendedCaseCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(22),
       child: Ink(
-        width: 178,
+        width: width,
         padding: const EdgeInsets.all(16),
         decoration: _cardDecoration(),
         child: Column(
@@ -633,7 +668,7 @@ class _RecommendedCaseCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: PratiCaseColors.navy,
-                fontSize: 16,
+                fontSize: 17,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -700,7 +735,7 @@ class _QuickActions extends StatelessWidget {
       crossAxisCount: 2,
       crossAxisSpacing: 12,
       mainAxisSpacing: 12,
-      childAspectRatio: 1.08,
+      childAspectRatio: 1.02,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       children: [
@@ -738,15 +773,15 @@ class _QuickActionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(22),
       child: Ink(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         decoration: _cardDecoration(),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _SoftIcon(icon: icon, color: PratiCaseColors.teal, size: 44),
-            const SizedBox(height: 10),
+            _SoftIcon(icon: icon, color: PratiCaseColors.teal, size: 54),
+            const SizedBox(height: 14),
             FittedBox(
               fit: BoxFit.scaleDown,
               child: Text(
@@ -754,7 +789,7 @@ class _QuickActionCard extends StatelessWidget {
                 maxLines: 1,
                 style: const TextStyle(
                   color: PratiCaseColors.navy,
-                  fontSize: 17,
+                  fontSize: 18,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -795,54 +830,73 @@ class _BadgePanel extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFEAF6F6),
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: PratiCaseColors.teal.withValues(alpha: 0.1)),
       ),
-      child: Row(
-        children: [
-          _SoftIcon(
-            icon: Icons.verified_user_rounded,
-            color: PratiCaseColors.teal,
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  summary!.title,
-                  style: const TextStyle(
-                    color: PratiCaseColors.navy,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  summary!.subtitle,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF33465C),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          SizedBox(
-            height: 48,
-            child: FilledButton.icon(
-              onPressed: onOpenBadges,
-              icon: const Icon(Icons.workspace_premium_rounded, size: 18),
-              label: Text(summary!.actionLabel),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size(0, 48),
-                padding: const EdgeInsets.symmetric(horizontal: 14),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 340;
+          final content = Row(
+            children: [
+              _SoftIcon(
+                icon: Icons.verified_user_rounded,
+                color: PratiCaseColors.teal,
               ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      summary!.title,
+                      style: const TextStyle(
+                        color: PratiCaseColors.navy,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      summary!.subtitle,
+                      maxLines: compact ? 3 : 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF33465C),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+          final action = FilledButton.icon(
+            onPressed: onOpenBadges,
+            icon: const Icon(Icons.workspace_premium_rounded, size: 18),
+            label: Text(summary!.actionLabel),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(0, 48),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
             ),
-          ),
-        ],
+          );
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                content,
+                const SizedBox(height: 14),
+                SizedBox(height: 48, child: action),
+              ],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(child: content),
+              const SizedBox(width: 12),
+              SizedBox(height: 48, child: action),
+            ],
+          );
+        },
       ),
     );
   }
@@ -1001,26 +1055,37 @@ class _SearchPill extends StatelessWidget {
       type: MaterialType.transparency,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(18),
         child: Container(
-          height: 50,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          height: 62,
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 18),
           decoration: BoxDecoration(
             color: PratiCaseColors.white,
-            borderRadius: BorderRadius.circular(26),
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(color: PratiCaseColors.border),
+            boxShadow: [
+              BoxShadow(
+                color: PratiCaseColors.navy.withValues(alpha: 0.025),
+                blurRadius: 15,
+                offset: const Offset(0, 5),
+              ),
+            ],
           ),
           child: const Row(
-            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.search_rounded, color: Color(0xFF68768E)),
-              SizedBox(width: 8),
-              Text(
-                'Arama',
-                style: TextStyle(
-                  color: Color(0xFF68768E),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
+              Icon(Icons.search_rounded, color: PratiCaseColors.navy, size: 29),
+              SizedBox(width: 18),
+              Expanded(
+                child: Text(
+                  'Vaka, branş veya zorluk ara...',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Color(0xFF68768E),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -1042,7 +1107,13 @@ class _NotificationBell extends StatelessWidget {
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        _IconButtonShell(icon: Icons.notifications_none_rounded, onTap: onTap),
+        Tooltip(
+          message: 'Bildirimler',
+          child: _IconButtonShell(
+            icon: Icons.notifications_none_rounded,
+            onTap: onTap,
+          ),
+        ),
         if (count > 0)
           Positioned(
             right: -2,
@@ -1349,7 +1420,7 @@ class _StatItem {
 BoxDecoration _cardDecoration() {
   return BoxDecoration(
     color: PratiCaseColors.white,
-    borderRadius: BorderRadius.circular(18),
+    borderRadius: BorderRadius.circular(22),
     border: Border.all(color: PratiCaseColors.border),
     boxShadow: [
       BoxShadow(

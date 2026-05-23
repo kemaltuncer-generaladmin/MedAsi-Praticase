@@ -4,6 +4,8 @@ import '../../features/home/data/home_repository.dart';
 import '../../features/home/domain/home_dashboard.dart';
 import '../../features/progress/data/progress_repository.dart';
 import '../../features/progress/domain/progress_models.dart';
+import '../../features/theoretical_exam/data/theoretical_exam_repository.dart';
+import '../../features/theoretical_exam/domain/theoretical_exam_models.dart';
 
 const _repositoryTimeout = Duration(seconds: 25);
 
@@ -205,6 +207,10 @@ class TimeoutProgressRepository implements ProgressRepository {
   final ProgressRepository _delegate;
 
   @override
+  Future<List<ExamModeItem>> loadExamModes() =>
+      _delegate.loadExamModes().withRepositoryTimeout();
+
+  @override
   Future<List<BadgeCard>> loadBadges() =>
       _delegate.loadBadges().withRepositoryTimeout();
 
@@ -217,12 +223,24 @@ class TimeoutProgressRepository implements ProgressRepository {
       _delegate.loadProfile().withRepositoryTimeout();
 
   @override
+  Future<ClinicalProgressSummary> loadClinicalProgressSummary() =>
+      _delegate.loadClinicalProgressSummary().withRepositoryTimeout();
+
+  @override
   Future<List<NotificationCard>> loadNotifications() =>
       _delegate.loadNotifications().withRepositoryTimeout();
 
   @override
+  Future<int> loadUnreadNotificationCount() =>
+      _delegate.loadUnreadNotificationCount().withRepositoryTimeout();
+
+  @override
   Future<void> markNotificationRead(String notificationId) =>
       _delegate.markNotificationRead(notificationId).withRepositoryTimeout();
+
+  @override
+  Future<void> markAllNotificationsRead() =>
+      _delegate.markAllNotificationsRead().withRepositoryTimeout();
 
   @override
   Future<List<SimpleContentItem>> loadSupportTopics() =>
@@ -283,4 +301,23 @@ class TimeoutProgressRepository implements ProgressRepository {
   @override
   Future<void> saveAppSettings(AppSettings settings) =>
       _delegate.saveAppSettings(settings).withRepositoryTimeout();
+}
+
+class TimeoutTheoreticalExamRepository implements TheoreticalExamRepository {
+  const TimeoutTheoreticalExamRepository(this._delegate);
+
+  final TheoreticalExamRepository _delegate;
+
+  @override
+  Future<TheoreticalExamFilters> loadFilters() =>
+      _delegate.loadFilters().withRepositoryTimeout();
+
+  @override
+  Future<List<TheoreticalQuestion>> loadQuestions({
+    required Set<String> courses,
+    String topic = '',
+    int limit = 20,
+  }) => _delegate
+      .loadQuestions(courses: courses, topic: topic, limit: limit)
+      .withRepositoryTimeout();
 }

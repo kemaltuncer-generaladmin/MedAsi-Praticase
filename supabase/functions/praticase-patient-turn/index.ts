@@ -5,6 +5,10 @@ import {
   historyModel,
   vertexConfigured,
 } from "../_shared/vertex_ai.ts";
+import {
+  loadCaseChecklists,
+  mergeCaseChecklistContext,
+} from "../_shared/case_checklists.ts";
 
 Deno.serve(async (request) => {
   const origin = request.headers.get("Origin");
@@ -71,7 +75,7 @@ Deno.serve(async (request) => {
     .schema("praticase")
     .from("exam_sessions")
     .select(
-      "id,mode,current_step,cases(title,branch,difficulty,setting,candidate_prompt,patient_profile,expected_history,expected_physical_exam,expected_differentials,expected_tests,unnecessary_tests,management_steps,critical_mistakes)",
+      "id,case_id,mode,current_step,cases(title,branch,difficulty,setting,candidate_prompt,patient_profile,expected_history,expected_physical_exam,expected_differentials,expected_tests,unnecessary_tests,management_steps,critical_mistakes)",
     )
     .eq("id", sessionId)
     .eq("status", "active")
@@ -97,24 +101,30 @@ Deno.serve(async (request) => {
   const caseData = Array.isArray(session.cases)
     ? session.cases[0]
     : session.cases;
-  const patientProfile = caseData?.patient_profile ?? {};
+  const checklists = await loadCaseChecklists(
+    supabase,
+    String(session.case_id ?? ""),
+  );
+  const mergedCaseData = mergeCaseChecklistContext(caseData ?? {}, checklists);
+  const patientProfile = mergedCaseData.patient_profile ?? {};
   const history = (previousMessages ?? []).reverse().map((item) => ({
     role: item.sender === "patient" ? "model" as const : "user" as const,
     parts: [{ text: String(item.message ?? "") }],
   }));
   const context = {
-    caseTitle: caseData?.title,
-    branch: caseData?.branch,
-    setting: caseData?.setting,
-    candidatePrompt: caseData?.candidate_prompt,
+    caseTitle: mergedCaseData.title,
+    branch: mergedCaseData.branch,
+    setting: mergedCaseData.setting,
+    candidatePrompt: mergedCaseData.candidate_prompt,
     patientProfile,
-    expectedHistory: caseData?.expected_history ?? [],
-    expectedPhysicalExam: caseData?.expected_physical_exam ?? [],
-    expectedDifferentials: caseData?.expected_differentials ?? [],
-    expectedTests: caseData?.expected_tests ?? [],
-    unnecessaryTests: caseData?.unnecessary_tests ?? [],
-    managementSteps: caseData?.management_steps ?? [],
-    criticalMistakes: caseData?.critical_mistakes ?? [],
+    expectedHistory: mergedCaseData.expected_history ?? [],
+    expectedPhysicalExam: mergedCaseData.expected_physical_exam ?? [],
+    expectedDifferentials: mergedCaseData.expected_differentials ?? [],
+    expectedTests: mergedCaseData.expected_tests ?? [],
+    unnecessaryTests: mergedCaseData.unnecessary_tests ?? [],
+    managementSteps: mergedCaseData.management_steps ?? [],
+    criticalMistakes: mergedCaseData.critical_mistakes ?? [],
+    adminGeneratedChecklists: mergedCaseData.admin_generated_checklists ?? {},
   };
 
   let aiResponse = "";
@@ -128,8 +138,9 @@ Deno.serve(async (request) => {
           role: "user",
           parts: [
             {
-              text:
-                `Vaka bağlamı JSON:\n${JSON.stringify(context)}\n\nBu bağlamı gizli tut. Aday şimdi şunu sordu:\n${message}`,
+              text: `Vaka bağlamı JSON:\n${
+                JSON.stringify(context)
+              }\n\nBu bağlamı gizli tut. Aday şimdi şunu sordu:\n${message}`,
             },
           ],
         },
@@ -167,11 +178,15 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: insertPatientError.message }, 400, origin);
   }
 
-  return jsonResponse({
-    patientMessageId: patientMessage?.id ?? null,
-    response: aiResponse,
-    model: historyModel(),
-  }, 200, origin);
+  return jsonResponse(
+    {
+      patientMessageId: patientMessage?.id ?? null,
+      response: aiResponse,
+      model: historyModel(),
+    },
+    200,
+    origin,
+  );
 });
 
 function errorMessage(error: unknown): string {

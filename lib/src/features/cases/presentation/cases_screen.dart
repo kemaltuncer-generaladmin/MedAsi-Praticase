@@ -11,11 +11,15 @@ class CasesScreen extends StatefulWidget {
   const CasesScreen({
     required this.repository,
     this.onOpenNotifications,
+    this.onOpenProfile,
+    this.unreadNotificationCount = 0,
     super.key,
   });
 
   final CasesRepository repository;
   final VoidCallback? onOpenNotifications;
+  final VoidCallback? onOpenProfile;
+  final int unreadNotificationCount;
 
   @override
   State<CasesScreen> createState() => _CasesScreenState();
@@ -26,6 +30,10 @@ class _CasesScreenState extends State<CasesScreen> {
   Timer? _searchDebounce;
   String? _branch;
   String? _difficulty;
+  String? _setting;
+  String? _duration;
+  String? _status;
+  String _sort = 'Önerilen';
   late Future<List<OsceCaseSummary>> _casesFuture;
 
   @override
@@ -47,20 +55,12 @@ class _CasesScreenState extends State<CasesScreen> {
   }
 
   void _search() {
-    setState(() {
-      _casesFuture = widget.repository.loadCases(
-        query: _searchController.text,
-        difficulty: _difficulty,
-      );
-    });
+    setState(() {});
   }
 
   Future<void> _refresh() async {
     setState(() {
-      _casesFuture = widget.repository.loadCases(
-        query: _searchController.text,
-        difficulty: _difficulty,
-      );
+      _casesFuture = widget.repository.loadCases();
     });
     await _casesFuture;
   }
@@ -71,27 +71,31 @@ class _CasesScreenState extends State<CasesScreen> {
       future: _casesFuture,
       builder: (context, snapshot) {
         final bottom = MediaQuery.paddingOf(context).bottom + 106;
+        final allCases = snapshot.data ?? const <OsceCaseSummary>[];
+        final visibleCases = _visibleCases(allCases);
         return RefreshIndicator(
           onRefresh: _refresh,
           child: ListView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: EdgeInsets.fromLTRB(20, 18, 20, bottom),
+            padding: EdgeInsets.fromLTRB(20, 20, 20, bottom),
             children: [
               _MobileHeader(
-                title: 'PratiCase',
                 onOpenNotifications: widget.onOpenNotifications,
+                onOpenProfile: widget.onOpenProfile,
+                unreadNotificationCount: widget.unreadNotificationCount,
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 34),
               const _PageTitle(
                 title: 'Vaka Kütüphanesi',
                 subtitle:
                     'Semptom, branş veya zorluk seçerek OSCE istasyonu başlat.',
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 22),
               _SearchBox(
                 controller: _searchController,
                 onChanged: _scheduleSearch,
                 onSubmitted: _search,
+                onClear: _clearSearch,
               ),
               if (snapshot.connectionState != ConnectionState.done)
                 const Padding(
@@ -121,6 +125,13 @@ class _CasesScreenState extends State<CasesScreen> {
                   ),
                 )
               else ...[
+                const SizedBox(height: 28),
+                _CaseFilterOverview(
+                  totalCount: snapshot.requireData.length,
+                  visibleCount: visibleCases.length,
+                  activeCount: _activeFilterCount,
+                  onClear: _activeFilterCount == 0 ? null : _clearFilters,
+                ),
                 const SizedBox(height: 18),
                 _FilterStrip(
                   label: 'Branşlar',
@@ -132,48 +143,110 @@ class _CasesScreenState extends State<CasesScreen> {
                     },
                   ],
                   selected: _branch ?? 'Tümü',
+                  counts: _counts(
+                    snapshot.requireData.map((item) => item.branch),
+                  ),
                   onSelected: (value) {
                     setState(() => _branch = value == 'Tümü' ? null : value);
                   },
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 18),
                 _FilterStrip(
                   label: 'Zorluk',
                   items: const ['Tümü', 'Kolay', 'Orta', 'Zor'],
                   selected: _difficulty ?? 'Tümü',
+                  counts: _counts(
+                    snapshot.requireData.map((item) => item.difficulty.label),
+                  ),
                   onSelected: (value) {
-                    setState(() {
-                      _difficulty = value == 'Tümü' ? null : value;
-                      _casesFuture = widget.repository.loadCases(
-                        query: _searchController.text,
-                        difficulty: _difficulty,
-                      );
-                    });
+                    setState(
+                      () => _difficulty = value == 'Tümü' ? null : value,
+                    );
                   },
                 ),
                 const SizedBox(height: 18),
+                _FilterStrip(
+                  label: 'Klinik Ortam',
+                  items: [
+                    'Tümü',
+                    ...{
+                      for (final item in snapshot.requireData)
+                        if (item.setting.trim().isNotEmpty) item.setting,
+                    },
+                  ],
+                  selected: _setting ?? 'Tümü',
+                  counts: _counts(
+                    snapshot.requireData.map((item) => item.setting),
+                  ),
+                  onSelected: (value) {
+                    setState(() => _setting = value == 'Tümü' ? null : value);
+                  },
+                ),
+                const SizedBox(height: 18),
+                _FilterStrip(
+                  label: 'Süre',
+                  items: const ['Tümü', '≤7 dk', '8-10 dk', '10+ dk'],
+                  selected: _duration ?? 'Tümü',
+                  counts: _durationCounts(snapshot.requireData),
+                  onSelected: (value) {
+                    setState(() => _duration = value == 'Tümü' ? null : value);
+                  },
+                ),
+                const SizedBox(height: 18),
+                _FilterStrip(
+                  label: 'Durum',
+                  items: const [
+                    'Tümü',
+                    'Favoriler',
+                    'Devam Eden',
+                    'Tamamlanan',
+                    'Düşük Skor',
+                  ],
+                  selected: _status ?? 'Tümü',
+                  counts: _statusCounts(snapshot.requireData),
+                  onSelected: (value) {
+                    setState(() => _status = value == 'Tümü' ? null : value);
+                  },
+                ),
+                const SizedBox(height: 18),
+                _FilterStrip(
+                  label: 'Sıralama',
+                  items: const ['Önerilen', 'Süre', 'Puan', 'Son Skor'],
+                  selected: _sort,
+                  onSelected: (value) => setState(() => _sort = value),
+                ),
+                const SizedBox(height: 24),
                 Row(
                   children: [
                     Expanded(
                       child: Text(
-                        '${_visibleCases(snapshot.requireData).length} vaka bulundu',
+                        '${visibleCases.length} vaka bulundu',
                         style: const TextStyle(
                           color: PratiCaseColors.navy,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
-                    _TinyPill(text: _difficulty ?? 'Tüm zorluklar'),
+                    _TinyPill(
+                      text: _activeFilterCount == 0 ? 'Tümü' : 'Filtreli',
+                    ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                for (final item in _visibleCases(snapshot.requireData)) ...[
-                  _CaseListCard(
-                    item: item,
-                    onTap: () => _openDetail(context, item.id),
-                  ),
-                  const SizedBox(height: 14),
-                ],
+                const SizedBox(height: 14),
+                if (visibleCases.isEmpty)
+                  const _CenteredState(
+                    icon: Icons.search_off_rounded,
+                    title: 'Bu filtreye uygun vaka yok',
+                    body: 'Arama veya filtreleri değiştirerek tekrar dene.',
+                  )
+                else
+                  for (final item in visibleCases) ...[
+                    _CaseListCard(
+                      item: item,
+                      onTap: () => _openDetail(context, item.id),
+                    ),
+                    const SizedBox(height: 14),
+                  ],
               ],
             ],
           ),
@@ -191,9 +264,138 @@ class _CasesScreenState extends State<CasesScreen> {
     );
   }
 
+  void _clearSearch() {
+    _searchController.clear();
+    _searchDebounce?.cancel();
+    setState(() {});
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _branch = null;
+      _difficulty = null;
+      _setting = null;
+      _duration = null;
+      _status = null;
+      _sort = 'Önerilen';
+    });
+  }
+
+  int get _activeFilterCount {
+    return [
+      _branch,
+      _difficulty,
+      _setting,
+      _duration,
+      _status,
+      _sort == 'Önerilen' ? null : _sort,
+    ].whereType<String>().length;
+  }
+
   List<OsceCaseSummary> _visibleCases(List<OsceCaseSummary> cases) {
-    if (_branch == null) return cases;
-    return cases.where((item) => item.branch == _branch).toList();
+    final query = _searchController.text.trim().toLowerCase();
+    final filtered = cases.where((item) {
+      if (query.isNotEmpty) {
+        final haystack = [
+          item.title,
+          item.branch,
+          item.setting,
+          item.difficulty.label,
+          item.summary,
+        ].join(' ').toLowerCase();
+        if (!haystack.contains(query)) return false;
+      }
+      if (_branch != null && item.branch != _branch) return false;
+      if (_difficulty != null && item.difficulty.label != _difficulty) {
+        return false;
+      }
+      if (_setting != null && item.setting != _setting) return false;
+      if (!_matchesDuration(item)) return false;
+      if (!_matchesStatus(item)) return false;
+      return true;
+    }).toList();
+    filtered.sort(_caseSorter);
+    return filtered;
+  }
+
+  bool _matchesDuration(OsceCaseSummary item) {
+    return switch (_duration) {
+      '≤7 dk' => item.durationMinutes <= 7,
+      '8-10 dk' => item.durationMinutes >= 8 && item.durationMinutes <= 10,
+      '10+ dk' => item.durationMinutes > 10,
+      _ => true,
+    };
+  }
+
+  bool _matchesStatus(OsceCaseSummary item) {
+    return switch (_status) {
+      'Favoriler' => item.isBookmarked,
+      'Devam Eden' =>
+        item.progressPercent != null && (item.progressPercent ?? 0) < 100,
+      'Tamamlanan' =>
+        item.progressPercent != null && (item.progressPercent ?? 0) >= 100,
+      'Düşük Skor' => item.lastScore != null && (item.lastScore ?? 100) < 75,
+      _ => true,
+    };
+  }
+
+  int _caseSorter(OsceCaseSummary a, OsceCaseSummary b) {
+    return switch (_sort) {
+      'Süre' => a.durationMinutes.compareTo(b.durationMinutes),
+      'Puan' => b.points.compareTo(a.points),
+      'Son Skor' => (b.lastScore ?? -1).compareTo(a.lastScore ?? -1),
+      _ => a.title.compareTo(b.title),
+    };
+  }
+
+  Map<String, int> _counts(Iterable<String> values) {
+    final counts = <String, int>{'Tümü': 0};
+    for (final raw in values) {
+      final value = raw.trim();
+      if (value.isEmpty) continue;
+      counts['Tümü'] = (counts['Tümü'] ?? 0) + 1;
+      counts[value] = (counts[value] ?? 0) + 1;
+    }
+    return counts;
+  }
+
+  Map<String, int> _durationCounts(List<OsceCaseSummary> cases) {
+    return {
+      'Tümü': cases.length,
+      '≤7 dk': cases.where((item) => item.durationMinutes <= 7).length,
+      '8-10 dk': cases
+          .where(
+            (item) => item.durationMinutes >= 8 && item.durationMinutes <= 10,
+          )
+          .length,
+      '10+ dk': cases.where((item) => item.durationMinutes > 10).length,
+    };
+  }
+
+  Map<String, int> _statusCounts(List<OsceCaseSummary> cases) {
+    return {
+      'Tümü': cases.length,
+      'Favoriler': cases.where((item) => item.isBookmarked).length,
+      'Devam Eden': cases
+          .where(
+            (item) =>
+                item.progressPercent != null &&
+                (item.progressPercent ?? 0) < 100,
+          )
+          .length,
+      'Tamamlanan': cases
+          .where(
+            (item) =>
+                item.progressPercent != null &&
+                (item.progressPercent ?? 0) >= 100,
+          )
+          .length,
+      'Düşük Skor': cases
+          .where(
+            (item) => item.lastScore != null && (item.lastScore ?? 100) < 75,
+          )
+          .length,
+    };
   }
 }
 
@@ -498,7 +700,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
   @override
   Widget build(BuildContext context) {
     return _FlowScaffold(
-      backgroundColor: PratiCaseColors.navy,
+      backgroundColor: PratiCaseColors.softSurface,
       resizeToAvoidBottomInset: true,
       body: FutureBuilder<_ChatBundle>(
         future: _bundleFuture,
@@ -647,7 +849,9 @@ class _PhysicalExamScreenState extends State<PhysicalExamScreen> {
       sessionId: widget.sessionId,
       optionId: optionId,
     );
-    setState(() => _bundleFuture = _load());
+    setState(() {
+      _bundleFuture = _load();
+    });
   }
 
   Future<void> _next() async {
@@ -694,8 +898,7 @@ class _PhysicalExamScreenState extends State<PhysicalExamScreen> {
           final visible = bundle.options
               .where((item) => item.groupId == groupId)
               .toList();
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
+          return Column(
             children: [
               _ExamTopBar(
                 session: bundle.session,
@@ -703,32 +906,40 @@ class _PhysicalExamScreenState extends State<PhysicalExamScreen> {
                 repository: widget.repository,
                 sessionId: widget.sessionId,
               ),
-              const SizedBox(height: 14),
-              const _PhaseTabs(activeStep: 2),
-              const SizedBox(height: 18),
-              _PatientBanner(session: bundle.session),
-              const SizedBox(height: 16),
-              const Text(
-                'Sistem seçerek muayene edin.',
-                style: TextStyle(
-                  color: Color(0xFF4F5E72),
-                  fontWeight: FontWeight.w700,
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
+                  children: [
+                    const _PhaseTabs(activeStep: 2),
+                    const SizedBox(height: 16),
+                    _PatientBanner(session: bundle.session),
+                    const SizedBox(height: 18),
+                    const Text(
+                      'Sistem seçerek muayene edin.',
+                      style: TextStyle(
+                        color: Color(0xFF4F5E72),
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    _SegmentScroller(
+                      items: bundle.groups.map((item) => item.title).toList(),
+                      selectedIndex: bundle.groups.indexWhere(
+                        (item) => item.id == groupId,
+                      ),
+                      onSelected: (index) {
+                        setState(
+                          () => _selectedGroupId = bundle.groups[index].id,
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 18),
+                    const _BodyMapCard(),
+                    const SizedBox(height: 18),
+                    _FindingsCard(options: visible, onSelect: _select),
+                  ],
                 ),
               ),
-              const SizedBox(height: 14),
-              _SegmentScroller(
-                items: bundle.groups.map((item) => item.title).toList(),
-                selectedIndex: bundle.groups.indexWhere(
-                  (item) => item.id == groupId,
-                ),
-                onSelected: (index) {
-                  setState(() => _selectedGroupId = bundle.groups[index].id);
-                },
-              ),
-              const SizedBox(height: 18),
-              const _BodyMapCard(),
-              const SizedBox(height: 18),
-              _FindingsCard(options: visible, onSelect: _select),
             ],
           );
         },
@@ -779,7 +990,9 @@ class _TestsScreenState extends State<TestsScreen> {
       sessionId: widget.sessionId,
       optionId: optionId,
     );
-    setState(() => _bundleFuture = _load());
+    setState(() {
+      _bundleFuture = _load();
+    });
   }
 
   Future<void> _next() async {
@@ -832,8 +1045,7 @@ class _TestsScreenState extends State<TestsScreen> {
           final selectedCost = bundle.options
               .where((item) => item.isSelected)
               .fold<int>(0, (sum, item) => sum + item.pointCost);
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
+          return Column(
             children: [
               _ExamTopBar(
                 session: bundle.session,
@@ -841,38 +1053,47 @@ class _TestsScreenState extends State<TestsScreen> {
                 repository: widget.repository,
                 sessionId: widget.sessionId,
               ),
-              const SizedBox(height: 14),
-              const _PhaseTabs(activeStep: 3),
-              const SizedBox(height: 18),
-              _SelectionSummary(
-                text: 'İstem Listem ($selectedCount)',
-                subtext: '$selectedCost puan',
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
+                  children: [
+                    const _PhaseTabs(activeStep: 3),
+                    const SizedBox(height: 18),
+                    _SelectionSummary(
+                      text: 'İstem Listem ($selectedCount)',
+                      subtext: '$selectedCost puan',
+                    ),
+                    const SizedBox(height: 18),
+                    _SegmentScroller(
+                      items: bundle.groups.map((item) => item.title).toList(),
+                      selectedIndex: bundle.groups.indexWhere(
+                        (item) => item.id == groupId,
+                      ),
+                      onSelected: (index) {
+                        setState(
+                          () => _selectedGroupId = bundle.groups[index].id,
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 18),
+                    for (final item in visible) ...[
+                      _TestOptionTile(
+                        item: item,
+                        onTap: () => _request(item.id),
+                        onOpenDetail: () => _openTestDetail(item),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                    if (visible.isEmpty)
+                      const _CenteredState(
+                        icon: Icons.science_outlined,
+                        title: 'Bu kategoride tetkik yok',
+                        body:
+                            'Canlı tetkik seçenekleri eklendiğinde burada görünür.',
+                      ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 18),
-              _SegmentScroller(
-                items: bundle.groups.map((item) => item.title).toList(),
-                selectedIndex: bundle.groups.indexWhere(
-                  (item) => item.id == groupId,
-                ),
-                onSelected: (index) {
-                  setState(() => _selectedGroupId = bundle.groups[index].id);
-                },
-              ),
-              const SizedBox(height: 18),
-              for (final item in visible) ...[
-                _TestOptionTile(
-                  item: item,
-                  onTap: () => _request(item.id),
-                  onOpenDetail: () => _openTestDetail(item),
-                ),
-                const SizedBox(height: 10),
-              ],
-              if (visible.isEmpty)
-                const _CenteredState(
-                  icon: Icons.science_outlined,
-                  title: 'Bu kategoride tetkik yok',
-                  body: 'Canlı tetkik seçenekleri eklendiğinde burada görünür.',
-                ),
             ],
           );
         },
@@ -1014,9 +1235,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
             );
           }
           final bundle = snapshot.requireData;
-          return ListView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 130),
+          return Column(
             children: [
               _ExamTopBar(
                 session: bundle.session,
@@ -1024,47 +1243,56 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
                 repository: widget.repository,
                 sessionId: widget.sessionId,
               ),
-              const SizedBox(height: 14),
-              const _PhaseTabs(activeStep: 4),
-              const SizedBox(height: 18),
-              _InputBlock(
-                label: 'Ön Tanı',
-                controller: _primaryController,
-                hint: 'Kesinleşen veya en olası ön tanınızı yazın.',
-                maxLines: 2,
-              ),
-              const SizedBox(height: 16),
-              const _FormLabel('Ayırıcı Tanılar'),
-              const SizedBox(height: 8),
-              for (final option in bundle.options) ...[
-                _DiagnosisTile(
-                  title: option.title,
-                  selected: _selected.contains(option.id),
-                  onChanged: (value) {
-                    setState(() {
-                      if (value) {
-                        _selected.add(option.id);
-                      } else {
-                        _selected.remove(option.id);
-                      }
-                    });
-                  },
+              Expanded(
+                child: ListView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 130),
+                  children: [
+                    const _PhaseTabs(activeStep: 4),
+                    const SizedBox(height: 18),
+                    _InputBlock(
+                      label: 'Ön Tanı',
+                      controller: _primaryController,
+                      hint: 'Kesinleşen veya en olası ön tanınızı yazın.',
+                      maxLines: 2,
+                    ),
+                    const SizedBox(height: 16),
+                    const _FormLabel('Ayırıcı Tanılar'),
+                    const SizedBox(height: 8),
+                    for (final option in bundle.options) ...[
+                      _DiagnosisTile(
+                        title: option.title,
+                        selected: _selected.contains(option.id),
+                        onChanged: (value) {
+                          setState(() {
+                            if (value) {
+                              _selected.add(option.id);
+                            } else {
+                              _selected.remove(option.id);
+                            }
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    if (bundle.options.isEmpty)
+                      const _CenteredState(
+                        icon: Icons.fact_check_outlined,
+                        title: 'Tanı seçeneği yok',
+                        body:
+                            'Ayırıcı tanı seçenekleri yayınlandığında görünür.',
+                      ),
+                    const SizedBox(height: 14),
+                    _InputBlock(
+                      label: 'Tanı Gerekçesi',
+                      controller: _reasoningController,
+                      hint:
+                          'Dışlanması gereken tanıları, klinik bulguları ve tetkik sonuçlarını özetleyin.',
+                      maxLines: 6,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-              ],
-              if (bundle.options.isEmpty)
-                const _CenteredState(
-                  icon: Icons.fact_check_outlined,
-                  title: 'Tanı seçeneği yok',
-                  body: 'Ayırıcı tanı seçenekleri yayınlandığında görünür.',
-                ),
-              const SizedBox(height: 14),
-              _InputBlock(
-                label: 'Tanı Gerekçesi',
-                controller: _reasoningController,
-                hint:
-                    'Dışlanması gereken tanıları, klinik bulguları ve tetkik sonuçlarını özetleyin.',
-                maxLines: 6,
               ),
             ],
           );
@@ -1183,9 +1411,7 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
           for (final option in bundle.options) {
             grouped.putIfAbsent(option.category, () => []).add(option);
           }
-          return ListView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 130),
+          return Column(
             children: [
               _ExamTopBar(
                 session: bundle.session,
@@ -1193,76 +1419,85 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
                 repository: widget.repository,
                 sessionId: widget.sessionId,
               ),
-              const SizedBox(height: 14),
-              const _PhaseTabs(activeStep: 5),
-              const SizedBox(height: 18),
-              _InputBlock(
-                label: 'Ön Tanı',
-                controller: _diagnosisController,
-                hint: 'Kesinleşen veya en olası ön tanınızı yazın.',
-                maxLines: 2,
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                'Yönetim Planı',
-                style: TextStyle(
-                  color: PratiCaseColors.navy,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Tedavi, konsültasyon ve acil müdahale kararlarını eksiksiz işaretleyin.',
-                style: TextStyle(
-                  color: Color(0xFF66758A),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 16),
-              if (grouped.isEmpty)
-                const _CenteredState(
-                  icon: Icons.assignment_outlined,
-                  title: 'Tedavi seçeneği yok',
-                  body: 'Yönetim planı seçenekleri yayınlandığında görünür.',
-                )
-              else
-                for (final entry in grouped.entries) ...[
-                  _ManagementGroupCard(
-                    title: _managementCategoryTitle(entry.key),
-                    options: entry.value,
-                    selected: _selected,
-                    onChanged: (optionId, selected) {
-                      setState(() {
-                        if (selected) {
-                          _selected.add(optionId);
-                        } else {
-                          _selected.remove(optionId);
-                        }
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 14),
-                ],
-              _InputBlock(
-                label: 'Acil Müdahaleler ve Ek Tetkikler',
-                controller: _noteController,
-                hint:
-                    'Acil prosedür, ileri görüntüleme veya ek laboratuvar taleplerini klinik gerekçesiyle yazın.',
-                maxLines: 5,
-              ),
-              const SizedBox(height: 14),
-              OutlinedButton.icon(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => MedicationInfoScreen(
-                      repository: widget.repository,
-                      caseId: widget.caseId,
+              Expanded(
+                child: ListView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 130),
+                  children: [
+                    const _PhaseTabs(activeStep: 5),
+                    const SizedBox(height: 18),
+                    _InputBlock(
+                      label: 'Ön Tanı',
+                      controller: _diagnosisController,
+                      hint: 'Kesinleşen veya en olası ön tanınızı yazın.',
+                      maxLines: 2,
                     ),
-                  ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      'Yönetim Planı',
+                      style: TextStyle(
+                        color: PratiCaseColors.navy,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Tedavi, konsültasyon ve acil müdahale kararlarını eksiksiz işaretleyin.',
+                      style: TextStyle(
+                        color: Color(0xFF66758A),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    if (grouped.isEmpty)
+                      const _CenteredState(
+                        icon: Icons.assignment_outlined,
+                        title: 'Tedavi seçeneği yok',
+                        body:
+                            'Yönetim planı seçenekleri yayınlandığında görünür.',
+                      )
+                    else
+                      for (final entry in grouped.entries) ...[
+                        _ManagementGroupCard(
+                          title: _managementCategoryTitle(entry.key),
+                          options: entry.value,
+                          selected: _selected,
+                          onChanged: (optionId, selected) {
+                            setState(() {
+                              if (selected) {
+                                _selected.add(optionId);
+                              } else {
+                                _selected.remove(optionId);
+                              }
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                      ],
+                    _InputBlock(
+                      label: 'Acil Müdahaleler ve Ek Tetkikler',
+                      controller: _noteController,
+                      hint:
+                          'Acil prosedür, ileri görüntüleme veya ek laboratuvar taleplerini klinik gerekçesiyle yazın.',
+                      maxLines: 5,
+                    ),
+                    const SizedBox(height: 14),
+                    OutlinedButton.icon(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => MedicationInfoScreen(
+                            repository: widget.repository,
+                            caseId: widget.caseId,
+                          ),
+                        ),
+                      ),
+                      icon: const Icon(Icons.medication_outlined),
+                      label: const Text('İlaç / Tedavi Bilgisi'),
+                    ),
+                  ],
                 ),
-                icon: const Icon(Icons.medication_outlined),
-                label: const Text('İlaç / Tedavi Bilgisi'),
               ),
             ],
           );
@@ -1862,9 +2097,26 @@ class _FlowScaffold extends StatelessWidget {
             ? null
             : SafeArea(
                 top: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
-                  child: bottom,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: PratiCaseColors.white,
+                    border: Border(
+                      top: BorderSide(
+                        color: PratiCaseColors.navy.withValues(alpha: 0.06),
+                      ),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: PratiCaseColors.navy.withValues(alpha: 0.08),
+                        blurRadius: 18,
+                        offset: const Offset(0, -8),
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
+                    child: bottom,
+                  ),
                 ),
               ),
       ),
@@ -1873,35 +2125,113 @@ class _FlowScaffold extends StatelessWidget {
 }
 
 class _MobileHeader extends StatelessWidget {
-  const _MobileHeader({required this.title, this.onOpenNotifications});
+  const _MobileHeader({
+    required this.unreadNotificationCount,
+    this.onOpenNotifications,
+    this.onOpenProfile,
+  });
 
-  final String title;
   final VoidCallback? onOpenNotifications;
+  final VoidCallback? onOpenProfile;
+  final int unreadNotificationCount;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const SizedBox(width: 48),
-        const Spacer(),
-        Image.asset('assets/branding/praticase.png', width: 34, height: 34),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: const TextStyle(
-            color: PratiCaseColors.navy,
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.asset(
+            'assets/branding/praticase.png',
+            width: 44,
+            height: 44,
           ),
         ),
-        const Spacer(),
+        const SizedBox(width: 12),
+        Expanded(
+          child: RichText(
+            maxLines: 1,
+            text: const TextSpan(
+              style: TextStyle(
+                color: PratiCaseColors.navy,
+                fontFamily: 'Plus Jakarta Sans',
+                fontSize: 26,
+                fontWeight: FontWeight.w900,
+              ),
+              children: [
+                TextSpan(text: 'Prati'),
+                TextSpan(
+                  text: 'Case',
+                  style: TextStyle(color: PratiCaseColors.teal),
+                ),
+              ],
+            ),
+          ),
+        ),
+        _CasesHeaderBell(
+          unreadCount: unreadNotificationCount,
+          onTap: onOpenNotifications,
+        ),
+        const SizedBox(width: 8),
         IconButton(
-          onPressed: onOpenNotifications,
+          tooltip: 'Profilim',
+          onPressed: onOpenProfile,
+          style: IconButton.styleFrom(
+            backgroundColor: const Color(0xFFE2F1F0),
+            fixedSize: const Size(44, 44),
+          ),
+          icon: const Icon(
+            Icons.person_outline_rounded,
+            color: PratiCaseColors.teal,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CasesHeaderBell extends StatelessWidget {
+  const _CasesHeaderBell({required this.unreadCount, this.onTap});
+
+  final int unreadCount;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        IconButton(
+          tooltip: 'Bildirimler',
+          onPressed: onTap,
           icon: const Icon(
             Icons.notifications_none_rounded,
             color: PratiCaseColors.navy,
+            size: 30,
           ),
         ),
+        if (unreadCount > 0)
+          Positioned(
+            right: 2,
+            top: 2,
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 18, minWidth: 18),
+              padding: const EdgeInsets.symmetric(horizontal: 5),
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: PratiCaseColors.gold,
+              ),
+              child: Text(
+                unreadCount > 9 ? '9+' : '$unreadCount',
+                style: const TextStyle(
+                  color: PratiCaseColors.navy,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -1957,15 +2287,18 @@ class _PageTitle extends StatelessWidget {
           title,
           style: const TextStyle(
             color: PratiCaseColors.navy,
-            fontSize: 24,
+            fontSize: 32,
             fontWeight: FontWeight.w900,
+            height: 1.1,
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 10),
         Text(
           subtitle,
           style: const TextStyle(
             color: Color(0xFF5F6E83),
+            fontSize: 15,
+            height: 1.45,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -1979,11 +2312,13 @@ class _SearchBox extends StatelessWidget {
     required this.controller,
     required this.onChanged,
     required this.onSubmitted,
+    required this.onClear,
   });
 
   final TextEditingController controller;
   final VoidCallback onChanged;
   final VoidCallback onSubmitted;
+  final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
@@ -1994,17 +2329,136 @@ class _SearchBox extends StatelessWidget {
       textInputAction: TextInputAction.search,
       decoration: InputDecoration(
         hintText: 'Vaka ara...',
-        prefixIcon: const Icon(Icons.search_rounded),
+        prefixIcon: const Padding(
+          padding: EdgeInsets.only(left: 8, right: 4),
+          child: Icon(Icons.search_rounded, color: PratiCaseColors.navy),
+        ),
+        suffixIcon: controller.text.trim().isEmpty
+            ? null
+            : IconButton(
+                tooltip: 'Aramayı temizle',
+                onPressed: onClear,
+                icon: const Icon(Icons.close_rounded),
+              ),
+        prefixIconConstraints: const BoxConstraints(minWidth: 50),
         filled: true,
         fillColor: PratiCaseColors.white,
+        contentPadding: const EdgeInsets.symmetric(vertical: 20),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(18),
           borderSide: const BorderSide(color: PratiCaseColors.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(18),
           borderSide: const BorderSide(color: PratiCaseColors.border),
         ),
+      ),
+    );
+  }
+}
+
+class _CaseFilterOverview extends StatelessWidget {
+  const _CaseFilterOverview({
+    required this.totalCount,
+    required this.visibleCount,
+    required this.activeCount,
+    required this.onClear,
+  });
+
+  final int totalCount;
+  final int visibleCount;
+  final int activeCount;
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final ratio = totalCount == 0
+        ? 0.0
+        : (visibleCount / totalCount).clamp(0.0, 1.0);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.navy,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: PratiCaseColors.navy.withValues(alpha: 0.12),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.tune_rounded,
+                  color: PratiCaseColors.tealBright,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Canlı Filtreler',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      activeCount == 0
+                          ? 'Tüm yayınlanmış istasyonlar gösteriliyor.'
+                          : '$activeCount filtre aktif.',
+                      style: const TextStyle(
+                        color: Color(0xFFDDE8EA),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              TextButton(onPressed: onClear, child: const Text('Temizle')),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(99),
+                  child: LinearProgressIndicator(
+                    value: ratio,
+                    minHeight: 8,
+                    backgroundColor: Colors.white24,
+                    color: PratiCaseColors.tealBright,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                '$visibleCount/$totalCount',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -2016,12 +2470,14 @@ class _FilterStrip extends StatelessWidget {
     required this.items,
     required this.selected,
     required this.onSelected,
+    this.counts = const {},
   });
 
   final String label;
   final List<String> items;
   final String selected;
   final ValueChanged<String> onSelected;
+  final Map<String, int> counts;
 
   @override
   Widget build(BuildContext context) {
@@ -2037,9 +2493,9 @@ class _FilterStrip extends StatelessWidget {
             letterSpacing: 0.8,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         SizedBox(
-          height: 42,
+          height: 46,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: items.length,
@@ -2047,16 +2503,43 @@ class _FilterStrip extends StatelessWidget {
             itemBuilder: (context, index) {
               final item = items[index];
               final active = item == selected;
+              final count = counts[item];
               return ChoiceChip(
                 selected: active,
                 onSelected: (_) => onSelected(item),
-                label: Text(item),
-                selectedColor: PratiCaseColors.tealBright,
+                label: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(item),
+                    if (count != null) ...[
+                      const SizedBox(width: 7),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: active
+                              ? Colors.white.withValues(alpha: 0.20)
+                              : PratiCaseColors.surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                        child: Text(
+                          '$count',
+                          style: TextStyle(
+                            color: active ? Colors.white : PratiCaseColors.teal,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                selectedColor: PratiCaseColors.teal,
                 backgroundColor: Colors.transparent,
                 side: BorderSide(
-                  color: active
-                      ? PratiCaseColors.tealBright
-                      : PratiCaseColors.border,
+                  color: active ? PratiCaseColors.teal : PratiCaseColors.border,
                 ),
                 labelStyle: TextStyle(
                   color: active ? Colors.white : PratiCaseColors.slateBlue,
@@ -2083,10 +2566,10 @@ class _CaseListCard extends StatelessWidget {
     final score = item.lastScore;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(22),
       child: Ink(
-        padding: const EdgeInsets.all(14),
-        decoration: _cardDecoration(),
+        padding: const EdgeInsets.all(16),
+        decoration: _cardDecoration(radius: 22),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2107,7 +2590,7 @@ class _CaseListCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: PratiCaseColors.navy,
-                          fontSize: 17,
+                          fontSize: 19,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
@@ -2131,7 +2614,7 @@ class _CaseListCard extends StatelessWidget {
                 const _RoundArrow(),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             Text(
               item.summary,
               maxLines: 2,
@@ -2186,80 +2669,205 @@ class _ExamTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-      decoration: const BoxDecoration(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      decoration: BoxDecoration(
         color: PratiCaseColors.navy,
-        border: Border(bottom: BorderSide(color: Color(0x1AFFFFFF))),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            PratiCaseColors.navy,
+            Color(0xFF0A3440),
+            PratiCaseColors.gradientEnd,
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: PratiCaseColors.navy.withValues(alpha: 0.22),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          IconButton(
-            onPressed: () => Navigator.maybePop(context),
-            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  phase.toUpperCase(),
-                  style: const TextStyle(
-                    color: PratiCaseColors.gold,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.8,
-                  ),
+          Row(
+            children: [
+              IconButton(
+                onPressed: () => Navigator.maybePop(context),
+                tooltip: 'Geri',
+                icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.white.withValues(alpha: 0.10),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  session.caseTitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
-                  ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      phase.toUpperCase(),
+                      style: const TextStyle(
+                        color: PratiCaseColors.gold,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      session.caseTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        height: 1.1,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 8),
+              _FinishExamButton(repository: repository, sessionId: sessionId),
+            ],
           ),
-          _TimerBadge(session: session),
-          const SizedBox(width: 8),
-          _FinishExamButton(repository: repository, sessionId: sessionId),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(child: _TimerBadge(session: session)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _ExamHeaderPill(
+                  icon: Icons.flag_outlined,
+                  text: '${session.durationMinutes} dk',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _ExamHeaderPill(
+                  icon: Icons.assessment_outlined,
+                  text: '${session.remainingPoints}/${session.budgetPoints} p',
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 }
 
-class _TimerBadge extends StatelessWidget {
-  const _TimerBadge({required this.session});
+class _ExamHeaderPill extends StatelessWidget {
+  const _ExamHeaderPill({required this.icon, required this.text});
 
-  final ExamSessionOverview session;
+  final IconData icon;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       height: 38,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 9),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: PratiCaseColors.gold.withValues(alpha: 0.35)),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.timer_rounded,
-            color: PratiCaseColors.gold,
-            size: 18,
+          Icon(icon, color: Colors.white.withValues(alpha: 0.78), size: 16),
+          const SizedBox(width: 5),
+          Flexible(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TimerBadge extends StatefulWidget {
+  const _TimerBadge({required this.session});
+
+  final ExamSessionOverview session;
+
+  @override
+  State<_TimerBadge> createState() => _TimerBadgeState();
+}
+
+class _TimerBadgeState extends State<_TimerBadge>
+    with SingleTickerProviderStateMixin {
+  late Timer _timer;
+  late final AnimationController _pulseController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final remaining = _remainingParts(widget.session);
+    final urgent = remaining.startsWith('00:');
+    if (urgent && !_pulseController.isAnimating) {
+      _pulseController.repeat(reverse: true);
+    } else if (!urgent && _pulseController.isAnimating) {
+      _pulseController.stop();
+    }
+    final color = urgent ? PratiCaseColors.errorRed : PratiCaseColors.gold;
+    return AnimatedBuilder(
+      animation: _pulseController,
+      builder: (context, child) {
+        final pulse = urgent ? 0.18 + (_pulseController.value * 0.16) : 0.12;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          height: 38,
+          padding: const EdgeInsets.symmetric(horizontal: 9),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: pulse),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: 0.58)),
+          ),
+          child: child,
+        );
+      },
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.timer_rounded, color: color, size: 17),
           const SizedBox(width: 5),
           Text(
-            _remainingParts(session),
-            style: const TextStyle(
-              color: PratiCaseColors.gold,
+            remaining,
+            style: TextStyle(
+              color: color,
+              fontSize: 13,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -2278,46 +2886,122 @@ class _PhaseTabs extends StatelessWidget {
   Widget build(BuildContext context) {
     const labels = ['Anamnez', 'Muayene', 'Tetkik', 'Tanı', 'Plan'];
     return Container(
-      padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       decoration: BoxDecoration(
-        color: PratiCaseColors.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
+        color: PratiCaseColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: PratiCaseColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: PratiCaseColors.navy.withValues(alpha: 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          for (var index = 0; index < labels.length; index++)
+          for (var index = 0; index < labels.length; index++) ...[
             Expanded(
-              child: Container(
-                height: 34,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: index + 1 == activeStep
-                      ? Colors.white
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(9),
-                  border: index + 1 == activeStep
-                      ? Border.all(color: PratiCaseColors.border)
-                      : null,
-                ),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    labels[index],
-                    style: TextStyle(
-                      color: index + 1 == activeStep
-                          ? PratiCaseColors.teal
-                          : PratiCaseColors.muted,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
+              child: _PhaseStep(
+                icon: _phaseIcon(index),
+                label: labels[index],
+                active: index + 1 == activeStep,
+                complete: index + 1 < activeStep,
               ),
             ),
+            if (index != labels.length - 1)
+              Container(
+                width: 10,
+                height: 2,
+                decoration: BoxDecoration(
+                  color: index + 1 < activeStep
+                      ? PratiCaseColors.teal
+                      : PratiCaseColors.border,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+          ],
         ],
       ),
     );
   }
+}
+
+class _PhaseStep extends StatelessWidget {
+  const _PhaseStep({
+    required this.icon,
+    required this.label,
+    required this.active,
+    required this.complete,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool active;
+  final bool complete;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = active || complete
+        ? PratiCaseColors.teal
+        : const Color(0xFF8A96A6);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          width: active ? 34 : 30,
+          height: active ? 34 : 30,
+          decoration: BoxDecoration(
+            color: active
+                ? PratiCaseColors.teal
+                : complete
+                ? PratiCaseColors.teal.withValues(alpha: 0.12)
+                : const Color(0xFFF1F4F7),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: active || complete
+                  ? PratiCaseColors.teal
+                  : PratiCaseColors.border,
+            ),
+          ),
+          child: Icon(
+            complete ? Icons.check_rounded : icon,
+            size: 16,
+            color: active
+                ? PratiCaseColors.white
+                : complete
+                ? PratiCaseColors.teal
+                : const Color(0xFF8A96A6),
+          ),
+        ),
+        const SizedBox(height: 6),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 10,
+              fontWeight: active ? FontWeight.w900 : FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+IconData _phaseIcon(int index) {
+  return switch (index) {
+    0 => Icons.record_voice_over_outlined,
+    1 => Icons.health_and_safety_outlined,
+    2 => Icons.science_outlined,
+    3 => Icons.fact_check_outlined,
+    _ => Icons.assignment_turned_in_outlined,
+  };
 }
 
 String _remainingParts(ExamSessionOverview session) {
@@ -2534,14 +3218,36 @@ class _PatientBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: _cardDecoration(),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: PratiCaseColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: PratiCaseColors.navy.withValues(alpha: 0.05),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
       child: Row(
         children: [
-          const CircleAvatar(
-            radius: 28,
-            backgroundColor: Color(0xFFDDEDEA),
-            child: Icon(Icons.person_rounded, color: PratiCaseColors.navy),
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              color: PratiCaseColors.teal.withValues(alpha: 0.10),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: PratiCaseColors.teal.withValues(alpha: 0.18),
+              ),
+            ),
+            child: const Icon(
+              Icons.person_rounded,
+              color: PratiCaseColors.teal,
+              size: 30,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -2558,19 +3264,23 @@ class _PatientBanner extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 3),
-                Text(
-                  '${session.patient.age}, ${session.patient.gender}',
-                  style: const TextStyle(
-                    color: Color(0xFF5F6E83),
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  session.patient.applicationSetting,
-                  style: const TextStyle(
-                    color: Color(0xFF5F6E83),
-                    fontWeight: FontWeight.w700,
-                  ),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    _PatientMiniPill(
+                      icon: Icons.cake_outlined,
+                      text: '${session.patient.age}, ${session.patient.gender}',
+                    ),
+                    _PatientMiniPill(
+                      icon: Icons.local_hospital_outlined,
+                      text: session.patient.applicationSetting,
+                    ),
+                    _PatientMiniPill(
+                      icon: Icons.schedule_rounded,
+                      text: session.patient.complaintDuration,
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -2613,6 +3323,40 @@ class _PatientBanner extends StatelessWidget {
   }
 }
 
+class _PatientMiniPill extends StatelessWidget {
+  const _PatientMiniPill({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    if (text.trim().isEmpty) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F8),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: PratiCaseColors.muted, size: 13),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: const TextStyle(
+              color: PratiCaseColors.muted,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ChatBubble extends StatelessWidget {
   const _ChatBubble({required this.message, required this.fromCandidate});
 
@@ -2623,26 +3367,71 @@ class _ChatBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     return Align(
       alignment: fromCandidate ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width * 0.74,
+          maxWidth: MediaQuery.sizeOf(context).width * 0.78,
         ),
         margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
         decoration: BoxDecoration(
           color: fromCandidate ? PratiCaseColors.teal : PratiCaseColors.white,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(16),
+            topRight: const Radius.circular(16),
+            bottomLeft: Radius.circular(fromCandidate ? 16 : 5),
+            bottomRight: Radius.circular(fromCandidate ? 5 : 16),
+          ),
           border: fromCandidate
               ? null
               : Border.all(color: PratiCaseColors.border),
+          boxShadow: [
+            BoxShadow(
+              color: PratiCaseColors.navy.withValues(alpha: 0.05),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
-        child: Text(
-          message,
-          style: TextStyle(
-            color: fromCandidate ? PratiCaseColors.white : PratiCaseColors.navy,
-            height: 1.35,
-            fontWeight: FontWeight.w600,
-          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  fromCandidate ? Icons.school_outlined : Icons.person_rounded,
+                  color: fromCandidate
+                      ? PratiCaseColors.white.withValues(alpha: 0.82)
+                      : PratiCaseColors.teal,
+                  size: 14,
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  fromCandidate ? 'Aday' : 'Hasta',
+                  style: TextStyle(
+                    color: fromCandidate
+                        ? PratiCaseColors.white.withValues(alpha: 0.82)
+                        : PratiCaseColors.teal,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              message,
+              style: TextStyle(
+                color: fromCandidate
+                    ? PratiCaseColors.white
+                    : PratiCaseColors.navy,
+                height: 1.36,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -2666,43 +3455,67 @@ class _ChatComposer extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
-        child: Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: controller,
-                minLines: 1,
-                maxLines: 4,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => onSend(),
-                decoration: InputDecoration(
-                  hintText: 'Sorunuzu yazın...',
-                  filled: true,
-                  fillColor: PratiCaseColors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: PratiCaseColors.border),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: PratiCaseColors.border),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: PratiCaseColors.white,
+          border: const Border(top: BorderSide(color: PratiCaseColors.border)),
+          boxShadow: [
+            BoxShadow(
+              color: PratiCaseColors.navy.withValues(alpha: 0.08),
+              blurRadius: 18,
+              offset: const Offset(0, -8),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  minLines: 1,
+                  maxLines: 4,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) => onSend(),
+                  decoration: const InputDecoration(
+                    hintText: 'Sorunuzu yazın...',
+                    prefixIcon: Icon(Icons.mic_none_rounded),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 10),
-            IconButton.filled(
-              onPressed: sending ? null : onSend,
-              icon: const Icon(Icons.send_rounded),
-            ),
-            const SizedBox(width: 6),
-            IconButton.outlined(
-              onPressed: onNext,
-              icon: const Icon(Icons.arrow_forward_rounded),
-            ),
-          ],
+              const SizedBox(width: 8),
+              IconButton.filled(
+                onPressed: sending ? null : onSend,
+                tooltip: 'Gönder',
+                style: IconButton.styleFrom(
+                  backgroundColor: PratiCaseColors.teal,
+                  foregroundColor: PratiCaseColors.white,
+                ),
+                icon: sending
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: PratiCaseColors.white,
+                        ),
+                      )
+                    : const Icon(Icons.send_rounded),
+              ),
+              const SizedBox(width: 6),
+              IconButton.outlined(
+                onPressed: onNext,
+                tooltip: 'Muayeneye geç',
+                icon: const Icon(Icons.arrow_forward_rounded),
+                style: IconButton.styleFrom(
+                  foregroundColor: PratiCaseColors.teal,
+                  side: const BorderSide(color: PratiCaseColors.teal),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -3023,14 +3836,24 @@ class _BottomAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 56,
-      child: FilledButton.icon(
-        onPressed: onPressed,
-        label: Text(label),
-        icon: Icon(icon),
-        style: FilledButton.styleFrom(
-          textStyle: const TextStyle(fontWeight: FontWeight.w900),
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 180),
+      opacity: onPressed == null ? 0.55 : 1,
+      child: SizedBox(
+        height: 58,
+        child: FilledButton.icon(
+          onPressed: onPressed,
+          label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+          icon: Icon(icon),
+          style: FilledButton.styleFrom(
+            backgroundColor: PratiCaseColors.teal,
+            foregroundColor: PratiCaseColors.white,
+            textStyle: const TextStyle(fontWeight: FontWeight.w900),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            elevation: 0,
+          ),
         ),
       ),
     );
@@ -3056,17 +3879,20 @@ class _FinishExamButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FilledButton(
-      onPressed: () => _finish(context),
-      style: FilledButton.styleFrom(
-        backgroundColor: PratiCaseColors.errorRed,
-        foregroundColor: PratiCaseColors.white,
-        minimumSize: const Size(0, 40),
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        textStyle: const TextStyle(fontWeight: FontWeight.w800),
+    return Tooltip(
+      message: 'Sınavı Bitir',
+      child: IconButton.filled(
+        onPressed: () => _finish(context),
+        icon: const Icon(Icons.stop_circle_outlined, size: 21),
+        style: IconButton.styleFrom(
+          backgroundColor: PratiCaseColors.errorRed,
+          foregroundColor: PratiCaseColors.white,
+          minimumSize: const Size(44, 44),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
       ),
-      child: const Text('Sınavı Bitir'),
     );
   }
 }
@@ -3354,16 +4180,16 @@ class _TinyPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
         color: PratiCaseColors.gold.withValues(alpha: 0.11),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
         text,
         style: const TextStyle(
           color: Color(0xFFE18A00),
-          fontSize: 10,
+          fontSize: 12,
           fontWeight: FontWeight.w900,
         ),
       ),
@@ -3880,10 +4706,10 @@ class _IdealApproachCard extends StatelessWidget {
   }
 }
 
-BoxDecoration _cardDecoration() {
+BoxDecoration _cardDecoration({double radius = 16}) {
   return BoxDecoration(
     color: PratiCaseColors.white,
-    borderRadius: BorderRadius.circular(16),
+    borderRadius: BorderRadius.circular(radius),
     border: Border.all(color: PratiCaseColors.border),
     boxShadow: [
       BoxShadow(

@@ -9,6 +9,8 @@ import '../../home/presentation/home_screen.dart';
 import '../../progress/data/progress_repository.dart';
 import '../../progress/domain/progress_models.dart';
 import '../../progress/presentation/progress_screens.dart';
+import '../../theoretical_exam/data/theoretical_exam_repository.dart';
+import '../../theoretical_exam/presentation/theoretical_exam_screen.dart';
 
 class PratiCaseShell extends StatefulWidget {
   const PratiCaseShell({
@@ -16,6 +18,7 @@ class PratiCaseShell extends StatefulWidget {
     required this.homeRepository,
     required this.casesRepository,
     required this.progressRepository,
+    required this.theoreticalExamRepository,
     required this.onSignOut,
     super.key,
   });
@@ -24,6 +27,7 @@ class PratiCaseShell extends StatefulWidget {
   final HomeRepository homeRepository;
   final CasesRepository casesRepository;
   final ProgressRepository progressRepository;
+  final TheoreticalExamRepository theoreticalExamRepository;
   final Future<void> Function() onSignOut;
 
   @override
@@ -32,6 +36,39 @@ class PratiCaseShell extends StatefulWidget {
 
 class _PratiCaseShellState extends State<PratiCaseShell> {
   int _selectedIndex = 0;
+  int? _unreadNotificationCount;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshUnreadNotificationCount();
+  }
+
+  Future<void> _refreshUnreadNotificationCount() async {
+    try {
+      final count = await widget.progressRepository
+          .loadUnreadNotificationCount();
+      if (!mounted) return;
+      setState(() => _unreadNotificationCount = count);
+    } on ProgressDataUnavailable {
+      if (!mounted) return;
+      setState(() => _unreadNotificationCount = 0);
+    }
+  }
+
+  Future<void> _openNotifications() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => NotificationsScreen(
+          repository: widget.progressRepository,
+          onChanged: _refreshUnreadNotificationCount,
+        ),
+      ),
+    );
+    await _refreshUnreadNotificationCount();
+  }
+
+  void _openProfile() => setState(() => _selectedIndex = 4);
 
   @override
   Widget build(BuildContext context) {
@@ -42,12 +79,9 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
         onOpenCases: () => setState(() => _selectedIndex = 1),
         onOpenExams: () => setState(() => _selectedIndex = 2),
         onOpenProgress: () => setState(() => _selectedIndex = 3),
-        onOpenNotifications: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) =>
-                NotificationsScreen(repository: widget.progressRepository),
-          ),
-        ),
+        unreadNotificationCount: _unreadNotificationCount,
+        onOpenNotifications: _openNotifications,
+        onOpenProfile: _openProfile,
         onOpenBadges: () => Navigator.of(context).push(
           MaterialPageRoute<void>(
             builder: (_) => BadgesScreen(repository: widget.progressRepository),
@@ -56,21 +90,24 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
       ),
       CasesScreen(
         repository: widget.casesRepository,
-        onOpenNotifications: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) =>
-                NotificationsScreen(repository: widget.progressRepository),
-          ),
-        ),
+        unreadNotificationCount: _unreadNotificationCount ?? 0,
+        onOpenNotifications: _openNotifications,
+        onOpenProfile: _openProfile,
       ),
       _ExamsScreen(
         progressRepository: widget.progressRepository,
+        theoreticalExamRepository: widget.theoreticalExamRepository,
         onOpenCases: () => setState(() => _selectedIndex = 1),
+        unreadNotificationCount: _unreadNotificationCount ?? 0,
+        onOpenNotifications: _openNotifications,
+        onOpenProfile: _openProfile,
       ),
       _ProgressSummaryScreen(repository: widget.progressRepository),
       ProfileScreen(
         authRepository: widget.authRepository,
         repository: widget.progressRepository,
+        unreadNotificationCount: _unreadNotificationCount ?? 0,
+        onOpenNotifications: _openNotifications,
         onSignOut: widget.onSignOut,
       ),
     ];
@@ -106,10 +143,11 @@ class _PratiCaseBottomNav extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
         child: Container(
           height: 82,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 7),
           decoration: BoxDecoration(
             color: PratiCaseColors.white,
             borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: PratiCaseColors.white),
             boxShadow: [
               BoxShadow(
                 color: PratiCaseColors.navy.withValues(alpha: 0.12),
@@ -175,28 +213,41 @@ class _NavItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = selected ? PratiCaseColors.teal : const Color(0xFF7B8798);
     return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: SizedBox(
-          height: 66,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: color, size: 25),
-              const SizedBox(height: 5),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 12,
-                    fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+      child: Semantics(
+        selected: selected,
+        button: true,
+        label: label,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            height: 66,
+            margin: const EdgeInsets.symmetric(horizontal: 2),
+            decoration: BoxDecoration(
+              color: selected
+                  ? PratiCaseColors.teal.withValues(alpha: 0.11)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: color, size: selected ? 26 : 24),
+                const SizedBox(height: 5),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 12,
+                      fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -204,58 +255,128 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-class _ExamsScreen extends StatelessWidget {
+class _ExamsScreen extends StatefulWidget {
   const _ExamsScreen({
     required this.progressRepository,
+    required this.theoreticalExamRepository,
     required this.onOpenCases,
+    required this.onOpenNotifications,
+    required this.onOpenProfile,
+    required this.unreadNotificationCount,
   });
 
   final ProgressRepository progressRepository;
+  final TheoreticalExamRepository theoreticalExamRepository;
   final VoidCallback onOpenCases;
+  final VoidCallback onOpenNotifications;
+  final VoidCallback onOpenProfile;
+  final int unreadNotificationCount;
+
+  @override
+  State<_ExamsScreen> createState() => _ExamsScreenState();
+}
+
+class _ExamsScreenState extends State<_ExamsScreen> {
+  late Future<List<ExamModeItem>> _examModesFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _examModesFuture = widget.progressRepository.loadExamModes();
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      _examModesFuture = widget.progressRepository.loadExamModes();
+    });
+    await _examModesFuture;
+  }
 
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.paddingOf(context).bottom + 132;
-    return ListView(
-      padding: EdgeInsets.fromLTRB(20, 18, 20, bottom),
-      children: [
-        const _ShellTitle(
-          title: 'Sınavlar',
-          subtitle:
-              'OSCE pratiğini tek istasyon veya mini sınav olarak başlat.',
-        ),
-        const SizedBox(height: 18),
-        _ExamModeCard(
-          icon: Icons.timer_rounded,
-          title: 'Tek İstasyon',
-          subtitle: 'Bir vaka seç, süreli OSCE akışına gir.',
-          onTap: onOpenCases,
-        ),
-        _ExamModeCard(
-          icon: Icons.view_week_rounded,
-          title: 'Mini OSCE',
-          subtitle: 'Peş peşe kısa istasyonlarla sınav temposu çalış.',
-          onTap: onOpenCases,
-        ),
-        _ExamModeCard(
-          icon: Icons.track_changes_rounded,
-          title: 'Zayıf Konulardan Sınav',
-          subtitle: 'Gelişim verilerine göre tekrar gerektiren vakalara dön.',
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) =>
-                  WeakAreaAnalysisScreen(repository: progressRepository),
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: FutureBuilder<List<ExamModeItem>>(
+        future: _examModesFuture,
+        builder: (context, snapshot) {
+          final modes = snapshot.data ?? const <ExamModeItem>[];
+          return ListView(
+            padding: EdgeInsets.fromLTRB(20, 20, 20, bottom),
+            children: [
+              _ShellBrandHeader(
+                onOpenNotifications: widget.onOpenNotifications,
+                onOpenProfile: widget.onOpenProfile,
+                unreadNotificationCount: widget.unreadNotificationCount,
+              ),
+              const SizedBox(height: 36),
+              const _ShellTitle(
+                title: 'Sınavlar',
+                subtitle:
+                    'OSCE pratiğini tek istasyon veya mini sınav olarak başlat.',
+              ),
+              const SizedBox(height: 26),
+              if (snapshot.connectionState != ConnectionState.done)
+                const _ShellStateCard(
+                  icon: Icons.assignment_outlined,
+                  title: 'Sınavlar yükleniyor',
+                  body: 'Canlı sınav modları Supabase’den okunuyor.',
+                )
+              else if (snapshot.hasError)
+                _ShellStateCard(
+                  icon: Icons.cloud_off_rounded,
+                  title: 'Sınavlar açılamadı',
+                  body: _errorText(snapshot.error),
+                )
+              else if (modes.isEmpty)
+                const _ShellStateCard(
+                  icon: Icons.assignment_outlined,
+                  title: 'Sınav modu yok',
+                  body: 'Canlı sınav kartları yayınlandığında burada görünür.',
+                )
+              else
+                for (final mode in modes)
+                  _ExamModeCard(
+                    icon: _examModeIcon(mode.iconKey),
+                    title: mode.title,
+                    subtitle: mode.subtitle,
+                    onTap: () => _openExamMode(context, mode.actionKey),
+                  ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _openExamMode(BuildContext context, String actionKey) {
+    switch (actionKey) {
+      case 'weak_areas':
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) =>
+                WeakAreaAnalysisScreen(repository: widget.progressRepository),
+          ),
+        );
+        return;
+      case 'theoretical_exam':
+      case 'kuramsal_sinav':
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => TheoreticalExamSetupScreen(
+              repository: widget.theoreticalExamRepository,
             ),
           ),
-        ),
-        _ExamModeCard(
-          icon: Icons.local_hospital_outlined,
-          title: 'Branş Paketi',
-          subtitle: 'Genel Cerrahi, Kadın Doğum veya Üroloji odaklı ilerle.',
-          onTap: onOpenCases,
-        ),
-      ],
-    );
+        );
+        return;
+      case 'single_station':
+      case 'mini_osce':
+      case 'branch_package':
+      case 'cases':
+      default:
+        widget.onOpenCases();
+        return;
+    }
   }
 }
 
@@ -266,14 +387,16 @@ class _ProgressSummaryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<ProfileCard>(
-      future: repository.loadProfile(),
+    return FutureBuilder<
+      (ProfileCard, ClinicalProgressSummary, List<BadgeCard>)
+    >(
+      future: _loadProgress(),
       builder: (context, snapshot) {
         final bottom = MediaQuery.paddingOf(context).bottom + 132;
         return ListView(
-          padding: EdgeInsets.fromLTRB(20, 18, 20, bottom),
+          padding: EdgeInsets.fromLTRB(20, 20, 20, bottom),
           children: [
-            const _ShellTopBar(icon: Icons.insights_rounded, title: 'Gelişim'),
+            const _ProgressTitleBar(),
             const SizedBox(height: 18),
             if (snapshot.connectionState != ConnectionState.done)
               const _ShellStateCard(
@@ -289,11 +412,14 @@ class _ProgressSummaryScreen extends StatelessWidget {
                     'Canlı veri bağlantısı kurulduğunda performans özeti burada görünür.',
               )
             else ...[
-              _ProgressHero(profile: snapshot.requireData),
-              const SizedBox(height: 18),
-              _SkillBars(profile: snapshot.requireData),
+              _ProgressHero(profile: snapshot.requireData.$1),
               const SizedBox(height: 16),
-              _ProgressMetricGrid(profile: snapshot.requireData),
+              _SkillBars(summary: snapshot.requireData.$2),
+              const SizedBox(height: 16),
+              _ProgressMetricGrid(
+                profile: snapshot.requireData.$1,
+                badges: snapshot.requireData.$3,
+              ),
               const SizedBox(height: 16),
               _ExamModeCard(
                 icon: Icons.track_changes_rounded,
@@ -331,6 +457,14 @@ class _ProgressSummaryScreen extends StatelessWidget {
         );
       },
     );
+  }
+
+  Future<(ProfileCard, ClinicalProgressSummary, List<BadgeCard>)>
+  _loadProgress() async {
+    final profile = repository.loadProfile();
+    final summary = repository.loadClinicalProgressSummary();
+    final badges = repository.loadBadges();
+    return (await profile, await summary, await badges);
   }
 }
 
@@ -379,6 +513,119 @@ class _ShellStateCard extends StatelessWidget {
   }
 }
 
+class _ShellBrandHeader extends StatelessWidget {
+  const _ShellBrandHeader({
+    required this.onOpenNotifications,
+    required this.onOpenProfile,
+    required this.unreadNotificationCount,
+  });
+
+  final VoidCallback onOpenNotifications;
+  final VoidCallback onOpenProfile;
+  final int unreadNotificationCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.asset(
+            'assets/branding/praticase.png',
+            width: 44,
+            height: 44,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: RichText(
+            maxLines: 1,
+            text: const TextSpan(
+              style: TextStyle(
+                color: PratiCaseColors.navy,
+                fontFamily: 'Plus Jakarta Sans',
+                fontSize: 26,
+                fontWeight: FontWeight.w900,
+              ),
+              children: [
+                TextSpan(text: 'Prati'),
+                TextSpan(
+                  text: 'Case',
+                  style: TextStyle(color: PratiCaseColors.teal),
+                ),
+              ],
+            ),
+          ),
+        ),
+        _HeaderBell(
+          unreadCount: unreadNotificationCount,
+          onTap: onOpenNotifications,
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          tooltip: 'Profilim',
+          onPressed: onOpenProfile,
+          style: IconButton.styleFrom(
+            backgroundColor: const Color(0xFFE2F1F0),
+            fixedSize: const Size(44, 44),
+          ),
+          icon: const Icon(
+            Icons.person_outline_rounded,
+            color: PratiCaseColors.teal,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HeaderBell extends StatelessWidget {
+  const _HeaderBell({required this.unreadCount, required this.onTap});
+
+  final int unreadCount;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        IconButton(
+          tooltip: 'Bildirimler',
+          onPressed: onTap,
+          icon: const Icon(
+            Icons.notifications_none_rounded,
+            color: PratiCaseColors.navy,
+            size: 30,
+          ),
+        ),
+        if (unreadCount > 0)
+          Positioned(
+            right: 2,
+            top: 2,
+            child: Container(
+              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 5),
+              decoration: const BoxDecoration(
+                color: PratiCaseColors.gold,
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                unreadCount > 9 ? '9+' : '$unreadCount',
+                style: const TextStyle(
+                  color: PratiCaseColors.navy,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _ShellTitle extends StatelessWidget {
   const _ShellTitle({required this.title, required this.subtitle});
 
@@ -394,18 +641,19 @@ class _ShellTitle extends StatelessWidget {
           title,
           style: const TextStyle(
             color: PratiCaseColors.navy,
-            fontSize: 28,
+            fontSize: 34,
             fontWeight: FontWeight.w900,
-            height: 1.05,
+            height: 1.1,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         Text(
           subtitle,
           style: const TextStyle(
             color: Color(0xFF5E6D82),
+            fontSize: 16,
             fontWeight: FontWeight.w600,
-            height: 1.35,
+            height: 1.45,
           ),
         ),
       ],
@@ -413,34 +661,32 @@ class _ShellTitle extends StatelessWidget {
   }
 }
 
-class _ShellTopBar extends StatelessWidget {
-  const _ShellTopBar({required this.icon, required this.title});
-
-  final IconData icon;
-  final String title;
+class _ProgressTitleBar extends StatelessWidget {
+  const _ProgressTitleBar();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(0, 0, 0, 12),
+      padding: const EdgeInsets.only(bottom: 14),
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: PratiCaseColors.border)),
       ),
-      child: Row(
+      child: const Row(
         children: [
-          Icon(icon, color: PratiCaseColors.teal),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
-                color: PratiCaseColors.teal,
-                fontSize: 24,
-                fontWeight: FontWeight.w900,
-              ),
+          Icon(
+            Icons.trending_up_rounded,
+            color: PratiCaseColors.teal,
+            size: 27,
+          ),
+          SizedBox(width: 12),
+          Text(
+            'Gelişim',
+            style: TextStyle(
+              color: PratiCaseColors.navy,
+              fontSize: 30,
+              fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(width: 48),
         ],
       ),
     );
@@ -466,9 +712,9 @@ class _ExamModeCard extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(22),
         child: Ink(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(18),
           decoration: _shellCardDecoration(),
           child: Row(
             children: [
@@ -482,6 +728,7 @@ class _ExamModeCard extends StatelessWidget {
                       title,
                       style: const TextStyle(
                         color: PratiCaseColors.navy,
+                        fontSize: 18,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -490,6 +737,7 @@ class _ExamModeCard extends StatelessWidget {
                       subtitle,
                       style: const TextStyle(
                         color: Color(0xFF5F6E83),
+                        fontSize: 14,
                         height: 1.35,
                         fontWeight: FontWeight.w600,
                       ),
@@ -517,52 +765,68 @@ class _ProgressHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(22, 22, 20, 22),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
           colors: [Color(0xFF073844), Color(0xFF006A72)],
         ),
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(24),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Row(
         children: [
-          const Text(
-            'Genel Ortalama',
-            style: TextStyle(
-              color: Colors.white70,
-              fontWeight: FontWeight.w800,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Genel Ortalama',
+                  style: TextStyle(
+                    color: Color(0xFFC9DBDF),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '%${profile.successRatePercent}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 56,
+                    height: 1,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: PratiCaseColors.tealBright,
+                      width: 1.4,
+                    ),
+                  ),
+                  child: const Text(
+                    'Klinik beceri takibi',
+                    style: TextStyle(
+                      color: PratiCaseColors.tealBright,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            '%${profile.successRatePercent}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 44,
-              height: 42 / 44,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: PratiCaseColors.teal.withValues(alpha: 0.42),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: PratiCaseColors.tealBright),
-            ),
-            child: const Text(
-              'Klinik beceri takibi',
-              style: TextStyle(
-                color: PratiCaseColors.tealBright,
-                fontSize: 11,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0.8,
-              ),
-            ),
+          const SizedBox(width: 12),
+          Icon(
+            Icons.track_changes_rounded,
+            color: PratiCaseColors.tealBright,
+            size: 72,
           ),
         ],
       ),
@@ -571,30 +835,28 @@ class _ProgressHero extends StatelessWidget {
 }
 
 class _SkillBars extends StatelessWidget {
-  const _SkillBars({required this.profile});
+  const _SkillBars({required this.summary});
 
-  final ProfileCard profile;
+  final ClinicalProgressSummary summary;
 
   @override
   Widget build(BuildContext context) {
-    final base = profile.successRatePercent.clamp(0, 100).toInt();
-    final diagnosis = profile.correctDiagnosisRate.clamp(0, 100).toInt();
     final values = [
-      ('Anamnez', (base + 6).clamp(0, 100).toInt(), PratiCaseColors.teal),
+      ('Anamnez', summary.percentFor('history'), PratiCaseColors.teal),
       (
         'Fizik Muayene',
-        (base - 4).clamp(0, 100).toInt(),
+        summary.percentFor('physical'),
         PratiCaseColors.tealBright,
       ),
-      ('Tetkik İnceleme', diagnosis, PratiCaseColors.teal),
+      ('Tetkik İnceleme', summary.percentFor('tests'), PratiCaseColors.teal),
       (
         'Yönetim & Tedavi',
-        (base - 10).clamp(0, 100).toInt(),
+        summary.percentFor('management'),
         PratiCaseColors.gold,
       ),
     ];
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
       decoration: _shellCardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -603,14 +865,14 @@ class _SkillBars extends StatelessWidget {
             'Klinik Beceriler',
             style: TextStyle(
               color: PratiCaseColors.navy,
-              fontSize: 17,
+              fontSize: 20,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 18),
           for (final item in values) ...[
             _SkillBar(label: item.$1, value: item.$2, color: item.$3),
-            if (item != values.last) const SizedBox(height: 14),
+            if (item != values.last) const SizedBox(height: 16),
           ],
         ],
       ),
@@ -640,6 +902,7 @@ class _SkillBar extends StatelessWidget {
                 label,
                 style: const TextStyle(
                   color: PratiCaseColors.ink,
+                  fontSize: 16,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -648,12 +911,13 @@ class _SkillBar extends StatelessWidget {
               '%$value',
               style: const TextStyle(
                 color: PratiCaseColors.slateBlue,
+                fontSize: 16,
                 fontWeight: FontWeight.w800,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 7),
+        const SizedBox(height: 8),
         ClipRRect(
           borderRadius: BorderRadius.circular(999),
           child: LinearProgressIndicator(
@@ -669,17 +933,27 @@ class _SkillBar extends StatelessWidget {
 }
 
 class _ProgressMetricGrid extends StatelessWidget {
-  const _ProgressMetricGrid({required this.profile});
+  const _ProgressMetricGrid({required this.profile, required this.badges});
 
   final ProfileCard profile;
+  final List<BadgeCard> badges;
 
   @override
   Widget build(BuildContext context) {
+    final earnedBadges = badges.where((badge) => badge.earned).length;
     final metrics = [
-      ('Vaka', profile.solvedCaseCount.toString()),
-      ('Doğru Tanı', '%${profile.correctDiagnosisRate}'),
-      ('Seri', '${profile.dailyStreak} gün'),
-      ('Puan', profile.totalPoints.toString()),
+      (Icons.folder_outlined, 'Vaka', profile.solvedCaseCount.toString()),
+      (
+        Icons.track_changes_rounded,
+        'Doğru Tanı',
+        '%${profile.correctDiagnosisRate}',
+      ),
+      (
+        Icons.local_fire_department_outlined,
+        'Seri',
+        '${profile.dailyStreak} gün',
+      ),
+      (Icons.workspace_premium_outlined, 'Rozet', '$earnedBadges'),
     ];
     return GridView.count(
       crossAxisCount: 2,
@@ -691,28 +965,43 @@ class _ProgressMetricGrid extends StatelessWidget {
       children: [
         for (final metric in metrics)
           Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
             decoration: _shellCardDecoration(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: Row(
               children: [
-                Text(
-                  metric.$2,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: PratiCaseColors.navy,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: PratiCaseColors.teal.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  child: Icon(metric.$1, color: PratiCaseColors.teal),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  metric.$1,
-                  style: const TextStyle(
-                    color: Color(0xFF68768A),
-                    fontWeight: FontWeight.w700,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        metric.$3,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: PratiCaseColors.navy,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      Text(
+                        metric.$2,
+                        style: const TextStyle(
+                          color: Color(0xFF68768A),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -731,21 +1020,53 @@ class _ShellSoftIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 48,
-      height: 48,
+      width: 62,
+      height: 62,
       decoration: BoxDecoration(
         color: PratiCaseColors.teal.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(18),
       ),
-      child: Icon(icon, color: PratiCaseColors.teal),
+      child: Icon(icon, color: PratiCaseColors.teal, size: 29),
     );
   }
+}
+
+IconData _examModeIcon(String key) {
+  switch (key) {
+    case 'timer':
+    case 'single_station':
+      return Icons.timer_rounded;
+    case 'mini_osce':
+    case 'stations':
+      return Icons.view_week_rounded;
+    case 'weak_areas':
+    case 'target':
+      return Icons.track_changes_rounded;
+    case 'branch':
+    case 'hospital':
+      return Icons.local_hospital_outlined;
+    case 'history':
+      return Icons.history_rounded;
+    case 'theoretical':
+    case 'school':
+      return Icons.school_rounded;
+    default:
+      return Icons.assignment_outlined;
+  }
+}
+
+String _errorText(Object? error) {
+  final text = error?.toString() ?? '';
+  if (text.trim().isEmpty) {
+    return 'Canlı veri bağlantısı kurulamadı.';
+  }
+  return text.replaceFirst('Exception: ', '');
 }
 
 BoxDecoration _shellCardDecoration() {
   return BoxDecoration(
     color: PratiCaseColors.white,
-    borderRadius: BorderRadius.circular(16),
+    borderRadius: BorderRadius.circular(22),
     border: Border.all(color: PratiCaseColors.border),
     boxShadow: [
       BoxShadow(
