@@ -628,9 +628,11 @@ class PatientChatScreen extends StatefulWidget {
 
 class _PatientChatScreenState extends State<PatientChatScreen> {
   final _messageController = TextEditingController();
+  final _scrollController = ScrollController();
   late Future<_ChatBundle> _bundleFuture;
   bool _sending = false;
   bool _navigating = false;
+  String? _pendingCandidateMessage;
 
   @override
   void initState() {
@@ -641,21 +643,27 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
   @override
   void dispose() {
     _messageController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
   Future<_ChatBundle> _load() async {
     final session = await widget.repository.loadSession(widget.sessionId);
+    final detail = await widget.repository.loadCaseDetail(session.caseId);
     final messages = await widget.repository.loadMessages(widget.sessionId);
-    return _ChatBundle(session: session, messages: messages);
+    return _ChatBundle(session: session, detail: detail, messages: messages);
   }
 
   Future<void> _send() async {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
-    setState(() => _sending = true);
+    setState(() {
+      _sending = true;
+      _pendingCandidateMessage = text;
+    });
+    _messageController.clear();
+    _scheduleScrollToBottom();
     try {
-      _messageController.clear();
       await widget.repository.sendPatientQuestion(
         sessionId: widget.sessionId,
         message: text,
@@ -663,13 +671,33 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
       final bundle = await _bundleFuture;
       final messages = await widget.repository.loadMessages(widget.sessionId);
       setState(
-        () => _bundleFuture = Future.value(
-          _ChatBundle(session: bundle.session, messages: messages),
-        ),
+        () => _bundleFuture = Future.value(bundle.copyWith(messages: messages)),
       );
       await _bundleFuture;
+      _scheduleScrollToBottom();
+    } on CasesDataUnavailable catch (error) {
+      _restoreFailedMessage(text);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } on Object {
+      _restoreFailedMessage(text);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Hasta yanıtı alınamadı. Bağlantını kontrol edip tekrar dene.',
+          ),
+        ),
+      );
     } finally {
-      if (mounted) setState(() => _sending = false);
+      if (mounted) {
+        setState(() {
+          _sending = false;
+          _pendingCandidateMessage = null;
+        });
+      }
     }
   }
 
@@ -692,9 +720,35 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
           ),
         ),
       );
+    } on CasesDataUnavailable catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
     } finally {
       if (mounted) setState(() => _navigating = false);
     }
+  }
+
+  void _restoreFailedMessage(String text) {
+    if (!mounted) return;
+    setState(() {
+      _messageController.text = text;
+      _messageController.selection = TextSelection.collapsed(
+        offset: _messageController.text.length,
+      );
+    });
+  }
+
+  void _scheduleScrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOutCubic,
+      );
+    });
   }
 
   @override
@@ -720,6 +774,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
             );
           }
           final bundle = snapshot.requireData;
+          _scheduleScrollToBottom();
           return Column(
             children: [
               _ExamTopBar(
@@ -728,68 +783,28 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
                 repository: widget.repository,
                 sessionId: widget.sessionId,
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-                child: Column(
-                  children: [
-                    const _PhaseTabs(activeStep: 1),
-                    const SizedBox(height: 12),
-                    _PatientBanner(session: bundle.session),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => CaseProgressScreen(
-                                  repository: widget.repository,
-                                  sessionId: widget.sessionId,
-                                ),
-                              ),
-                            ),
-                            icon: const Icon(Icons.timeline_rounded),
-                            label: const Text('Vaka İlerlemesi'),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => AddNoteScreen(
-                                  repository: widget.repository,
-                                  caseId: bundle.session.caseId,
-                                ),
-                              ),
-                            ),
-                            icon: const Icon(Icons.note_add_outlined),
-                            label: const Text('Not Ekle'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
               Expanded(
-                child: ListView(
-                  keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.onDrag,
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-                  children: [
-                    if (bundle.messages.isEmpty)
-                      _ChatBubble(
-                        message: bundle.session.patient.openingLine,
-                        fromCandidate: false,
-                      )
-                    else
-                      for (final message in bundle.messages)
-                        _ChatBubble(
-                          message: message.message,
-                          fromCandidate: message.fromCandidate,
-                        ),
-                  ],
+                child: _AnamnesisWorkspace(
+                  bundle: bundle,
+                  scrollController: _scrollController,
+                  pendingCandidateMessage: _pendingCandidateMessage,
+                  patientTyping: _sending,
+                  onOpenProgress: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => CaseProgressScreen(
+                        repository: widget.repository,
+                        sessionId: widget.sessionId,
+                      ),
+                    ),
+                  ),
+                  onAddNote: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => AddNoteScreen(
+                        repository: widget.repository,
+                        caseId: bundle.session.caseId,
+                      ),
+                    ),
+                  ),
                 ),
               ),
               _ChatComposer(
@@ -3210,6 +3225,351 @@ class _GoalsCard extends StatelessWidget {
   }
 }
 
+class _AnamnesisWorkspace extends StatelessWidget {
+  const _AnamnesisWorkspace({
+    required this.bundle,
+    required this.scrollController,
+    required this.patientTyping,
+    required this.onOpenProgress,
+    required this.onAddNote,
+    this.pendingCandidateMessage,
+  });
+
+  final _ChatBundle bundle;
+  final ScrollController scrollController;
+  final bool patientTyping;
+  final String? pendingCandidateMessage;
+  final VoidCallback onOpenProgress;
+  final VoidCallback onAddNote;
+
+  @override
+  Widget build(BuildContext context) {
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    return Column(
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(20, keyboardOpen ? 8 : 12, 20, 8),
+          child: Column(
+            children: [
+              if (keyboardOpen)
+                _AnamnesisPatientStrip(session: bundle.session)
+              else ...[
+                const _PhaseTabs(activeStep: 1),
+                const SizedBox(height: 12),
+                _AnamnesisBriefCard(
+                  session: bundle.session,
+                  detail: bundle.detail,
+                ),
+                const SizedBox(height: 10),
+                _AnamnesisActionRow(
+                  onOpenProgress: onOpenProgress,
+                  onAddNote: onAddNote,
+                ),
+              ],
+            ],
+          ),
+        ),
+        Expanded(
+          child: _ConversationPanel(
+            session: bundle.session,
+            messages: bundle.messages,
+            scrollController: scrollController,
+            pendingCandidateMessage: pendingCandidateMessage,
+            patientTyping: patientTyping,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AnamnesisBriefCard extends StatelessWidget {
+  const _AnamnesisBriefCard({required this.session, required this.detail});
+
+  final ExamSessionOverview session;
+  final OsceCaseDetail detail;
+
+  @override
+  Widget build(BuildContext context) {
+    final patient = session.patient;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(radius: 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: PratiCaseColors.teal.withValues(alpha: 0.10),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: PratiCaseColors.teal.withValues(alpha: 0.18),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.person_rounded,
+                  color: PratiCaseColors.teal,
+                  size: 26,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      patient.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: PratiCaseColors.navy,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Wrap(
+                      spacing: 7,
+                      runSpacing: 6,
+                      children: [
+                        _PatientMiniPill(
+                          icon: Icons.cake_outlined,
+                          text: '${patient.age}, ${patient.gender}',
+                        ),
+                        _PatientMiniPill(
+                          icon: Icons.local_hospital_outlined,
+                          text: patient.applicationSetting,
+                        ),
+                        _PatientMiniPill(
+                          icon: Icons.schedule_rounded,
+                          text: patient.complaintDuration,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF2F7F7),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: PratiCaseColors.teal.withValues(alpha: 0.12),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Aday Yönergesi',
+                  style: TextStyle(
+                    color: PratiCaseColors.teal,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  detail.candidatePrompt,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: PratiCaseColors.navy,
+                    height: 1.35,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AnamnesisPatientStrip extends StatelessWidget {
+  const _AnamnesisPatientStrip({required this.session});
+
+  final ExamSessionOverview session;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: PratiCaseColors.border),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.record_voice_over_outlined,
+            color: PratiCaseColors.teal,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            flex: 3,
+            child: Text(
+              '${session.patient.name} ile anamnez',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: PratiCaseColors.navy,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            flex: 2,
+            child: Text(
+              session.patient.mainComplaint,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
+              style: const TextStyle(
+                color: PratiCaseColors.muted,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AnamnesisActionRow extends StatelessWidget {
+  const _AnamnesisActionRow({
+    required this.onOpenProgress,
+    required this.onAddNote,
+  });
+
+  final VoidCallback onOpenProgress;
+  final VoidCallback onAddNote;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: onOpenProgress,
+            icon: const Icon(Icons.timeline_rounded),
+            label: const FittedBox(child: Text('Vaka İlerlemesi')),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: onAddNote,
+            icon: const Icon(Icons.note_add_outlined),
+            label: const Text('Not Ekle'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ConversationPanel extends StatelessWidget {
+  const _ConversationPanel({
+    required this.session,
+    required this.messages,
+    required this.scrollController,
+    required this.patientTyping,
+    this.pendingCandidateMessage,
+  });
+
+  final ExamSessionOverview session;
+  final List<ChatMessage> messages;
+  final ScrollController scrollController;
+  final bool patientTyping;
+  final String? pendingCandidateMessage;
+
+  @override
+  Widget build(BuildContext context) {
+    final pending = pendingCandidateMessage?.trim();
+    final conversationCount =
+        messages.length + (pending == null || pending.isEmpty ? 0 : 1) + 1;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: PratiCaseColors.border),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.chat_bubble_outline_rounded,
+                  color: PratiCaseColors.teal,
+                  size: 19,
+                ),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Görüşme Kaydı',
+                    style: TextStyle(
+                      color: PratiCaseColors.navy,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                _TinyPill(text: '$conversationCount mesaj'),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: PratiCaseColors.border),
+          Expanded(
+            child: ListView(
+              controller: scrollController,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+              children: [
+                _ChatBubble(
+                  message: session.patient.openingLine,
+                  fromCandidate: false,
+                  isOpening: true,
+                ),
+                for (final message in messages)
+                  _ChatBubble(
+                    message: message.message,
+                    fromCandidate: message.fromCandidate,
+                  ),
+                if (pending != null && pending.isNotEmpty)
+                  _ChatBubble(
+                    message: pending,
+                    fromCandidate: true,
+                    isPending: true,
+                  ),
+                if (patientTyping) const _TypingBubble(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PatientBanner extends StatelessWidget {
   const _PatientBanner({required this.session});
 
@@ -3358,13 +3718,27 @@ class _PatientMiniPill extends StatelessWidget {
 }
 
 class _ChatBubble extends StatelessWidget {
-  const _ChatBubble({required this.message, required this.fromCandidate});
+  const _ChatBubble({
+    required this.message,
+    required this.fromCandidate,
+    this.isOpening = false,
+    this.isPending = false,
+  });
 
   final String message;
   final bool fromCandidate;
+  final bool isOpening;
+  final bool isPending;
 
   @override
   Widget build(BuildContext context) {
+    final label = fromCandidate
+        ? isPending
+              ? 'Aday - gönderiliyor'
+              : 'Aday'
+        : isOpening
+        ? 'Hasta - açılış'
+        : 'Hasta';
     return Align(
       alignment: fromCandidate ? Alignment.centerRight : Alignment.centerLeft,
       child: AnimatedContainer(
@@ -3409,7 +3783,7 @@ class _ChatBubble extends StatelessWidget {
                 ),
                 const SizedBox(width: 5),
                 Text(
-                  fromCandidate ? 'Aday' : 'Hasta',
+                  label,
                   style: TextStyle(
                     color: fromCandidate
                         ? PratiCaseColors.white.withValues(alpha: 0.82)
@@ -3425,10 +3799,58 @@ class _ChatBubble extends StatelessWidget {
               message,
               style: TextStyle(
                 color: fromCandidate
-                    ? PratiCaseColors.white
+                    ? PratiCaseColors.white.withValues(
+                        alpha: isPending ? 0.82 : 1,
+                      )
                     : PratiCaseColors.navy,
                 height: 1.36,
                 fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TypingBubble extends StatelessWidget {
+  const _TypingBubble();
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF6FAFA),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(16),
+            topRight: Radius.circular(16),
+            bottomLeft: Radius.circular(5),
+            bottomRight: Radius.circular(16),
+          ),
+          border: Border.all(color: PratiCaseColors.border),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: PratiCaseColors.teal,
+              ),
+            ),
+            SizedBox(width: 8),
+            Text(
+              'Hasta yanıtlıyor...',
+              style: TextStyle(
+                color: PratiCaseColors.teal,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ],
@@ -3469,49 +3891,58 @@ class _ChatComposer extends StatelessWidget {
         ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  minLines: 1,
-                  maxLines: 4,
-                  textInputAction: TextInputAction.send,
-                  onSubmitted: (_) => onSend(),
-                  decoration: const InputDecoration(
-                    hintText: 'Sorunuzu yazın...',
-                    prefixIcon: Icon(Icons.mic_none_rounded),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: controller,
+                      minLines: 1,
+                      maxLines: 4,
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: (_) => sending ? null : onSend(),
+                      decoration: const InputDecoration(
+                        hintText: 'Hastaya sorunuzu yazın...',
+                        prefixIcon: Icon(Icons.record_voice_over_outlined),
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    width: 52,
+                    height: 52,
+                    child: IconButton.filled(
+                      onPressed: sending ? null : onSend,
+                      tooltip: 'Gönder',
+                      style: IconButton.styleFrom(
+                        backgroundColor: PratiCaseColors.teal,
+                        foregroundColor: PratiCaseColors.white,
+                      ),
+                      icon: sending
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: PratiCaseColors.white,
+                              ),
+                            )
+                          : const Icon(Icons.send_rounded),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              IconButton.filled(
-                onPressed: sending ? null : onSend,
-                tooltip: 'Gönder',
-                style: IconButton.styleFrom(
-                  backgroundColor: PratiCaseColors.teal,
-                  foregroundColor: PratiCaseColors.white,
-                ),
-                icon: sending
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: PratiCaseColors.white,
-                        ),
-                      )
-                    : const Icon(Icons.send_rounded),
-              ),
-              const SizedBox(width: 6),
-              IconButton.outlined(
-                onPressed: onNext,
-                tooltip: 'Muayeneye geç',
-                icon: const Icon(Icons.arrow_forward_rounded),
-                style: IconButton.styleFrom(
-                  foregroundColor: PratiCaseColors.teal,
-                  side: const BorderSide(color: PratiCaseColors.teal),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton.icon(
+                  onPressed: onNext,
+                  icon: const Icon(Icons.health_and_safety_outlined),
+                  label: const Text('Muayeneye Geç'),
                 ),
               ),
             ],
@@ -4316,10 +4747,23 @@ class _CenteredState extends StatelessWidget {
 }
 
 class _ChatBundle {
-  const _ChatBundle({required this.session, required this.messages});
+  const _ChatBundle({
+    required this.session,
+    required this.detail,
+    required this.messages,
+  });
 
   final ExamSessionOverview session;
+  final OsceCaseDetail detail;
   final List<ChatMessage> messages;
+
+  _ChatBundle copyWith({List<ChatMessage>? messages}) {
+    return _ChatBundle(
+      session: session,
+      detail: detail,
+      messages: messages ?? this.messages,
+    );
+  }
 }
 
 class _PhysicalBundle {

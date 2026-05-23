@@ -288,6 +288,39 @@ void main() {
     expect(openedProfile, isTrue);
   });
 
+  testWidgets('anamnesis room keeps opening line and sends patient turns', (
+    tester,
+  ) async {
+    await _setIPhone14Viewport(tester);
+    final repository = _ChatFlowCasesRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PatientChatScreen(repository: repository, sessionId: 'session-1'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Aday Yönergesi'), findsOneWidget);
+    expect(
+      find.text('Karın ağrısı ile başvuran hastayı değerlendiriniz.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Hocam merhaba, karnımın sağ alt tarafı ağrıyor.'),
+      findsOneWidget,
+    );
+    expect(find.text('Muayeneye Geç'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'Ağrınız ne zaman başladı?');
+    await tester.tap(find.byTooltip('Gönder'));
+    await tester.pumpAndSettle();
+
+    expect(repository.lastQuestion, 'Ağrınız ne zaman başladı?');
+    expect(find.text('Ağrınız ne zaman başladı?'), findsOneWidget);
+    expect(find.text('Dün akşam başladı, giderek arttı.'), findsOneWidget);
+  });
+
   testWidgets('home screen renders with live empty optional sections', (
     tester,
   ) async {
@@ -471,6 +504,98 @@ class _CasesHeaderRepository extends Fake implements CasesRepository {
       ),
     ];
   }
+}
+
+class _ChatFlowCasesRepository extends Fake implements CasesRepository {
+  _ChatFlowCasesRepository()
+    : _session = ExamSessionOverview(
+        id: 'session-1',
+        caseId: 'case-1',
+        caseTitle: 'Akut Apandisit',
+        patient: _patient,
+        currentStep: 'history',
+        remainingPoints: 300,
+        budgetPoints: 300,
+        durationMinutes: 7,
+        startedAt: DateTime.now().subtract(const Duration(minutes: 1)),
+      );
+
+  static const _patient = PatientProfile(
+    name: 'Mert Yılmaz',
+    age: '22',
+    gender: 'Erkek',
+    mainComplaint: 'Karın ağrısı',
+    openingLine: 'Hocam merhaba, karnımın sağ alt tarafı ağrıyor.',
+    applicationSetting: 'Acil',
+    complaintDuration: '12 saat',
+  );
+
+  final ExamSessionOverview _session;
+  final List<ChatMessage> _messages = [];
+  String? lastQuestion;
+
+  @override
+  Future<ExamSessionOverview> loadSession(String sessionId) async => _session;
+
+  @override
+  Future<OsceCaseDetail> loadCaseDetail(String caseId) async {
+    return const OsceCaseDetail(
+      summary: OsceCaseSummary(
+        id: 'case-1',
+        title: 'Akut Apandisit',
+        branch: 'Genel Cerrahi',
+        setting: 'Acil',
+        difficulty: OsceDifficulty.medium,
+        durationMinutes: 7,
+        points: 100,
+        solvedCount: 0,
+        summary: 'Karın ağrısı ile başvuran hastayı değerlendiriniz.',
+        iconKey: 'abdomen',
+        isBookmarked: false,
+      ),
+      candidatePrompt: 'Karın ağrısı ile başvuran hastayı değerlendiriniz.',
+      patient: _patient,
+      flowSteps: [],
+      goals: [],
+    );
+  }
+
+  @override
+  Future<List<ChatMessage>> loadMessages(String sessionId) async {
+    return List<ChatMessage>.unmodifiable(_messages);
+  }
+
+  @override
+  Future<void> sendPatientQuestion({
+    required String sessionId,
+    required String message,
+  }) async {
+    lastQuestion = message;
+    final now = DateTime(2026, 5, 23, 12);
+    _messages
+      ..add(
+        ChatMessage(
+          id: 'candidate-${_messages.length}',
+          sender: 'candidate',
+          message: message,
+          createdAt: now,
+        ),
+      )
+      ..add(
+        ChatMessage(
+          id: 'patient-${_messages.length}',
+          sender: 'patient',
+          message: 'Dün akşam başladı, giderek arttı.',
+          createdAt: now.add(const Duration(seconds: 1)),
+        ),
+      );
+  }
+
+  @override
+  Future<void> advanceSession({
+    required String sessionId,
+    required String step,
+  }) async {}
 }
 
 class _EmptyLiveHomeRepository extends Fake implements HomeRepository {
