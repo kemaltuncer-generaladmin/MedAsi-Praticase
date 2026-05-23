@@ -1540,7 +1540,7 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
                     const Text(
                       'Tedavi, konsültasyon ve acil müdahale kararlarını eksiksiz işaretleyin.',
                       style: TextStyle(
-                        color: Color(0xFF66758A),
+                        color: PratiCaseColors.muted,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -1650,7 +1650,7 @@ class ResultScreen extends StatelessWidget {
               _FeedbackCard(
                 title: 'Güçlü Yönlerin',
                 icon: Icons.verified_rounded,
-                color: const Color(0xFF2AA765),
+                color: PratiCaseColors.successGreen,
                 items: result.strongPoints,
               ),
               const SizedBox(height: 14),
@@ -1664,21 +1664,21 @@ class ResultScreen extends StatelessWidget {
               _FeedbackCard(
                 title: 'Kritik Hatalar',
                 icon: Icons.error_outline_rounded,
-                color: const Color(0xFFE15B5B),
+                color: PratiCaseColors.errorRed,
                 items: result.criticalMistakes,
               ),
               const SizedBox(height: 14),
               _FeedbackCard(
                 title: 'Gereksiz Tetkikler',
                 icon: Icons.science_outlined,
-                color: const Color(0xFF8B6F47),
+                color: PratiCaseColors.slateBlue,
                 items: result.unnecessaryTests,
               ),
               const SizedBox(height: 14),
               _FeedbackCard(
                 title: 'Eksik Anamnez',
                 icon: Icons.chat_bubble_outline_rounded,
-                color: const Color(0xFF506178),
+                color: PratiCaseColors.slateBlue,
                 items: result.missedHistory,
               ),
               const SizedBox(height: 14),
@@ -1755,7 +1755,7 @@ class CaseReportScreen extends StatelessWidget {
           _FeedbackCard(
             title: 'Güçlü Yönlerin',
             icon: Icons.verified_rounded,
-            color: const Color(0xFF2AA765),
+            color: PratiCaseColors.successGreen,
             items: result.strongPoints,
           ),
           const SizedBox(height: 14),
@@ -1769,21 +1769,21 @@ class CaseReportScreen extends StatelessWidget {
           _FeedbackCard(
             title: 'Kritik Hatalar',
             icon: Icons.error_outline_rounded,
-            color: const Color(0xFFE15B5B),
+            color: PratiCaseColors.errorRed,
             items: result.criticalMistakes,
           ),
           const SizedBox(height: 14),
           _FeedbackCard(
             title: 'Gereksiz Tetkikler',
             icon: Icons.science_outlined,
-            color: const Color(0xFF8B6F47),
+            color: PratiCaseColors.slateBlue,
             items: result.unnecessaryTests,
           ),
           const SizedBox(height: 14),
           _FeedbackCard(
             title: 'Eksik Anamnez',
             icon: Icons.chat_bubble_outline_rounded,
-            color: const Color(0xFF506178),
+            color: PratiCaseColors.slateBlue,
             items: result.missedHistory,
           ),
           const SizedBox(height: 14),
@@ -2216,7 +2216,7 @@ class _FlowScaffold extends StatelessWidget {
     required this.body,
     this.bottom,
     this.resizeToAvoidBottomInset,
-    this.backgroundColor = const Color(0xFFF7F9FB),
+    this.backgroundColor = PratiCaseColors.softSurface,
   });
 
   final Widget body;
@@ -2282,7 +2282,7 @@ class _MobileHeader extends StatelessWidget {
     return Row(
       children: [
         ClipRRect(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(PratiCaseRadius.sm),
           child: Image.asset(
             'assets/branding/praticase.png',
             width: 44,
@@ -2319,7 +2319,7 @@ class _MobileHeader extends StatelessWidget {
           tooltip: 'Profilim',
           onPressed: onOpenProfile,
           style: IconButton.styleFrom(
-            backgroundColor: const Color(0xFFE2F1F0),
+            backgroundColor: PratiCaseColors.teal.withValues(alpha: 0.10),
             fixedSize: const Size(44, 44),
           ),
           icon: const Icon(
@@ -2438,7 +2438,7 @@ class _PageTitle extends StatelessWidget {
         Text(
           subtitle,
           style: const TextStyle(
-            color: Color(0xFF5F6E83),
+            color: PratiCaseColors.muted,
             fontSize: 15,
             height: 1.45,
             fontWeight: FontWeight.w600,
@@ -2487,11 +2487,11 @@ class _SearchBox extends StatelessWidget {
         fillColor: PratiCaseColors.white,
         contentPadding: const EdgeInsets.symmetric(vertical: 20),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
           borderSide: const BorderSide(color: PratiCaseColors.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
           borderSide: const BorderSide(color: PratiCaseColors.border),
         ),
       ),
@@ -2521,7 +2521,7 @@ class _CaseFilterOverview extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: PratiCaseColors.navy,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
         boxShadow: [
           BoxShadow(
             color: PratiCaseColors.navy.withValues(alpha: 0.12),
@@ -2540,7 +2540,7 @@ class _CaseFilterOverview extends StatelessWidget {
                 height: 42,
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.md),
                 ),
                 child: const Icon(
                   Icons.tune_rounded,
@@ -2565,8 +2565,8 @@ class _CaseFilterOverview extends StatelessWidget {
                       activeCount == 0
                           ? 'Tüm yayınlanmış istasyonlar gösteriliyor.'
                           : '$activeCount filtre aktif.',
-                      style: const TextStyle(
-                        color: Color(0xFFDDE8EA),
+                      style: TextStyle(
+                        color: PratiCaseColors.white.withValues(alpha: 0.78),
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -2581,11 +2581,11 @@ class _CaseFilterOverview extends StatelessWidget {
             children: [
               Expanded(
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(99),
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
                   child: LinearProgressIndicator(
                     value: ratio,
                     minHeight: 8,
-                    backgroundColor: Colors.white24,
+                    backgroundColor: PratiCaseColors.white.withValues(alpha: 0.24),
                     color: PratiCaseColors.tealBright,
                   ),
                 ),
@@ -2664,7 +2664,7 @@ class _FilterStrip extends StatelessWidget {
                           color: active
                               ? Colors.white.withValues(alpha: 0.20)
                               : PratiCaseColors.surfaceContainerLow,
-                          borderRadius: BorderRadius.circular(99),
+                          borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
                         ),
                         child: Text(
                           '$count',
@@ -2710,7 +2710,7 @@ class _CaseListCard extends StatelessWidget {
       identifier: 'case-list-item',
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
         child: Ink(
           padding: const EdgeInsets.all(16),
           decoration: _cardDecoration(radius: 22),
@@ -2734,13 +2734,13 @@ class _CaseListCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: PratiCaseColors.navy,
-                          fontSize: 19,
-                          fontWeight: FontWeight.w900,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                       const SizedBox(height: 8),
                       Wrap(
-                        spacing: 8,
+                        spacing: 6,
                         runSpacing: 6,
                         children: [
                           _ChipTag(label: item.branch),
@@ -2764,7 +2764,7 @@ class _CaseListCard extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                color: Color(0xFF54647A),
+                color: PratiCaseColors.slateBlue,
                 height: 1.35,
                 fontWeight: FontWeight.w600,
               ),
@@ -2822,7 +2822,7 @@ class _ExamTopBar extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [
             PratiCaseColors.navy,
-            Color(0xFF0A3440),
+            PratiCaseColors.gradientStart,
             PratiCaseColors.gradientEnd,
           ],
         ),
@@ -2918,7 +2918,7 @@ class _ExamHeaderPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 9),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.sm),
         border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
       ),
       child: Row(
@@ -2997,7 +2997,7 @@ class _TimerBadgeState extends State<_TimerBadge>
           padding: const EdgeInsets.symmetric(horizontal: 9),
           decoration: BoxDecoration(
             color: color.withValues(alpha: pulse),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(PratiCaseRadius.sm),
             border: Border.all(color: color.withValues(alpha: 0.58)),
           ),
           child: child,
@@ -3034,7 +3034,7 @@ class _PhaseTabs extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       decoration: BoxDecoration(
         color: PratiCaseColors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
         border: Border.all(color: PratiCaseColors.border),
         boxShadow: [
           BoxShadow(
@@ -3090,7 +3090,7 @@ class _PhaseStep extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = active || complete
         ? PratiCaseColors.teal
-        : const Color(0xFF8A96A6);
+        : PratiCaseColors.muted;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -3104,7 +3104,7 @@ class _PhaseStep extends StatelessWidget {
                 ? PratiCaseColors.teal
                 : complete
                 ? PratiCaseColors.teal.withValues(alpha: 0.12)
-                : const Color(0xFFF1F4F7),
+                : PratiCaseColors.softSurface,
             shape: BoxShape.circle,
             border: Border.all(
               color: active || complete
@@ -3119,7 +3119,7 @@ class _PhaseStep extends StatelessWidget {
                 ? PratiCaseColors.white
                 : complete
                 ? PratiCaseColors.teal
-                : const Color(0xFF8A96A6),
+                : PratiCaseColors.muted,
           ),
         ),
         const SizedBox(height: 6),
@@ -3193,59 +3193,133 @@ class _DetailHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  detail.summary.title,
-                  style: const TextStyle(
-                    color: PratiCaseColors.navy,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
+        boxShadow: PratiCaseShadows.floating,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
+        child: Column(
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(gradient: PratiCaseGradients.hero),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          detail.summary.title,
+                          style: const TextStyle(
+                            color: PratiCaseColors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _HeroPill(
+                              icon: Icons.schedule_rounded,
+                              text: '${detail.summary.durationMinutes} dk',
+                            ),
+                            _HeroPill(
+                              icon: Icons.bar_chart_rounded,
+                              text: detail.summary.difficulty.label,
+                            ),
+                            _HeroPill(
+                              icon: Icons.groups_rounded,
+                              text: '${detail.summary.solvedCount} çözen',
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  detail.candidatePrompt,
-                  style: const TextStyle(
-                    color: Color(0xFF3E4E64),
-                    height: 1.45,
-                    fontWeight: FontWeight.w600,
+                  const SizedBox(width: 14),
+                  Container(
+                    width: 68,
+                    height: 68,
+                    decoration: BoxDecoration(
+                      color: PratiCaseColors.white.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+                    ),
+                    child: Icon(
+                      _caseIcon(detail.summary.iconKey),
+                      color: PratiCaseColors.white,
+                      size: 36,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 14,
-                  runSpacing: 10,
-                  children: [
-                    _Metric(
-                      icon: Icons.schedule_rounded,
-                      text: '${detail.summary.durationMinutes} dk',
-                    ),
-                    _Metric(
-                      icon: Icons.bar_chart_rounded,
-                      text: detail.summary.difficulty.label,
-                    ),
-                    _Metric(
-                      icon: Icons.groups_rounded,
-                      text: '${detail.summary.solvedCount} çözen',
-                    ),
-                  ],
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 14),
-          _SoftIcon(
-            icon: _caseIcon(detail.summary.iconKey),
-            color: _difficultyColor(detail.summary.difficulty),
-            size: 72,
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              color: PratiCaseColors.white,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Aday Yönergesi',
+                    style: TextStyle(
+                      color: PratiCaseColors.teal,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    detail.candidatePrompt,
+                    style: const TextStyle(
+                      color: PratiCaseColors.slateBlue,
+                      height: 1.45,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroPill extends StatelessWidget {
+  const _HeroPill({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+        border: Border.all(color: PratiCaseColors.white.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: PratiCaseColors.tealBright, size: 13),
+          const SizedBox(width: 5),
+          Text(
+            text,
+            style: const TextStyle(
+              color: PratiCaseColors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ],
       ),
@@ -3283,7 +3357,7 @@ class _FlowCard extends StatelessWidget {
                               padding: EdgeInsets.symmetric(horizontal: 2),
                               child: Icon(
                                 Icons.chevron_right_rounded,
-                                color: Color(0xFF9AA8BA),
+                                color: PratiCaseColors.muted,
                               ),
                             ),
                         ],
@@ -3298,7 +3372,7 @@ class _FlowCard extends StatelessWidget {
                       if (index != steps.length - 1)
                         const Icon(
                           Icons.chevron_right_rounded,
-                          color: Color(0xFF9AA8BA),
+                          color: PratiCaseColors.muted,
                         ),
                     ],
                   ],
@@ -3554,8 +3628,8 @@ class _AnamnesisBriefCard extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFFF2F7F7),
-              borderRadius: BorderRadius.circular(14),
+              color: PratiCaseColors.teal.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(PratiCaseRadius.md),
               border: Border.all(
                 color: PratiCaseColors.teal.withValues(alpha: 0.12),
               ),
@@ -3603,7 +3677,7 @@ class _AnamnesisPatientStrip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: PratiCaseColors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
         border: Border.all(color: PratiCaseColors.border),
       ),
       child: Row(
@@ -3703,7 +3777,7 @@ class _ConversationPanel extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(20, 0, 20, 8),
       decoration: BoxDecoration(
         color: PratiCaseColors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
         border: Border.all(color: PratiCaseColors.border),
       ),
       child: Column(
@@ -3819,7 +3893,7 @@ class _PhysicalSystemPicker extends StatelessWidget {
         const Text(
           'Önce muayene sistemini seç.',
           style: TextStyle(
-            color: Color(0xFF4F5E72),
+            color: PratiCaseColors.slateBlue,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -3861,7 +3935,7 @@ class _PhysicalSystemTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
       child: Ink(
         padding: const EdgeInsets.all(14),
         decoration: _cardDecoration(radius: 16),
@@ -3934,20 +4008,24 @@ class _FindingsCard extends StatelessWidget {
           else
             for (final item in options) ...[
               Container(
-                margin: const EdgeInsets.only(bottom: 10),
+                margin: const EdgeInsets.only(bottom: PratiCaseSpacing.sm),
                 decoration: BoxDecoration(
                   color: item.isSelected
-                      ? PratiCaseColors.teal.withValues(alpha: 0.08)
+                      ? PratiCaseColors.teal.withValues(alpha: 0.06)
                       : PratiCaseColors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: item.isSelected
-                        ? PratiCaseColors.teal
-                        : PratiCaseColors.border,
-                  ),
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.sm),
+                  border: item.isSelected
+                      ? Border.all(color: PratiCaseColors.teal, width: 1.5)
+                      : Border.all(
+                          color: item.pointValue < 0
+                              ? PratiCaseColors.errorRed.withValues(alpha: 0.2)
+                              : PratiCaseColors.border,
+                        ),
                 ),
                 child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: PratiCaseSpacing.md,
+                  ),
                   title: Text(
                     item.title,
                     maxLines: 2,
@@ -3961,21 +4039,22 @@ class _FindingsCard extends StatelessWidget {
                       ? Text(
                           item.finding,
                           style: const TextStyle(
-                            color: Color(0xFF4F5E72),
+                            color: PratiCaseColors.slateBlue,
                             height: 1.35,
                           ),
                         )
                       : null,
                   isThreeLine: item.isSelected && item.finding.isNotEmpty,
-                  trailing: IconButton(
-                    onPressed: () => onSelect(item.id),
-                    icon: Icon(
-                      item.isSelected
-                          ? Icons.check_circle
-                          : Icons.add_circle_outline,
-                      color: PratiCaseColors.teal,
-                    ),
+                  trailing: Icon(
+                    item.isSelected
+                        ? Icons.check_circle_rounded
+                        : Icons.radio_button_unchecked_rounded,
+                    color: item.isSelected
+                        ? PratiCaseColors.teal
+                        : PratiCaseColors.border,
+                    size: 26,
                   ),
+                  onTap: () => onSelect(item.id),
                 ),
               ),
             ],
@@ -4004,7 +4083,7 @@ class _TestGroupPicker extends StatelessWidget {
         const Text(
           'Önce tetkik grubunu seç.',
           style: TextStyle(
-            color: Color(0xFF4F5E72),
+            color: PratiCaseColors.slateBlue,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -4053,7 +4132,7 @@ class _TestGroupTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
       child: Ink(
         padding: const EdgeInsets.all(14),
         decoration: _cardDecoration(radius: 16),
@@ -4155,25 +4234,34 @@ class _TestOptionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasPenalty = item.pointCost < 0;
     return Container(
       decoration: BoxDecoration(
         color: item.isSelected
-            ? PratiCaseColors.teal.withValues(alpha: 0.08)
+            ? PratiCaseColors.teal.withValues(alpha: 0.06)
             : PratiCaseColors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: item.isSelected
-              ? PratiCaseColors.teal
-              : PratiCaseColors.border,
-          width: item.isSelected ? 1.5 : 1,
-        ),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+        border: item.isSelected
+            ? Border(
+                left: const BorderSide(color: PratiCaseColors.teal, width: 3),
+                top: BorderSide(
+                  color: PratiCaseColors.teal.withValues(alpha: 0.3),
+                ),
+                right: BorderSide(
+                  color: PratiCaseColors.teal.withValues(alpha: 0.3),
+                ),
+                bottom: BorderSide(
+                  color: PratiCaseColors.teal.withValues(alpha: 0.3),
+                ),
+              )
+            : Border.all(color: PratiCaseColors.border),
         boxShadow: PratiCaseShadows.card,
       ),
       child: ListTile(
         onTap: item.isSelected ? onOpenDetail : onRequest,
         leading: _SoftIcon(
           icon: Icons.science_outlined,
-          color: PratiCaseColors.teal,
+          color: item.isSelected ? PratiCaseColors.successGreen : PratiCaseColors.teal,
           size: 42,
         ),
         title: Text(
@@ -4196,22 +4284,31 @@ class _TestOptionTile extends StatelessWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              '${item.pointCost} p',
-              style: const TextStyle(
-                color: PratiCaseColors.muted,
-                fontWeight: FontWeight.w800,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: hasPenalty
+                    ? PratiCaseColors.errorRed.withValues(alpha: 0.10)
+                    : PratiCaseColors.surfaceContainer,
+                borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+              ),
+              child: Text(
+                '${item.pointCost} p',
+                style: TextStyle(
+                  color: hasPenalty
+                      ? PratiCaseColors.errorRed
+                      : PratiCaseColors.slateBlue,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ),
-            IconButton(
-              tooltip: item.isSelected ? 'Sonucu aç' : 'Tetkik iste',
-              onPressed: item.isSelected ? onOpenDetail : onRequest,
-              icon: Icon(
-                item.isSelected
-                    ? Icons.visibility_outlined
-                    : Icons.add_circle_outline,
-                color: PratiCaseColors.teal,
-              ),
+            const SizedBox(width: PratiCaseSpacing.xs),
+            Icon(
+              item.isSelected
+                  ? Icons.visibility_outlined
+                  : Icons.add_circle_outline_rounded,
+              color: PratiCaseColors.teal,
             ),
           ],
         ),
@@ -4233,17 +4330,31 @@ class _DiagnosisTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CheckboxListTile(
-      value: selected,
-      onChanged: (value) => onChanged(value ?? false),
-      title: Text(title),
-      activeColor: PratiCaseColors.teal,
-      tileColor: selected
-          ? PratiCaseColors.teal.withValues(alpha: 0.08)
-          : PratiCaseColors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: PratiCaseColors.border),
+    return Container(
+      decoration: BoxDecoration(
+        color: selected
+            ? PratiCaseColors.teal.withValues(alpha: 0.06)
+            : PratiCaseColors.white,
+        borderRadius: BorderRadius.circular(PratiCaseRadius.sm),
+        border: Border.all(
+          color: selected ? PratiCaseColors.teal : PratiCaseColors.border,
+          width: selected ? 1.5 : 1,
+        ),
+      ),
+      child: CheckboxListTile(
+        value: selected,
+        onChanged: (value) => onChanged(value ?? false),
+        activeColor: PratiCaseColors.teal,
+        checkColor: PratiCaseColors.white,
+        tileColor: Colors.transparent,
+        title: Text(
+          title,
+          style: TextStyle(
+            color: selected ? PratiCaseColors.navy : PratiCaseColors.slateBlue,
+            fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+          ),
+        ),
+        shape: const RoundedRectangleBorder(),
       ),
     );
   }
@@ -4266,32 +4377,52 @@ class _InputBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _FormLabel(label),
-        const SizedBox(height: 8),
-        Semantics(
-          identifier: semanticsIdentifier ?? '',
-          child: TextField(
-          controller: controller,
-          maxLines: maxLines,
-          decoration: InputDecoration(
-            hintText: hint,
-            filled: true,
-            fillColor: PratiCaseColors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: PratiCaseColors.border),
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: controller,
+      builder: (context, value, _) {
+        final isFilled = value.text.trim().isNotEmpty;
+        final activeColor = isFilled
+            ? PratiCaseColors.successGreen
+            : PratiCaseColors.teal;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _FormLabel(label),
+            const SizedBox(height: 8),
+            Semantics(
+              identifier: semanticsIdentifier ?? '',
+              child: TextField(
+                controller: controller,
+                maxLines: maxLines,
+                decoration: InputDecoration(
+                  hintText: hint,
+                  filled: true,
+                  fillColor: isFilled
+                      ? PratiCaseColors.successGreen.withValues(alpha: 0.04)
+                      : PratiCaseColors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+                    borderSide: const BorderSide(color: PratiCaseColors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+                    borderSide: BorderSide(
+                      color: isFilled
+                          ? PratiCaseColors.successGreen
+                          : PratiCaseColors.border,
+                      width: isFilled ? 1.5 : 1,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+                    borderSide: BorderSide(color: activeColor, width: 1.5),
+                  ),
+                ),
+              ),
             ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: PratiCaseColors.border),
-            ),
-          ),
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 }
@@ -4336,7 +4467,8 @@ class _BottomAction extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         opacity: onPressed == null ? 0.55 : 1,
         child: SizedBox(
-          height: 58,
+          height: 52,
+          width: double.infinity,
           child: FilledButton.icon(
             onPressed: onPressed,
             label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -4346,9 +4478,10 @@ class _BottomAction extends StatelessWidget {
               foregroundColor: PratiCaseColors.white,
               textStyle: const TextStyle(fontWeight: FontWeight.w900),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
               ),
-              elevation: 0,
+              elevation: 2,
+              shadowColor: PratiCaseColors.teal.withValues(alpha: 0.4),
             ),
           ),
         ),
@@ -4386,7 +4519,7 @@ class _FinishExamButton extends StatelessWidget {
           foregroundColor: PratiCaseColors.white,
           minimumSize: const Size(44, 44),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(PratiCaseRadius.sm),
           ),
         ),
       ),
@@ -4440,7 +4573,7 @@ class _InfoCell extends StatelessWidget {
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         border: Border.all(color: PratiCaseColors.border),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.sm),
       ),
       child: Row(
         children: [
@@ -4456,7 +4589,7 @@ class _InfoCell extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Color(0xFF66758A),
+                    color: PratiCaseColors.muted,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
@@ -4492,12 +4625,12 @@ class _Metric extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, color: const Color(0xFF65758D), size: 16),
+        Icon(icon, color: PratiCaseColors.muted, size: 16),
         const SizedBox(width: 5),
         Text(
           text,
           style: const TextStyle(
-            color: Color(0xFF65758D),
+            color: PratiCaseColors.muted,
             fontSize: 12,
             fontWeight: FontWeight.w700,
           ),
@@ -4521,7 +4654,7 @@ class _ReportMetric extends StatelessWidget {
         Text(
           label,
           style: const TextStyle(
-            color: Color(0xFF66758A),
+            color: PratiCaseColors.muted,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -4558,7 +4691,7 @@ class _InfoLine extends StatelessWidget {
             child: Text(
               label,
               style: const TextStyle(
-                color: Color(0xFF66758A),
+                color: PratiCaseColors.muted,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -4601,7 +4734,7 @@ class _ProgressStepTile extends StatelessWidget {
                 : Icons.lock_outline_rounded,
             color: done || active
                 ? PratiCaseColors.teal
-                : const Color(0xFFB8C1CE),
+                : PratiCaseColors.border,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -4616,7 +4749,7 @@ class _ProgressStepTile extends StatelessWidget {
           Text(
             step.status,
             style: TextStyle(
-              color: active ? PratiCaseColors.teal : const Color(0xFF66758A),
+              color: active ? PratiCaseColors.teal : PratiCaseColors.muted,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -4637,7 +4770,7 @@ class _FilterSummaryRow extends StatelessWidget {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       title: Text(label),
-      trailing: Text(value, style: const TextStyle(color: Color(0xFF66758A))),
+      trailing: Text(value, style: const TextStyle(color: PratiCaseColors.muted)),
     );
   }
 }
@@ -4652,17 +4785,17 @@ class _ChipTag extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = tone ?? PratiCaseColors.teal;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: PratiCaseSpacing.sm, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(10),
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
       ),
       child: Text(
         label,
         style: TextStyle(
           color: color,
           fontSize: 12,
-          fontWeight: FontWeight.w900,
+          fontWeight: FontWeight.w800,
         ),
       ),
     );
@@ -4680,12 +4813,12 @@ class _TinyPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
         color: PratiCaseColors.gold.withValues(alpha: 0.11),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.sm),
       ),
       child: Text(
         text,
         style: const TextStyle(
-          color: Color(0xFFE18A00),
+          color: PratiCaseColors.gold,
           fontSize: 12,
           fontWeight: FontWeight.w900,
         ),
@@ -4724,7 +4857,7 @@ class _RoundArrow extends StatelessWidget {
       decoration: const BoxDecoration(
         shape: BoxShape.circle,
         gradient: LinearGradient(
-          colors: [PratiCaseColors.teal, Color(0xFF005263)],
+          colors: [PratiCaseColors.teal, PratiCaseColors.gradientEnd],
         ),
       ),
       child: const Icon(Icons.arrow_forward_rounded, color: Colors.white),
@@ -4808,7 +4941,7 @@ class _CenteredState extends StatelessWidget {
             body,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              color: Color(0xFF65758D),
+              color: PratiCaseColors.muted,
               height: 1.45,
               fontWeight: FontWeight.w600,
             ),
@@ -4910,34 +5043,130 @@ class _ManagementGroupCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _SectionCard(
-      title: title,
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: PratiCaseColors.navy,
+              fontWeight: FontWeight.w900,
+              fontSize: 15,
+            ),
+          ),
+          Container(
+            margin: const EdgeInsets.only(top: 8, bottom: 12),
+            height: 2,
+            decoration: BoxDecoration(
+              color: PratiCaseColors.teal,
+              borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+            ),
+          ),
           for (final option in options)
-            CheckboxListTile(
-              value: selected.contains(option.id),
-              onChanged: (value) => onChanged(option.id, value ?? false),
-              activeColor: PratiCaseColors.teal,
-              contentPadding: EdgeInsets.zero,
-              title: Text(
+            _ManagementOptionTile(
+              option: option,
+              isSelected: selected.contains(option.id),
+              onChanged: (value) => onChanged(option.id, value),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ManagementOptionTile extends StatelessWidget {
+  const _ManagementOptionTile({
+    required this.option,
+    required this.isSelected,
+    required this.onChanged,
+  });
+
+  final ManagementOption option;
+  final bool isSelected;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final isRecommended = option.pointValue >= 5;
+    return Container(
+      margin: const EdgeInsets.only(bottom: PratiCaseSpacing.sm),
+      decoration: BoxDecoration(
+        color: isSelected
+            ? PratiCaseColors.teal.withValues(alpha: 0.06)
+            : PratiCaseColors.softSurface,
+        borderRadius: BorderRadius.circular(PratiCaseRadius.sm),
+        border: Border.all(
+          color: isSelected ? PratiCaseColors.teal : PratiCaseColors.border,
+          width: isSelected ? 1.5 : 1,
+        ),
+      ),
+      child: CheckboxListTile(
+        value: isSelected,
+        onChanged: (value) => onChanged(value ?? false),
+        activeColor: PratiCaseColors.teal,
+        checkColor: PratiCaseColors.white,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: PratiCaseSpacing.md,
+          vertical: 4,
+        ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
                 option.title,
                 style: const TextStyle(
                   color: PratiCaseColors.navy,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
                 ),
               ),
-              secondary: option.pointValue > 0
-                  ? Text(
-                      '${option.pointValue} p',
-                      style: const TextStyle(
-                        color: PratiCaseColors.teal,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    )
-                  : null,
             ),
-        ],
+            const SizedBox(width: PratiCaseSpacing.sm),
+            if (isRecommended)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: PratiCaseColors.gold.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+                ),
+                child: const Text(
+                  'Önerilen',
+                  style: TextStyle(
+                    color: PratiCaseColors.gold,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            if (option.pointValue != 0) ...[
+              const SizedBox(width: PratiCaseSpacing.xs),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: option.pointValue > 0
+                      ? PratiCaseColors.successGreen.withValues(alpha: 0.12)
+                      : PratiCaseColors.errorRed.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+                ),
+                child: Text(
+                  option.pointValue > 0
+                      ? '+${option.pointValue}p'
+                      : '${option.pointValue}p',
+                  style: TextStyle(
+                    color: option.pointValue > 0
+                        ? PratiCaseColors.successGreen
+                        : PratiCaseColors.errorRed,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -4956,11 +5185,11 @@ BoxDecoration _cardDecoration({double radius = 16}) {
 Color _difficultyColor(OsceDifficulty difficulty) {
   switch (difficulty) {
     case OsceDifficulty.easy:
-      return const Color(0xFF2AA765);
+      return PratiCaseColors.successGreen;
     case OsceDifficulty.medium:
       return PratiCaseColors.gold;
     case OsceDifficulty.hard:
-      return const Color(0xFFE04F5F);
+      return PratiCaseColors.errorRed;
   }
 }
 

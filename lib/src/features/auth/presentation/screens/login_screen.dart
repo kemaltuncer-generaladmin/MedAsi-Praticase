@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/theme/praticase_colors.dart';
+import '../../../../app/theme/praticase_tokens.dart';
 import '../../data/auth_repository.dart';
 import '../../domain/auth_user.dart';
 import '../widgets/auth_link_button.dart';
@@ -77,18 +78,12 @@ class _LoginScreenState extends State<LoginScreen> {
             const _LoginBrandHeader(),
             const SizedBox(height: 24),
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(PratiCaseSpacing.xl),
               decoration: BoxDecoration(
                 color: PratiCaseColors.white,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(PratiCaseRadius.md),
                 border: Border.all(color: PratiCaseColors.border),
-                boxShadow: [
-                  BoxShadow(
-                    color: PratiCaseColors.navy.withValues(alpha: 0.04),
-                    blurRadius: 16,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
+                boxShadow: PratiCaseShadows.card,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -102,21 +97,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     textInputAction: TextInputAction.next,
                     validator: AuthValidators.email,
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: AuthTextField(
-                          label: 'Şifre',
-                          hintText: '••••••••',
-                          controller: _password,
-                          icon: Icons.lock_outline_rounded,
-                          obscureText: true,
-                          textInputAction: TextInputAction.done,
-                          validator: AuthValidators.password,
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: PratiCaseSpacing.lg),
+                  AuthTextField(
+                    label: 'Şifre',
+                    hintText: '••••••••',
+                    controller: _password,
+                    icon: Icons.lock_outline_rounded,
+                    obscureText: true,
+                    textInputAction: TextInputAction.done,
+                    validator: AuthValidators.password,
                   ),
                   Align(
                     alignment: Alignment.centerRight,
@@ -125,28 +114,37 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: widget.onForgotPassword,
                     ),
                   ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 14),
-                    AuthStatusCard(
-                      message: _error!,
-                      tone: AuthStatusTone.error,
-                    ),
-                  ],
-                  const SizedBox(height: 14),
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeInOut,
+                    child: _error != null
+                        ? Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: PratiCaseSpacing.md,
+                            ),
+                            child: AuthStatusCard(
+                              message: _error!,
+                              tone: AuthStatusTone.error,
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                  const SizedBox(height: PratiCaseSpacing.md),
                   AuthPrimaryButton(
+                    identifier: 'cta.login-submit',
                     label: 'Giriş Yap',
                     loading: _loading,
                     onPressed: _submit,
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: PratiCaseSpacing.xl),
                   const _DividerLabel(),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: PratiCaseSpacing.lg),
                   _ProviderButton(
                     icon: Icons.g_mobiledata_rounded,
                     label: 'Google ile devam et',
                     onPressed: _signInWithGoogle,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: PratiCaseSpacing.sm),
                   const _ProviderButton(
                     icon: Icons.apple_rounded,
                     label: 'Apple ile devam et',
@@ -154,15 +152,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: PratiCaseSpacing.lg),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   'Hesabın yok mu?',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: PratiCaseColors.muted,
                     fontSize: 14,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 AuthLinkButton(label: 'Kayıt Ol', onPressed: widget.onRegister),
@@ -201,15 +200,9 @@ class _LoginBrandHeader extends StatelessWidget {
           height: 64,
           decoration: BoxDecoration(
             color: PratiCaseColors.white,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(PratiCaseRadius.md),
             border: Border.all(color: PratiCaseColors.border),
-            boxShadow: [
-              BoxShadow(
-                color: PratiCaseColors.navy.withValues(alpha: 0.04),
-                blurRadius: 16,
-                offset: const Offset(0, 8),
-              ),
-            ],
+            boxShadow: PratiCaseShadows.card,
           ),
           child: const Icon(
             Icons.monitor_heart_rounded,
@@ -217,20 +210,25 @@ class _LoginBrandHeader extends StatelessWidget {
             size: 32,
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: PratiCaseSpacing.xl),
         Text(
           'Hoş Geldiniz',
-          style: Theme.of(
-            context,
-          ).textTheme.headlineLarge?.copyWith(color: PratiCaseColors.ink),
+          style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+            color: PratiCaseColors.ink,
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
+            height: 1.2,
+          ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: PratiCaseSpacing.xs),
         Text(
           'PratiCase klinik simülasyonuna giriş yapın.',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             color: PratiCaseColors.muted,
-            fontWeight: FontWeight.w600,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            height: 1.5,
           ),
         ),
       ],
@@ -276,13 +274,22 @@ class _ProviderButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return OutlinedButton.icon(
       onPressed: onPressed,
-      icon: Icon(icon, color: PratiCaseColors.ink),
-      label: Text(label),
+      icon: Icon(icon, color: PratiCaseColors.ink, size: 20),
+      label: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
       style: OutlinedButton.styleFrom(
         minimumSize: const Size.fromHeight(52),
         foregroundColor: PratiCaseColors.ink,
         side: const BorderSide(color: PratiCaseColors.border),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        iconColor: PratiCaseColors.ink,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+        ),
       ),
     );
   }

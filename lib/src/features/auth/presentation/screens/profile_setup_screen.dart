@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/theme/praticase_colors.dart';
+import '../../../../app/theme/praticase_tokens.dart';
 import '../../data/auth_repository.dart';
 import '../../domain/profile_setup.dart';
 import '../widgets/auth_primary_button.dart';
@@ -78,14 +79,20 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           const SizedBox(height: 24),
           Text(
             'Profilini Özelleştir',
-            style: Theme.of(context).textTheme.headlineLarge,
+            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              height: 1.2,
+            ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: PratiCaseSpacing.sm),
           Text(
             'Klinik simülasyon deneyimini sana özel hale getirelim.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: PratiCaseColors.muted,
-              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              height: 1.5,
             ),
           ),
           const SizedBox(height: 24),
@@ -190,24 +197,49 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 );
                 if (date != null) setState(() => _examDate = date);
               },
-              icon: const Icon(Icons.calendar_today_rounded, size: 18),
-              label: Text(_formatDate(_examDate)),
+              icon: const Icon(
+                Icons.calendar_today_rounded,
+                size: 18,
+                color: PratiCaseColors.teal,
+              ),
+              label: Text(
+                _formatDate(_examDate),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size.fromHeight(50),
                 alignment: Alignment.centerLeft,
+                foregroundColor: PratiCaseColors.ink,
+                side: const BorderSide(color: PratiCaseColors.border),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: PratiCaseSpacing.xxl),
           AuthPrimaryButton(
-            label: 'PratiCase’e Başla',
+            identifier: 'cta.complete-profile',
+            label: "PratiCase'e Başla",
             loading: _loading,
             onPressed: _complete,
           ),
-          if (_error != null) ...[
-            const SizedBox(height: 12),
-            AuthStatusCard(message: _error!, tone: AuthStatusTone.error),
-          ],
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+            child: _error != null
+                ? Padding(
+                    padding: const EdgeInsets.only(top: PratiCaseSpacing.md),
+                    child: AuthStatusCard(
+                      message: _error!,
+                      tone: AuthStatusTone.error,
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
         ],
       ),
     );
@@ -230,18 +262,20 @@ class _SetupProgressHeader extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
             Text(
-              'Adım 2 / 3',
+              'ADIM 2 / 3',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: PratiCaseColors.teal,
+                fontSize: 11,
                 fontWeight: FontWeight.w800,
-                letterSpacing: 0.8,
+                letterSpacing: 1.2,
+                height: 1.2,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: PratiCaseSpacing.md),
         ClipRRect(
-          borderRadius: BorderRadius.circular(99),
+          borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
           child: const LinearProgressIndicator(
             value: 0.66,
             minHeight: 6,
@@ -270,18 +304,12 @@ class _SetupSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(PratiCaseSpacing.xl),
       decoration: BoxDecoration(
         color: PratiCaseColors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.md),
         border: Border.all(color: PratiCaseColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: PratiCaseColors.navy.withValues(alpha: 0.02),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        boxShadow: PratiCaseShadows.card,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -296,13 +324,19 @@ class _SetupSection extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: Theme.of(context).textTheme.headlineSmall,
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        height: 1.2,
+                      ),
                     ),
                     if (subtitle != null)
                       Text(
                         subtitle!,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: PratiCaseColors.muted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                   ],
@@ -333,13 +367,13 @@ class _ChoicePill extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
+      borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
       child: Container(
         height: 42,
         padding: const EdgeInsets.symmetric(horizontal: 20),
         decoration: BoxDecoration(
           color: selected ? PratiCaseColors.teal : Colors.transparent,
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
           border: Border.all(
             color: selected ? PratiCaseColors.teal : PratiCaseColors.border,
           ),
@@ -377,14 +411,14 @@ class _BranchChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
+      borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
       child: Container(
         width: width.clamp(132, 190),
         height: 42,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
           color: selected ? PratiCaseColors.teal : Colors.transparent,
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
           border: Border.all(
             color: selected ? PratiCaseColors.teal : PratiCaseColors.border,
           ),

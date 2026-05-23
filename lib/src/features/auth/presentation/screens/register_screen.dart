@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/theme/praticase_colors.dart';
+import '../../../../app/theme/praticase_tokens.dart';
 import '../../data/auth_repository.dart';
 import '../widgets/auth_link_button.dart';
 import '../widgets/auth_primary_button.dart';
@@ -111,22 +112,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         children: [
                           Text(
                             'Hesap oluştur',
-                            style: Theme.of(context).textTheme.headlineMedium
+                            style: Theme.of(context).textTheme.headlineLarge
                                 ?.copyWith(
                                   color: PratiCaseColors.navy,
-                                  fontSize: 31,
-                                  fontWeight: FontWeight.w900,
-                                  height: 1.06,
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.2,
                                 ),
                           ),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: PratiCaseSpacing.md),
                           Text(
-                            'PratiCase’e katıl ve gelişimine hemen başla.',
+                            "PratiCase'e katıl ve gelişimine hemen başla.",
                             style: Theme.of(context).textTheme.bodyLarge
                                 ?.copyWith(
-                                  color: const Color(0xFF465872),
-                                  fontSize: 17,
-                                  height: 1.45,
+                                  color: PratiCaseColors.muted,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  height: 1.5,
                                 ),
                           ),
                         ],
@@ -153,7 +155,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               validator: (value) =>
                   (value == null || value.trim().isEmpty) ? 'Adını gir.' : null,
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: PratiCaseSpacing.lg),
             AuthTextField(
               label: 'Soyad',
               hintText: 'Soyadınızı girin',
@@ -164,7 +166,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ? 'Soyadını gir.'
                   : null,
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: PratiCaseSpacing.lg),
             AuthTextField(
               label: 'E-posta',
               hintText: 'E-posta adresinizi girin',
@@ -174,7 +176,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               textInputAction: TextInputAction.next,
               validator: AuthValidators.email,
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: PratiCaseSpacing.lg),
             AuthTextField(
               label: 'Şifre',
               hintText: 'Şifrenizi oluşturun',
@@ -184,9 +186,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               textInputAction: TextInputAction.next,
               validator: AuthValidators.password,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: PratiCaseSpacing.sm),
             PasswordStrengthIndicator(password: _password.text),
-            const SizedBox(height: 14),
+            const SizedBox(height: PratiCaseSpacing.lg),
             AuthTextField(
               label: 'Şifre (Tekrar)',
               hintText: 'Şifrenizi tekrar girin',
@@ -198,59 +200,63 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 return AuthValidators.password(value);
               },
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: PratiCaseSpacing.xl),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 InkWell(
                   onTap: () => setState(() => _acceptedTerms = !_acceptedTerms),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.sm),
                   child: SizedBox(
                     width: 44,
                     height: 44,
                     child: Center(
-                      child: Container(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
                         width: 22,
                         height: 22,
                         decoration: BoxDecoration(
                           color: _acceptedTerms
                               ? PratiCaseColors.teal
-                              : Colors.white,
-                          borderRadius: BorderRadius.circular(5),
+                              : PratiCaseColors.white,
+                          borderRadius: BorderRadius.circular(4),
                           border: Border.all(color: PratiCaseColors.teal),
                         ),
                         child: _acceptedTerms
                             ? const Icon(
                                 Icons.check_rounded,
-                                color: Colors.white,
-                                size: 17,
+                                color: PratiCaseColors.white,
+                                size: 16,
                               )
                             : null,
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: PratiCaseSpacing.sm),
                 Expanded(
                   child: Wrap(
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(
                         'Kullanım koşullarını ve ',
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: const Color(0xFF23364F),
-                          height: 1.35,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: PratiCaseColors.ink,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          height: 1.5,
                         ),
                       ),
                       GestureDetector(
                         onTap: _openLegalNotice,
                         child: Text(
                           'gizlilik politikasını',
-                          style: Theme.of(context).textTheme.bodyLarge
+                          style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(
                                 color: PratiCaseColors.teal,
-                                height: 1.35,
-                                fontWeight: FontWeight.w900,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                height: 1.5,
                                 decoration: TextDecoration.underline,
                                 decorationColor: PratiCaseColors.teal,
                               ),
@@ -258,9 +264,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       Text(
                         ' okudum, kabul ediyorum.',
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: const Color(0xFF23364F),
-                          height: 1.35,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: PratiCaseColors.ink,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          height: 1.5,
                         ),
                       ),
                     ],
@@ -268,25 +276,36 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ],
             ),
-            if (_error != null) ...[
-              const SizedBox(height: 16),
-              AuthStatusCard(message: _error!, tone: AuthStatusTone.error),
-            ],
-            const SizedBox(height: 26),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              child: _error != null
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: PratiCaseSpacing.lg),
+                      child: AuthStatusCard(
+                        message: _error!,
+                        tone: AuthStatusTone.error,
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+            const SizedBox(height: PratiCaseSpacing.xxl),
             AuthPrimaryButton(
               label: 'Hesap Oluştur',
               loading: _loading,
               onPressed: _submit,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: PratiCaseSpacing.xxl),
             Wrap(
               alignment: WrapAlignment.center,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text(
                   'Zaten hesabın var mı?',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: const Color(0xFF465872),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: PratiCaseColors.muted,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 AuthLinkButton(label: 'Giriş yap', onPressed: widget.onLogin),
@@ -318,9 +337,11 @@ class AuthLegalNoticeScreen extends StatelessWidget {
         children: [
           Text(
             'Gizlilik ve Kullanım Koşulları',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
               color: PratiCaseColors.navy,
-              fontWeight: FontWeight.w900,
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              height: 1.2,
             ),
           ),
           const SizedBox(height: 18),
@@ -377,9 +398,10 @@ class _LegalParagraph extends StatelessWidget {
           Text(
             body,
             style: const TextStyle(
-              color: Color(0xFF465872),
-              height: 1.45,
-              fontWeight: FontWeight.w600,
+              color: PratiCaseColors.muted,
+              fontSize: 14,
+              height: 1.5,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],

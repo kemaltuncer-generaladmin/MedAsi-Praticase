@@ -1,0 +1,346 @@
+part of '../cases_screen.dart';
+
+class _ResultHero extends StatelessWidget {
+  const _ResultHero({required this.result});
+
+  final ExamResultSummary result;
+
+  @override
+  Widget build(BuildContext context) {
+    final percentage = result.percentage;
+    final scoreColor = percentage >= 80
+        ? PratiCaseColors.successGreen
+        : percentage >= 60
+        ? PratiCaseColors.gold
+        : PratiCaseColors.errorRed;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(22, 36, 22, 30),
+      decoration: const BoxDecoration(
+        gradient: PratiCaseGradients.hero,
+        borderRadius: BorderRadius.vertical(
+          bottom: Radius.circular(PratiCaseRadius.xxl),
+        ),
+      ),
+      child: Column(
+        children: [
+          SizedBox(
+            width: 120,
+            height: 120,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  width: 120,
+                  height: 120,
+                  child: CircularProgressIndicator(
+                    value: result.maxScore == 0
+                        ? 0
+                        : (result.totalScore / result.maxScore).clamp(0.0, 1.0),
+                    strokeWidth: 8,
+                    backgroundColor: PratiCaseColors.white.withValues(alpha: 0.18),
+                    color: scoreColor,
+                    strokeCap: StrokeCap.round,
+                  ),
+                ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '%$percentage',
+                      style: const TextStyle(
+                        color: PratiCaseColors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        height: 1.0,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${result.totalScore}/${result.maxScore}',
+                      style: TextStyle(
+                        color: PratiCaseColors.white.withValues(alpha: 0.72),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          const Text(
+            'Klinik Başarı Puanı',
+            style: TextStyle(
+              color: PratiCaseColors.tealBright,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            percentage >= 80
+                ? 'Mükemmel bir teşhis süreci yönettiniz.'
+                : '${result.caseTitle} için gelişim alanların hazır.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: PratiCaseColors.white.withValues(alpha: 0.88),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScoreGrid extends StatelessWidget {
+  const _ScoreGrid({required this.scores});
+
+  final List<ResultCategoryScore> scores;
+
+  @override
+  Widget build(BuildContext context) {
+    if (scores.isEmpty) {
+      return const _CenteredState(
+        icon: Icons.query_stats_rounded,
+        title: 'Puan dağılımı yok',
+        body: 'Canlı rubric sonuçları oluştuğunda burada görünür.',
+      );
+    }
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Kategori Performansı',
+            style: TextStyle(
+              color: PratiCaseColors.navy,
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 16),
+          for (final score in scores) ...[
+            _ScoreBar(score: score),
+            const SizedBox(height: 14),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ScoreBar extends StatelessWidget {
+  const _ScoreBar({required this.score});
+
+  final ResultCategoryScore score;
+
+  @override
+  Widget build(BuildContext context) {
+    final percent = score.maxScore == 0 ? 0.0 : score.score / score.maxScore;
+    final barColor = percent >= 0.8
+        ? PratiCaseColors.successGreen
+        : percent >= 0.6
+        ? PratiCaseColors.gold
+        : PratiCaseColors.errorRed;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                score.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: PratiCaseColors.navy,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            Text(
+              '${score.score}/${score.maxScore}',
+              style: TextStyle(
+                color: barColor,
+                fontSize: 13,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+          child: LinearProgressIndicator(
+            value: percent.clamp(0.0, 1.0),
+            minHeight: 8,
+            backgroundColor: PratiCaseColors.border,
+            color: barColor,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ResultActions extends StatelessWidget {
+  const _ResultActions({
+    required this.onRetry,
+    required this.onReport,
+    required this.onSuggestedCases,
+  });
+
+  final VoidCallback onRetry;
+  final VoidCallback onReport;
+  final VoidCallback onSuggestedCases;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: FilledButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.restart_alt_rounded),
+            label: const Text('Tekrar Çöz'),
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: OutlinedButton.icon(
+            onPressed: onReport,
+            icon: const Icon(Icons.description_outlined),
+            label: const Text('Detaylı Rapor'),
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: OutlinedButton.icon(
+            onPressed: onSuggestedCases,
+            icon: const Icon(Icons.library_books_outlined),
+            label: const Text('Benzer Vaka Önerileri'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FeedbackCard extends StatelessWidget {
+  const _FeedbackCard({
+    required this.title,
+    required this.icon,
+    required this.color,
+    required this.items,
+  });
+
+  final String title;
+  final IconData icon;
+  final Color color;
+  final List<String> items;
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) return const SizedBox.shrink();
+    return Container(
+      decoration: BoxDecoration(
+        color: PratiCaseColors.white,
+        borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+        border: Border(
+          left: BorderSide(color: color, width: 4),
+          top: BorderSide(color: PratiCaseColors.border),
+          right: BorderSide(color: PratiCaseColors.border),
+          bottom: BorderSide(color: PratiCaseColors.border),
+        ),
+        boxShadow: PratiCaseShadows.card,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: color, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 15,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            for (final item in items)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 3),
+                      child: Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        item,
+                        style: const TextStyle(
+                          color: PratiCaseColors.ink,
+                          fontWeight: FontWeight.w600,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _IdealApproachCard extends StatelessWidget {
+  const _IdealApproachCard({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SectionCard(
+      title: 'İdeal Yaklaşım Özeti',
+      child: Text(
+        text.isEmpty ? 'Canlı karne özeti henüz oluşmadı.' : text,
+        style: const TextStyle(
+          color: PratiCaseColors.slateBlue,
+          fontWeight: FontWeight.w700,
+          height: 1.45,
+        ),
+      ),
+    );
+  }
+}

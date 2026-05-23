@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/praticase_colors.dart';
+import '../../../app/theme/praticase_tokens.dart';
+import '../../../shared/ui/ui.dart';
 import '../../cases/data/cases_repository.dart';
 import '../../cases/presentation/cases_screen.dart';
 import '../data/home_repository.dart';
@@ -67,11 +69,18 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         }
         final dashboard = snapshot.requireData;
-        final bottomPadding = MediaQuery.paddingOf(context).bottom + 132;
+        final bottomPadding =
+            MediaQuery.paddingOf(context).bottom +
+            PratiCaseSpacing.bottomNavReserve;
         return RefreshIndicator(
           onRefresh: _refresh,
           child: ListView(
-            padding: EdgeInsets.fromLTRB(20, 18, 20, bottomPadding),
+            padding: EdgeInsets.fromLTRB(
+              PratiCaseSpacing.pageHorizontal,
+              PratiCaseSpacing.pageTop,
+              PratiCaseSpacing.pageHorizontal,
+              bottomPadding,
+            ),
             children: [
               _HomeHeader(
                 dashboard: dashboard,
@@ -265,7 +274,7 @@ class _Greeting extends StatelessWidget {
         const Text(
           'Bugün pratiğe ne dersin?',
           style: TextStyle(
-            color: Color(0xFF617086),
+            color: PratiCaseColors.muted,
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
@@ -342,8 +351,8 @@ class _BannerCarouselState extends State<_BannerCarousel> {
                 decoration: BoxDecoration(
                   color: index == _activeIndex
                       ? PratiCaseColors.teal
-                      : const Color(0xFFD1D8E1),
-                  borderRadius: BorderRadius.circular(999),
+                      : PratiCaseColors.border,
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
                 ),
               ),
           ],
@@ -363,12 +372,8 @@ class _HeroBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF043844), Color(0xFF075E6A)],
-        ),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.xxl),
+        gradient: PratiCaseGradients.hero,
         boxShadow: [
           BoxShadow(
             color: PratiCaseColors.navy.withValues(alpha: 0.14),
@@ -378,7 +383,7 @@ class _HeroBanner extends StatelessWidget {
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.xxl),
         child: Stack(
           children: [
             const Positioned(
@@ -467,7 +472,7 @@ class _StatsStrip extends StatelessWidget {
     final items = [
       _StatItem(
         icon: Icons.assignment_turned_in_rounded,
-        color: const Color(0xFF15A3A1),
+        color: PratiCaseColors.tealBright,
         value: stats!.solvedCaseCount.toString(),
         label: 'Çözülen Vaka',
         delta: '↗ %${stats!.solvedDeltaPercent}',
@@ -481,14 +486,14 @@ class _StatsStrip extends StatelessWidget {
       ),
       _StatItem(
         icon: Icons.emoji_events_rounded,
-        color: const Color(0xFF7867D8),
+        color: PratiCaseColors.slateBlue,
         value: stats!.totalPoints.toString(),
         label: 'Toplam Puan',
         delta: '↗ %${stats!.pointsDeltaPercent}',
       ),
       _StatItem(
         icon: Icons.local_fire_department_rounded,
-        color: const Color(0xFFEF6767),
+        color: PratiCaseColors.errorRed,
         value: stats!.dailyStreak.toString(),
         label: 'Günlük Seri',
         delta: stats!.streakLabel ?? 'Devam!',
@@ -527,71 +532,81 @@ class _ContinuedCaseCard extends StatelessWidget {
       );
     }
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(),
-      child: Row(
-        children: [
-          _SoftIcon(
-            icon: Icons.medical_services_outlined,
-            color: PratiCaseColors.teal,
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: PratiCaseColors.navy,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 7),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 6,
+    return Semantics(
+      identifier: 'home.continued-case',
+      button: true,
+      label: 'Devam edilen vaka: ${item.title}',
+      container: true,
+      child: InkWell(
+        onTap: onOpenCase,
+        borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
+        child: Ink(
+          padding: const EdgeInsets.all(16),
+          decoration: _cardDecoration(),
+          child: Row(
+            children: [
+              _SoftIcon(
+                icon: Icons.medical_services_outlined,
+                color: PratiCaseColors.teal,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _Tag(label: item.branch),
                     Text(
-                      'Zorluk: ${item.difficulty.label}',
-                      style: TextStyle(
-                        color: _difficultyColor(item.difficulty),
-                        fontWeight: FontWeight.w800,
+                      item.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: PratiCaseColors.navy,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 6,
+                      children: [
+                        _Tag(label: item.branch),
+                        Text(
+                          'Zorluk: ${item.difficulty.label}',
+                          style: TextStyle(
+                            color: _difficultyColor(item.difficulty),
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+                      child: LinearProgressIndicator(
+                        value: (item.progressPercent.clamp(0, 100)) / 100,
+                        minHeight: 7,
+                        backgroundColor: PratiCaseColors.surfaceContainerHighest,
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          PratiCaseColors.teal,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      'İlerleme: %${item.progressPercent}',
+                      style: const TextStyle(
+                        color: PratiCaseColors.muted,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(99),
-                  child: LinearProgressIndicator(
-                    value: (item.progressPercent.clamp(0, 100)) / 100,
-                    minHeight: 7,
-                    backgroundColor: const Color(0xFFE8EDF2),
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      PratiCaseColors.teal,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  'İlerleme: %${item.progressPercent}',
-                  style: const TextStyle(
-                    color: Color(0xFF64728A),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 14),
+              _ArrowButton(onTap: onOpenCase),
+            ],
           ),
-          const SizedBox(width: 14),
-          _ArrowButton(onTap: onOpenCase),
-        ],
+        ),
       ),
     );
   }
@@ -649,7 +664,7 @@ class _RecommendedCaseCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
       child: Ink(
         width: width,
         padding: const EdgeInsets.all(16),
@@ -678,7 +693,7 @@ class _RecommendedCaseCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                color: Color(0xFF617086),
+                color: PratiCaseColors.muted,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
@@ -699,7 +714,7 @@ class _RecommendedCaseCard extends StatelessWidget {
                   child: Text(
                     '${recommendedCase.points} Puan',
                     style: const TextStyle(
-                      color: Color(0xFF42526B),
+                      color: PratiCaseColors.navy,
                       fontSize: 15,
                       fontWeight: FontWeight.w800,
                     ),
@@ -709,7 +724,7 @@ class _RecommendedCaseCard extends StatelessWidget {
                   recommendedCase.isBookmarked
                       ? Icons.bookmark_rounded
                       : Icons.bookmark_border_rounded,
-                  color: const Color(0xFF5B6A84),
+                  color: PratiCaseColors.slateBlue,
                 ),
               ],
             ),
@@ -773,7 +788,7 @@ class _QuickActionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
       child: Ink(
         padding: const EdgeInsets.all(16),
         decoration: _cardDecoration(),
@@ -801,7 +816,7 @@ class _QuickActionCard extends StatelessWidget {
               textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                color: Color(0xFF68768E),
+                color: PratiCaseColors.muted,
                 fontSize: 12,
                 height: 1.15,
                 fontWeight: FontWeight.w700,
@@ -828,9 +843,9 @@ class _BadgePanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF6F6),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: PratiCaseColors.teal.withValues(alpha: 0.1)),
+        color: PratiCaseColors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+        border: Border.all(color: PratiCaseColors.teal.withValues(alpha: 0.12)),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -860,7 +875,7 @@ class _BadgePanel extends StatelessWidget {
                       maxLines: compact ? 3 : 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: Color(0xFF33465C),
+                        color: PratiCaseColors.slateBlue,
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
@@ -922,39 +937,16 @@ class _HomeError extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(24, 96, 24, 120),
+      padding: const EdgeInsets.fromLTRB(20, 80, 20, 120),
       children: [
-        const Icon(
-          Icons.cloud_off_rounded,
-          color: PratiCaseColors.teal,
-          size: 52,
-        ),
-        const SizedBox(height: 18),
-        const Text(
-          'Canlı veri bağlantısı gerekli',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: PratiCaseColors.navy,
-            fontSize: 22,
-            fontWeight: FontWeight.w900,
+        StateCard.error(
+          title: 'Canlı veri bağlantısı gerekli',
+          body: message,
+          action: FilledButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Tekrar Dene'),
           ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          message,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Color(0xFF5F6D7E),
-            fontSize: 15,
-            height: 1.45,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 22),
-        FilledButton.icon(
-          onPressed: onRetry,
-          icon: const Icon(Icons.refresh_rounded),
-          label: const Text('Tekrar Dene'),
         ),
       ],
     );
@@ -1030,7 +1022,7 @@ class _EmptyPanel extends StatelessWidget {
                 Text(
                   body,
                   style: const TextStyle(
-                    color: Color(0xFF64728A),
+                    color: PratiCaseColors.muted,
                     height: 1.35,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1055,14 +1047,14 @@ class _SearchPill extends StatelessWidget {
       type: MaterialType.transparency,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
         child: Container(
           height: 62,
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 18),
           decoration: BoxDecoration(
             color: PratiCaseColors.white,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
             border: Border.all(color: PratiCaseColors.border),
             boxShadow: [
               BoxShadow(
@@ -1082,7 +1074,7 @@ class _SearchPill extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: Color(0xFF68768E),
+                    color: PratiCaseColors.muted,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1191,7 +1183,7 @@ class _StatCard extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: Color(0xFF7B8798),
+              color: PratiCaseColors.muted,
               fontSize: 13,
               fontWeight: FontWeight.w700,
             ),
@@ -1243,17 +1235,18 @@ class _ArrowButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(PratiCaseRadius.md),
       child: Ink(
         width: 46,
         height: 46,
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [PratiCaseColors.teal, Color(0xFF004D5C)],
-          ),
-          borderRadius: BorderRadius.circular(12),
+          gradient: PratiCaseGradients.hero,
+          borderRadius: BorderRadius.circular(PratiCaseRadius.md),
         ),
-        child: const Icon(Icons.arrow_forward_rounded, color: Colors.white),
+        child: const Icon(
+          Icons.arrow_forward_rounded,
+          color: PratiCaseColors.white,
+        ),
       ),
     );
   }
@@ -1270,7 +1263,7 @@ class _Tag extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: PratiCaseColors.teal.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.sm),
       ),
       child: Text(
         label,
@@ -1302,11 +1295,11 @@ class _ClinicalIllustration extends StatelessWidget {
                 width: 84,
                 height: 26,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF7BC8C2),
+                  color: PratiCaseColors.tealBright.withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(5),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.16),
+                      color: PratiCaseColors.navy.withValues(alpha: 0.16),
                       blurRadius: 12,
                       offset: const Offset(0, 8),
                     ),
@@ -1321,9 +1314,12 @@ class _ClinicalIllustration extends StatelessWidget {
               width: 86,
               height: 126,
               decoration: BoxDecoration(
-                color: const Color(0xFFF7F4ED),
+                color: PratiCaseColors.softSurface,
                 borderRadius: BorderRadius.circular(9),
-                border: Border.all(color: const Color(0xFFB5DDD8), width: 6),
+                border: Border.all(
+                  color: PratiCaseColors.tealBright.withValues(alpha: 0.5),
+                  width: 6,
+                ),
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -1343,7 +1339,7 @@ class _ClinicalIllustration extends StatelessWidget {
               width: 48,
               height: 22,
               decoration: BoxDecoration(
-                color: const Color(0xFF384E62),
+                color: PratiCaseColors.slateBlue,
                 borderRadius: BorderRadius.circular(5),
               ),
             ),
@@ -1355,8 +1351,8 @@ class _ClinicalIllustration extends StatelessWidget {
               width: 44,
               height: 78,
               decoration: BoxDecoration(
-                color: const Color(0xFFF2EEE4),
-                borderRadius: BorderRadius.circular(10),
+                color: PratiCaseColors.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(PratiCaseRadius.sm),
               ),
               child: Align(
                 alignment: Alignment.topCenter,
@@ -1365,7 +1361,7 @@ class _ClinicalIllustration extends StatelessWidget {
                   width: 44,
                   height: 24,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF20384A),
+                    color: PratiCaseColors.navy,
                     borderRadius: BorderRadius.circular(9),
                   ),
                 ),
@@ -1392,8 +1388,8 @@ class _CheckLine extends StatelessWidget {
           width: 34,
           height: 4,
           decoration: BoxDecoration(
-            color: const Color(0xFFD9D5CF),
-            borderRadius: BorderRadius.circular(99),
+            color: PratiCaseColors.border,
+            borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
           ),
         ),
       ],
@@ -1420,15 +1416,9 @@ class _StatItem {
 BoxDecoration _cardDecoration() {
   return BoxDecoration(
     color: PratiCaseColors.white,
-    borderRadius: BorderRadius.circular(22),
+    borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
     border: Border.all(color: PratiCaseColors.border),
-    boxShadow: [
-      BoxShadow(
-        color: PratiCaseColors.navy.withValues(alpha: 0.04),
-        blurRadius: 18,
-        offset: const Offset(0, 10),
-      ),
-    ],
+    boxShadow: PratiCaseShadows.card,
   );
 }
 
@@ -1452,10 +1442,10 @@ IconData _caseIcon(String? key) {
 Color _difficultyColor(CaseDifficulty difficulty) {
   switch (difficulty) {
     case CaseDifficulty.easy:
-      return const Color(0xFF2AA765);
+      return PratiCaseColors.successGreen;
     case CaseDifficulty.medium:
       return PratiCaseColors.gold;
     case CaseDifficulty.hard:
-      return const Color(0xFFE04F5F);
+      return PratiCaseColors.errorRed;
   }
 }

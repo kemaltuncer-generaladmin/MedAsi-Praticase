@@ -556,7 +556,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   if (confirmed == true) await widget.onSignOut();
                 },
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFFE04F5F),
+                  foregroundColor: PratiCaseColors.errorRed,
+                  side: const BorderSide(color: PratiCaseColors.errorRed),
                   minimumSize: const Size.fromHeight(52),
                 ),
                 child: const Text('Çıkış Yap'),
@@ -1543,18 +1544,33 @@ class LogoutConfirmScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black.withValues(alpha: 0.72),
+      backgroundColor: PratiCaseColors.navy.withValues(alpha: 0.72),
       body: SafeArea(
         child: Center(
           child: Container(
             margin: const EdgeInsets.all(24),
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(24),
             decoration: _cardDecoration(),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: PratiCaseColors.errorRed.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.logout_rounded,
+                    color: PratiCaseColors.errorRed,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(height: 16),
                 const Text(
                   'Çıkış Yapmak İstiyor musunuz?',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     color: PratiCaseColors.navy,
                     fontSize: 18,
@@ -1565,19 +1581,33 @@ class LogoutConfirmScreen extends StatelessWidget {
                 const Text(
                   'Oturumunuz sonlandırılacak.',
                   textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 18),
-                FilledButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFE53935),
+                  style: TextStyle(
+                    color: PratiCaseColors.muted,
+                    height: 1.4,
                   ),
-                  child: const Text('Çıkış Yap'),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: PratiCaseColors.errorRed,
+                      minimumSize: const Size.fromHeight(48),
+                    ),
+                    child: const Text('Çıkış Yap'),
+                  ),
                 ),
                 const SizedBox(height: 8),
-                OutlinedButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('İptal'),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                    ),
+                    child: const Text('İptal'),
+                  ),
                 ),
               ],
             ),
@@ -1629,7 +1659,7 @@ class _ProgressPage extends StatelessWidget {
       ],
     );
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F9FB),
+      backgroundColor: PratiCaseColors.softSurface,
       body: SafeArea(
         bottom: false,
         child: onRefresh == null
@@ -1961,8 +1991,8 @@ class _SegmentHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: const Color(0xFFF0F3F7),
-        borderRadius: BorderRadius.circular(12),
+        color: PratiCaseColors.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(PratiCaseRadius.md),
       ),
       child: Row(
         children: [
@@ -1970,7 +2000,7 @@ class _SegmentHeader extends StatelessWidget {
             Expanded(
               child: InkWell(
                 onTap: onSelected == null ? null : () => onSelected!(index),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(PratiCaseRadius.sm),
                 child: Container(
                   height: 36,
                   alignment: Alignment.center,
@@ -1978,7 +2008,7 @@ class _SegmentHeader extends StatelessWidget {
                     color: index == selectedIndex
                         ? PratiCaseColors.teal
                         : Colors.transparent,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(PratiCaseRadius.sm),
                   ),
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
@@ -1986,7 +2016,7 @@ class _SegmentHeader extends StatelessWidget {
                       items[index],
                       style: TextStyle(
                         color: index == selectedIndex
-                            ? Colors.white
+                            ? PratiCaseColors.white
                             : PratiCaseColors.navy,
                         fontWeight: FontWeight.w900,
                         fontSize: 12,
@@ -2094,7 +2124,7 @@ class _CaseCollectionHero extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [PratiCaseColors.gradientStart, PratiCaseColors.gradientEnd],
         ),
-        borderRadius: BorderRadius.all(Radius.circular(24)),
+        borderRadius: BorderRadius.all(Radius.circular(PratiCaseRadius.xxl)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2105,7 +2135,7 @@ class _CaseCollectionHero extends StatelessWidget {
                 child: Text(
                   title,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: PratiCaseColors.white,
                     fontSize: 22,
                     fontWeight: FontWeight.w900,
                   ),
@@ -2123,8 +2153,8 @@ class _CaseCollectionHero extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             body,
-            style: const TextStyle(
-              color: Color(0xFFDDE8EA),
+            style: TextStyle(
+              color: PratiCaseColors.white.withValues(alpha: 0.8),
               height: 1.35,
               fontWeight: FontWeight.w700,
             ),
@@ -2188,7 +2218,7 @@ class _NotesHero extends StatelessWidget {
             height: 54,
             decoration: BoxDecoration(
               color: PratiCaseColors.gold.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
             ),
             child: const Icon(
               Icons.note_alt_rounded,
@@ -2213,7 +2243,7 @@ class _NotesHero extends StatelessWidget {
                 Text(
                   '${notes.length} not • $caseLinked vaka bağlantılı',
                   style: const TextStyle(
-                    color: Color(0xFF66758A),
+                    color: PratiCaseColors.muted,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -2251,7 +2281,7 @@ class _NotificationsHero extends StatelessWidget {
                 height: 54,
                 decoration: BoxDecoration(
                   color: PratiCaseColors.teal.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
                 ),
                 child: const Icon(
                   Icons.notifications_active_outlined,
@@ -2270,7 +2300,7 @@ class _NotificationsHero extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: PratiCaseColors.gold,
-                      borderRadius: BorderRadius.circular(99),
+                      borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
                     ),
                     child: Text(
                       '$unread',
@@ -2303,7 +2333,7 @@ class _NotificationsHero extends StatelessWidget {
                       ? 'Okunmamış bildirimin yok.'
                       : '$unread okunmamış bildirim var.',
                   style: const TextStyle(
-                    color: Color(0xFF66758A),
+                    color: PratiCaseColors.muted,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -2330,10 +2360,8 @@ class _SettingsHero extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [PratiCaseColors.navy, PratiCaseColors.teal],
-        ),
-        borderRadius: BorderRadius.all(Radius.circular(24)),
+        gradient: PratiCaseGradients.hero,
+        borderRadius: BorderRadius.all(Radius.circular(PratiCaseRadius.xxl)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2341,16 +2369,16 @@ class _SettingsHero extends StatelessWidget {
           const Text(
             'Uygulama Tercihleri',
             style: TextStyle(
-              color: Colors.white,
+              color: PratiCaseColors.white,
               fontSize: 22,
               fontWeight: FontWeight.w900,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Sınav odağı, erişilebilirlik ve veri kullanımını buradan yönet.',
             style: TextStyle(
-              color: Color(0xFFDDE8EA),
+              color: PratiCaseColors.white.withValues(alpha: 0.8),
               height: 1.35,
               fontWeight: FontWeight.w700,
             ),
@@ -2402,7 +2430,7 @@ class _DownloadsHero extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: enabled ? PratiCaseColors.navy : PratiCaseColors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.xxl),
         border: Border.all(
           color: enabled
               ? PratiCaseColors.tealBright.withValues(alpha: 0.5)
@@ -2434,7 +2462,9 @@ class _DownloadsHero extends StatelessWidget {
           Text(
             'Favori vakalar ve son oturumlar çevrimdışı çalışma hazırlığı için listelenir.',
             style: TextStyle(
-              color: enabled ? const Color(0xFFDDE8EA) : PratiCaseColors.muted,
+              color: enabled
+                  ? PratiCaseColors.white.withValues(alpha: 0.8)
+                  : PratiCaseColors.muted,
               height: 1.35,
               fontWeight: FontWeight.w700,
             ),
@@ -2491,12 +2521,12 @@ class _HeroMetric extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
         color: dark
-            ? Colors.white.withValues(alpha: 0.1)
+            ? PratiCaseColors.white.withValues(alpha: 0.1)
             : PratiCaseColors.softSurface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
         border: Border.all(
           color: dark
-              ? Colors.white.withValues(alpha: 0.18)
+              ? PratiCaseColors.white.withValues(alpha: 0.18)
               : PratiCaseColors.border,
         ),
       ),
@@ -2509,7 +2539,7 @@ class _HeroMetric extends StatelessWidget {
               value,
               maxLines: 1,
               style: TextStyle(
-                color: dark ? Colors.white : PratiCaseColors.navy,
+                color: dark ? PratiCaseColors.white : PratiCaseColors.navy,
                 fontSize: 17,
                 fontWeight: FontWeight.w900,
               ),
@@ -2521,7 +2551,9 @@ class _HeroMetric extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: dark ? const Color(0xFFDDE8EA) : PratiCaseColors.muted,
+              color: dark
+                  ? PratiCaseColors.white.withValues(alpha: 0.72)
+                  : PratiCaseColors.muted,
               fontSize: 11,
               fontWeight: FontWeight.w800,
             ),
@@ -2543,9 +2575,11 @@ class _StatusPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+        color: PratiCaseColors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+        border: Border.all(
+          color: PratiCaseColors.white.withValues(alpha: 0.18),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -2555,7 +2589,7 @@ class _StatusPill extends StatelessWidget {
           Text(
             label,
             style: const TextStyle(
-              color: Colors.white,
+              color: PratiCaseColors.white,
               fontSize: 12,
               fontWeight: FontWeight.w900,
             ),
@@ -2632,7 +2666,7 @@ class _SupportActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(PratiCaseRadius.md),
       child: Ink(
         height: 52,
         padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -2681,7 +2715,7 @@ class _BadgeSummaryHero extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [PratiCaseColors.navy, PratiCaseColors.teal],
         ),
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
         boxShadow: [
           BoxShadow(
             color: PratiCaseColors.navy.withValues(alpha: 0.12),
@@ -2711,15 +2745,15 @@ class _BadgeSummaryHero extends StatelessWidget {
                       TextSpan(
                         text: '$earned',
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: PratiCaseColors.white,
                           fontSize: 40,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
                       TextSpan(
                         text: ' / $total Rozet',
-                        style: const TextStyle(
-                          color: Color(0xFFDDE8EA),
+                        style: TextStyle(
+                          color: PratiCaseColors.white.withValues(alpha: 0.8),
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
                         ),
@@ -2769,15 +2803,15 @@ class _BadgeProgressLine extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: PratiCaseColors.white,
                   fontWeight: FontWeight.w900,
                 ),
               ),
             ),
             Text(
               '${badge.progressCount}/${badge.targetCount}',
-              style: const TextStyle(
-                color: Color(0xFFDDE8EA),
+              style: TextStyle(
+                color: PratiCaseColors.white.withValues(alpha: 0.8),
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -2785,11 +2819,11 @@ class _BadgeProgressLine extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         ClipRRect(
-          borderRadius: BorderRadius.circular(99),
+          borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
           child: LinearProgressIndicator(
             value: progress,
             minHeight: 6,
-            backgroundColor: Colors.white24,
+            backgroundColor: PratiCaseColors.white.withValues(alpha: 0.24),
             color: PratiCaseColors.tealBright,
           ),
         ),
@@ -2833,7 +2867,7 @@ class _BadgeCardView extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: Color(0xFF66758A),
+              color: PratiCaseColors.muted,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -2841,7 +2875,7 @@ class _BadgeCardView extends StatelessWidget {
           const Spacer(),
           LinearProgressIndicator(
             value: progress,
-            backgroundColor: const Color(0xFFE8EDF2),
+            backgroundColor: PratiCaseColors.surfaceContainerHighest,
             color: color,
             minHeight: 5,
           ),
@@ -2849,7 +2883,7 @@ class _BadgeCardView extends StatelessWidget {
           Text(
             '${badge.progressCount} / ${badge.targetCount}',
             style: const TextStyle(
-              color: Color(0xFF66758A),
+              color: PratiCaseColors.muted,
               fontSize: 12,
               fontWeight: FontWeight.w800,
             ),
@@ -2902,7 +2936,7 @@ class _PodiumCard extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(10, 14, 10, 12),
       decoration: BoxDecoration(
         color: PratiCaseColors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
         border: Border.all(
           color: isFirst
               ? PratiCaseColors.gold.withValues(alpha: 0.62)
@@ -2937,12 +2971,12 @@ class _PodiumCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: isFirst ? PratiCaseColors.gold : PratiCaseColors.navy,
-                  borderRadius: BorderRadius.circular(99),
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
                 ),
                 child: Text(
                   '#${entry.rank}',
                   style: TextStyle(
-                    color: isFirst ? PratiCaseColors.navy : Colors.white,
+                    color: isFirst ? PratiCaseColors.navy : PratiCaseColors.white,
                     fontSize: 10,
                     fontWeight: FontWeight.w900,
                   ),
@@ -2973,7 +3007,7 @@ class _PodiumCard extends StatelessWidget {
           Text(
             '${entry.solvedCaseCount} vaka',
             style: const TextStyle(
-              color: Color(0xFF66758A),
+              color: PratiCaseColors.muted,
               fontSize: 11,
               fontWeight: FontWeight.w800,
             ),
@@ -2997,7 +3031,7 @@ class _LeaderboardTile extends StatelessWidget {
         color: entry.isCurrentUser
             ? PratiCaseColors.teal.withValues(alpha: 0.08)
             : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.md),
       ),
       child: ListTile(
         leading: Text(
@@ -3057,7 +3091,7 @@ class _ProfileBrandHeader extends StatelessWidget {
     return Row(
       children: [
         ClipRRect(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(PratiCaseRadius.md),
           child: Image.asset(
             'assets/branding/praticase.png',
             width: 44,
@@ -3180,13 +3214,13 @@ class _ProfileHero extends StatelessWidget {
         gradient: LinearGradient(
           colors: [PratiCaseColors.gradientStart, PratiCaseColors.gradientEnd],
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.xxl),
       ),
       child: Column(
         children: [
           CircleAvatar(
             radius: 46,
-            backgroundColor: Colors.white,
+            backgroundColor: PratiCaseColors.white,
             child: Text(
               _initial(avatarTitle),
               style: const TextStyle(
@@ -3203,7 +3237,7 @@ class _ProfileHero extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: Colors.white,
+              color: PratiCaseColors.white,
               fontSize: 19,
               fontWeight: FontWeight.w900,
             ),
@@ -3214,8 +3248,8 @@ class _ProfileHero extends StatelessWidget {
               profile.target,
               profile.classLevel,
             ].where((e) => e.isNotEmpty).join(' • '),
-            style: const TextStyle(
-              color: Colors.white70,
+            style: TextStyle(
+              color: PratiCaseColors.white.withValues(alpha: 0.7),
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -3223,23 +3257,23 @@ class _ProfileHero extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+              color: PratiCaseColors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+              border: Border.all(color: PratiCaseColors.white.withValues(alpha: 0.2)),
             ),
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   Icons.verified_user_outlined,
-                  color: Colors.white,
+                  color: PratiCaseColors.white,
                   size: 18,
                 ),
                 SizedBox(width: 8),
                 Text(
                   'PratiCase Üyesi',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: PratiCaseColors.white,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -3457,7 +3491,7 @@ class _DailyGoalHero extends StatelessWidget {
         gradient: LinearGradient(
           colors: [PratiCaseColors.gradientStart, PratiCaseColors.gradientEnd],
         ),
-        borderRadius: BorderRadius.all(Radius.circular(24)),
+        borderRadius: BorderRadius.all(Radius.circular(PratiCaseRadius.xxl)),
       ),
       child: Row(
         children: [
@@ -3465,10 +3499,10 @@ class _DailyGoalHero extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Günlük Seri',
                   style: TextStyle(
-                    color: Colors.white70,
+                    color: PratiCaseColors.white.withValues(alpha: 0.7),
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -3476,18 +3510,18 @@ class _DailyGoalHero extends StatelessWidget {
                 Text(
                   '${profile.dailyStreak} gün',
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: PratiCaseColors.white,
                     fontSize: 34,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
                 const SizedBox(height: 12),
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(999),
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
                   child: LinearProgressIndicator(
                     value: progress == 0 ? 1 : progress,
                     minHeight: 8,
-                    backgroundColor: Colors.white24,
+                    backgroundColor: PratiCaseColors.white.withValues(alpha: 0.24),
                     color: PratiCaseColors.gold,
                   ),
                 ),
@@ -3563,13 +3597,14 @@ class _SettingsRow extends StatelessWidget {
                 if (value != null)
                   Text(
                     value!,
-                    style: const TextStyle(color: Color(0xFF66758A)),
+                    style: const TextStyle(color: PratiCaseColors.muted),
                   ),
                 const Icon(Icons.chevron_right_rounded),
               ],
             )
           : Switch(
               value: enabled!,
+              activeThumbColor: PratiCaseColors.teal,
               onChanged: onTap == null ? null : (_) => onTap!(),
             ),
     );
@@ -3595,11 +3630,11 @@ class _NotificationTile extends StatelessWidget {
           decoration: BoxDecoration(
             color: (item.isRead ? PratiCaseColors.muted : PratiCaseColors.gold)
                 .withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(PratiCaseRadius.md),
           ),
           child: Icon(
             item.isRead ? Icons.notifications_none_rounded : Icons.star_rounded,
-            color: item.isRead ? const Color(0xFF66758A) : PratiCaseColors.gold,
+            color: item.isRead ? PratiCaseColors.muted : PratiCaseColors.gold,
           ),
         ),
         title: Text(
@@ -3650,7 +3685,7 @@ class _NoteTile extends StatelessWidget {
                 height: 42,
                 decoration: BoxDecoration(
                   color: PratiCaseColors.teal.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.md),
                 ),
                 child: const Icon(
                   Icons.note_alt_outlined,
@@ -3675,7 +3710,7 @@ class _NoteTile extends StatelessWidget {
                     Text(
                       _shortDate(item.updatedAt),
                       style: const TextStyle(
-                        color: Color(0xFF66758A),
+                        color: PratiCaseColors.muted,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
@@ -3763,7 +3798,7 @@ class _ExportDataTileState extends State<_ExportDataTile> {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: _exporting ? null : _export,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: _cardDecoration(),
@@ -3870,7 +3905,7 @@ class _CaseCollectionTile extends StatelessWidget {
                 height: 50,
                 decoration: BoxDecoration(
                   color: PratiCaseColors.teal.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
                 ),
                 child: Icon(
                   _caseIcon(item.iconKey),
@@ -3924,7 +3959,7 @@ class _CaseCollectionTile extends StatelessWidget {
               children: [
                 Expanded(
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(99),
+                    borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
                     child: LinearProgressIndicator(
                       value: progress,
                       minHeight: 7,
@@ -3978,7 +4013,7 @@ class _WeakHero extends StatelessWidget {
         gradient: LinearGradient(
           colors: [PratiCaseColors.gradientStart, PratiCaseColors.gradientEnd],
         ),
-        borderRadius: BorderRadius.all(Radius.circular(24)),
+        borderRadius: BorderRadius.all(Radius.circular(PratiCaseRadius.xxl)),
       ),
       child: Row(
         children: [
@@ -3986,10 +4021,10 @@ class _WeakHero extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Genel Başarı',
                   style: TextStyle(
-                    color: Colors.white70,
+                    color: PratiCaseColors.white.withValues(alpha: 0.7),
                     fontWeight: FontWeight.w800,
                     fontSize: 15,
                   ),
@@ -4006,7 +4041,7 @@ class _WeakHero extends StatelessWidget {
                 const Text(
                   'Zayıf başlıkları hedefli tekrar sınavına dönüştür.',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: PratiCaseColors.white,
                     fontWeight: FontWeight.w600,
                     height: 1.35,
                   ),
@@ -4059,7 +4094,7 @@ class _WeakAreaCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           ClipRRect(
-            borderRadius: BorderRadius.circular(999),
+            borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
             child: LinearProgressIndicator(
               value: area.percent / 100,
               minHeight: 8,
@@ -4117,13 +4152,13 @@ class _FormFieldBlock extends StatelessWidget {
           validator: validator,
           decoration: InputDecoration(
             filled: true,
-            fillColor: Colors.white,
+            fillColor: PratiCaseColors.white,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(PratiCaseRadius.md),
               borderSide: const BorderSide(color: PratiCaseColors.border),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(PratiCaseRadius.md),
               borderSide: const BorderSide(color: PratiCaseColors.border),
             ),
           ),
@@ -4168,7 +4203,7 @@ class _MiniMetric extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: Color(0xFF66758A),
+              color: PratiCaseColors.muted,
               fontSize: 11,
               height: 1.15,
               fontWeight: FontWeight.w700,
@@ -4238,7 +4273,7 @@ class _StateBlock extends StatelessWidget {
             body,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              color: Color(0xFF66758A),
+              color: PratiCaseColors.muted,
               height: 1.45,
               fontWeight: FontWeight.w600,
             ),
@@ -4273,7 +4308,7 @@ class _InfoCard extends StatelessWidget {
             height: 44,
             decoration: BoxDecoration(
               color: PratiCaseColors.teal.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(PratiCaseRadius.md),
             ),
             child: Icon(icon, color: PratiCaseColors.teal),
           ),
@@ -4293,7 +4328,7 @@ class _InfoCard extends StatelessWidget {
                 Text(
                   body,
                   style: const TextStyle(
-                    color: Color(0xFF66758A),
+                    color: PratiCaseColors.muted,
                     height: 1.4,
                     fontWeight: FontWeight.w600,
                   ),
@@ -4318,7 +4353,7 @@ class _SmallTag extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: PratiCaseColors.softSurface,
-        borderRadius: BorderRadius.circular(99),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
         border: Border.all(color: PratiCaseColors.border),
       ),
       child: Text(
@@ -4345,7 +4380,7 @@ class _MenuItem {
 
 BoxDecoration _cardDecoration() {
   return BoxDecoration(
-    color: Colors.white,
+    color: PratiCaseColors.white,
     borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
     border: Border.all(color: PratiCaseColors.border),
     boxShadow: PratiCaseShadows.card,
@@ -4357,13 +4392,13 @@ Color _tierColor(String tier) {
     case 'gold':
       return PratiCaseColors.gold;
     case 'silver':
-      return const Color(0xFF75828F);
+      return PratiCaseColors.muted;
     case 'green':
-      return const Color(0xFF2AA765);
+      return PratiCaseColors.successGreen;
     case 'purple':
-      return const Color(0xFF7867D8);
+      return PratiCaseColors.slateBlue;
     default:
-      return const Color(0xFFB6754D);
+      return PratiCaseColors.teal;
   }
 }
 

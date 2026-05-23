@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/theme/praticase_colors.dart';
+import '../../../../app/theme/praticase_tokens.dart';
 
 class AuthTextField extends StatefulWidget {
   const AuthTextField({
@@ -39,12 +40,13 @@ class _AuthTextFieldState extends State<AuthTextField> {
         Text(
           widget.label,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: PratiCaseColors.navy,
+            color: PratiCaseColors.muted,
             fontSize: 12,
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w600,
+            height: 1.2,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: PratiCaseSpacing.sm),
         TextFormField(
           controller: widget.controller,
           keyboardType: widget.keyboardType,
@@ -52,26 +54,27 @@ class _AuthTextFieldState extends State<AuthTextField> {
           validator: widget.validator,
           obscureText: _obscured,
           style: const TextStyle(
-            color: PratiCaseColors.navy,
-            fontSize: 14,
+            color: PratiCaseColors.ink,
+            fontSize: 15,
             fontWeight: FontWeight.w600,
+            height: 1.5,
           ),
           decoration: InputDecoration(
             hintText: widget.hintText,
             hintStyle: const TextStyle(
-              color: Color(0xFF9AA5BC),
-              fontSize: 14,
+              color: PratiCaseColors.muted,
+              fontSize: 15,
               fontWeight: FontWeight.w500,
             ),
             filled: true,
             fillColor: PratiCaseColors.white,
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 15,
+              horizontal: PratiCaseSpacing.lg,
+              vertical: PratiCaseSpacing.lg,
             ),
             prefixIcon: widget.icon == null
                 ? null
-                : Icon(widget.icon, color: PratiCaseColors.muted, size: 22),
+                : Icon(widget.icon, color: PratiCaseColors.muted, size: 20),
             suffixIcon: widget.obscureText
                 ? IconButton(
                     onPressed: () => setState(() => _obscured = !_obscured),
@@ -79,36 +82,41 @@ class _AuthTextFieldState extends State<AuthTextField> {
                       _obscured
                           ? Icons.visibility_outlined
                           : Icons.visibility_off_outlined,
-                      color: const Color(0xFF53647B),
-                      size: 26,
+                      color: PratiCaseColors.muted,
+                      size: 20,
                     ),
                   )
                 : null,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(PratiCaseRadius.md),
               borderSide: const BorderSide(color: PratiCaseColors.border),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFFD3DAE4)),
+              borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+              borderSide: const BorderSide(color: PratiCaseColors.border),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(PratiCaseRadius.md),
               borderSide: const BorderSide(
                 color: PratiCaseColors.teal,
                 width: 1.5,
               ),
             ),
             errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFFD44747)),
+              borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+              borderSide: const BorderSide(color: PratiCaseColors.errorRed),
             ),
             focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(PratiCaseRadius.md),
               borderSide: const BorderSide(
-                color: Color(0xFFD44747),
+                color: PratiCaseColors.errorRed,
                 width: 1.5,
               ),
+            ),
+            errorStyle: const TextStyle(
+              color: PratiCaseColors.errorRed,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),

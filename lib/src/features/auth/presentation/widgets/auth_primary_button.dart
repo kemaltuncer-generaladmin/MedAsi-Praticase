@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/theme/praticase_colors.dart';
+import '../../../../app/theme/praticase_tokens.dart';
 
 class AuthPrimaryButton extends StatelessWidget {
   const AuthPrimaryButton({
@@ -8,6 +9,7 @@ class AuthPrimaryButton extends StatelessWidget {
     required this.onPressed,
     this.loading = false,
     this.showArrow = false,
+    this.identifier,
     super.key,
   });
 
@@ -15,17 +17,18 @@ class AuthPrimaryButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final bool loading;
   final bool showArrow;
+  final String? identifier;
 
   @override
   Widget build(BuildContext context) {
     final activeVisual = onPressed != null || loading;
-    return SizedBox(
+    final core = SizedBox(
       width: double.infinity,
       height: 52,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: activeVisual ? null : const Color(0xFFE2E7EF),
-          borderRadius: BorderRadius.circular(12),
+          color: activeVisual ? null : PratiCaseColors.border,
+          borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
           gradient: activeVisual
               ? const LinearGradient(
                   colors: [
@@ -51,7 +54,7 @@ class AuthPrimaryButton extends StatelessWidget {
             disabledBackgroundColor: Colors.transparent,
             shadowColor: Colors.transparent,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
             ),
           ),
           child: AnimatedSwitcher(
@@ -62,7 +65,7 @@ class AuthPrimaryButton extends StatelessWidget {
                     dimension: 22,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.4,
-                      color: Colors.white,
+                      color: PratiCaseColors.white,
                     ),
                   )
                 : Row(
@@ -77,24 +80,33 @@ class AuthPrimaryButton extends StatelessWidget {
                             label,
                             maxLines: 1,
                             style: TextStyle(
-                              fontSize: 20,
+                              fontSize: 16,
                               fontWeight: FontWeight.w800,
+                              letterSpacing: 0.2,
                               color: activeVisual
-                                  ? Colors.white
-                                  : Color(0xFF718096),
+                                  ? PratiCaseColors.white
+                                  : PratiCaseColors.muted,
                             ),
                           ),
                         ),
                       ),
                       if (showArrow) ...[
-                        const SizedBox(width: 12),
-                        const Icon(Icons.arrow_forward_rounded, size: 22),
+                        const SizedBox(width: PratiCaseSpacing.sm),
+                        const Icon(Icons.arrow_forward_rounded, size: 20),
                       ],
                     ],
                   ),
           ),
         ),
       ),
+    );
+    if (identifier == null) return core;
+    return Semantics(
+      identifier: identifier,
+      button: true,
+      label: label,
+      container: true,
+      child: core,
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'praticase_colors.dart';
+import 'praticase_tokens.dart';
 
 abstract final class PratiCaseTheme {
   static ThemeData light() {
@@ -22,13 +23,20 @@ abstract final class PratiCaseTheme {
         foregroundColor: PratiCaseColors.navy,
         centerTitle: false,
         elevation: 0,
+        titleTextStyle: TextStyle(
+          color: PratiCaseColors.navy,
+          fontFamily: 'Plus Jakarta Sans',
+          fontSize: 20,
+          fontWeight: FontWeight.w800,
+          height: 1.2,
+        ),
       ),
       cardTheme: CardThemeData(
         color: PratiCaseColors.white,
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(PratiCaseRadius.md),
           side: const BorderSide(color: PratiCaseColors.border),
         ),
       ),
@@ -41,7 +49,7 @@ abstract final class PratiCaseTheme {
                 ? PratiCaseColors.teal
                 : PratiCaseColors.muted,
             fontWeight: FontWeight.w700,
-            fontSize: 12,
+            fontSize: 11,
           ),
         ),
       ),
@@ -51,7 +59,7 @@ abstract final class PratiCaseTheme {
           foregroundColor: PratiCaseColors.white,
           minimumSize: const Size.fromHeight(52),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
           ),
         ),
       ),
@@ -61,9 +69,12 @@ abstract final class PratiCaseTheme {
           side: const BorderSide(color: PratiCaseColors.border),
           minimumSize: const Size.fromHeight(48),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
           ),
-          textStyle: const TextStyle(fontWeight: FontWeight.w800),
+          textStyle: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 14,
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
@@ -83,23 +94,24 @@ abstract final class PratiCaseTheme {
         filled: true,
         fillColor: PratiCaseColors.white,
         hintStyle: const TextStyle(
-          color: Color(0xFF8A96A6),
-          fontWeight: FontWeight.w600,
+          color: PratiCaseColors.muted,
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 15,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(PratiCaseRadius.md),
           borderSide: const BorderSide(color: PratiCaseColors.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(PratiCaseRadius.md),
           borderSide: const BorderSide(color: PratiCaseColors.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(PratiCaseRadius.md),
           borderSide: const BorderSide(color: PratiCaseColors.teal, width: 1.4),
         ),
       ),
@@ -108,7 +120,7 @@ abstract final class PratiCaseTheme {
         selectedColor: PratiCaseColors.teal,
         disabledColor: PratiCaseColors.surfaceContainerHighest,
         side: const BorderSide(color: PratiCaseColors.border),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(PratiCaseRadius.sm)),
         labelStyle: const TextStyle(
           color: PratiCaseColors.slateBlue,
           fontWeight: FontWeight.w800,
@@ -121,10 +133,14 @@ abstract final class PratiCaseTheme {
       snackBarTheme: SnackBarThemeData(
         backgroundColor: PratiCaseColors.navy,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+        ),
         contentTextStyle: const TextStyle(
           color: PratiCaseColors.white,
-          fontWeight: FontWeight.w700,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          height: 1.5,
         ),
       ),
       bottomSheetTheme: const BottomSheetThemeData(

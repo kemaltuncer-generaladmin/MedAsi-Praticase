@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/praticase_colors.dart';
+import '../../../app/theme/praticase_tokens.dart';
 import '../data/theoretical_exam_repository.dart';
 import '../domain/theoretical_exam_models.dart';
 
@@ -97,11 +98,25 @@ class _TheoreticalExamSetupScreenState
   Widget build(BuildContext context) {
     final bottom = MediaQuery.paddingOf(context).bottom + 24;
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F9FB),
+      backgroundColor: PratiCaseColors.softSurface,
       appBar: AppBar(
-        title: const Text('Kuramsal Sınav'),
+        title: const Text(
+          'Kuramsal Sınav',
+          style: TextStyle(
+            color: PratiCaseColors.navy,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         centerTitle: false,
-        backgroundColor: const Color(0xFFF7F9FB),
+        backgroundColor: PratiCaseColors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        iconTheme: const IconThemeData(color: PratiCaseColors.navy),
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1, color: PratiCaseColors.border),
+        ),
       ),
       body: RefreshIndicator(
         onRefresh: _refresh,
@@ -352,7 +367,7 @@ class _TheoreticalExamSessionScreenState
     final bottom = MediaQuery.paddingOf(context).bottom + 18;
     final selectedOption = _answers[question.id];
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F9FB),
+      backgroundColor: PratiCaseColors.softSurface,
       body: SafeArea(
         child: Column(
           children: [
@@ -436,29 +451,29 @@ class _IntroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
-      decoration: BoxDecoration(
-        color: PratiCaseColors.navy,
-        borderRadius: BorderRadius.circular(24),
+      decoration: const BoxDecoration(
+        gradient: PratiCaseGradients.hero,
+        borderRadius: BorderRadius.all(Radius.circular(PratiCaseRadius.xxl)),
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.school_rounded, color: PratiCaseColors.gold, size: 34),
-          SizedBox(height: 12),
-          Text(
+          const Icon(Icons.school_rounded, color: PratiCaseColors.gold, size: 34),
+          const SizedBox(height: 12),
+          const Text(
             'Qlinik soru bankasından komite denemesi',
             style: TextStyle(
-              color: Colors.white,
+              color: PratiCaseColors.white,
               fontSize: 22,
               fontWeight: FontWeight.w900,
               height: 1.15,
             ),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
             'Dersleri ve konuyu seç, soru sayısını belirle, gelen sorulardan denemene alacaklarını işaretle.',
             style: TextStyle(
-              color: Color(0xFFD8E7E8),
+              color: PratiCaseColors.white.withValues(alpha: 0.8),
               height: 1.4,
               fontWeight: FontWeight.w600,
             ),
@@ -630,13 +645,16 @@ class _ExamTopBar extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              minHeight: 8,
-              value: answered / total,
-              backgroundColor: PratiCaseColors.border,
-              color: PratiCaseColors.teal,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+              child: LinearProgressIndicator(
+                minHeight: 4,
+                value: answered / total,
+                backgroundColor: PratiCaseColors.border,
+                color: PratiCaseColors.teal,
+              ),
             ),
           ),
         ],
@@ -670,10 +688,10 @@ class _QuestionCard extends StatelessWidget {
           Text(
             question.stem,
             style: const TextStyle(
-              color: PratiCaseColors.ink,
-              fontSize: 17,
-              height: 1.42,
-              fontWeight: FontWeight.w800,
+              color: PratiCaseColors.navy,
+              fontSize: 16,
+              height: 1.5,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -702,15 +720,15 @@ class _OptionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = correct
-        ? const Color(0xFF138A5B)
+        ? PratiCaseColors.successGreen
         : wrong
-        ? const Color(0xFFC2413A)
+        ? PratiCaseColors.errorRed
         : selected
         ? PratiCaseColors.teal
         : null;
     return InkWell(
       onTap: reveal ? null : onTap,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.all(14),
@@ -718,7 +736,7 @@ class _OptionTile extends StatelessWidget {
           color: accent == null
               ? PratiCaseColors.white
               : accent.withValues(alpha: correct ? 0.10 : 0.08),
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
           border: Border.all(
             color: accent ?? PratiCaseColors.border,
             width: accent == null ? 1 : 1.6,
@@ -741,7 +759,7 @@ class _OptionTile extends StatelessWidget {
                 color: (accent ?? PratiCaseColors.muted).withValues(
                   alpha: accent == null ? 0.10 : 0.16,
                 ),
-                borderRadius: BorderRadius.circular(11),
+                borderRadius: BorderRadius.circular(PratiCaseRadius.sm),
               ),
               child: Text(
                 option.label,
@@ -785,15 +803,32 @@ class _TheoreticalResultView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F9FB),
+      backgroundColor: PratiCaseColors.softSurface,
       appBar: AppBar(
-        title: const Text('Kuramsal Sınav Sonucu'),
-        backgroundColor: const Color(0xFFF7F9FB),
+        title: const Text(
+          'Kuramsal Sınav Sonucu',
+          style: TextStyle(
+            color: PratiCaseColors.navy,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        backgroundColor: PratiCaseColors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0,
         automaticallyImplyLeading: false,
+        iconTheme: const IconThemeData(color: PratiCaseColors.navy),
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1, color: PratiCaseColors.border),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Kapat'),
+            child: const Text(
+              'Kapat',
+              style: TextStyle(color: PratiCaseColors.teal),
+            ),
           ),
         ],
       ),
@@ -830,21 +865,17 @@ class _ScoreCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF073844), Color(0xFF0E7C78)],
-        ),
-        borderRadius: BorderRadius.circular(24),
+      decoration: const BoxDecoration(
+        gradient: PratiCaseGradients.hero,
+        borderRadius: BorderRadius.all(Radius.circular(PratiCaseRadius.xxl)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Deneme skoru',
             style: TextStyle(
-              color: Color(0xFFD8E7E8),
+              color: PratiCaseColors.white.withValues(alpha: 0.8),
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -852,7 +883,7 @@ class _ScoreCard extends StatelessWidget {
           Text(
             '%${attempt.percent}',
             style: const TextStyle(
-              color: Colors.white,
+              color: PratiCaseColors.white,
               fontSize: 52,
               height: 1,
               fontWeight: FontWeight.w900,
@@ -949,7 +980,7 @@ class _MetaPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
         color: PratiCaseColors.softSurface,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
       ),
       child: Text(
         text.isEmpty ? '-' : text,
@@ -976,14 +1007,14 @@ class _ResultPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+        color: PratiCaseColors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+        border: Border.all(color: PratiCaseColors.white.withValues(alpha: 0.22)),
       ),
       child: Text(
         text,
         style: const TextStyle(
-          color: Colors.white,
+          color: PratiCaseColors.white,
           fontWeight: FontWeight.w900,
         ),
       ),
@@ -1058,15 +1089,9 @@ class _StateView extends StatelessWidget {
 BoxDecoration _cardDecoration() {
   return BoxDecoration(
     color: PratiCaseColors.white,
-    borderRadius: BorderRadius.circular(22),
+    borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
     border: Border.all(color: PratiCaseColors.border),
-    boxShadow: [
-      BoxShadow(
-        color: PratiCaseColors.navy.withValues(alpha: 0.04),
-        blurRadius: 16,
-        offset: const Offset(0, 8),
-      ),
-    ],
+    boxShadow: PratiCaseShadows.card,
   );
 }
 

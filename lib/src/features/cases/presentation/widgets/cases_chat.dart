@@ -12,7 +12,12 @@ class _PatientBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: PratiCaseColors.white,
         borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-        border: Border.all(color: PratiCaseColors.border),
+        border: Border(
+          left: const BorderSide(color: PratiCaseColors.teal, width: 3),
+          top: BorderSide(color: PratiCaseColors.border),
+          right: BorderSide(color: PratiCaseColors.border),
+          bottom: BorderSide(color: PratiCaseColors.border),
+        ),
         boxShadow: PratiCaseShadows.card,
       ),
       child: Row(
@@ -119,7 +124,7 @@ class _PatientMiniPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F8),
+        color: PratiCaseColors.softSurface,
         borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
       ),
       child: Row(
@@ -174,7 +179,14 @@ class _ChatBubble extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
         decoration: BoxDecoration(
-          color: fromCandidate ? PratiCaseColors.teal : PratiCaseColors.white,
+          color: fromCandidate ? null : PratiCaseColors.white,
+          gradient: fromCandidate
+              ? const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [PratiCaseColors.teal, PratiCaseColors.gradientEnd],
+                )
+              : null,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
@@ -232,8 +244,55 @@ class _ChatBubble extends StatelessWidget {
   }
 }
 
-class _TypingBubble extends StatelessWidget {
+class _TypingBubble extends StatefulWidget {
   const _TypingBubble();
+
+  @override
+  State<_TypingBubble> createState() => _TypingBubbleState();
+}
+
+class _TypingBubbleState extends State<_TypingBubble>
+    with TickerProviderStateMixin {
+  late final List<AnimationController> _controllers;
+  late final List<Animation<double>> _animations;
+
+  @override
+  void initState() {
+    super.initState();
+    _controllers = List.generate(
+      3,
+      (index) => AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 600),
+      ),
+    );
+    _animations = _controllers
+        .map(
+          (controller) => Tween<double>(begin: 0.3, end: 1.0).animate(
+            CurvedAnimation(parent: controller, curve: Curves.easeInOut),
+          ),
+        )
+        .toList();
+    _startAnimations();
+  }
+
+  void _startAnimations() {
+    for (var i = 0; i < _controllers.length; i++) {
+      Future.delayed(Duration(milliseconds: i * 180), () {
+        if (mounted) {
+          _controllers[i].repeat(reverse: true);
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final controller in _controllers) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -241,9 +300,9 @@ class _TypingBubble extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFFF6FAFA),
+          color: PratiCaseColors.softSurface,
           borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(16),
             topRight: Radius.circular(16),
@@ -252,25 +311,23 @@ class _TypingBubble extends StatelessWidget {
           ),
           border: Border.all(color: PratiCaseColors.border),
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: PratiCaseColors.teal,
+            for (var i = 0; i < 3; i++) ...[
+              FadeTransition(
+                opacity: _animations[i],
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: PratiCaseColors.teal,
+                    shape: BoxShape.circle,
+                  ),
+                ),
               ),
-            ),
-            SizedBox(width: 8),
-            Text(
-              'Hasta yanıtlıyor...',
-              style: TextStyle(
-                color: PratiCaseColors.teal,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
+              if (i < 2) const SizedBox(width: 5),
+            ],
           ],
         ),
       ),
@@ -316,9 +373,30 @@ class _ChatComposer extends StatelessWidget {
                       maxLines: 4,
                       textInputAction: TextInputAction.send,
                       onSubmitted: (_) => sending ? null : onSend(),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         hintText: 'Hastaya sorunuzu yazın...',
-                        prefixIcon: Icon(Icons.record_voice_over_outlined),
+                        prefixIcon: const Icon(
+                          Icons.record_voice_over_outlined,
+                          color: PratiCaseColors.teal,
+                        ),
+                        filled: true,
+                        fillColor: PratiCaseColors.softSurface,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: PratiCaseSpacing.md,
+                          vertical: PratiCaseSpacing.md,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
+                          borderSide: const BorderSide(color: PratiCaseColors.border),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
+                          borderSide: const BorderSide(color: PratiCaseColors.border),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
+                          borderSide: const BorderSide(color: PratiCaseColors.teal, width: 1.5),
+                        ),
                       ),
                     ),
                   ),
@@ -334,6 +412,9 @@ class _ChatComposer extends StatelessWidget {
                         style: IconButton.styleFrom(
                           backgroundColor: PratiCaseColors.teal,
                           foregroundColor: PratiCaseColors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+                          ),
                         ),
                         icon: sending
                             ? const SizedBox(
@@ -356,11 +437,24 @@ class _ChatComposer extends StatelessWidget {
                 height: 46,
                 child: OutlinedButton.icon(
                   onPressed: onNext,
-                  icon: const Icon(Icons.health_and_safety_outlined),
+                  icon: const Icon(
+                    Icons.health_and_safety_outlined,
+                    color: PratiCaseColors.teal,
+                  ),
                   label: const Text(
                     'Muayeneye Geç',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: PratiCaseColors.teal,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: PratiCaseColors.teal, width: 1.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+                    ),
                   ),
                 ),
               ),

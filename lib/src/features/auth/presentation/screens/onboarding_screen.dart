@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/theme/praticase_colors.dart';
+import '../../../../app/theme/praticase_tokens.dart';
 import '../widgets/auth_primary_button.dart';
 import '../widgets/auth_scaffold.dart';
 
@@ -18,61 +19,74 @@ class OnboardingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return AuthScaffold(
       showFooterText: false,
-      topPadding: 20,
+      topPadding: PratiCaseSpacing.xl,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const SizedBox(height: 24),
+          const SizedBox(height: PratiCaseSpacing.xxl),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(
                 Icons.monitor_heart_rounded,
                 color: PratiCaseColors.tealBright,
-                size: 36,
+                size: 32,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: PratiCaseSpacing.sm),
               Text(
                 'PratiCase',
                 style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                   color: PratiCaseColors.gradientStart,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  height: 1.2,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 40),
+          const SizedBox(height: PratiCaseSpacing.xxxl),
           const _OnboardingIllustration(),
-          const SizedBox(height: 34),
+          const SizedBox(height: PratiCaseSpacing.xxxl),
           Text(
             'Klinik Akıl Yürütme Becerini Geliştir',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.headlineLarge?.copyWith(
               color: PratiCaseColors.ink,
-              height: 1.18,
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              height: 1.2,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: PratiCaseSpacing.md),
           Text(
             'Gerçekçi vaka simülasyonları ile OSCE sınavlarına güvenle hazırlan.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: PratiCaseColors.slateBlue,
-              fontWeight: FontWeight.w600,
-              height: 1.45,
+              color: PratiCaseColors.muted,
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              height: 1.5,
             ),
           ),
-          const SizedBox(height: 54),
-          AuthPrimaryButton(label: 'Başla', onPressed: onCreateAccount),
-          const SizedBox(height: 18),
+          const SizedBox(height: PratiCaseSpacing.xxxl + PratiCaseSpacing.xxl),
+          AuthPrimaryButton(
+            identifier: 'cta.onboarding-start',
+            label: 'Başla',
+            onPressed: onCreateAccount,
+            showArrow: true,
+          ),
+          const SizedBox(height: PratiCaseSpacing.lg),
           Wrap(
             alignment: WrapAlignment.center,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
                 'Zaten bir hesabın var mı?',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: PratiCaseColors.muted),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: PratiCaseColors.muted,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
               TextButton(
                 onPressed: onLogin,
@@ -80,6 +94,7 @@ class OnboardingScreen extends StatelessWidget {
                   'Giriş Yap',
                   style: TextStyle(
                     color: PratiCaseColors.teal,
+                    fontSize: 14,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -104,42 +119,35 @@ class _OnboardingIllustration extends StatelessWidget {
         alignment: Alignment.center,
         children: [
           Container(
-            width: 245,
-            height: 245,
+            width: double.infinity,
+            height: 264,
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  PratiCaseColors.tealBright.withValues(alpha: 0.16),
-                  PratiCaseColors.teal.withValues(alpha: 0.04),
-                  Colors.transparent,
-                ],
-              ),
+              gradient: PratiCaseGradients.hero,
+              borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
             ),
           ),
-          SizedBox(
-            width: 256,
-            height: 256,
-            child: Container(
-              decoration: BoxDecoration(
-                color: PratiCaseColors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: PratiCaseColors.border),
-                boxShadow: [
-                  BoxShadow(
-                    color: PratiCaseColors.navy.withValues(alpha: 0.04),
-                    blurRadius: 16,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.all(8),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.asset(
-                  'assets/auth/onboarding_clinical_tablet.png',
-                  fit: BoxFit.cover,
-                ),
+          Container(
+            width: 200,
+            height: 200,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: PratiCaseColors.white.withValues(alpha: 0.06),
+            ),
+          ),
+          Container(
+            width: 240,
+            height: 210,
+            decoration: BoxDecoration(
+              color: PratiCaseColors.white,
+              borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+              boxShadow: PratiCaseShadows.floating,
+            ),
+            padding: const EdgeInsets.all(PratiCaseSpacing.sm),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+              child: Image.asset(
+                'assets/auth/onboarding_clinical_tablet.png',
+                fit: BoxFit.cover,
               ),
             ),
           ),
