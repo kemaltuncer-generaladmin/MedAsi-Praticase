@@ -335,6 +335,35 @@ void main() {
     );
   });
 
+  testWidgets('physical exam asks for system before showing findings', (
+    tester,
+  ) async {
+    await _setIPhone14Viewport(tester);
+    final repository = _PhysicalExamCasesRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PhysicalExamScreen(
+          repository: repository,
+          sessionId: 'session-1',
+          caseId: 'case-1',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Önce muayene sistemini seç.'), findsOneWidget);
+    expect(find.text('Batın'), findsOneWidget);
+    expect(find.text('Rebound ve defans'), findsNothing);
+
+    await tester.tap(find.text('Batın'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Batın Bulguları'), findsOneWidget);
+    expect(find.text('Rebound ve defans'), findsOneWidget);
+    expect(find.text('Sistem Değiştir'), findsOneWidget);
+  });
+
   testWidgets('home screen renders with live empty optional sections', (
     tester,
   ) async {
@@ -603,6 +632,74 @@ class _ChatFlowCasesRepository extends Fake implements CasesRepository {
           createdAt: now.add(const Duration(seconds: 1)),
         ),
       );
+  }
+
+  @override
+  Future<void> advanceSession({
+    required String sessionId,
+    required String step,
+  }) async {}
+}
+
+class _PhysicalExamCasesRepository extends Fake implements CasesRepository {
+  _PhysicalExamCasesRepository()
+    : _session = ExamSessionOverview(
+        id: 'session-1',
+        caseId: 'case-1',
+        caseTitle: 'Akut Apandisit',
+        patient: _ChatFlowCasesRepository._patient,
+        currentStep: 'physical_exam',
+        remainingPoints: 300,
+        budgetPoints: 300,
+        durationMinutes: 7,
+        startedAt: DateTime.now().subtract(const Duration(minutes: 2)),
+      );
+
+  final ExamSessionOverview _session;
+  final Set<String> _selected = {};
+
+  @override
+  Future<ExamSessionOverview> loadSession(String sessionId) async => _session;
+
+  @override
+  Future<List<PhysicalExamGroup>> loadPhysicalExamGroups(String caseId) async {
+    return const [
+      PhysicalExamGroup(id: 'general', title: 'Genel Durum'),
+      PhysicalExamGroup(id: 'abdomen', title: 'Batın'),
+    ];
+  }
+
+  @override
+  Future<List<PhysicalExamOption>> loadPhysicalExamOptions({
+    required String sessionId,
+    required String caseId,
+  }) async {
+    return [
+      PhysicalExamOption(
+        id: 'appearance',
+        groupId: 'general',
+        title: 'Genel görünüm',
+        finding: 'Hasta ağrılı görünüyor.',
+        pointValue: 2,
+        isSelected: _selected.contains('appearance'),
+      ),
+      PhysicalExamOption(
+        id: 'rebound',
+        groupId: 'abdomen',
+        title: 'Rebound ve defans',
+        finding: 'Sağ alt kadranda rebound pozitif.',
+        pointValue: 4,
+        isSelected: _selected.contains('rebound'),
+      ),
+    ];
+  }
+
+  @override
+  Future<void> selectPhysicalExam({
+    required String sessionId,
+    required String optionId,
+  }) async {
+    _selected.add(optionId);
   }
 
   @override

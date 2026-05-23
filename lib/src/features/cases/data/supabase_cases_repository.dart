@@ -522,36 +522,49 @@ class SupabaseCasesRepository implements CasesRepository {
   @override
   Future<ExamResultSummary> loadResult(String sessionId) async {
     try {
+      final existing = await _loadResultCard(sessionId);
+      if (existing != null) return existing;
       await _finalizeSession(sessionId);
-      final row = await _client
-          .schema('praticase')
-          .from('session_result_cards')
-          .select(
-            'session_id,case_title,total_score,max_score,percentage,'
-            'category_scores,strong_points,improvement_points,'
-            'critical_mistakes,unnecessary_tests,missed_history,'
-            'missed_physical_exam,ideal_approach',
-          )
-          .eq('session_id', sessionId)
-          .single();
-      return ExamResultSummary(
-        sessionId: _string(row, 'session_id'),
-        caseTitle: _string(row, 'case_title'),
-        totalScore: _int(row, 'total_score'),
-        maxScore: _int(row, 'max_score'),
-        percentage: _int(row, 'percentage'),
-        categoryScores: _categoryScores(row['category_scores']),
-        strongPoints: _stringList(row['strong_points']),
-        improvementPoints: _stringList(row['improvement_points']),
-        criticalMistakes: _stringList(row['critical_mistakes']),
-        unnecessaryTests: _stringList(row['unnecessary_tests']),
-        missedHistory: _stringList(row['missed_history']),
-        missedPhysicalExam: _stringList(row['missed_physical_exam']),
-        idealApproach: _string(row, 'ideal_approach'),
-      );
+      final result = await _loadResultCard(sessionId);
+      if (result == null) {
+        throw const CasesDataUnavailable(
+          'Sonuç karnesi oluşturulamadı. Lütfen tekrar deneyin.',
+        );
+      }
+      return result;
     } on PostgrestException catch (error) {
       throw CasesDataUnavailable(_message(error));
     }
+  }
+
+  Future<ExamResultSummary?> _loadResultCard(String sessionId) async {
+    final row = await _client
+        .schema('praticase')
+        .from('session_result_cards')
+        .select(
+          'session_id,case_title,total_score,max_score,percentage,'
+          'category_scores,strong_points,improvement_points,'
+          'critical_mistakes,unnecessary_tests,missed_history,'
+          'missed_physical_exam,ideal_approach',
+        )
+        .eq('session_id', sessionId)
+        .maybeSingle();
+    if (row == null) return null;
+    return ExamResultSummary(
+      sessionId: _string(row, 'session_id'),
+      caseTitle: _string(row, 'case_title'),
+      totalScore: _int(row, 'total_score'),
+      maxScore: _int(row, 'max_score'),
+      percentage: _int(row, 'percentage'),
+      categoryScores: _categoryScores(row['category_scores']),
+      strongPoints: _stringList(row['strong_points']),
+      improvementPoints: _stringList(row['improvement_points']),
+      criticalMistakes: _stringList(row['critical_mistakes']),
+      unnecessaryTests: _stringList(row['unnecessary_tests']),
+      missedHistory: _stringList(row['missed_history']),
+      missedPhysicalExam: _stringList(row['missed_physical_exam']),
+      idealApproach: _string(row, 'ideal_approach'),
+    );
   }
 
   Future<void> _finalizeSession(String sessionId) async {
@@ -564,10 +577,22 @@ class SupabaseCasesRepository implements CasesRepository {
         throw CasesDataUnavailable(_functionMessage(response.data));
       }
     } on CasesDataUnavailable {
-      rethrow;
+      await _finalizeSessionWithRubric(sessionId);
+    } on Object {
+      await _finalizeSessionWithRubric(sessionId);
+    }
+  }
+
+  Future<void> _finalizeSessionWithRubric(String sessionId) async {
+    try {
+      await _client
+          .schema('praticase')
+          .rpc('finalize_exam_session', params: {'p_session_id': sessionId});
+    } on PostgrestException catch (error) {
+      throw CasesDataUnavailable(_message(error));
     } on Object {
       throw const CasesDataUnavailable(
-        'Yapay zeka sonuç karnesi oluşturulamadı. Lütfen Vertex AI edge function ayarlarını kontrol edin.',
+        'Sonuç karnesi oluşturulamadı. Lütfen sınav yanıtlarını kontrol edip tekrar deneyin.',
       );
     }
   }

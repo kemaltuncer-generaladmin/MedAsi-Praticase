@@ -927,12 +927,22 @@ class _PhysicalExamScreenState extends State<PhysicalExamScreen> {
             );
           }
           final bundle = snapshot.requireData;
-          final groupId =
-              _selectedGroupId ??
-              (bundle.groups.isNotEmpty ? bundle.groups.first.id : null);
+          final groupId = _selectedGroupId;
+          PhysicalExamGroup? selectedGroup;
+          if (groupId != null) {
+            for (final group in bundle.groups) {
+              if (group.id == groupId) {
+                selectedGroup = group;
+                break;
+              }
+            }
+          }
           final visible = bundle.options
               .where((item) => item.groupId == groupId)
               .toList();
+          final selectedCount = bundle.options
+              .where((item) => item.isSelected)
+              .length;
           return Column(
             children: [
               _ExamTopBar(
@@ -949,29 +959,44 @@ class _PhysicalExamScreenState extends State<PhysicalExamScreen> {
                     const SizedBox(height: 16),
                     _PatientBanner(session: bundle.session),
                     const SizedBox(height: 18),
-                    const Text(
-                      'Sistem seçerek muayene edin.',
-                      style: TextStyle(
-                        color: Color(0xFF4F5E72),
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    _SegmentScroller(
-                      items: bundle.groups.map((item) => item.title).toList(),
-                      selectedIndex: bundle.groups.indexWhere(
-                        (item) => item.id == groupId,
-                      ),
-                      onSelected: (index) {
-                        setState(
-                          () => _selectedGroupId = bundle.groups[index].id,
-                        );
-                      },
+                    _SelectionSummary(
+                      text: selectedGroup == null
+                          ? 'Muayene Sistemi Seç'
+                          : selectedGroup.title,
+                      subtext: selectedCount == 0
+                          ? 'Henüz muayene seçilmedi'
+                          : '$selectedCount muayene seçildi',
                     ),
                     const SizedBox(height: 18),
-                    const _BodyMapCard(),
-                    const SizedBox(height: 18),
-                    _FindingsCard(options: visible, onSelect: _select),
+                    if (bundle.groups.isEmpty)
+                      const _CenteredState(
+                        icon: Icons.health_and_safety_outlined,
+                        title: 'Muayene sistemi yok',
+                        body:
+                            'Bu vaka için canlı fizik muayene sistemi tanımlanmadı.',
+                      )
+                    else if (selectedGroup == null)
+                      _PhysicalSystemPicker(
+                        groups: bundle.groups,
+                        options: bundle.options,
+                        onSelected: (groupId) {
+                          setState(() => _selectedGroupId = groupId);
+                        },
+                      )
+                    else ...[
+                      OutlinedButton.icon(
+                        onPressed: () =>
+                            setState(() => _selectedGroupId = null),
+                        icon: const Icon(Icons.arrow_back_rounded),
+                        label: const Text('Sistem Değiştir'),
+                      ),
+                      const SizedBox(height: 14),
+                      _FindingsCard(
+                        title: '${selectedGroup.title} Bulguları',
+                        options: visible,
+                        onSelect: _select,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1579,8 +1604,10 @@ class ResultScreen extends StatelessWidget {
           }
           final result = snapshot.requireData;
           return ListView(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 130),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 130),
             children: [
+              const _StepTopBar(title: 'Sonuç Karnesi'),
+              const SizedBox(height: 12),
               _ResultHero(result: result),
               const SizedBox(height: 18),
               _ScoreGrid(scores: result.categoryScores),
@@ -4009,60 +4036,133 @@ class _SegmentScroller extends StatelessWidget {
   }
 }
 
-class _BodyMapCard extends StatelessWidget {
-  const _BodyMapCard();
+class _PhysicalSystemPicker extends StatelessWidget {
+  const _PhysicalSystemPicker({
+    required this.groups,
+    required this.options,
+    required this.onSelected,
+  });
+
+  final List<PhysicalExamGroup> groups;
+  final List<PhysicalExamOption> options;
+  final ValueChanged<String> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 210,
-      decoration: _cardDecoration(),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Icon(
-            Icons.accessibility_new_rounded,
-            size: 172,
-            color: const Color(0xFFE9B190).withValues(alpha: 0.55),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Önce muayene sistemini seç.',
+          style: TextStyle(
+            color: Color(0xFF4F5E72),
+            fontWeight: FontWeight.w800,
           ),
-          for (final alignment in const [
-            Alignment(-0.35, -0.2),
-            Alignment(0.0, -0.2),
-            Alignment(0.35, -0.2),
-            Alignment(-0.35, 0.12),
-            Alignment(0.0, 0.12),
-            Alignment(0.35, 0.12),
-            Alignment(-0.35, 0.44),
-            Alignment(0.0, 0.44),
-            Alignment(0.35, 0.44),
-          ])
-            Align(
-              alignment: alignment,
-              child: Container(
-                width: 9,
-                height: 9,
-                decoration: const BoxDecoration(
-                  color: PratiCaseColors.teal,
-                  shape: BoxShape.circle,
-                ),
+        ),
+        const SizedBox(height: 12),
+        for (final group in groups) ...[
+          _PhysicalSystemTile(
+            group: group,
+            optionCount: options
+                .where((option) => option.groupId == group.id)
+                .length,
+            selectedCount: options
+                .where(
+                  (option) => option.groupId == group.id && option.isSelected,
+                )
+                .length,
+            onTap: () => onSelected(group.id),
+          ),
+          const SizedBox(height: 10),
+        ],
+      ],
+    );
+  }
+}
+
+class _PhysicalSystemTile extends StatelessWidget {
+  const _PhysicalSystemTile({
+    required this.group,
+    required this.optionCount,
+    required this.selectedCount,
+    required this.onTap,
+  });
+
+  final PhysicalExamGroup group;
+  final int optionCount;
+  final int selectedCount;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Ink(
+        padding: const EdgeInsets.all(14),
+        decoration: _cardDecoration(radius: 16),
+        child: Row(
+          children: [
+            _SoftIcon(
+              icon: Icons.health_and_safety_outlined,
+              color: selectedCount > 0
+                  ? PratiCaseColors.successGreen
+                  : PratiCaseColors.teal,
+              size: 44,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    group.title,
+                    style: const TextStyle(
+                      color: PratiCaseColors.navy,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    selectedCount == 0
+                        ? '$optionCount muayene seçeneği'
+                        : '$selectedCount/$optionCount seçildi',
+                    style: const TextStyle(
+                      color: PratiCaseColors.muted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
               ),
             ),
-        ],
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: PratiCaseColors.teal,
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
 class _FindingsCard extends StatelessWidget {
-  const _FindingsCard({required this.options, required this.onSelect});
+  const _FindingsCard({
+    required this.title,
+    required this.options,
+    required this.onSelect,
+  });
 
+  final String title;
   final List<PhysicalExamOption> options;
   final ValueChanged<String> onSelect;
 
   @override
   Widget build(BuildContext context) {
     return _SectionCard(
-      title: 'Muayene Bulguları',
+      title: title,
       child: Column(
         children: [
           if (options.isEmpty)
@@ -4701,19 +4801,28 @@ class _SelectionSummary extends StatelessWidget {
       decoration: _cardDecoration(),
       child: Row(
         children: [
-          Text(
-            text,
-            style: const TextStyle(
-              color: PratiCaseColors.teal,
-              fontWeight: FontWeight.w900,
+          Expanded(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: PratiCaseColors.teal,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
-          const Spacer(),
-          Text(
-            subtext,
-            style: const TextStyle(
-              color: PratiCaseColors.navy,
-              fontWeight: FontWeight.w900,
+          const SizedBox(width: 10),
+          Flexible(
+            child: Text(
+              subtext,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
+              style: const TextStyle(
+                color: PratiCaseColors.navy,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
         ],
