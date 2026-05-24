@@ -278,19 +278,22 @@ class _WalletCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
+            Row(
               children: [
-                _WalletMetric(
-                  icon: Icons.assignment_outlined,
-                  value: _formatWholeNumber(catalog.questionQuota),
-                  label: 'soru hakkı',
+                Expanded(
+                  child: _WalletMetric(
+                    icon: Icons.assignment_outlined,
+                    value: _formatWholeNumber(catalog.questionQuota),
+                    label: 'soru hakkı',
+                  ),
                 ),
-                _WalletMetric(
-                  icon: Icons.account_balance_wallet_outlined,
-                  value: _formatWholeNumber(catalog.walletBalance),
-                  label: 'coin',
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _WalletMetric(
+                    icon: Icons.account_balance_wallet_outlined,
+                    value: _formatWholeNumber(catalog.walletBalance),
+                    label: 'coin',
+                  ),
                 ),
               ],
             ),
@@ -329,15 +332,18 @@ class _WalletMetric extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, color: PratiCaseColors.teal, size: 18),
           const SizedBox(width: 7),
-          Text(
-            '$value $label',
-            style: const TextStyle(
-              color: PratiCaseColors.teal,
-              fontWeight: FontWeight.w900,
+          Expanded(
+            child: Text(
+              '$value $label',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: PratiCaseColors.teal,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
         ],
