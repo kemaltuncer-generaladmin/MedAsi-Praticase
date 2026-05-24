@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../app/theme/praticase_colors.dart';
 import '../../../app/theme/praticase_motion.dart';
 import '../../../app/theme/praticase_tokens.dart';
+import '../../../shared/data/user_facing_error.dart';
 import '../../../shared/ui/ui.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../cases/data/cases_repository.dart';
@@ -116,9 +117,8 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
         ),
         onOpenOralExam: () => Navigator.of(context).push(
           MaterialPageRoute<void>(
-            builder: (_) => OralExamSetupScreen(
-              repository: widget.oralExamRepository,
-            ),
+            builder: (_) =>
+                OralExamSetupScreen(repository: widget.oralExamRepository),
           ),
         ),
         onOpenProgress: () => setState(() => _selectedIndex = 3),
@@ -339,7 +339,9 @@ class _PratiCaseBottomNav extends StatelessWidget {
               _NavItem(
                 identifier: 'nav.cases',
                 selected: selectedIndex == 1,
-                icon: Icons.inventory_2_outlined,
+                icon: selectedIndex == 1
+                    ? Icons.inventory_2_rounded
+                    : Icons.inventory_2_outlined,
                 label: 'Vakalar',
                 onTap: () => onSelected(1),
               ),
@@ -360,7 +362,9 @@ class _PratiCaseBottomNav extends StatelessWidget {
               _NavItem(
                 identifier: 'nav.profile',
                 selected: selectedIndex == 4,
-                icon: Icons.person_outline_rounded,
+                icon: selectedIndex == 4
+                    ? Icons.person_rounded
+                    : Icons.person_outline_rounded,
                 label: 'Profilim',
                 onTap: () => onSelected(4),
               ),
@@ -424,8 +428,10 @@ class _NavItem extends StatelessWidget {
                     return FadeTransition(
                       opacity: animation,
                       child: ScaleTransition(
-                        scale: Tween<double>(begin: 0.86, end: 1)
-                            .animate(animation),
+                        scale: Tween<double>(
+                          begin: 0.86,
+                          end: 1,
+                        ).animate(animation),
                         child: child,
                       ),
                     );
@@ -524,7 +530,7 @@ class _ExamsScreenState extends State<_ExamsScreen> {
                 const _ShellStateCard(
                   icon: Icons.assignment_outlined,
                   title: 'Sınavlar yükleniyor',
-                  body: 'Canlı sınav modları Supabase’den okunuyor.',
+                  body: 'Sınav modları hazırlanıyor.',
                 )
               else if (snapshot.hasError)
                 _ShellStateCard(
@@ -535,8 +541,8 @@ class _ExamsScreenState extends State<_ExamsScreen> {
               else if (modes.isEmpty)
                 const _ShellStateCard(
                   icon: Icons.assignment_outlined,
-                  title: 'Sınav modu yok',
-                  body: 'Canlı sınav kartları yayınlandığında burada görünür.',
+                  title: 'Sınav modu bulunamadı',
+                  body: 'Sınav seçenekleri hazır olduğunda burada görünecek.',
                 )
               else
                 _ExamModeGrid(
@@ -576,9 +582,8 @@ class _ExamsScreenState extends State<_ExamsScreen> {
       case 'komite_sinav':
         Navigator.of(context).push(
           MaterialPageRoute<void>(
-            builder: (_) => OralExamSetupScreen(
-              repository: widget.oralExamRepository,
-            ),
+            builder: (_) =>
+                OralExamSetupScreen(repository: widget.oralExamRepository),
           ),
         );
         return;
@@ -633,14 +638,14 @@ class _ProgressSummaryScreenState extends State<_ProgressSummaryScreen> {
                 const _ShellStateCard(
                   icon: Icons.insights_outlined,
                   title: 'Gelişim yükleniyor',
-                  body: 'Canlı profil ve performans verisi hazırlanıyor.',
+                  body: 'Profil ve performans verilerin hazırlanıyor.',
                 )
               else if (snapshot.hasError)
                 const _ShellStateCard(
                   icon: Icons.cloud_off_rounded,
                   title: 'Gelişim açılamadı',
                   body:
-                      'Canlı veri bağlantısı kurulduğunda performans özeti burada görünür.',
+                      'Bir bağlantı sorunu oluştu. Sayfayı aşağı çekerek tekrar dene.',
                 )
               else ...[
                 _ProgressSummaryLayout(
@@ -931,6 +936,8 @@ class _ExamModeCard extends StatelessWidget {
                 children: [
                   Text(
                     title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: PratiCaseColors.navy,
                       fontSize: 17,
@@ -940,6 +947,8 @@ class _ExamModeCard extends StatelessWidget {
                   const SizedBox(height: 5),
                   Text(
                     subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: PratiCaseColors.muted,
                       fontSize: 13,
@@ -1100,6 +1109,8 @@ class _SkillBar extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: PratiCaseColors.ink,
                   fontSize: 16,
@@ -1107,12 +1118,17 @@ class _SkillBar extends StatelessWidget {
                 ),
               ),
             ),
-            Text(
-              '%$value',
-              style: const TextStyle(
-                color: PratiCaseColors.slateBlue,
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
+            TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 0, end: value.toDouble()),
+              duration: const Duration(milliseconds: 900),
+              curve: PratiCaseCurves.overshoot,
+              builder: (context, v, _) => Text(
+                '%${v.round()}',
+                style: const TextStyle(
+                  color: PratiCaseColors.slateBlue,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ],
@@ -1120,11 +1136,16 @@ class _SkillBar extends StatelessWidget {
         const SizedBox(height: 8),
         ClipRRect(
           borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
-          child: LinearProgressIndicator(
-            value: value / 100,
-            minHeight: 8,
-            color: color,
-            backgroundColor: PratiCaseColors.surfaceContainerHighest,
+          child: TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0, end: value / 100),
+            duration: const Duration(milliseconds: 900),
+            curve: PratiCaseCurves.overshoot,
+            builder: (context, v, _) => LinearProgressIndicator(
+              value: v,
+              minHeight: 8,
+              color: color,
+              backgroundColor: PratiCaseColors.surfaceContainerHighest,
+            ),
           ),
         ),
       ],
@@ -1147,7 +1168,7 @@ class _AiResultTrendCard extends StatelessWidget {
         children: [
           const _ProgressCardTitle(
             icon: Icons.show_chart_rounded,
-            title: 'AI Sonuç Trendi',
+            title: 'Klinik Sonuç Trendi',
           ),
           const SizedBox(height: 16),
           for (final result in results) ...[
@@ -1227,7 +1248,7 @@ class _AiFeedbackCard extends StatelessWidget {
         children: [
           const _ProgressCardTitle(
             icon: Icons.psychology_alt_outlined,
-            title: 'AI Geri Bildirimleri',
+            title: 'Klinik Geri Bildirim',
           ),
           const SizedBox(height: 14),
           for (final section in summary.feedback) ...[
@@ -1540,9 +1561,5 @@ IconData _examModeIcon(String key) {
 }
 
 String _errorText(Object? error) {
-  final text = error?.toString() ?? '';
-  if (text.trim().isEmpty) {
-    return 'Canlı veri bağlantısı kurulamadı.';
-  }
-  return text.replaceFirst('Exception: ', '');
+  return PratiCaseUserMessage.from(error);
 }

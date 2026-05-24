@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../shared/data/user_facing_error.dart';
 import '../domain/osce_case.dart';
 import 'cases_repository.dart';
 
@@ -178,7 +179,7 @@ class SupabaseCasesRepository implements CasesRepository {
       rethrow;
     } on Object {
       throw const CasesDataUnavailable(
-        'Yapay zeka hasta yanıtı alınamadı. Lütfen Vertex AI edge function ayarlarını kontrol edin.',
+        'Hasta yanıtı şu anda alınamadı. Lütfen tekrar dene.',
       );
     }
   }
@@ -309,10 +310,10 @@ class SupabaseCasesRepository implements CasesRepository {
       try {
         await _client
             .schema('praticase')
-            .rpc('upsert_session_physical_selection', params: {
-              'p_session_id': sessionId,
-              'p_option_id': optionId,
-            });
+            .rpc(
+              'upsert_session_physical_selection',
+              params: {'p_session_id': sessionId, 'p_option_id': optionId},
+            );
         return;
       } on PostgrestException catch (error) {
         if (!_isMissingFunction(error)) rethrow;
@@ -441,13 +442,12 @@ class SupabaseCasesRepository implements CasesRepository {
   }) async {
     try {
       try {
-        await _client.schema('praticase').rpc(
-          'upsert_session_test_request',
-          params: {
-            'p_session_id': sessionId,
-            'p_option_id': optionId,
-          },
-        );
+        await _client
+            .schema('praticase')
+            .rpc(
+              'upsert_session_test_request',
+              params: {'p_session_id': sessionId, 'p_option_id': optionId},
+            );
         return;
       } on PostgrestException catch (error) {
         if (!_isMissingFunction(error)) rethrow;
@@ -721,10 +721,8 @@ class SupabaseCasesRepository implements CasesRepository {
           .rpc('finalize_exam_session', params: {'p_session_id': sessionId});
     } on PostgrestException catch (error) {
       throw CasesDataUnavailable(_resultMessage(error));
-    } on Object catch (error) {
-      throw CasesDataUnavailable(
-        'Sonuç karnesi oluşturulamadı: ${error.toString()}',
-      );
+    } on Object {
+      throw const CasesDataUnavailable(PratiCaseUserMessage.reportFailure);
     }
   }
 
@@ -742,10 +740,7 @@ class SupabaseCasesRepository implements CasesRepository {
     if (error.code == 'PGRST301' || error.code == '401') {
       return 'Oturumun süresi dolmuş olabilir. Lütfen yeniden giriş yap.';
     }
-    if (raw.isNotEmpty) {
-      return 'Sonuç karnesi oluşturulamadı: $raw';
-    }
-    return 'Sonuç karnesi oluşturulamadı. Lütfen tekrar dene.';
+    return PratiCaseUserMessage.reportFailure;
   }
 
   @override
@@ -912,9 +907,14 @@ class SupabaseCasesRepository implements CasesRepository {
   String _functionMessage(Object? data) {
     if (data is Map) {
       final error = data['error']?.toString().trim();
-      if (error != null && error.isNotEmpty) return error;
+      if (error != null && error.isNotEmpty) {
+        return PratiCaseUserMessage.safe(
+          error,
+          fallback: 'Hasta yanıtı şu anda alınamadı. Lütfen tekrar dene.',
+        );
+      }
     }
-    return 'Canlı işlem tamamlanamadı. Lütfen tekrar deneyin.';
+    return 'Hasta yanıtı şu anda alınamadı. Lütfen tekrar dene.';
   }
 
   OsceCaseSummary _summary(Map<String, dynamic> row) {
@@ -1056,7 +1056,7 @@ class SupabaseCasesRepository implements CasesRepository {
     if (_isMissingRelation(error) || _isMissingFunction(error)) {
       return 'Vaka verisi şu anda hazırlanıyor. Lütfen daha sonra tekrar deneyin.';
     }
-    return 'Canlı vaka verisi alınamadı. Lütfen bağlantı ve yetkileri kontrol edin.';
+    return 'Vaka verileri alınamadı. Bağlantını kontrol edip tekrar dene.';
   }
 
   bool _isMissingRelation(PostgrestException error) {

@@ -279,7 +279,7 @@ class SupabaseHomeRepository implements HomeRepository {
     if (error.code == 'PGRST301' || error.code == '401') {
       return 'Oturumun süresi dolmuş olabilir. Lütfen yeniden giriş yap.';
     }
-    return 'Ana ekran canlı verisi alınamadı. Lütfen bağlantı ve yetkileri kontrol edin.';
+    return 'Ana ekran verileri alınamadı. Bağlantını kontrol edip tekrar dene.';
   }
 
   bool _isOptionalSourceMissing(PostgrestException error) {

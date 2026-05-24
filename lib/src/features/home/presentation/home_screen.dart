@@ -69,7 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
           return _HomeError(
             message: snapshot.error is HomeDataUnavailable
                 ? (snapshot.error! as HomeDataUnavailable).message
-                : 'Ana ekran canlı verisi yüklenemedi.',
+                : 'Ana ekran yüklenemedi. Lütfen tekrar dene.',
             onRetry: _refresh,
           );
         }
@@ -343,8 +343,8 @@ class _BannerCarouselState extends State<_BannerCarousel> {
     if (widget.banners.isEmpty) {
       return const _EmptyPanel(
         icon: Icons.dashboard_customize_rounded,
-        title: 'Canlı ana ekran içeriği bekleniyor',
-        body: 'Yayınlanan ana ekran duyuruları burada görünecek.',
+        title: 'Henüz duyuru yok',
+        body: 'Yeni duyurular ve güncellemeler burada görünecek.',
       );
     }
 
@@ -507,8 +507,8 @@ class _OverviewCharts extends StatelessWidget {
     if (data == null) {
       return const _EmptyPanel(
         icon: Icons.query_stats_rounded,
-        title: 'Canlı performans verisi yok',
-        body: 'Performans verilerin sınav çözdükçe burada oluşacak.',
+        title: 'Henüz performans verisi yok',
+        body: 'Vaka çözdükçe performans istatistiklerin burada oluşacak.',
       );
     }
     final solved = data.solvedCaseCount.clamp(0, 20);
@@ -743,8 +743,8 @@ class _ContinuedCaseCard extends StatelessWidget {
     if (item == null) {
       return const _EmptyPanel(
         icon: Icons.medical_services_rounded,
-        title: 'Devam eden canlı oturum yok',
-        body: 'Kullanıcının başladığı vaka burada görünecek.',
+        title: 'Devam eden oturum yok',
+        body: 'Başladığın ama bitirmediğin vakalar burada görünecek.',
       );
     }
 
@@ -753,10 +753,9 @@ class _ContinuedCaseCard extends StatelessWidget {
       button: true,
       label: 'Devam edilen vaka: ${item.title}',
       container: true,
-      child: InkWell(
+      child: PressableScale(
         onTap: onOpenCase,
-        borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
-        child: Ink(
+        child: Container(
           padding: const EdgeInsets.all(16),
           decoration: _cardDecoration(),
           child: Row(
@@ -798,13 +797,21 @@ class _ContinuedCaseCard extends StatelessWidget {
                     const SizedBox(height: 12),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
-                      child: LinearProgressIndicator(
-                        value: (item.progressPercent.clamp(0, 100)) / 100,
-                        minHeight: 7,
-                        backgroundColor:
-                            PratiCaseColors.surfaceContainerHighest,
-                        valueColor: const AlwaysStoppedAnimation<Color>(
-                          PratiCaseColors.teal,
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween<double>(
+                          begin: 0,
+                          end: (item.progressPercent.clamp(0, 100)) / 100,
+                        ),
+                        duration: const Duration(milliseconds: 800),
+                        curve: PratiCaseCurves.overshoot,
+                        builder: (context, value, _) => LinearProgressIndicator(
+                          value: value,
+                          minHeight: 7,
+                          backgroundColor:
+                              PratiCaseColors.surfaceContainerHighest,
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            PratiCaseColors.teal,
+                          ),
                         ),
                       ),
                     ),
@@ -840,8 +847,8 @@ class _RecommendedCases extends StatelessWidget {
     if (cases.isEmpty) {
       return const _EmptyPanel(
         icon: Icons.recommend_rounded,
-        title: 'Önerilen canlı vaka yok',
-        body: 'Kişisel vaka önerilerin hazır olduğunda burada görünecek.',
+        title: 'Henüz öneri yok',
+        body: 'Kişiselleştirilmiş vaka önerilerin hazır olduğunda burada görünecek.',
       );
     }
 
@@ -882,73 +889,74 @@ class _RecommendedCaseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return PressableScale(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
-      child: Ink(
+      child: SizedBox(
         width: width,
-        padding: const EdgeInsets.all(16),
-        decoration: _cardDecoration(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _SoftIcon(
-              icon: _caseIcon(recommendedCase.iconKey),
-              color: _difficultyColor(recommendedCase.difficulty),
-            ),
-            const Spacer(),
-            Text(
-              recommendedCase.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: PratiCaseColors.navy,
-                fontSize: 17,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              recommendedCase.branch,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: PratiCaseColors.muted,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Zorluk: ${recommendedCase.difficulty.label}',
-              style: TextStyle(
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: _cardDecoration(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _SoftIcon(
+                icon: _caseIcon(recommendedCase.iconKey),
                 color: _difficultyColor(recommendedCase.difficulty),
-                fontWeight: FontWeight.w800,
               ),
-            ),
-            const SizedBox(height: 12),
-            const Divider(color: PratiCaseColors.border),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '${recommendedCase.points} Puan',
-                    style: const TextStyle(
-                      color: PratiCaseColors.navy,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
+              const Spacer(),
+              Text(
+                recommendedCase.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: PratiCaseColors.navy,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                recommendedCase.branch,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: PratiCaseColors.muted,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Zorluk: ${recommendedCase.difficulty.label}',
+                style: TextStyle(
+                  color: _difficultyColor(recommendedCase.difficulty),
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Divider(color: PratiCaseColors.border),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${recommendedCase.points} Puan',
+                      style: const TextStyle(
+                        color: PratiCaseColors.navy,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
-                ),
-                Icon(
-                  recommendedCase.isBookmarked
-                      ? Icons.bookmark_rounded
-                      : Icons.bookmark_border_rounded,
-                  color: PratiCaseColors.slateBlue,
-                ),
-              ],
-            ),
-          ],
+                  Icon(
+                    recommendedCase.isBookmarked
+                        ? Icons.bookmark_rounded
+                        : Icons.bookmark_border_rounded,
+                    color: PratiCaseColors.slateBlue,
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -999,7 +1007,7 @@ class _QuickActions extends StatelessWidget {
                   child: _QuickActionCard(
                     icon: Icons.school_rounded,
                     title: 'Teorik Sınav',
-                    subtitle: 'Qlinik soru bankasından ders ve konu seç',
+                    subtitle: 'Medasi soru havuzundan ders ve konu seç',
                     onTap: onTheoreticalExam,
                   ),
                 ),
@@ -1034,7 +1042,7 @@ class _QuickActions extends StatelessWidget {
             _QuickActionCard(
               icon: Icons.school_rounded,
               title: 'Teorik Sınav',
-              subtitle: 'Qlinik soru bankasından ders ve konu seç',
+              subtitle: 'Medasi soru havuzundan ders ve konu seç',
               onTap: onTheoreticalExam,
               horizontal: true,
             ),
@@ -1088,10 +1096,9 @@ class _QuickActionCard extends StatelessWidget {
               ),
             ],
           );
-    return InkWell(
+    return PressableScale(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
-      child: Ink(
+      child: Container(
         padding: const EdgeInsets.all(16),
         decoration: _cardDecoration(),
         child: content,
@@ -1182,6 +1189,8 @@ class _BadgePanel extends StatelessWidget {
                   children: [
                     Text(
                       summary!.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: PratiCaseColors.navy,
                         fontSize: 15,
@@ -1257,7 +1266,7 @@ class _HomeError extends StatelessWidget {
       padding: PratiCaseResponsive.pagePadding(context, top: 80),
       children: [
         StateCard.error(
-          title: 'Canlı veri bağlantısı gerekli',
+          title: 'Ana ekran yüklenemedi',
           body: message,
           action: FilledButton.icon(
             onPressed: onRetry,
@@ -1330,6 +1339,8 @@ class _EmptyPanel extends StatelessWidget {
               children: [
                 Text(
                   title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: PratiCaseColors.navy,
                     fontWeight: FontWeight.w900,
@@ -1338,6 +1349,8 @@ class _EmptyPanel extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   body,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: PratiCaseColors.muted,
                     height: 1.35,

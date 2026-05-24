@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../../app/theme/praticase_colors.dart';
 import '../../../app/theme/praticase_tokens.dart';
+import '../../../shared/data/user_facing_error.dart';
 import '../../../shared/ui/responsive.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../store/data/store_controller.dart';
@@ -66,7 +67,7 @@ class _BadgesScreenState extends State<BadgesScreen> {
               const _StateBlock(
                 icon: Icons.workspace_premium_outlined,
                 title: 'Rozetler yükleniyor',
-                body: 'Canlı rozet verisi Supabase’den okunuyor.',
+                body: 'Rozet bilgilerin hazırlanıyor.',
               )
             else if (snapshot.hasError)
               _StateBlock(
@@ -149,7 +150,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
               const _StateBlock(
                 icon: Icons.leaderboard_outlined,
                 title: 'Sıralama yükleniyor',
-                body: 'Canlı puan tablosu hazırlanıyor.',
+                body: 'Puan tablosu hazırlanıyor.',
               )
             else if (snapshot.hasError)
               _StateBlock(
@@ -238,7 +239,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _StateBlock(
                 icon: Icons.person_outline_rounded,
                 title: 'Profil yükleniyor',
-                body: 'Canlı profil verisi hazırlanıyor.',
+                body: 'Profil bilgilerin hazırlanıyor.',
               ),
             ],
           );
@@ -325,11 +326,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   semanticsId: 'menu.settings',
                 ),
                 _MenuItem(
-                  Icons.help_outline_rounded,
-                  'Yardım ve Destek',
-                  semanticsId: 'menu.help',
-                ),
-                _MenuItem(
                   Icons.download_rounded,
                   'İndirmelerim',
                   semanticsId: 'menu.downloads',
@@ -388,7 +384,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const _StateBlock(
                 icon: Icons.settings_outlined,
                 title: 'Ayarlar yükleniyor',
-                body: 'Canlı uygulama ayarları okunuyor.',
+                body: 'Uygulama ayarların yükleniyor.',
               )
             else if (snapshot.hasError)
               _StateBlock(
@@ -417,7 +413,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _SettingsRow(
                     Icons.lock_outline_rounded,
                     'Hesap ve Güvenlik',
-                    value: 'Supabase Auth',
+                    value: 'E-posta ile giriş',
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) => AccountSecurityScreen(
@@ -758,9 +754,9 @@ class _AccountSecurityScreenState extends State<AccountSecurityScreen> {
       children: [
         _InfoCard(
           icon: Icons.verified_user_outlined,
-          title: 'Supabase Auth',
+          title: 'Hesap Güvenliği',
           body:
-              'Oturum, e-posta doğrulama ve şifre işlemleri canlı Supabase Auth üzerinden yönetilir.',
+              'Oturum, e-posta doğrulama ve şifre işlemlerini buradan yönetebilirsin.',
         ),
         const SizedBox(height: 16),
         _SettingsSection(
@@ -863,7 +859,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               const _StateBlock(
                 icon: Icons.notifications_none_rounded,
                 title: 'Bildirimler yükleniyor',
-                body: 'Canlı bildirimler hazırlanıyor.',
+                body: 'Bildirimler yükleniyor.',
               )
             else if (snapshot.hasError)
               _StateBlock(
@@ -974,7 +970,7 @@ class WeakAreaAnalysisScreen extends StatelessWidget {
               _StateBlock(
                 icon: Icons.track_changes_rounded,
                 title: 'Analiz hazırlanıyor',
-                body: 'Canlı performans ve vaka geçmişi okunuyor.',
+                body: 'Performans verisi ve vaka geçmişin hazırlanıyor.',
               ),
             ],
           );
@@ -1110,7 +1106,7 @@ class HelpCenterScreen extends StatelessWidget {
       title: 'Yardım ve Destek',
       future: repository.loadSupportTopics(),
       emptyTitle: 'Yardım başlığı yok',
-      emptyBody: 'Destek içerikleri canlı tabloda oluştuğunda görünür.',
+      emptyBody: 'Destek içerikleri hazır olduğunda burada görünecek.',
       header: _SupportQuickActions(repository: repository),
       itemBuilder: (item) => _SimpleTile(item: item),
     );
@@ -1134,7 +1130,7 @@ class DailyGoalsScreen extends StatelessWidget {
               const _StateBlock(
                 icon: Icons.local_fire_department_outlined,
                 title: 'Hedefler yükleniyor',
-                body: 'Canlı seri ve hedef verisi hazırlanıyor.',
+                body: 'Günlük hedef ve seri bilgin hazırlanıyor.',
               )
             else if (snapshot.hasError)
               _StateBlock(
@@ -1206,7 +1202,7 @@ class FaqScreen extends StatelessWidget {
       title: 'Sık Sorulan Sorular',
       future: repository.loadFaqItems(),
       emptyTitle: 'SSS yok',
-      emptyBody: 'Sık sorulan sorular canlı tabloda oluştuğunda görünür.',
+      emptyBody: 'Sık sorulan sorular hazır olduğunda burada görünecek.',
       itemBuilder: (item) => _FaqTile(item: item),
     );
   }
@@ -1223,7 +1219,7 @@ class AnnouncementsScreen extends StatelessWidget {
       title: 'Duyurular',
       future: repository.loadAnnouncements(),
       emptyTitle: 'Duyuru yok',
-      emptyBody: 'Aktif duyurular canlı tabloda oluştuğunda görünür.',
+      emptyBody: 'Yeni duyurular yayınlandığında burada görünecek.',
       itemBuilder: (item) => _SimpleTile(item: item),
     );
   }
@@ -1458,7 +1454,7 @@ class _ContactScreenState extends State<ContactScreen> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Mesajınız canlı destek kaydına alındı.')),
+        const SnackBar(content: Text('Mesajınız alındı. En kısa sürede dönüş yapacağız.')),
       );
       Navigator.maybePop(context);
     } on ProgressDataUnavailable catch (error) {
@@ -1796,8 +1792,8 @@ class _LiveListPage<T> extends StatelessWidget {
             if (snapshot.connectionState != ConnectionState.done)
               const _StateBlock(
                 icon: Icons.hourglass_empty_rounded,
-                title: 'Canlı veri yükleniyor',
-                body: 'PratiCase verisi Supabase’den okunuyor.',
+                title: 'Yükleniyor',
+                body: 'Bilgilerin hazırlanıyor.',
               )
             else if (snapshot.hasError)
               _StateBlock(
@@ -1888,8 +1884,8 @@ class _CaseCollectionPageState extends State<_CaseCollectionPage> {
             if (snapshot.connectionState != ConnectionState.done)
               const _StateBlock(
                 icon: Icons.hourglass_empty_rounded,
-                title: 'Canlı veri yükleniyor',
-                body: 'PratiCase vaka kayıtların Supabase’den okunuyor.',
+                title: 'Yükleniyor',
+                body: 'Vaka kayıtların hazırlanıyor.',
               )
             else if (snapshot.hasError)
               _StateBlock(
@@ -2641,16 +2637,18 @@ class _HeroMetric extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 3),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: dark
-                  ? PratiCaseColors.white.withValues(alpha: 0.72)
-                  : PratiCaseColors.muted,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              maxLines: 1,
+              style: TextStyle(
+                color: dark
+                    ? PratiCaseColors.white.withValues(alpha: 0.72)
+                    : PratiCaseColors.muted,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ],
@@ -3569,14 +3567,6 @@ class _MenuPanel extends StatelessWidget {
                           ),
                         );
                       }
-                      if (title == 'Yardım ve Destek') {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) =>
-                                HelpCenterScreen(repository: repository),
-                          ),
-                        );
-                      }
                       if (title == 'İndirmelerim') {
                         Navigator.of(context).push(
                           MaterialPageRoute<void>(
@@ -3721,9 +3711,16 @@ class _SettingsRow extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (value != null)
-                    Text(
-                      value!,
-                      style: const TextStyle(color: PratiCaseColors.muted),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: MediaQuery.sizeOf(context).width * 0.34,
+                      ),
+                      child: Text(
+                        value!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: PratiCaseColors.muted),
+                      ),
                     ),
                   const Icon(Icons.chevron_right_rounded),
                 ],
@@ -4073,7 +4070,7 @@ class _CaseCollectionTile extends StatelessWidget {
                         if (item.branch.isNotEmpty)
                           _SmallTag(label: _statusLabel(item.branch)),
                         if (item.difficulty.isNotEmpty)
-                          _SmallTag(label: item.difficulty),
+                          _SmallTag(label: _statusLabel(item.difficulty)),
                         if (item.updatedAt != null)
                           _SmallTag(label: _shortDate(item.updatedAt!)),
                       ],
@@ -4574,6 +4571,8 @@ String _statusLabel(String value) {
       return 'Yönetim';
     case 'completed':
       return 'Tamamlandı';
+    case 'active':
+      return 'Devam Ediyor';
     default:
       return value;
   }
@@ -4602,8 +4601,10 @@ int _distinctBranches(List<CaseCollectionItem> items) {
 }
 
 String _errorText(Object? error) {
-  if (error is ProgressDataUnavailable) return error.message;
-  return 'Canlı veri alınamadı. Lütfen bağlantı ve yetkileri kontrol edin.';
+  if (error is ProgressDataUnavailable) {
+    return PratiCaseUserMessage.safe(error.message);
+  }
+  return PratiCaseUserMessage.generalFailure;
 }
 
 void _showInfo(BuildContext context, String title, String body) {

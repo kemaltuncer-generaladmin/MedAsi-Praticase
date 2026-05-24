@@ -15,7 +15,7 @@ class StateCard extends StatelessWidget {
 
   const StateCard.loading({
     this.title = 'Yükleniyor',
-    this.body = 'Canlı veri hazırlanıyor.',
+    this.body = 'Veriler yükleniyor...',
     super.key,
   }) : icon = Icons.hourglass_top_rounded,
        iconColor = PratiCaseColors.teal,
@@ -23,7 +23,7 @@ class StateCard extends StatelessWidget {
 
   const StateCard.error({
     this.title = 'Bir şeyler ters gitti',
-    this.body = 'Canlı veri bağlantısı kurulamadı.',
+    this.body = 'Bağlantı kurulamadı. Lütfen tekrar dene.',
     this.action,
     super.key,
   }) : icon = Icons.cloud_off_rounded,

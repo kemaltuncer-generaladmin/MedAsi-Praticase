@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../shared/data/user_facing_error.dart';
 import '../domain/progress_models.dart';
 import 'progress_repository.dart';
 
@@ -42,19 +43,28 @@ class SupabaseProgressRepository implements ProgressRepository {
   Future<StoreCatalog> loadStoreCatalog() async {
     try {
       final response = await _client.functions.invoke(
-        'qlinik',
-        body: {'action': 'store'},
+        'praticase-storekit-verify',
+        body: {'action': 'catalog'},
       );
       final data = response.data is Map
           ? Map<String, dynamic>.from(response.data as Map)
           : const <String, dynamic>{};
       final error = data['error']?.toString().trim() ?? '';
-      if (error.isNotEmpty) throw ProgressDataUnavailable(error);
+      if (error.isNotEmpty) {
+        throw ProgressDataUnavailable(
+          PratiCaseUserMessage.safe(
+            error,
+            fallback: PratiCaseUserMessage.storeFailure,
+          ),
+        );
+      }
       return _storeCatalog(data);
-    } on FunctionException catch (error) {
-      throw ProgressDataUnavailable(
-        error.details?.toString() ?? 'Qlinik mağazası açılamadı.',
-      );
+    } on ProgressDataUnavailable {
+      rethrow;
+    } on FunctionException {
+      throw const ProgressDataUnavailable(PratiCaseUserMessage.storeFailure);
+    } on Object {
+      throw const ProgressDataUnavailable(PratiCaseUserMessage.storeFailure);
     }
   }
 
@@ -68,9 +78,9 @@ class SupabaseProgressRepository implements ProgressRepository {
   }) async {
     try {
       final response = await _client.functions.invoke(
-        'qlinik',
+        'praticase-storekit-verify',
         body: {
-          'action': 'complete_store_purchase',
+          'action': 'verify',
           'product_code': product.code,
           'store_product_id': product.appStoreProductId,
           'provider': 'app_store',
@@ -86,12 +96,21 @@ class SupabaseProgressRepository implements ProgressRepository {
           ? Map<String, dynamic>.from(response.data as Map)
           : const <String, dynamic>{};
       final error = data['error']?.toString().trim() ?? '';
-      if (error.isNotEmpty) throw ProgressDataUnavailable(error);
+      if (error.isNotEmpty) {
+        throw ProgressDataUnavailable(
+          PratiCaseUserMessage.safe(
+            error,
+            fallback: PratiCaseUserMessage.purchaseFailure,
+          ),
+        );
+      }
       return loadStoreCatalog();
-    } on FunctionException catch (error) {
-      throw ProgressDataUnavailable(
-        error.details?.toString() ?? 'Satın alma doğrulanamadı.',
-      );
+    } on ProgressDataUnavailable {
+      rethrow;
+    } on FunctionException {
+      throw const ProgressDataUnavailable(PratiCaseUserMessage.purchaseFailure);
+    } on Object {
+      throw const ProgressDataUnavailable(PratiCaseUserMessage.purchaseFailure);
     }
   }
 
@@ -601,18 +620,23 @@ class SupabaseProgressRepository implements ProgressRepository {
           .from(table)
           .select(columns)
           .order(orderColumn);
+      final seen = <String>{};
       return [
-        for (final row in rows)
-          SimpleContentItem(
-            id: _string(row, 'id'),
-            title: _string(row, 'title').isNotEmpty
-                ? _string(row, 'title')
-                : _string(row, 'question'),
-            body: _string(row, 'body').isNotEmpty
-                ? _string(row, 'body')
-                : _string(row, 'answer'),
-            trailing: _string(row, orderColumn),
-          ),
+        for (final row in rows) ...[
+          if (seen.add(
+            '${_string(row, 'title')}/${_string(row, 'question')}/${_string(row, 'body')}/${_string(row, 'answer')}',
+          ))
+            SimpleContentItem(
+              id: _string(row, 'id'),
+              title: _string(row, 'title').isNotEmpty
+                  ? _string(row, 'title')
+                  : _string(row, 'question'),
+              body: _string(row, 'body').isNotEmpty
+                  ? _string(row, 'body')
+                  : _string(row, 'answer'),
+              trailing: _string(row, orderColumn),
+            ),
+        ],
       ];
     } on PostgrestException catch (error) {
       throw ProgressDataUnavailable(_message(error));
@@ -696,7 +720,7 @@ class SupabaseProgressRepository implements ProgressRepository {
           items: unnecessary,
         ),
       if (improvement.isNotEmpty)
-        ProgressFeedbackInsight(title: 'AI Önerileri', items: improvement),
+        ProgressFeedbackInsight(title: 'Klinik Öneriler', items: improvement),
     ].take(4).toList();
   }
 
@@ -807,12 +831,14 @@ class SupabaseProgressRepository implements ProgressRepository {
     if (error.code == 'PGRST301' || error.code == '401') {
       return 'Oturumun süresi dolmuş olabilir. Lütfen yeniden giriş yap.';
     }
-    return 'Canlı profil/gelişim verisi alınamadı. Lütfen bağlantı ve yetkileri kontrol edin.';
+    return 'Profil ve gelişim verileri alınamadı. Bağlantını kontrol edip tekrar dene.';
   }
 
   bool _isMissingSource(PostgrestException error) {
-    if (error.code == '42P01' || error.code == 'PGRST205' ||
-        error.code == '42883' || error.code == 'PGRST202') {
+    if (error.code == '42P01' ||
+        error.code == 'PGRST205' ||
+        error.code == '42883' ||
+        error.code == 'PGRST202') {
       return true;
     }
     final message = error.message.toLowerCase();

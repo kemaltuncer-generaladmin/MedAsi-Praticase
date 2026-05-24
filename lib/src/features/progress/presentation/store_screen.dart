@@ -6,6 +6,7 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 
 import '../../../app/theme/praticase_colors.dart';
 import '../../../app/theme/praticase_motion.dart';
+import '../../../shared/data/user_facing_error.dart';
 import '../data/progress_repository.dart';
 import '../domain/progress_models.dart';
 
@@ -69,6 +70,7 @@ class _StoreScreenState extends State<StoreScreen> {
   void _refresh() => setState(() => _catalogFuture = _load());
 
   Future<void> _buy(StoreProduct product) async {
+    if (_busy) return;
     final native = _nativeProducts[product.appStoreProductId];
     if (native == null) {
       setState(
@@ -80,14 +82,22 @@ class _StoreScreenState extends State<StoreScreen> {
       _busy = true;
       _status = 'App Store ödeme onayı bekleniyor.';
     });
-    final param = PurchaseParam(productDetails: native);
-    final started = product.interval.trim().isNotEmpty
-        ? await _iap.buyNonConsumable(purchaseParam: param)
-        : await _iap.buyConsumable(purchaseParam: param);
-    if (!started && mounted) {
+    try {
+      final param = PurchaseParam(productDetails: native);
+      final started = product.interval.trim().isNotEmpty
+          ? await _iap.buyNonConsumable(purchaseParam: param)
+          : await _iap.buyConsumable(purchaseParam: param);
+      if (!started && mounted) {
+        setState(() {
+          _busy = false;
+          _status = PratiCaseUserMessage.purchaseFailure;
+        });
+      }
+    } on Object catch (error) {
+      if (!mounted) return;
       setState(() {
         _busy = false;
-        _status = 'Satın alma başlatılamadı.';
+        _status = PratiCaseUserMessage.purchase(error);
       });
     }
   }
@@ -100,7 +110,9 @@ class _StoreScreenState extends State<StoreScreen> {
         if (mounted) {
           setState(() {
             _busy = false;
-            _status = purchase.error?.message ?? 'Satın alma iptal edildi.';
+            _status = purchase.status == PurchaseStatus.canceled
+                ? 'Satın alma iptal edildi.'
+                : PratiCaseUserMessage.purchase(purchase.error?.message);
           });
         }
         continue;
@@ -133,9 +145,20 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 
   Future<void> _restore() async {
-    if (!_supportsStoreKit) return;
-    setState(() => _status = 'Satın almalar geri yükleniyor.');
-    await _iap.restorePurchases();
+    if (!_supportsStoreKit || _busy) return;
+    setState(() {
+      _busy = true;
+      _status = 'Satın almalar geri yükleniyor.';
+    });
+    try {
+      await _iap.restorePurchases();
+    } on Object catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _status = PratiCaseUserMessage.purchase(error);
+      });
+    }
   }
 
   @override
@@ -147,95 +170,380 @@ class _StoreScreenState extends State<StoreScreen> {
         future: _catalogFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: PratiCaseSpinner());
-          }
-          if (snapshot.hasError) {
-            return Center(
-              child: FilledButton(
-                onPressed: _refresh,
-                child: const Text('Mağazayı Yeniden Yükle'),
+            return const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  PratiCaseSpinner(),
+                  SizedBox(height: 16),
+                  Text('Paketler yükleniyor...'),
+                ],
               ),
             );
           }
+          if (snapshot.hasError) {
+            return ListView(
+              padding: const EdgeInsets.all(20),
+              children: [_StoreErrorCard(onRetry: _refresh)],
+            );
+          }
           final catalog = snapshot.requireData;
-          return ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Ortak Qlinik Cüzdanı',
-                        style: TextStyle(fontWeight: FontWeight.w900),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        '${catalog.questionQuota} soru hakkı  |  ${catalog.walletBalance.toStringAsFixed(1)} coin',
-                        style: const TextStyle(
-                          color: PratiCaseColors.teal,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      if (catalog.aiQuota > 0)
-                        Text('${catalog.aiQuota} AI hakkı'),
-                    ],
+          return SafeArea(
+            top: false,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+              children: [
+                _WalletCard(catalog: catalog),
+                if (_status != null) ...[
+                  const SizedBox(height: 12),
+                  _StoreStatusBanner(
+                    message: PratiCaseUserMessage.safe(
+                      _status,
+                      fallback: PratiCaseUserMessage.purchaseFailure,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 20),
+                const Text(
+                  'Paketler',
+                  style: TextStyle(
+                    color: PratiCaseColors.navy,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
-              ),
-              if (_status != null) ...[
                 const SizedBox(height: 12),
-                Text(
-                  _status!,
-                  style: const TextStyle(color: PratiCaseColors.navy),
+                if (catalog.products.isEmpty)
+                  _StoreErrorCard(onRetry: _refresh)
+                else
+                  for (final product in catalog.products) ...[
+                    _StoreProductCard(
+                      product: product,
+                      price:
+                          _nativeProducts[product.appStoreProductId]?.price ??
+                          '${(product.priceCents / 100).toStringAsFixed(2)} ${product.currency}',
+                      enabled:
+                          !_busy &&
+                          _supportsStoreKit &&
+                          _nativeProducts.containsKey(
+                            product.appStoreProductId,
+                          ),
+                      onBuy: () => _buy(product),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                const SizedBox(height: 6),
+                OutlinedButton.icon(
+                  onPressed: _supportsStoreKit && !_busy ? _restore : null,
+                  icon: const Icon(Icons.restore_rounded),
+                  label: const Text('Satın Almaları Geri Yükle'),
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Medasi Cüzdanı, desteklenen Medasi uygulamalarında kullanılabilir. Satın alımlar App Store üzerinden güvenle yönetilir.',
+                  style: TextStyle(
+                    color: PratiCaseColors.muted,
+                    height: 1.45,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
-              const SizedBox(height: 18),
-              for (final product in catalog.products)
-                Card(
-                  child: ListTile(
-                    title: Text(
-                      product.name,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                    subtitle: Text(
-                      '${product.description}\n${product.questionAmount} soru hakkı + ${product.coinAmount.toStringAsFixed(1)} coin',
-                    ),
-                    isThreeLine: true,
-                    trailing: FilledButton(
-                      onPressed:
-                          _busy ||
-                              !_supportsStoreKit ||
-                              !_nativeProducts.containsKey(
-                                product.appStoreProductId,
-                              )
-                          ? null
-                          : () => _buy(product),
-                      child: Text(
-                        _nativeProducts[product.appStoreProductId]?.price ??
-                            '${(product.priceCents / 100).toStringAsFixed(2)} ${product.currency}',
-                      ),
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: _supportsStoreKit ? _restore : null,
-                icon: const Icon(Icons.restore_rounded),
-                label: const Text('Satın Almaları Geri Yükle'),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Paket hakları Qlinik ve PratiCase arasında ortak kullanılır. Ödeme yalnız App Store doğrulaması sonrası etkinleşir.',
-                style: TextStyle(color: PratiCaseColors.muted),
-              ),
-            ],
+            ),
           );
         },
       ),
     );
   }
+}
+
+class _WalletCard extends StatelessWidget {
+  const _WalletCard({required this.catalog});
+
+  final StoreCatalog catalog;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Medasi Cüzdanı',
+              style: TextStyle(
+                color: PratiCaseColors.navy,
+                fontSize: 17,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                _WalletMetric(
+                  icon: Icons.assignment_outlined,
+                  value: _formatWholeNumber(catalog.questionQuota),
+                  label: 'soru hakkı',
+                ),
+                _WalletMetric(
+                  icon: Icons.account_balance_wallet_outlined,
+                  value: _formatWholeNumber(catalog.walletBalance),
+                  label: 'coin',
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Medasi ekosisteminde desteklenen uygulamalarda kullanılabilir.',
+              style: TextStyle(
+                color: PratiCaseColors.muted,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WalletMetric extends StatelessWidget {
+  const _WalletMetric({
+    required this.icon,
+    required this.value,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.teal.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: PratiCaseColors.teal, size: 18),
+          const SizedBox(width: 7),
+          Text(
+            '$value $label',
+            style: const TextStyle(
+              color: PratiCaseColors.teal,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StoreProductCard extends StatelessWidget {
+  const _StoreProductCard({
+    required this.product,
+    required this.price,
+    required this.enabled,
+    required this.onBuy,
+  });
+
+  final StoreProduct product;
+  final String price;
+  final bool enabled;
+  final VoidCallback onBuy;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    product.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: PratiCaseColors.navy,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                if (product.isFeatured) ...[
+                  const SizedBox(width: 8),
+                  const _FeaturedPill(),
+                ],
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              product.description,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: PratiCaseColors.muted,
+                height: 1.4,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _SmallPill(
+                  label: '${_formatWholeNumber(product.questionAmount)} soru',
+                ),
+                _SmallPill(
+                  label: '${_formatWholeNumber(product.coinAmount)} coin',
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: enabled ? onBuy : null,
+                child: Text(enabled ? '$price ile Satın Al' : price),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SmallPill extends StatelessWidget {
+  const _SmallPill({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.softSurface,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: PratiCaseColors.slateBlue,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _FeaturedPill extends StatelessWidget {
+  const _FeaturedPill();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.gold.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: const Text(
+        'Önerilen',
+        style: TextStyle(
+          color: PratiCaseColors.gold,
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _StoreStatusBanner extends StatelessWidget {
+  const _StoreStatusBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.teal.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        message,
+        style: const TextStyle(
+          color: PratiCaseColors.navy,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _StoreErrorCard extends StatelessWidget {
+  const _StoreErrorCard({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            const Icon(
+              Icons.storefront_outlined,
+              color: PratiCaseColors.teal,
+              size: 38,
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Paketler şu anda yüklenemedi.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: PratiCaseColors.navy,
+                fontSize: 17,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Tekrar deneyebilir veya sorun devam ederse destek ekibine ulaşabilirsin.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: PratiCaseColors.muted, height: 1.4),
+            ),
+            const SizedBox(height: 16),
+            FilledButton(onPressed: onRetry, child: const Text('Tekrar Dene')),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _formatWholeNumber(num value) {
+  final digits = value.round().toString();
+  return digits.replaceAllMapped(
+    RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+    (match) => '${match.group(1)}.',
+  );
 }

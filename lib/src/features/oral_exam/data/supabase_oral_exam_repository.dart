@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../shared/data/user_facing_error.dart';
 import '../domain/oral_exam_models.dart';
 import 'oral_exam_repository.dart';
 
@@ -119,7 +120,10 @@ class SupabaseOralExamRepository implements OralExamRepository {
     return OralExamSession(
       id: _stringFrom(response, 'session_id'),
       durationSeconds: _intFrom(response, 'duration_seconds'),
-      caseBrief: _stringFrom(response, 'case_brief'),
+      caseBrief: _safeMentorText(
+        _stringFrom(response, 'case_brief'),
+        fallback: 'Klinik vaka bilgisi hazırlanıyor.',
+      ),
       startedAt:
           DateTime.tryParse(_stringFrom(response, 'started_at')) ??
           DateTime.now(),
@@ -128,7 +132,11 @@ class SupabaseOralExamRepository implements OralExamRepository {
       difficulty: _stringFrom(persona, 'difficulty'),
       branchId: _stringFrom(branch, 'id'),
       branchTitle: _stringFrom(branch, 'title'),
-      openingMessage: _stringFrom(response, 'mentor_message'),
+      openingMessage: _safeMentorText(
+        _stringFrom(response, 'mentor_message'),
+        fallback:
+            'Vaka üzerinden ilerleyelim. Öncelikle yaklaşımını nasıl yapılandırırsın?',
+      ),
       format: OralExamFormat.fromApi(_stringFrom(response, 'exam_format')),
       panel: panel,
       activePersonaId: _stringFrom(response, 'active_persona_id').isNotEmpty
@@ -150,7 +158,7 @@ class SupabaseOralExamRepository implements OralExamRepository {
     final eval = (response['turn_evaluation'] as Map?) ?? const {};
     final mentorMessages = _mentorMessagesFrom(response);
     return OralExamTurnResult(
-      mentorMessage: _stringFrom(response, 'mentor_message'),
+      mentorMessage: _safeMentorText(_stringFrom(response, 'mentor_message')),
       mentorMessages: mentorMessages,
       isFollowup: response['is_followup'] == true,
       shouldEnd: response['should_end'] == true,
@@ -182,8 +190,10 @@ class SupabaseOralExamRepository implements OralExamRepository {
         if (entry.value is Map)
           OralExamPanelVerdict(
             personaId: entry.key.toString(),
-            verdict: _stringFrom(entry.value as Map, 'verdict'),
-            note: _stringFrom(entry.value as Map, 'note'),
+            verdict: _safeResultText(
+              _stringFrom(entry.value as Map, 'verdict'),
+            ),
+            note: _safeResultText(_stringFrom(entry.value as Map, 'note')),
           ),
     ];
     return OralExamResult(
@@ -195,11 +205,14 @@ class SupabaseOralExamRepository implements OralExamRepository {
       communicationScore: _intFrom(data, 'communication_score'),
       paceScore: _intFrom(data, 'pace_score'),
       professionalismScore: _intFrom(data, 'professionalism_score'),
-      mentorSummary: _stringFrom(data, 'mentor_summary'),
-      strongPoints: _stringList(data['strong_points']),
-      improvementPoints: _stringList(data['improvement_points']),
-      missedPoints: _stringList(data['missed_points']),
-      caseBrief: _stringFrom(data, 'case_brief'),
+      mentorSummary: _safeResultText(
+        _stringFrom(data, 'mentor_summary'),
+        fallback: 'Klinik değerlendirme tamamlandı.',
+      ),
+      strongPoints: _safeStringList(data['strong_points']),
+      improvementPoints: _safeStringList(data['improvement_points']),
+      missedPoints: _safeStringList(data['missed_points']),
+      caseBrief: _safeResultText(_stringFrom(data, 'case_brief')),
       format: OralExamFormat.fromApi(_stringFrom(data, 'exam_format')),
       panelVerdicts: verdicts,
     );
@@ -220,7 +233,9 @@ class SupabaseOralExamRepository implements OralExamRepository {
         for (final row in rows)
           OralExamMessage(
             speaker: _string(row, 'speaker'),
-            message: _string(row, 'message'),
+            message: _string(row, 'speaker') == 'mentor'
+                ? _safeMentorText(_string(row, 'message'))
+                : _string(row, 'message'),
             isFollowup: row['is_followup'] == true,
             wasSkipped: row['was_skipped'] == true,
             personaId: _string(row, 'speaker_persona_id'),
@@ -232,6 +247,9 @@ class SupabaseOralExamRepository implements OralExamRepository {
   }
 
   Future<Map<String, dynamic>> _invoke(Map<String, dynamic> body) async {
+    final fallback = body['action'] == 'finalize'
+        ? PratiCaseUserMessage.reportFailure
+        : PratiCaseUserMessage.oralExamFailure;
     try {
       final response = await _client.functions.invoke(
         'praticase-oral-exam',
@@ -240,25 +258,21 @@ class SupabaseOralExamRepository implements OralExamRepository {
       final data = response.data;
       if (data is Map<String, dynamic>) {
         final error = data['error']?.toString().trim() ?? '';
-        if (error.isNotEmpty) throw OralExamUnavailable(error);
+        if (error.isNotEmpty) {
+          throw OralExamUnavailable(
+            PratiCaseUserMessage.safe(error, fallback: fallback),
+          );
+        }
         return data;
       }
       if (data is Map) return Map<String, dynamic>.from(data);
-      throw const OralExamUnavailable('Sözlü sınav yanıtı okunamadı.');
-    } on FunctionException catch (error) {
-      throw OralExamUnavailable(
-        (error.details?.toString().trim().isNotEmpty == true
-                ? error.details!.toString().trim()
-                : null) ??
-            error.reasonPhrase ??
-            'Sözlü sınav servisi açılamadı.',
-      );
+      throw OralExamUnavailable(fallback);
+    } on FunctionException {
+      throw OralExamUnavailable(fallback);
     } on OralExamUnavailable {
       rethrow;
     } on Object {
-      throw const OralExamUnavailable(
-        'Sözlü sınav servisiyle bağlantı kurulamadı.',
-      );
+      throw OralExamUnavailable(fallback);
     }
   }
 
@@ -270,7 +284,7 @@ class SupabaseOralExamRepository implements OralExamRepository {
         message.contains('does not exist')) {
       return 'Sözlü sınav modülü hazırlanıyor. Lütfen daha sonra tekrar dene.';
     }
-    return 'Sözlü sınav verisi alınamadı. Bağlantı ve yetkileri kontrol et.';
+    return 'Sözlü sınav verisi alınamadı. Bağlantını kontrol edip tekrar dene.';
   }
 
   String _string(Map<String, dynamic> row, String key) =>
@@ -293,12 +307,12 @@ class SupabaseOralExamRepository implements OralExamRepository {
     return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 
-  List<String> _stringList(Object? value) {
+  List<String> _safeStringList(Object? value) {
     if (value is List) {
       return [
         for (final item in value)
           if ((item?.toString().trim() ?? '').isNotEmpty)
-            item!.toString().trim(),
+            _safeResultText(item!.toString()),
       ];
     }
     return const <String>[];
@@ -312,7 +326,7 @@ class SupabaseOralExamRepository implements OralExamRepository {
           if (raw is Map && _stringFrom(raw, 'message').isNotEmpty)
             OralExamMessage(
               speaker: 'mentor',
-              message: _stringFrom(raw, 'message'),
+              message: _safeMentorText(_stringFrom(raw, 'message')),
               personaId: _stringFrom(raw, 'persona_id'),
               personaTitle: _stringFrom(raw, 'persona_title'),
               isFollowup: raw['asks_question'] == true,
@@ -321,7 +335,7 @@ class SupabaseOralExamRepository implements OralExamRepository {
       if (messages.isNotEmpty) return messages;
     }
 
-    final message = _stringFrom(response, 'mentor_message');
+    final message = _safeMentorText(_stringFrom(response, 'mentor_message'));
     if (message.isEmpty) return const <OralExamMessage>[];
     return [
       OralExamMessage(
@@ -332,5 +346,16 @@ class SupabaseOralExamRepository implements OralExamRepository {
         isFollowup: response['is_followup'] == true,
       ),
     ];
+  }
+
+  String _safeMentorText(String value, {String? fallback}) {
+    return PratiCaseUserMessage.mentorMessage(value, fallback: fallback);
+  }
+
+  String _safeResultText(String value, {String? fallback}) {
+    return PratiCaseUserMessage.safe(
+      value,
+      fallback: fallback ?? 'Değerlendirme bilgisi hazırlanamadı.',
+    );
   }
 }

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../../app/theme/praticase_colors.dart';
 import '../../../app/theme/praticase_motion.dart';
 import '../../../app/theme/praticase_tokens.dart';
+import '../../../shared/data/user_facing_error.dart';
 import '../../../shared/ui/ui.dart';
 import '../data/cases_repository.dart';
 import '../data/voice_exam_adapter.dart';
@@ -107,8 +108,8 @@ class _CasesScreenState extends State<CasesScreen> {
                   padding: EdgeInsets.only(top: 22),
                   child: _CenteredState(
                     icon: Icons.hourglass_empty_rounded,
-                    title: 'Canlı vakalar yükleniyor',
-                    body: 'PratiCase vaka kütüphanesi Supabase’den okunuyor.',
+                    title: 'Vakalar yükleniyor',
+                    body: 'Vaka istasyonların hazırlanıyor.',
                   ),
                 )
               else if (snapshot.hasError)
@@ -116,7 +117,7 @@ class _CasesScreenState extends State<CasesScreen> {
                   padding: const EdgeInsets.only(top: 22),
                   child: _CenteredState(
                     icon: Icons.cloud_off_rounded,
-                    title: 'Canlı veri bağlantısı gerekli',
+                    title: 'Vakalar yüklenemedi',
                     body: _errorText(snapshot.error),
                   ),
                 )
@@ -468,7 +469,7 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
             return const _CenteredState(
               icon: Icons.hourglass_empty_rounded,
               title: 'Vaka hazırlanıyor',
-              body: 'Canlı vaka detayları yükleniyor.',
+              body: 'Vaka detayları yükleniyor.',
             );
           }
           if (snapshot.hasError) {
@@ -765,7 +766,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
             return const _CenteredState(
               icon: Icons.chat_bubble_outline_rounded,
               title: 'Görüşme açılıyor',
-              body: 'Canlı session ve mesajlar yükleniyor.',
+              body: 'Hasta dosyası ve görüşme geçmişi açılıyor.',
             );
           }
           if (snapshot.hasError) {
@@ -864,6 +865,10 @@ class PhysicalExamScreen extends StatefulWidget {
 class _PhysicalExamScreenState extends State<PhysicalExamScreen> {
   late Future<_PhysicalBundle> _bundleFuture;
   String? _selectedGroupId;
+  var _phaseReady = false;
+  var _hasSelectableExam = false;
+  var _selectedExamCount = 0;
+  var _navigating = false;
 
   @override
   void initState() {
@@ -880,34 +885,56 @@ class _PhysicalExamScreenState extends State<PhysicalExamScreen> {
       sessionId: widget.sessionId,
       caseId: widget.caseId,
     );
+    _phaseReady = true;
+    _hasSelectableExam = options.isNotEmpty;
+    _selectedExamCount = options.where((item) => item.isSelected).length;
     return _PhysicalBundle(session: session, groups: groups, options: options);
   }
 
   Future<void> _select(String optionId) async {
-    await widget.repository.selectPhysicalExam(
-      sessionId: widget.sessionId,
-      optionId: optionId,
-    );
-    setState(() {
-      _bundleFuture = _load();
-    });
+    try {
+      await widget.repository.selectPhysicalExam(
+        sessionId: widget.sessionId,
+        optionId: optionId,
+      );
+      setState(() {
+        _bundleFuture = _load();
+      });
+    } on CasesDataUnavailable catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
   }
 
   Future<void> _next() async {
-    await widget.repository.advanceSession(
-      sessionId: widget.sessionId,
-      step: 'tests',
-    );
-    if (!mounted) return;
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => TestsScreen(
-          repository: widget.repository,
-          sessionId: widget.sessionId,
-          caseId: widget.caseId,
+    if (!_phaseReady || _navigating) return;
+    if (_hasSelectableExam && _selectedExamCount == 0) return;
+    setState(() => _navigating = true);
+    try {
+      await widget.repository.advanceSession(
+        sessionId: widget.sessionId,
+        step: 'tests',
+      );
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => TestsScreen(
+            repository: widget.repository,
+            sessionId: widget.sessionId,
+            caseId: widget.caseId,
+          ),
         ),
-      ),
-    );
+      );
+    } on CasesDataUnavailable catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      if (mounted) setState(() => _navigating = false);
+    }
   }
 
   @override
@@ -920,7 +947,7 @@ class _PhysicalExamScreenState extends State<PhysicalExamScreen> {
             return const _CenteredState(
               icon: Icons.health_and_safety_outlined,
               title: 'Muayene seçenekleri yükleniyor',
-              body: 'Canlı bulgu listesi Supabase’den okunuyor.',
+              body: 'Muayene bulguları hazırlanıyor.',
             );
           }
           if (snapshot.hasError) {
@@ -977,7 +1004,7 @@ class _PhysicalExamScreenState extends State<PhysicalExamScreen> {
                         icon: Icons.health_and_safety_outlined,
                         title: 'Muayene sistemi yok',
                         body:
-                            'Bu vaka için canlı fizik muayene sistemi tanımlanmadı.',
+                            'Bu vaka için fizik muayene sistemi tanımlanmadı.',
                       )
                     else if (selectedGroup == null)
                       _PhysicalSystemPicker(
@@ -1008,7 +1035,15 @@ class _PhysicalExamScreenState extends State<PhysicalExamScreen> {
           );
         },
       ),
-      bottom: _BottomAction(label: 'Tetkiklere Geç', onPressed: _next),
+      bottom: _BottomAction(
+        label: _navigating ? 'Geçiliyor...' : 'Tetkiklere Geç',
+        onPressed:
+            !_phaseReady ||
+                _navigating ||
+                (_hasSelectableExam && _selectedExamCount == 0)
+            ? null
+            : _next,
+      ),
     );
   }
 }
@@ -1032,6 +1067,11 @@ class TestsScreen extends StatefulWidget {
 class _TestsScreenState extends State<TestsScreen> {
   late Future<_TestsBundle> _bundleFuture;
   String? _selectedGroupId;
+  var _phaseReady = false;
+  var _hasSelectableTests = false;
+  var _selectedTestCount = 0;
+  var _requesting = false;
+  var _navigating = false;
 
   @override
   void initState() {
@@ -1046,38 +1086,64 @@ class _TestsScreenState extends State<TestsScreen> {
       sessionId: widget.sessionId,
       caseId: widget.caseId,
     );
+    _phaseReady = true;
+    _hasSelectableTests = options.isNotEmpty;
+    _selectedTestCount = options.where((item) => item.isSelected).length;
     return _TestsBundle(session: session, groups: groups, options: options);
   }
 
   Future<void> _request(String optionId) async {
-    final bundle = await _bundleFuture;
-    final option = bundle.options.firstWhere((item) => item.id == optionId);
-    await widget.repository.requestTest(
-      sessionId: widget.sessionId,
-      optionId: optionId,
-    );
-    setState(() {
-      _bundleFuture = _load();
-    });
-    if (!mounted) return;
-    _openTestDetail(option);
+    if (_requesting) return;
+    setState(() => _requesting = true);
+    try {
+      final bundle = await _bundleFuture;
+      final option = bundle.options.firstWhere((item) => item.id == optionId);
+      await widget.repository.requestTest(
+        sessionId: widget.sessionId,
+        optionId: optionId,
+      );
+      setState(() {
+        _bundleFuture = _load();
+      });
+      if (!mounted) return;
+      _openTestDetail(option);
+    } on CasesDataUnavailable catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      if (mounted) setState(() => _requesting = false);
+    }
   }
 
   Future<void> _next() async {
-    await widget.repository.advanceSession(
-      sessionId: widget.sessionId,
-      step: 'diagnosis',
-    );
-    if (!mounted) return;
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => DiagnosisScreen(
-          repository: widget.repository,
-          sessionId: widget.sessionId,
-          caseId: widget.caseId,
+    if (!_phaseReady || _navigating) return;
+    if (_hasSelectableTests && _selectedTestCount == 0) return;
+    setState(() => _navigating = true);
+    try {
+      await widget.repository.advanceSession(
+        sessionId: widget.sessionId,
+        step: 'diagnosis',
+      );
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => DiagnosisScreen(
+            repository: widget.repository,
+            sessionId: widget.sessionId,
+            caseId: widget.caseId,
+          ),
         ),
-      ),
-    );
+      );
+    } on CasesDataUnavailable catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      if (mounted) setState(() => _navigating = false);
+    }
   }
 
   @override
@@ -1090,7 +1156,7 @@ class _TestsScreenState extends State<TestsScreen> {
             return const _CenteredState(
               icon: Icons.science_outlined,
               title: 'Tetkikler yükleniyor',
-              body: 'Canlı tetkik listesi Supabase’den okunuyor.',
+              body: 'Tetkik seçenekleri hazırlanıyor.',
             );
           }
           if (snapshot.hasError) {
@@ -1175,7 +1241,15 @@ class _TestsScreenState extends State<TestsScreen> {
           );
         },
       ),
-      bottom: _BottomAction(label: 'Tanıya Geç', onPressed: _next),
+      bottom: _BottomAction(
+        label: _navigating ? 'Geçiliyor...' : 'Tanıya Geç',
+        onPressed:
+            !_phaseReady ||
+                _navigating ||
+                (_hasSelectableTests && _selectedTestCount == 0)
+            ? null
+            : _next,
+      ),
     );
   }
 
@@ -1232,6 +1306,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
   final _reasoningController = TextEditingController();
   late Future<_DiagnosisBundle> _bundleFuture;
   final _selected = <String>{};
+  List<DiagnosisOption> _diagnosisOptions = const [];
   bool _saving = false;
 
   @override
@@ -1262,11 +1337,18 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
     _selected
       ..clear()
       ..addAll(answer?.selectedOptionIds ?? const []);
+    _diagnosisOptions = options;
     return _DiagnosisBundle(session: session, options: options);
   }
 
   Future<void> _save() async {
-    if (_primaryController.text.trim().isEmpty || _saving) return;
+    if (!_canAdvanceDiagnosis) return;
+    if (_diagnosisOptions.isNotEmpty && _selected.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ayırıcı tanılardan en az birini seç.')),
+      );
+      return;
+    }
     setState(() => _saving = true);
     try {
       await widget.repository.saveDiagnosisAnswer(
@@ -1289,9 +1371,20 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
           ),
         ),
       );
+    } on CasesDataUnavailable catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  bool get _canAdvanceDiagnosis {
+    if (_saving || _primaryController.text.trim().isEmpty) return false;
+    if (_diagnosisOptions.isNotEmpty && _selected.isEmpty) return false;
+    return true;
   }
 
   @override
@@ -1305,7 +1398,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
             return const _CenteredState(
               icon: Icons.fact_check_outlined,
               title: 'Tanı ekranı yükleniyor',
-              body: 'Canlı tanı seçenekleri hazırlanıyor.',
+              body: 'Tanı seçenekleri yükleniyor.',
             );
           }
           if (snapshot.hasError) {
@@ -1382,9 +1475,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
       ),
       bottom: _BottomAction(
         label: _saving ? 'Kaydediliyor...' : 'Yönetim Planına Geç',
-        onPressed: _primaryController.text.trim().isEmpty || _saving
-            ? null
-            : _save,
+        onPressed: _canAdvanceDiagnosis ? _save : null,
       ),
     );
   }
@@ -1412,15 +1503,19 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
   final _consultationController = TextEditingController();
   late Future<_ManagementBundle> _bundleFuture;
   final _selected = <String>{};
+  var _managementReady = false;
+  var _saving = false;
 
   @override
   void initState() {
     super.initState();
     _bundleFuture = _load();
+    _noteController.addListener(_onManagementInputChanged);
     _consultationController.addListener(_onConsultationChanged);
   }
 
   void _onConsultationChanged() => setState(() {});
+  void _onManagementInputChanged() => setState(() {});
 
   @override
   void dispose() {
@@ -1448,34 +1543,42 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
     _selected
       ..clear()
       ..addAll(answer?.selectedOptionIds ?? const []);
+    _managementReady = true;
     return _ManagementBundle(session: session, options: options);
   }
 
   Future<void> _save() async {
-    if (_requiresConsultationDestination &&
-        _consultationController.text.trim().isEmpty) {
-      return;
-    }
-    await widget.repository.saveManagementPlan(
-      sessionId: widget.sessionId,
-      diagnosis: _diagnosisController.text,
-      selectedOptionIds: _selected.toList(),
-      note: _noteController.text,
-      consultationDestination: _consultationController.text,
-    );
-    await widget.repository.advanceSession(
-      sessionId: widget.sessionId,
-      step: 'completed',
-    );
-    if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(
-        builder: (_) => ResultScreen(
-          repository: widget.repository,
-          sessionId: widget.sessionId,
+    if (!_canFinalizeManagement) return;
+    setState(() => _saving = true);
+    try {
+      await widget.repository.saveManagementPlan(
+        sessionId: widget.sessionId,
+        diagnosis: _diagnosisController.text,
+        selectedOptionIds: _selected.toList(),
+        note: _noteController.text,
+        consultationDestination: _consultationController.text,
+      );
+      await widget.repository.advanceSession(
+        sessionId: widget.sessionId,
+        step: 'completed',
+      );
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => ResultScreen(
+            repository: widget.repository,
+            sessionId: widget.sessionId,
+          ),
         ),
-      ),
-    );
+      );
+    } on CasesDataUnavailable catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   bool get _requiresConsultationDestination {
@@ -1485,6 +1588,20 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
             option.id == id && option.category.toLowerCase().contains('kons'),
       ),
     );
+  }
+
+  bool get _hasManagementInput {
+    if (_visibleOptions.isNotEmpty) return _selected.isNotEmpty;
+    return _noteController.text.trim().isNotEmpty;
+  }
+
+  bool get _canFinalizeManagement {
+    if (!_managementReady || _saving || !_hasManagementInput) return false;
+    if (_requiresConsultationDestination &&
+        _consultationController.text.trim().isEmpty) {
+      return false;
+    }
+    return true;
   }
 
   List<ManagementOption> _visibleOptions = const [];
@@ -1500,7 +1617,7 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
             return const _CenteredState(
               icon: Icons.assignment_turned_in_outlined,
               title: 'Yönetim planı yükleniyor',
-              body: 'Canlı tedavi seçenekleri hazırlanıyor.',
+              body: 'Tedavi seçenekleri yükleniyor.',
             );
           }
           if (snapshot.hasError) {
@@ -1608,13 +1725,9 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
         },
       ),
       bottom: _BottomAction(
-        label: 'Sınavı Bitir ve Değerlendir',
+        label: _saving ? 'Kaydediliyor...' : 'Sınavı Bitir ve Değerlendir',
         icon: Icons.check_circle_rounded,
-        onPressed:
-            _requiresConsultationDestination &&
-                _consultationController.text.trim().isEmpty
-            ? null
-            : _save,
+        onPressed: _canFinalizeManagement ? _save : null,
       ),
     );
   }
@@ -1659,7 +1772,7 @@ class _ResultScreenState extends State<ResultScreen> {
             return const _CenteredState(
               icon: Icons.emoji_events_outlined,
               title: 'Sonuç karnesi hazırlanıyor',
-              body: 'Canlı puanlama verisi yükleniyor.',
+              body: 'Performans puanların hesaplanıyor.',
             );
           }
           if (snapshot.hasError) {
@@ -1690,70 +1803,97 @@ class _ResultScreenState extends State<ResultScreen> {
               const SizedBox(height: 12),
               _ResultHero(result: result),
               const SizedBox(height: 18),
-              _ScoreGrid(scores: result.categoryScores),
+              FadeSlideIn(
+                delay: const Duration(milliseconds: 120),
+                child: _ScoreGrid(scores: result.categoryScores),
+              ),
               const SizedBox(height: 18),
-              _FeedbackCard(
-                title: 'Güçlü Yönlerin',
-                icon: Icons.verified_rounded,
-                color: PratiCaseColors.successGreen,
-                items: result.strongPoints,
+              FadeSlideIn(
+                delay: const Duration(milliseconds: 200),
+                child: _FeedbackCard(
+                  title: 'Güçlü Yönlerin',
+                  icon: Icons.verified_rounded,
+                  color: PratiCaseColors.successGreen,
+                  items: result.strongPoints,
+                ),
               ),
               const SizedBox(height: 14),
-              _FeedbackCard(
-                title: 'Gelişim Alanların',
-                icon: Icons.warning_amber_rounded,
-                color: PratiCaseColors.gold,
-                items: result.improvementPoints,
+              FadeSlideIn(
+                delay: const Duration(milliseconds: 260),
+                child: _FeedbackCard(
+                  title: 'Gelişim Alanların',
+                  icon: Icons.warning_amber_rounded,
+                  color: PratiCaseColors.gold,
+                  items: result.improvementPoints,
+                ),
               ),
               const SizedBox(height: 14),
-              _FeedbackCard(
-                title: 'Kritik Hatalar',
-                icon: Icons.error_outline_rounded,
-                color: PratiCaseColors.errorRed,
-                items: result.criticalMistakes,
+              FadeSlideIn(
+                delay: const Duration(milliseconds: 320),
+                child: _FeedbackCard(
+                  title: 'Kritik Hatalar',
+                  icon: Icons.error_outline_rounded,
+                  color: PratiCaseColors.errorRed,
+                  items: result.criticalMistakes,
+                ),
               ),
               const SizedBox(height: 14),
-              _FeedbackCard(
-                title: 'Gereksiz Tetkikler',
-                icon: Icons.science_outlined,
-                color: PratiCaseColors.slateBlue,
-                items: result.unnecessaryTests,
+              FadeSlideIn(
+                delay: const Duration(milliseconds: 360),
+                child: _FeedbackCard(
+                  title: 'Gereksiz Tetkikler',
+                  icon: Icons.science_outlined,
+                  color: PratiCaseColors.slateBlue,
+                  items: result.unnecessaryTests,
+                ),
               ),
               const SizedBox(height: 14),
-              _FeedbackCard(
-                title: 'Eksik Anamnez',
-                icon: Icons.chat_bubble_outline_rounded,
-                color: PratiCaseColors.slateBlue,
-                items: result.missedHistory,
+              FadeSlideIn(
+                delay: const Duration(milliseconds: 400),
+                child: _FeedbackCard(
+                  title: 'Eksik Anamnez',
+                  icon: Icons.chat_bubble_outline_rounded,
+                  color: PratiCaseColors.slateBlue,
+                  items: result.missedHistory,
+                ),
               ),
               const SizedBox(height: 14),
-              _FeedbackCard(
-                title: 'Kaçırılan Muayeneler',
-                icon: Icons.health_and_safety_outlined,
-                color: PratiCaseColors.teal,
-                items: result.missedPhysicalExam,
+              FadeSlideIn(
+                delay: const Duration(milliseconds: 440),
+                child: _FeedbackCard(
+                  title: 'Kaçırılan Muayeneler',
+                  icon: Icons.health_and_safety_outlined,
+                  color: PratiCaseColors.teal,
+                  items: result.missedPhysicalExam,
+                ),
               ),
               const SizedBox(height: 14),
-              _IdealApproachCard(text: result.idealApproach),
+              FadeSlideIn(
+                delay: const Duration(milliseconds: 480),
+                child: _IdealApproachCard(text: result.idealApproach),
+              ),
               const SizedBox(height: 18),
-              _ResultActions(
-                onRetry: () =>
-                    Navigator.of(context).popUntil((route) => route.isFirst),
-                onReport: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => CaseReportScreen(result: result),
-                    ),
-                  );
-                },
-                onSuggestedCases: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) =>
-                          CasesScreen(repository: widget.repository),
-                    ),
-                  );
-                },
+              FadeSlideIn(
+                delay: const Duration(milliseconds: 520),
+                child: _ResultActions(
+                  onRetry: () =>
+                      Navigator.of(context).popUntil((route) => route.isFirst),
+                  onReport: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => CaseReportScreen(result: result),
+                      ),
+                    );
+                  },
+                  onSuggestedCases: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) =>
+                            CasesScreen(repository: widget.repository),
+                      ),
+                    );
+                  },
+                ),
               ),
             ],
           );
@@ -1871,7 +2011,7 @@ class LabResultScreen extends StatelessWidget {
             return const _CenteredState(
               icon: Icons.biotech_outlined,
               title: 'Laboratuvar sonucu yükleniyor',
-              body: 'Canlı tetkik detayı Supabase’den okunuyor.',
+              body: 'Tetkik sonucu hazırlanıyor.',
             );
           }
           if (snapshot.hasError) {
@@ -1966,7 +2106,7 @@ class ImagingResultScreen extends StatelessWidget {
             return const _CenteredState(
               icon: Icons.image_search_rounded,
               title: 'Görüntüleme sonucu yükleniyor',
-              body: 'Canlı görüntüleme raporu okunuyor.',
+              body: 'Görüntüleme raporu yükleniyor.',
             );
           }
           if (snapshot.hasError) {
@@ -2070,7 +2210,7 @@ class MedicationInfoScreen extends StatelessWidget {
             return const _CenteredState(
               icon: Icons.medication_outlined,
               title: 'İlaç bilgisi yükleniyor',
-              body: 'Canlı tedavi bilgisi Supabase’den okunuyor.',
+              body: 'Tedavi bilgisi hazırlanıyor.',
             );
           }
           if (snapshot.hasError) {
@@ -2090,7 +2230,7 @@ class MedicationInfoScreen extends StatelessWidget {
                 const _CenteredState(
                   icon: Icons.medication_outlined,
                   title: 'İlaç bilgisi yok',
-                  body: 'Bu vaka için canlı medication_infos kaydı bulunamadı.',
+                  body: 'Bu vaka için ilaç bilgisi tanımlanmadı.',
                 )
               else
                 for (final item in items) ...[
@@ -2223,7 +2363,7 @@ class CaseProgressScreen extends StatelessWidget {
             return const _CenteredState(
               icon: Icons.timeline_rounded,
               title: 'Vaka ilerlemesi yükleniyor',
-              body: 'Canlı session adımları okunuyor.',
+              body: 'Vaka adımların yükleniyor.',
             );
           }
           if (snapshot.hasError) {
@@ -2291,32 +2431,39 @@ class _FlowScaffold extends StatelessWidget {
         ),
         bottomNavigationBar: bottom == null
             ? null
-            : SafeArea(
-                top: false,
-                minimum: const EdgeInsets.only(bottom: 6),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: PratiCaseColors.white,
-                    border: Border(
-                      top: BorderSide(
-                        color: PratiCaseColors.navy.withValues(alpha: 0.06),
+            : AnimatedPadding(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutCubic,
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.viewInsetsOf(context).bottom,
+                ),
+                child: SafeArea(
+                  top: false,
+                  minimum: const EdgeInsets.only(bottom: 6),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: PratiCaseColors.white,
+                      border: Border(
+                        top: BorderSide(
+                          color: PratiCaseColors.navy.withValues(alpha: 0.06),
+                        ),
                       ),
                     ),
-                  ),
-                  child: PratiCaseResponsiveFrame(
-                    maxWidth: PratiCaseBreakpoints.flowContentMaxWidth,
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        PratiCaseResponsive.horizontalPaddingForWidth(
-                          MediaQuery.sizeOf(context).width,
+                    child: PratiCaseResponsiveFrame(
+                      maxWidth: PratiCaseBreakpoints.flowContentMaxWidth,
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          PratiCaseResponsive.horizontalPaddingForWidth(
+                            MediaQuery.sizeOf(context).width,
+                          ),
+                          10,
+                          PratiCaseResponsive.horizontalPaddingForWidth(
+                            MediaQuery.sizeOf(context).width,
+                          ),
+                          12,
                         ),
-                        10,
-                        PratiCaseResponsive.horizontalPaddingForWidth(
-                          MediaQuery.sizeOf(context).width,
-                        ),
-                        12,
+                        child: bottom,
                       ),
-                      child: bottom,
                     ),
                   ),
                 ),
@@ -2614,7 +2761,7 @@ class _CaseFilterOverview extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Canlı Filtreler',
+                      'Aktif Filtreler',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 17,
@@ -2624,7 +2771,7 @@ class _CaseFilterOverview extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       activeCount == 0
-                          ? 'Tüm yayınlanmış istasyonlar gösteriliyor.'
+                          ? 'Tüm istasyonlar gösteriliyor.'
                           : '$activeCount filtre aktif.',
                       style: TextStyle(
                         color: PratiCaseColors.white.withValues(alpha: 0.78),
@@ -2773,10 +2920,9 @@ class _CaseListCard extends StatelessWidget {
     final score = item.lastScore;
     return Semantics(
       identifier: 'case-list-item',
-      child: InkWell(
+      child: PressableScale(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
-        child: Ink(
+        child: Container(
           padding: const EdgeInsets.all(16),
           decoration: _cardDecoration(radius: 22),
           child: Column(
@@ -2848,7 +2994,7 @@ class _CaseListCard extends StatelessWidget {
                   ),
                   const Spacer(),
                   if (score != null)
-                    _TinyPill(text: 'Son skor $score')
+                    _TinyPill(text: 'Son skor: $score/100')
                   else if (progress != null)
                     _TinyPill(text: '%$progress devam')
                   else
@@ -2884,10 +3030,16 @@ class _CaseResultsGrid extends StatelessWidget {
           spacing: spacing,
           runSpacing: 14,
           children: [
-            for (final item in cases)
+            for (var i = 0; i < cases.length; i++)
               SizedBox(
                 width: itemWidth,
-                child: _CaseListCard(item: item, onTap: () => onOpenCase(item)),
+                child: FadeSlideIn(
+                  delay: Duration(milliseconds: (i * 40).clamp(0, 400)),
+                  child: _CaseListCard(
+                    item: cases[i],
+                    onTap: () => onOpenCase(cases[i]),
+                  ),
+                ),
               ),
           ],
         );
@@ -3439,7 +3591,7 @@ class _FlowCard extends StatelessWidget {
     return _SectionCard(
       title: 'Vaka Akışı',
       child: steps.isEmpty
-          ? const Text('Canlı vaka akışı tanımlanmadı.')
+          ? const Text('Vaka akışı henüz tanımlanmadı.')
           : LayoutBuilder(
               builder: (context, constraints) {
                 final tight = constraints.maxWidth / steps.length < 64;
@@ -3577,7 +3729,7 @@ class _GoalsCard extends StatelessWidget {
       child: Column(
         children: [
           if (goals.isEmpty)
-            const Text('Canlı hedef listesi tanımlanmadı.')
+            const Text('Bu vaka için öğrenme hedefi tanımlanmadı.')
           else
             for (final goal in goals)
               Material(
@@ -3871,21 +4023,31 @@ class _ConversationPanel extends StatelessWidget {
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
               children: [
-                _ChatBubble(
-                  message: session.patient.openingLine,
-                  fromCandidate: false,
-                  isOpening: true,
+                FadeSlideIn(
+                  offset: const Offset(0, 0.04),
+                  child: _ChatBubble(
+                    message: session.patient.openingLine,
+                    fromCandidate: false,
+                    isOpening: true,
+                  ),
                 ),
-                for (final message in messages)
-                  _ChatBubble(
-                    message: message.message,
-                    fromCandidate: message.fromCandidate,
+                for (var i = 0; i < messages.length; i++)
+                  FadeSlideIn(
+                    delay: Duration(milliseconds: (i * 30).clamp(0, 300)),
+                    offset: Offset(messages[i].fromCandidate ? 0.04 : -0.04, 0),
+                    child: _ChatBubble(
+                      message: messages[i].message,
+                      fromCandidate: messages[i].fromCandidate,
+                    ),
                   ),
                 if (pending != null && pending.isNotEmpty)
-                  _ChatBubble(
-                    message: pending,
-                    fromCandidate: true,
-                    isPending: true,
+                  FadeSlideIn(
+                    offset: const Offset(0.04, 0),
+                    child: _ChatBubble(
+                      message: pending,
+                      fromCandidate: true,
+                      isPending: true,
+                    ),
                   ),
                 if (patientTyping) const _TypingBubble(),
               ],
@@ -3992,10 +4154,9 @@ class _PhysicalSystemTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return PressableScale(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-      child: Ink(
+      child: Container(
         padding: const EdgeInsets.all(14),
         decoration: _cardDecoration(radius: 16),
         child: Row(
@@ -4181,10 +4342,9 @@ class _TestGroupTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return PressableScale(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-      child: Ink(
+      child: Container(
         padding: const EdgeInsets.all(14),
         decoration: _cardDecoration(radius: 16),
         child: Row(
@@ -4489,22 +4649,26 @@ class _BottomAction extends StatelessWidget {
       child: AnimatedOpacity(
         duration: const Duration(milliseconds: 180),
         opacity: onPressed == null ? 0.55 : 1,
-        child: SizedBox(
-          height: 52,
-          width: double.infinity,
-          child: FilledButton.icon(
-            onPressed: onPressed,
-            label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-            icon: Icon(icon),
-            style: FilledButton.styleFrom(
-              backgroundColor: PratiCaseColors.teal,
-              foregroundColor: PratiCaseColors.white,
-              textStyle: const TextStyle(fontWeight: FontWeight.w900),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+        child: PressableScale(
+          scale: 0.96,
+          onTap: onPressed,
+          child: SizedBox(
+            height: 52,
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: onPressed,
+              label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+              icon: Icon(icon),
+              style: FilledButton.styleFrom(
+                backgroundColor: PratiCaseColors.teal,
+                foregroundColor: PratiCaseColors.white,
+                textStyle: const TextStyle(fontWeight: FontWeight.w900),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+                ),
+                elevation: 2,
+                shadowColor: PratiCaseColors.teal.withValues(alpha: 0.4),
               ),
-              elevation: 2,
-              shadowColor: PratiCaseColors.teal.withValues(alpha: 0.4),
             ),
           ),
         ),
@@ -5220,6 +5384,8 @@ IconData _flowIcon(String key) {
 }
 
 String _errorText(Object? error) {
-  if (error is CasesDataUnavailable) return error.message;
-  return 'Canlı veri alınamadı. Lütfen bağlantı ve yetkileri kontrol edin.';
+  if (error is CasesDataUnavailable) {
+    return PratiCaseUserMessage.safe(error.message);
+  }
+  return PratiCaseUserMessage.generalFailure;
 }
