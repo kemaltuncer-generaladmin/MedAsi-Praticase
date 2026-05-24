@@ -638,17 +638,38 @@ class SupabaseCasesRepository implements CasesRepository {
     try {
       final existing = await _loadResultCard(sessionId);
       if (existing != null) return existing;
-      await _finalizeSession(sessionId);
-      for (var attempt = 0; attempt < 8; attempt++) {
+
+      Object? lastFinalizeError;
+      for (var finalizeAttempt = 0; finalizeAttempt < 3; finalizeAttempt++) {
+        try {
+          await _finalizeSessionWithRubric(sessionId);
+          lastFinalizeError = null;
+          break;
+        } on CasesDataUnavailable catch (error) {
+          lastFinalizeError = error;
+          await Future<void>.delayed(
+            Duration(milliseconds: 400 + finalizeAttempt * 400),
+          );
+        }
+      }
+      // AI enrichment best-effort, blocking değil
+      unawaited(_requestAiEnrichment(sessionId));
+
+      for (var attempt = 0; attempt < 10; attempt++) {
         final result = await _loadResultCard(sessionId);
         if (result != null) return result;
-        await Future<void>.delayed(Duration(milliseconds: 450 + attempt * 250));
+        await Future<void>.delayed(Duration(milliseconds: 350 + attempt * 200));
+      }
+
+      if (lastFinalizeError is CasesDataUnavailable) {
+        throw lastFinalizeError;
       }
       throw const CasesDataUnavailable(
-        'Sonuç karnesi oluşturulamadı. Lütfen tekrar deneyin.',
+        'Sonuç karnesi oluşturulamadı. Sınavı tekrar bitirmeyi dene; '
+        'sorun sürerse bağlantını ve oturumunu kontrol et.',
       );
     } on PostgrestException catch (error) {
-      throw CasesDataUnavailable(_message(error));
+      throw CasesDataUnavailable(_resultMessage(error));
     }
   }
 
@@ -682,15 +703,6 @@ class SupabaseCasesRepository implements CasesRepository {
     );
   }
 
-  Future<void> _finalizeSession(String sessionId) async {
-    try {
-      await _finalizeSessionWithRubric(sessionId);
-      unawaited(_requestAiEnrichment(sessionId));
-    } on CasesDataUnavailable {
-      rethrow;
-    }
-  }
-
   Future<void> _requestAiEnrichment(String sessionId) async {
     try {
       await _client.functions.invoke(
@@ -708,12 +720,32 @@ class SupabaseCasesRepository implements CasesRepository {
           .schema('praticase')
           .rpc('finalize_exam_session', params: {'p_session_id': sessionId});
     } on PostgrestException catch (error) {
-      throw CasesDataUnavailable(_message(error));
-    } on Object {
-      throw const CasesDataUnavailable(
-        'Sonuç karnesi oluşturulamadı. Lütfen sınav yanıtlarını kontrol edip tekrar deneyin.',
+      throw CasesDataUnavailable(_resultMessage(error));
+    } on Object catch (error) {
+      throw CasesDataUnavailable(
+        'Sonuç karnesi oluşturulamadı: ${error.toString()}',
       );
     }
+  }
+
+  String _resultMessage(PostgrestException error) {
+    final raw = error.message.trim();
+    if (raw.contains('EXAM_SESSION_FORBIDDEN')) {
+      return 'Bu oturum başka bir kullanıcıya ait görünüyor. Lütfen çıkış yapıp tekrar giriş yap.';
+    }
+    if (raw.contains('EXAM_SESSION_NOT_FOUND')) {
+      return 'Bu sınav oturumu bulunamadı. Vaka listesine dönüp yeni bir oturum başlat.';
+    }
+    if (_isMissingRelation(error) || _isMissingFunction(error)) {
+      return 'Sonuç karnesi şu anda hazırlanıyor. Birkaç saniye sonra tekrar dene.';
+    }
+    if (error.code == 'PGRST301' || error.code == '401') {
+      return 'Oturumun süresi dolmuş olabilir. Lütfen yeniden giriş yap.';
+    }
+    if (raw.isNotEmpty) {
+      return 'Sonuç karnesi oluşturulamadı: $raw';
+    }
+    return 'Sonuç karnesi oluşturulamadı. Lütfen tekrar dene.';
   }
 
   @override
