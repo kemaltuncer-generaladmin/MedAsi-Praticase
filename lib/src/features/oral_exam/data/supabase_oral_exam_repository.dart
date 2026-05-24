@@ -15,7 +15,9 @@ class SupabaseOralExamRepository implements OralExamRepository {
       final personaRows = await _client
           .schema('praticase')
           .from('oral_exam_personas')
-          .select('id,title,difficulty,description,patience_level,sort_order')
+          .select(
+            'id,title,difficulty,description,patience_level,sort_order,panel_role',
+          )
           .order('sort_order');
       final branchRows = await _client
           .schema('praticase')
@@ -60,6 +62,7 @@ class SupabaseOralExamRepository implements OralExamRepository {
               description: _string(row, 'description'),
               patienceLevel: _int(row, 'patience_level'),
               sortOrder: _int(row, 'sort_order'),
+              panelRole: _string(row, 'panel_role'),
             ),
         ],
         branches: [
@@ -84,17 +87,33 @@ class SupabaseOralExamRepository implements OralExamRepository {
     required String branchId,
     required int durationSeconds,
     String? scenarioId,
+    OralExamFormat format = OralExamFormat.solo,
   }) async {
     final response = await _invoke({
       'action': 'start',
       'persona_id': personaId,
       'branch_id': branchId,
       'duration_seconds': durationSeconds,
+      'exam_format': format.apiValue,
       if (scenarioId != null && scenarioId.isNotEmpty)
         'scenario_id': scenarioId,
     });
     final persona = (response['persona'] as Map?) ?? const {};
     final branch = (response['branch'] as Map?) ?? const {};
+    final panelList = (response['panel'] as List?) ?? const [];
+    final panel = <OralExamPersona>[
+      for (final raw in panelList)
+        if (raw is Map)
+          OralExamPersona(
+            id: _stringFrom(raw, 'id'),
+            title: _stringFrom(raw, 'title'),
+            difficulty: _stringFrom(raw, 'difficulty'),
+            description: '',
+            patienceLevel: 5,
+            sortOrder: 0,
+            panelRole: _stringFrom(raw, 'panel_role'),
+          ),
+    ];
     return OralExamSession(
       id: _stringFrom(response, 'session_id'),
       durationSeconds: _intFrom(response, 'duration_seconds'),
@@ -107,6 +126,11 @@ class SupabaseOralExamRepository implements OralExamRepository {
       branchId: _stringFrom(branch, 'id'),
       branchTitle: _stringFrom(branch, 'title'),
       openingMessage: _stringFrom(response, 'mentor_message'),
+      format: OralExamFormat.fromApi(_stringFrom(response, 'exam_format')),
+      panel: panel,
+      activePersonaId: _stringFrom(response, 'active_persona_id').isNotEmpty
+          ? _stringFrom(response, 'active_persona_id')
+          : _stringFrom(persona, 'id'),
     );
   }
 
@@ -129,6 +153,8 @@ class SupabaseOralExamRepository implements OralExamRepository {
       scoreDelta: _intFrom(eval, 'score_delta'),
       reasoningNote: _stringFrom(eval, 'reasoning'),
       isCorrect: eval['is_correct'] == true,
+      activePersonaId: _stringFrom(response, 'active_persona_id'),
+      activePersonaTitle: _stringFrom(response, 'active_persona_title'),
     );
   }
 
@@ -148,6 +174,16 @@ class SupabaseOralExamRepository implements OralExamRepository {
       'session_id': sessionId,
     });
     final data = (response['result'] as Map?) ?? const {};
+    final panelSummaries = (data['panel_summaries'] as Map?) ?? const {};
+    final verdicts = <OralExamPanelVerdict>[
+      for (final entry in panelSummaries.entries)
+        if (entry.value is Map)
+          OralExamPanelVerdict(
+            personaId: entry.key.toString(),
+            verdict: _stringFrom(entry.value as Map, 'verdict'),
+            note: _stringFrom(entry.value as Map, 'note'),
+          ),
+    ];
     return OralExamResult(
       sessionId: _stringFrom(data, 'id'),
       totalScore: _intFrom(data, 'total_score'),
@@ -162,6 +198,8 @@ class SupabaseOralExamRepository implements OralExamRepository {
       improvementPoints: _stringList(data['improvement_points']),
       missedPoints: _stringList(data['missed_points']),
       caseBrief: _stringFrom(data, 'case_brief'),
+      format: OralExamFormat.fromApi(_stringFrom(data, 'exam_format')),
+      panelVerdicts: verdicts,
     );
   }
 
@@ -171,7 +209,9 @@ class SupabaseOralExamRepository implements OralExamRepository {
       final rows = await _client
           .schema('praticase')
           .from('oral_exam_turns')
-          .select('speaker,message,is_followup,was_skipped,sequence')
+          .select(
+            'speaker,message,is_followup,was_skipped,sequence,speaker_persona_id',
+          )
           .eq('session_id', sessionId)
           .order('sequence');
       return [
@@ -181,6 +221,7 @@ class SupabaseOralExamRepository implements OralExamRepository {
             message: _string(row, 'message'),
             isFollowup: row['is_followup'] == true,
             wasSkipped: row['was_skipped'] == true,
+            personaId: _string(row, 'speaker_persona_id'),
           ),
       ];
     } on PostgrestException catch (error) {

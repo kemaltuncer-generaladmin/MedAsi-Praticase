@@ -8,6 +8,7 @@ abstract interface class OralExamRepository {
     required String branchId,
     required int durationSeconds,
     String? scenarioId,
+    OralExamFormat format = OralExamFormat.solo,
   });
 
   Future<OralExamTurnResult> sendAnswer({

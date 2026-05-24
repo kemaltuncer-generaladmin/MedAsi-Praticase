@@ -1,5 +1,16 @@
 // Sözlü sınav modeli — Türk tıp fakültesi sözlü sınav dinamiğine uygundur.
 
+enum OralExamFormat {
+  solo,
+  panel;
+
+  String get apiValue => this == OralExamFormat.panel ? 'panel' : 'solo';
+  bool get isPanel => this == OralExamFormat.panel;
+
+  static OralExamFormat fromApi(String? value) =>
+      value == 'panel' ? OralExamFormat.panel : OralExamFormat.solo;
+}
+
 class OralExamPersona {
   const OralExamPersona({
     required this.id,
@@ -8,6 +19,7 @@ class OralExamPersona {
     required this.description,
     required this.patienceLevel,
     required this.sortOrder,
+    required this.panelRole,
   });
 
   final String id;
@@ -16,6 +28,7 @@ class OralExamPersona {
   final String description;
   final int patienceLevel;
   final int sortOrder;
+  final String panelRole;
 }
 
 class OralExamBranch {
@@ -78,6 +91,9 @@ class OralExamSession {
     required this.branchId,
     required this.branchTitle,
     required this.openingMessage,
+    required this.format,
+    required this.panel,
+    required this.activePersonaId,
   });
 
   final String id;
@@ -90,6 +106,16 @@ class OralExamSession {
   final String branchId;
   final String branchTitle;
   final String openingMessage;
+  final OralExamFormat format;
+  final List<OralExamPersona> panel;
+  final String activePersonaId;
+
+  OralExamPersona? personaById(String id) {
+    for (final p in panel) {
+      if (p.id == id) return p;
+    }
+    return null;
+  }
 }
 
 class OralExamTurnResult {
@@ -101,6 +127,8 @@ class OralExamTurnResult {
     required this.scoreDelta,
     required this.reasoningNote,
     required this.isCorrect,
+    required this.activePersonaId,
+    required this.activePersonaTitle,
   });
 
   final String mentorMessage;
@@ -110,6 +138,20 @@ class OralExamTurnResult {
   final int scoreDelta;
   final String reasoningNote;
   final bool isCorrect;
+  final String activePersonaId;
+  final String activePersonaTitle;
+}
+
+class OralExamPanelVerdict {
+  const OralExamPanelVerdict({
+    required this.personaId,
+    required this.verdict,
+    required this.note,
+  });
+
+  final String personaId;
+  final String verdict;
+  final String note;
 }
 
 class OralExamResult {
@@ -127,6 +169,8 @@ class OralExamResult {
     required this.improvementPoints,
     required this.missedPoints,
     required this.caseBrief,
+    required this.format,
+    required this.panelVerdicts,
   });
 
   final String sessionId;
@@ -142,6 +186,8 @@ class OralExamResult {
   final List<String> improvementPoints;
   final List<String> missedPoints;
   final String caseBrief;
+  final OralExamFormat format;
+  final List<OralExamPanelVerdict> panelVerdicts;
 
   int get percentage =>
       maxScore == 0 ? 0 : ((totalScore / maxScore) * 100).round().clamp(0, 100);
@@ -153,12 +199,16 @@ class OralExamMessage {
     required this.message,
     this.isFollowup = false,
     this.wasSkipped = false,
+    this.personaId = '',
+    this.personaTitle = '',
   });
 
   final String speaker;
   final String message;
   final bool isFollowup;
   final bool wasSkipped;
+  final String personaId;
+  final String personaTitle;
 
   bool get fromMentor => speaker == 'mentor';
 }

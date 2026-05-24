@@ -17,6 +17,7 @@ class HomeScreen extends StatefulWidget {
     this.onOpenExams,
     this.onOpenTheoreticalExam,
     this.onOpenOralExam,
+    this.onOpenOralExamCommittee,
     this.onOpenProgress,
     this.onOpenNotifications,
     this.onOpenProfile,
@@ -31,6 +32,7 @@ class HomeScreen extends StatefulWidget {
   final VoidCallback? onOpenExams;
   final VoidCallback? onOpenTheoreticalExam;
   final VoidCallback? onOpenOralExam;
+  final VoidCallback? onOpenOralExamCommittee;
   final VoidCallback? onOpenProgress;
   final VoidCallback? onOpenNotifications;
   final VoidCallback? onOpenProfile;
@@ -183,6 +185,9 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       case '/oral-exam':
         widget.onOpenOralExam?.call();
+        return;
+      case '/oral-exam-committee':
+        widget.onOpenOralExamCommittee?.call();
         return;
       case '/exams':
         widget.onOpenExams?.call();

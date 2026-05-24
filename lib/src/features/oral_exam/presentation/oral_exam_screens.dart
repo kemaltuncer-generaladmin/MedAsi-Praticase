@@ -12,9 +12,14 @@ import '../domain/oral_exam_models.dart';
 
 /// Sözlü sınav kurulum ekranı: persona + branş + süre seçimi.
 class OralExamSetupScreen extends StatefulWidget {
-  const OralExamSetupScreen({required this.repository, super.key});
+  const OralExamSetupScreen({
+    required this.repository,
+    this.initialFormat = OralExamFormat.solo,
+    super.key,
+  });
 
   final OralExamRepository repository;
+  final OralExamFormat initialFormat;
 
   @override
   State<OralExamSetupScreen> createState() => _OralExamSetupScreenState();
@@ -27,6 +32,7 @@ class _OralExamSetupScreenState extends State<OralExamSetupScreen> {
   OralExamScenario? _scenario;
   int _durationMinutes = 15;
   bool _starting = false;
+  late OralExamFormat _format = widget.initialFormat;
 
   @override
   void initState() {
@@ -42,14 +48,16 @@ class _OralExamSetupScreenState extends State<OralExamSetupScreen> {
   }
 
   Future<void> _start() async {
-    if (_persona == null || _branch == null || _starting) return;
+    if (_branch == null || _starting) return;
+    if (_format == OralExamFormat.solo && _persona == null) return;
     setState(() => _starting = true);
     try {
       final session = await widget.repository.startSession(
-        personaId: _persona!.id,
+        personaId: _persona?.id ?? 'stern_professor',
         branchId: _branch!.id,
         durationSeconds: _durationMinutes * 60,
         scenarioId: _scenario?.id,
+        format: _format,
       );
       if (!mounted) return;
       await PratiCaseHaptics.medium();
@@ -102,28 +110,54 @@ class _OralExamSetupScreenState extends State<OralExamSetupScreen> {
               PratiCaseResponsiveListView(
                 padding: PratiCaseResponsive.pagePadding(context),
                 children: [
-                  FadeSlideIn(child: _IntroCard()),
-                  const SizedBox(height: 22),
+                  FadeSlideIn(child: _IntroCard(format: _format)),
+                  const SizedBox(height: 18),
                   FadeSlideIn(
-                    delay: const Duration(milliseconds: 50),
-                    child: _SectionTitle('Hocanı Seç'),
+                    delay: const Duration(milliseconds: 40),
+                    child: _SectionTitle('Sınav Formatı'),
                   ),
                   const SizedBox(height: 10),
-                  ...List.generate(catalog.personas.length, (index) {
-                    final persona = catalog.personas[index];
-                    final selected = _persona?.id == persona.id;
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: FadeSlideIn(
-                        delay: Duration(milliseconds: 80 + index * 40),
-                        child: _PersonaTile(
-                          persona: persona,
-                          selected: selected,
-                          onTap: () => setState(() => _persona = persona),
+                  FadeSlideIn(
+                    delay: const Duration(milliseconds: 50),
+                    child: _FormatPicker(
+                      value: _format,
+                      onChanged: (value) => setState(() {
+                        _format = value;
+                        if (value == OralExamFormat.panel) {
+                          _persona = null;
+                        }
+                      }),
+                    ),
+                  ),
+                  if (_format == OralExamFormat.solo) ...[
+                    const SizedBox(height: 22),
+                    FadeSlideIn(
+                      delay: const Duration(milliseconds: 50),
+                      child: _SectionTitle('Hocanı Seç'),
+                    ),
+                    const SizedBox(height: 10),
+                    ...List.generate(catalog.personas.length, (index) {
+                      final persona = catalog.personas[index];
+                      final selected = _persona?.id == persona.id;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: FadeSlideIn(
+                          delay: Duration(milliseconds: 80 + index * 40),
+                          child: _PersonaTile(
+                            persona: persona,
+                            selected: selected,
+                            onTap: () => setState(() => _persona = persona),
+                          ),
                         ),
-                      ),
-                    );
-                  }),
+                      );
+                    }),
+                  ] else ...[
+                    const SizedBox(height: 14),
+                    FadeSlideIn(
+                      delay: const Duration(milliseconds: 60),
+                      child: _CommitteePreview(personas: catalog.personas),
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   FadeSlideIn(child: _SectionTitle('Branş')),
                   const SizedBox(height: 10),
@@ -189,8 +223,9 @@ class _OralExamSetupScreenState extends State<OralExamSetupScreen> {
                 child: SafeArea(
                   top: false,
                   child: FilledButton.icon(
-                    onPressed:
-                        _persona == null || _branch == null || _starting
+                    onPressed: _branch == null ||
+                            _starting ||
+                            (_format == OralExamFormat.solo && _persona == null)
                         ? null
                         : _start,
                     icon: _starting
@@ -202,9 +237,19 @@ class _OralExamSetupScreenState extends State<OralExamSetupScreen> {
                               color: Colors.white,
                             ),
                           )
-                        : const Icon(Icons.record_voice_over_rounded),
+                        : Icon(
+                            _format == OralExamFormat.panel
+                                ? Icons.groups_2_rounded
+                                : Icons.record_voice_over_rounded,
+                          ),
                     label: Text(
-                      _starting ? 'Hoca hazırlanıyor...' : 'Sözlü Sınavı Başlat',
+                      _starting
+                          ? (_format == OralExamFormat.panel
+                              ? 'Komite hazırlanıyor...'
+                              : 'Hoca hazırlanıyor...')
+                          : (_format == OralExamFormat.panel
+                              ? 'Komiteye Çık'
+                              : 'Sözlü Sınavı Başlat'),
                     ),
                     style: FilledButton.styleFrom(
                       minimumSize: const Size.fromHeight(54),
@@ -221,8 +266,12 @@ class _OralExamSetupScreenState extends State<OralExamSetupScreen> {
 }
 
 class _IntroCard extends StatelessWidget {
+  const _IntroCard({required this.format});
+  final OralExamFormat format;
+
   @override
   Widget build(BuildContext context) {
+    final isPanel = format == OralExamFormat.panel;
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 22, 22, 24),
       decoration: BoxDecoration(
@@ -241,16 +290,20 @@ class _IntroCard extends StatelessWidget {
                   color: Colors.white.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(PratiCaseRadius.md),
                 ),
-                child: const Icon(
-                  Icons.record_voice_over_rounded,
+                child: Icon(
+                  isPanel
+                      ? Icons.groups_2_rounded
+                      : Icons.record_voice_over_rounded,
                   color: PratiCaseColors.tealBright,
                 ),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Sanal Hoca ile Sözlü Sınav',
-                  style: TextStyle(
+                  isPanel
+                      ? 'Komite Önünde Sözlü Sınav'
+                      : 'Sanal Hoca ile Sözlü Sınav',
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
@@ -261,11 +314,16 @@ class _IntroCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          const Text(
-            'Hoca vakayı sunar, sokratik takip soruları sorar. Klinik akıl yürütme, '
-            'bilgi, iletişim, hız ve profesyonellik 100 puan üzerinden değerlendirilir. '
-            'Mikrofona izin verirsen cevaplarını sesli verebilirsin.',
-            style: TextStyle(
+          Text(
+            isPanel
+                ? 'Üç hoca karşında. Biri sorarken diğeri atlar, '
+                    'biri ipucu verirken diğeri yetersiz der. '
+                    'Türk tıp fakültesi sözlü sınav baskısının birebir simülasyonu. '
+                    'Karne sonunda her hocadan ayrı yorum alırsın.'
+                : 'Hoca vakayı sunar, sokratik takip soruları sorar. Klinik akıl yürütme, '
+                    'bilgi, iletişim, hız ve profesyonellik 100 puan üzerinden değerlendirilir. '
+                    'Mikrofona izin verirsen cevaplarını sesli verebilirsin.',
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 13,
               height: 1.5,
@@ -273,6 +331,280 @@ class _IntroCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _FormatPicker extends StatelessWidget {
+  const _FormatPicker({required this.value, required this.onChanged});
+  final OralExamFormat value;
+  final ValueChanged<OralExamFormat> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _FormatOption(
+            selected: value == OralExamFormat.solo,
+            icon: Icons.record_voice_over_rounded,
+            title: 'Tek Hoca',
+            subtitle: 'Eğitim modu — sabırlı, sokratik veya sert hocalardan biri.',
+            onTap: () => onChanged(OralExamFormat.solo),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _FormatOption(
+            selected: value == OralExamFormat.panel,
+            icon: Icons.groups_2_rounded,
+            title: 'Komite (3 Hoca)',
+            subtitle: 'Sınav modu — üç hoca karşında, biri sorarken diğeri atlar.',
+            badge: 'YENİ',
+            onTap: () => onChanged(OralExamFormat.panel),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FormatOption extends StatelessWidget {
+  const _FormatOption({
+    required this.selected,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.badge,
+  });
+
+  final bool selected;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  final String? badge;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: PratiCaseDurations.fast,
+        padding: const EdgeInsets.all(14),
+        constraints: const BoxConstraints(minHeight: 138),
+        decoration: BoxDecoration(
+          color: selected
+              ? PratiCaseColors.teal.withValues(alpha: 0.08)
+              : PratiCaseColors.white,
+          borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+          border: Border.all(
+            color: selected ? PratiCaseColors.teal : PratiCaseColors.border,
+            width: selected ? 1.4 : 1,
+          ),
+          boxShadow: selected ? null : PratiCaseShadows.card,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: PratiCaseColors.teal.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: PratiCaseColors.teal, size: 20),
+                ),
+                const Spacer(),
+                if (badge != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: PratiCaseColors.gold.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Text(
+                      badge!,
+                      style: const TextStyle(
+                        color: PratiCaseColors.gold,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              title,
+              style: const TextStyle(
+                color: PratiCaseColors.navy,
+                fontWeight: FontWeight.w900,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: PratiCaseColors.muted,
+                fontSize: 11,
+                height: 1.4,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CommitteePreview extends StatelessWidget {
+  const _CommitteePreview({required this.personas});
+  final List<OralExamPersona> personas;
+
+  @override
+  Widget build(BuildContext context) {
+    final ordered = [...personas]..sort((a, b) {
+      const order = {'lead': 0, 'second': 1, 'observer': 2};
+      return (order[a.panelRole] ?? 9).compareTo(order[b.panelRole] ?? 9);
+    });
+    return ClinicalCard(
+      color: PratiCaseColors.navy,
+      borderColor: Colors.transparent,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Icon(Icons.groups_2_rounded, color: PratiCaseColors.tealBright),
+              SizedBox(width: 6),
+              Text(
+                'Karşındaki Komite',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          for (var i = 0; i < ordered.length; i++) ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor:
+                      PratiCaseColors.tealBright.withValues(alpha: 0.20),
+                  child: const Icon(
+                    Icons.person_rounded,
+                    color: PratiCaseColors.tealBright,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            ordered[i].title,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          _PanelRoleChip(role: ordered[i].panelRole),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        ordered[i].description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.72),
+                          fontSize: 11.5,
+                          height: 1.4,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (i != ordered.length - 1) const SizedBox(height: 10),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _PanelRoleChip extends StatelessWidget {
+  const _PanelRoleChip({required this.role});
+  final String role;
+
+  String get _label {
+    switch (role) {
+      case 'lead':
+        return 'BAŞKAN';
+      case 'second':
+        return 'YARDIMCI';
+      case 'observer':
+        return 'GÖZLEMCİ';
+      default:
+        return role.toUpperCase();
+    }
+  }
+
+  Color get _color {
+    switch (role) {
+      case 'lead':
+        return PratiCaseColors.errorRed;
+      case 'second':
+        return PratiCaseColors.gold;
+      case 'observer':
+        return PratiCaseColors.successGreen;
+      default:
+        return PratiCaseColors.teal;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        color: _color.withValues(alpha: 0.22),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        _label,
+        style: TextStyle(
+          color: _color,
+          fontSize: 9,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.4,
+        ),
       ),
     );
   }
@@ -766,21 +1098,28 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
   bool _sending = false;
   bool _voiceMode = false;
   bool _finalizing = false;
+  late String _activePersonaId;
 
   @override
   void initState() {
     super.initState();
     _remainingSeconds = widget.session.durationSeconds;
+    _activePersonaId = widget.session.activePersonaId.isNotEmpty
+        ? widget.session.activePersonaId
+        : widget.session.personaId;
     _voiceAdapter = widget.voiceAdapter ?? NativeVoiceExamAdapter();
     _voiceState = _voiceAdapter.state;
     _voiceSubscription = _voiceAdapter.states.listen((state) {
       if (!mounted) return;
       setState(() => _voiceState = state);
     });
+    final opener = widget.session.personaById(_activePersonaId);
     _messages.add(
       OralExamMessage(
         speaker: 'mentor',
         message: widget.session.openingMessage,
+        personaId: _activePersonaId,
+        personaTitle: opener?.title ?? widget.session.personaTitle,
       ),
     );
     _startTicker();
@@ -841,11 +1180,16 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
       );
       if (!mounted) return;
       setState(() {
+        _activePersonaId = response.activePersonaId.isNotEmpty
+            ? response.activePersonaId
+            : _activePersonaId;
         _messages.add(
           OralExamMessage(
             speaker: 'mentor',
             message: response.mentorMessage,
             isFollowup: response.isFollowup,
+            personaId: response.activePersonaId,
+            personaTitle: response.activePersonaTitle,
           ),
         );
         if (response.remainingSeconds > 0) {
@@ -885,7 +1229,11 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
       final mentor = await widget.repository.skipQuestion(widget.session.id);
       if (!mounted) return;
       setState(() {
-        _messages.add(OralExamMessage(speaker: 'mentor', message: mentor));
+        _messages.add(OralExamMessage(
+          speaker: 'mentor',
+          message: mentor,
+          personaId: _activePersonaId,
+        ));
       });
       unawaited(_speakLatestMentor());
       unawaited(_scrollToBottom());
@@ -1062,13 +1410,22 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
         ),
         body: Column(
           children: [
-            _MentorBanner(
-              personaTitle: widget.session.personaTitle,
-              difficulty: widget.session.difficulty,
-              caseBrief: widget.session.caseBrief,
-              voiceMode: _voiceMode,
-              onToggleVoice: _toggleVoiceMode,
-            ),
+            widget.session.format == OralExamFormat.panel &&
+                    widget.session.panel.length >= 2
+                ? _PanelBanner(
+                    panel: widget.session.panel,
+                    activePersonaId: _activePersonaId,
+                    caseBrief: widget.session.caseBrief,
+                    voiceMode: _voiceMode,
+                    onToggleVoice: _toggleVoiceMode,
+                  )
+                : _MentorBanner(
+                    personaTitle: widget.session.personaTitle,
+                    difficulty: widget.session.difficulty,
+                    caseBrief: widget.session.caseBrief,
+                    voiceMode: _voiceMode,
+                    onToggleVoice: _toggleVoiceMode,
+                  ),
             Expanded(
               child: ListView.builder(
                 controller: _scrollController,
@@ -1097,6 +1454,207 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _PanelBanner extends StatelessWidget {
+  const _PanelBanner({
+    required this.panel,
+    required this.activePersonaId,
+    required this.caseBrief,
+    required this.voiceMode,
+    required this.onToggleVoice,
+  });
+
+  final List<OralExamPersona> panel;
+  final String activePersonaId;
+  final String caseBrief;
+  final bool voiceMode;
+  final VoidCallback onToggleVoice;
+
+  @override
+  Widget build(BuildContext context) {
+    final ordered = [...panel]..sort((a, b) {
+      const order = {'lead': 0, 'second': 1, 'observer': 2};
+      return (order[a.panelRole] ?? 9).compareTo(order[b.panelRole] ?? 9);
+    });
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 10, 8, 12),
+      decoration: const BoxDecoration(color: PratiCaseColors.navy),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 3,
+                ),
+                decoration: BoxDecoration(
+                  color: PratiCaseColors.tealBright.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: const Text(
+                  'KOMİTE',
+                  style: TextStyle(
+                    color: PratiCaseColors.tealBright,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.6,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                onPressed: onToggleVoice,
+                icon: Icon(
+                  voiceMode ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+                  color: voiceMode
+                      ? PratiCaseColors.tealBright
+                      : Colors.white.withValues(alpha: 0.7),
+                ),
+                tooltip: voiceMode ? 'Sesli mod açık' : 'Sesli mod kapalı',
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              for (var i = 0; i < ordered.length; i++) ...[
+                Expanded(
+                  child: _PanelistAvatar(
+                    persona: ordered[i],
+                    active: ordered[i].id == activePersonaId,
+                  ),
+                ),
+                if (i != ordered.length - 1) const SizedBox(width: 6),
+              ],
+            ],
+          ),
+          if (caseBrief.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                caseBrief,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  height: 1.5,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _PanelistAvatar extends StatelessWidget {
+  const _PanelistAvatar({required this.persona, required this.active});
+  final OralExamPersona persona;
+  final bool active;
+
+  Color get _accent {
+    switch (persona.panelRole) {
+      case 'lead':
+        return PratiCaseColors.errorRed;
+      case 'second':
+        return PratiCaseColors.gold;
+      case 'observer':
+        return PratiCaseColors.successGreen;
+      default:
+        return PratiCaseColors.teal;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: PratiCaseDurations.standard,
+      curve: PratiCaseCurves.standard,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: active
+            ? PratiCaseColors.tealBright.withValues(alpha: 0.18)
+            : Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: active
+              ? PratiCaseColors.tealBright
+              : Colors.white.withValues(alpha: 0.06),
+          width: active ? 1.4 : 0.5,
+        ),
+      ),
+      child: Column(
+        children: [
+          Stack(
+            alignment: Alignment.bottomRight,
+            clipBehavior: Clip.none,
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: active
+                    ? PratiCaseColors.tealBright.withValues(alpha: 0.30)
+                    : Colors.white.withValues(alpha: 0.10),
+                child: Icon(
+                  Icons.person_rounded,
+                  color: active
+                      ? Colors.white
+                      : Colors.white.withValues(alpha: 0.66),
+                  size: 22,
+                ),
+              ),
+              Positioned(
+                bottom: -2,
+                right: -2,
+                child: Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: _accent,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: PratiCaseColors.navy, width: 2),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            persona.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: active ? Colors.white : Colors.white.withValues(alpha: 0.7),
+              fontSize: 10.5,
+              fontWeight: active ? FontWeight.w900 : FontWeight.w600,
+            ),
+          ),
+          if (active) ...[
+            const SizedBox(height: 2),
+            const Text(
+              'KONUŞUYOR',
+              style: TextStyle(
+                color: PratiCaseColors.tealBright,
+                fontSize: 7.5,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.6,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -1251,7 +1809,48 @@ class _ExamBubble extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (message.isFollowup && mentor)
+                    if (mentor && message.personaTitle.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              message.personaTitle,
+                              style: const TextStyle(
+                                color: PratiCaseColors.teal,
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                            if (message.isFollowup) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: PratiCaseColors.gold
+                                      .withValues(alpha: 0.18),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  'TAKİP',
+                                  style: TextStyle(
+                                    color: PratiCaseColors.gold,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.6,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      )
+                    else if (message.isFollowup && mentor)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 4),
                         child: Container(
@@ -1701,13 +2300,15 @@ class _OralExamResultScreenState extends State<OralExamResultScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      children: const [
-                        Icon(Icons.format_quote_rounded,
+                      children: [
+                        const Icon(Icons.format_quote_rounded,
                             color: PratiCaseColors.teal),
-                        SizedBox(width: 6),
+                        const SizedBox(width: 6),
                         Text(
-                          'Hoca Yorumu',
-                          style: TextStyle(
+                          r.format == OralExamFormat.panel
+                              ? 'Komite Kararı'
+                              : 'Hoca Yorumu',
+                          style: const TextStyle(
                             color: PratiCaseColors.navy,
                             fontWeight: FontWeight.w900,
                           ),
@@ -1726,6 +2327,17 @@ class _OralExamResultScreenState extends State<OralExamResultScreen> {
                     ),
                   ],
                 ),
+              ),
+            ),
+          ],
+          if (r.format == OralExamFormat.panel &&
+              r.panelVerdicts.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            FadeSlideIn(
+              delay: const Duration(milliseconds: 180),
+              child: _PanelVerdictsCard(
+                verdicts: r.panelVerdicts,
+                panel: widget.session.panel,
               ),
             ),
           ],
@@ -1766,6 +2378,144 @@ class _OralExamResultScreenState extends State<OralExamResultScreen> {
               minimumSize: const Size.fromHeight(52),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PanelVerdictsCard extends StatelessWidget {
+  const _PanelVerdictsCard({required this.verdicts, required this.panel});
+
+  final List<OralExamPanelVerdict> verdicts;
+  final List<OralExamPersona> panel;
+
+  Color _verdictColor(String verdict) {
+    final lower = verdict.toLowerCase();
+    if (lower.contains('geçer') || lower.contains('başarı')) {
+      return PratiCaseColors.successGreen;
+    }
+    if (lower.contains('sınır')) return PratiCaseColors.gold;
+    if (lower.contains('kal')) return PratiCaseColors.errorRed;
+    return PratiCaseColors.teal;
+  }
+
+  String _personaTitle(String id) {
+    for (final p in panel) {
+      if (p.id == id) return p.title;
+    }
+    return id;
+  }
+
+  String _personaRole(String id) {
+    for (final p in panel) {
+      if (p.id == id) return p.panelRole;
+    }
+    return '';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ClinicalCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Icon(Icons.groups_2_rounded, color: PratiCaseColors.teal),
+              SizedBox(width: 6),
+              Text(
+                'Hocaların Notları',
+                style: TextStyle(
+                  color: PratiCaseColors.navy,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          for (var i = 0; i < verdicts.length; i++) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: PratiCaseColors.softSurface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: PratiCaseColors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 14,
+                        backgroundColor:
+                            PratiCaseColors.teal.withValues(alpha: 0.16),
+                        child: const Icon(
+                          Icons.person_rounded,
+                          color: PratiCaseColors.teal,
+                          size: 16,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _personaTitle(verdicts[i].personaId),
+                              style: const TextStyle(
+                                color: PratiCaseColors.navy,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 13,
+                              ),
+                            ),
+                            if (_personaRole(verdicts[i].personaId).isNotEmpty)
+                              _PanelRoleChip(
+                                role: _personaRole(verdicts[i].personaId),
+                              ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _verdictColor(verdicts[i].verdict)
+                              .withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          verdicts[i].verdict.toUpperCase(),
+                          style: TextStyle(
+                            color: _verdictColor(verdicts[i].verdict),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (verdicts[i].note.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      verdicts[i].note,
+                      style: const TextStyle(
+                        color: PratiCaseColors.slateBlue,
+                        fontSize: 12.5,
+                        height: 1.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (i != verdicts.length - 1) const SizedBox(height: 10),
+          ],
         ],
       ),
     );

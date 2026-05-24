@@ -102,17 +102,35 @@ Deno.serve(async (request) => {
 });
 
 async function startSession(admin: any, userId: string, body: JsonMap) {
-  const personaId = stringValue(body.persona_id) || "patient_assistant";
+  const examFormat = stringValue(body.exam_format) === "panel" ? "panel" : "solo";
+  const personaId = stringValue(body.persona_id) || "stern_professor";
   const branchId = stringValue(body.branch_id) || "dahiliye";
   const scenarioId = stringValue(body.scenario_id);
   const durationSeconds = Math.min(1800, Math.max(300, numberValue(body.duration_seconds) ?? 900));
 
-  const { data: persona } = await admin
-    .schema("praticase")
-    .from("oral_exam_personas")
-    .select("id,title,difficulty,system_prompt,patience_level")
-    .eq("id", personaId)
-    .maybeSingle();
+  let persona: any = null;
+  let panelPersonas: any[] = [];
+
+  if (examFormat === "panel") {
+    const { data: all } = await admin
+      .schema("praticase")
+      .from("oral_exam_personas")
+      .select("id,title,difficulty,system_prompt,patience_level,panel_role")
+      .order("sort_order");
+    panelPersonas = all ?? [];
+    if (panelPersonas.length < 2) {
+      return { error: "Komite modu için yeterli hoca tanımlı değil." };
+    }
+    persona = panelPersonas.find((p: any) => p.panel_role === "lead") ?? panelPersonas[0];
+  } else {
+    const { data } = await admin
+      .schema("praticase")
+      .from("oral_exam_personas")
+      .select("id,title,difficulty,system_prompt,patience_level,panel_role")
+      .eq("id", personaId)
+      .maybeSingle();
+    persona = data;
+  }
   if (!persona) return { error: "Persona bulunamadı." };
 
   const { data: branch } = await admin
@@ -199,6 +217,10 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
     }).catch(() => {});
   }
 
+  const panelPersonaIds = examFormat === "panel"
+    ? panelPersonas.map((p: any) => p.id)
+    : [];
+
   const { data: session, error } = await admin
     .schema("praticase")
     .from("oral_exam_sessions")
@@ -209,8 +231,10 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
       duration_seconds: durationSeconds,
       case_brief: caseBrief,
       status: "active",
+      exam_format: examFormat,
+      panel_persona_ids: panelPersonaIds,
     })
-    .select("id,duration_seconds,case_brief,started_at")
+    .select("id,duration_seconds,case_brief,started_at,exam_format,panel_persona_ids")
     .single();
   if (error || !session) return { error: error?.message ?? "Sözlü sınav başlatılamadı." };
 
@@ -218,6 +242,7 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
     session_id: session.id,
     sequence: 1,
     speaker: "mentor",
+    speaker_persona_id: persona.id,
     message: mentorMessage,
     is_followup: false,
   });
@@ -230,6 +255,16 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
     mentor_message: mentorMessage,
     persona: { id: persona.id, title: persona.title, difficulty: persona.difficulty },
     branch: { id: branch.id, title: branch.title },
+    exam_format: examFormat,
+    panel: examFormat === "panel"
+      ? panelPersonas.map((p: any) => ({
+          id: p.id,
+          title: p.title,
+          difficulty: p.difficulty,
+          panel_role: p.panel_role,
+        }))
+      : [],
+    active_persona_id: persona.id,
   };
 }
 
@@ -243,11 +278,39 @@ async function takeTurn(admin: any, userId: string, body: JsonMap) {
   if (!session) return { error: "Sözlü sınav oturumu bulunamadı." };
   if (session.status !== "active") return { error: "Sözlü sınav oturumu kapatılmış." };
 
-  const persona = await loadPersona(admin, session.persona_id);
   const branch = await loadBranch(admin, session.branch_id);
-  if (!persona || !branch) return { error: "Sözlü sınav yapılandırması eksik." };
+  if (!branch) return { error: "Sözlü sınav yapılandırması eksik." };
 
+  // Panel modunda hangi hoca konuşacak? Rotasyon + dramatik kurallar:
+  // - Lead default ve takip sorularını sorar
+  // - Adayın cevabı kısa/eksik göründüğünde 2. hoca araya girer ("Hocam izninizle..." gibi)
+  // - 3-4 turn'de bir observer kontra-soru atar
   const turns = await loadTurns(admin, sessionId);
+  const panel = await loadPanelPersonas(admin, session);
+  const panelMap = new Map(panel.map((p: any) => [p.id, p]));
+  const lead = panel.find((p: any) => p.panel_role === "lead") ?? panel[0];
+  const second = panel.find((p: any) => p.panel_role === "second");
+  const observer = panel.find((p: any) => p.panel_role === "observer");
+  const mentorTurns = turns.filter((t: any) => t.speaker === "mentor");
+
+  let activePersona: any;
+  if (session.exam_format === "panel" && panel.length >= 2) {
+    const lastSpeakerId = mentorTurns.at(-1)?.speaker_persona_id;
+    const shortAnswer = candidateMessage.trim().split(/\s+/).length < 6;
+    const everyFourth = mentorTurns.length > 0 && mentorTurns.length % 4 === 3;
+    if (everyFourth && observer && lastSpeakerId !== observer.id) {
+      activePersona = observer;
+    } else if (shortAnswer && second && lastSpeakerId !== second.id) {
+      activePersona = second;
+    } else if (lastSpeakerId === lead.id && second) {
+      activePersona = second;
+    } else {
+      activePersona = lead;
+    }
+  } else {
+    activePersona = panelMap.get(session.persona_id) ?? lead;
+  }
+
   const nextSequence = (turns.at(-1)?.sequence ?? 0) + 1;
 
   await admin.schema("praticase").from("oral_exam_turns").insert({
@@ -270,12 +333,25 @@ async function takeTurn(admin: any, userId: string, body: JsonMap) {
     message: candidateMessage,
   }];
 
+  const panelContext = session.exam_format === "panel"
+    ? `\n\nKOMİTE MODU. Sınav masasında 3 hoca var:\n` +
+      panel.map((p: any) =>
+        `- ${p.title} (${p.panel_role === "lead" ? "ana sorgulayıcı" : p.panel_role === "second" ? "yardımcı sorgulayıcı" : "gözlemci"}): ${p.difficulty}`
+      ).join("\n") +
+      `\n\nBu turn'de SADECE "${activePersona.title}" konuşur. ` +
+      `Diğer hocalar sessizce dinler. Cevabına kısa bir referans yapabilirsin: ` +
+      `örn. "Hocam izninizle bir şey ekleyeyim" (yardımcı), ` +
+      `"İlginç bir nokta..." (gözlemci), ` +
+      `"Hayır, bu kadar yeterli değil" (lead). Tonu ${activePersona.title} ile uyumlu olsun.`
+    : "";
+
   const response = await generateVertexContent({
     model: historyModel(),
     systemInstruction:
-      `${persona.system_prompt}\n\n` +
+      `${activePersona.system_prompt}\n` +
+      `Sen ${activePersona.title}'sin. Şu anda sözlü sınavda aday seninle konuşuyor.${panelContext}\n\n` +
       `Klinik vaka: ${session.case_brief}\n` +
-      `Branş: ${branch.title}. Zorluk: ${persona.difficulty}.\n` +
+      `Branş: ${branch.title}. Zorluk: ${activePersona.difficulty}.\n` +
       `Sınavda kalan süre: ${Math.round(remainingSeconds / 60)} dakika ${remainingSeconds % 60} saniye.\n` +
       `Kalan süre <2dk ise hoca sınavı kapatmaya hazır olabilir.\n\n` +
       `Görevin:\n` +
@@ -290,9 +366,14 @@ async function takeTurn(admin: any, userId: string, body: JsonMap) {
       role: "user",
       parts: [{
         text: `Aşağıdaki tüm dialog transcript'i:\n` +
-          transcript.map((t: any) =>
-            `${t.speaker === "mentor" ? "HOCA" : t.speaker === "candidate" ? "ADAY" : "SİSTEM"}: ${t.message}`
-          ).join("\n\n"),
+          transcript.map((t: any) => {
+            if (t.speaker === "candidate") return `ADAY: ${t.message}`;
+            if (t.speaker === "system") return `SİSTEM: ${t.message}`;
+            const who = t.speaker_persona_id
+              ? (panelMap.get(t.speaker_persona_id)?.title ?? "HOCA")
+              : "HOCA";
+            return `${who.toUpperCase()}: ${t.message}`;
+          }).join("\n\n"),
       }],
     }],
     temperature: 0.55,
@@ -314,6 +395,7 @@ async function takeTurn(admin: any, userId: string, body: JsonMap) {
     session_id: sessionId,
     sequence: nextSequence + 1,
     speaker: "mentor",
+    speaker_persona_id: activePersona.id,
     message: mentorMessage,
     is_followup: isFollowup,
     evaluation: turnEval,
@@ -325,6 +407,8 @@ async function takeTurn(admin: any, userId: string, body: JsonMap) {
     should_end: shouldEnd,
     remaining_seconds: remainingSeconds,
     turn_evaluation: turnEval,
+    active_persona_id: activePersona.id,
+    active_persona_title: activePersona.title,
   };
 }
 
@@ -335,9 +419,16 @@ async function skipQuestion(admin: any, userId: string, body: JsonMap) {
   if (!session) return { error: "Sözlü sınav oturumu bulunamadı." };
   if (session.status !== "active") return { error: "Sözlü sınav kapanmış." };
 
-  const persona = await loadPersona(admin, session.persona_id);
   const branch = await loadBranch(admin, session.branch_id);
   const turns = await loadTurns(admin, sessionId);
+  const panel = await loadPanelPersonas(admin, session);
+  const lead = panel.find((p: any) => p.panel_role === "lead") ?? panel[0];
+  const second = panel.find((p: any) => p.panel_role === "second");
+  // Pas geçildiğinde lead ya da second hoca devralır; lead pas için en sert tepkiyi verir
+  const activePersona = session.exam_format === "panel" && second
+    ? (Math.random() < 0.65 ? lead : second)
+    : (panel.find((p: any) => p.id === session.persona_id) ?? lead);
+
   const nextSequence = (turns.at(-1)?.sequence ?? 0) + 1;
 
   await admin.schema("praticase").from("oral_exam_turns").insert({
@@ -353,8 +444,9 @@ async function skipQuestion(admin: any, userId: string, body: JsonMap) {
   const response = await generateVertexContent({
     model: historyModel(),
     systemInstruction:
-      `${persona?.system_prompt ?? ""}\n` +
-      `Aday bir soruyu pas geçti. Tonuna uygun (Sabırlı: anlayışlı, Sokratik: ipucuyla yeniden çerçevele, Sert: sert uyarı) ` +
+      `${activePersona?.system_prompt ?? ""}\n` +
+      `Sen ${activePersona?.title}'sin. Aday bir soruyu pas geçti. ` +
+      `Tonuna uygun (Sabırlı: anlayışlı, Sokratik: ipucuyla yeniden çerçevele, Sert: sert uyarı) ` +
       `Türkçe TEK paragraf hoca yanıtı ver. Yeni bir soruya geç. JSON: ` +
       `{"mentor_message":"..."}`,
     contents: [{
@@ -380,11 +472,17 @@ async function skipQuestion(admin: any, userId: string, body: JsonMap) {
     session_id: sessionId,
     sequence: nextSequence + 1,
     speaker: "mentor",
+    speaker_persona_id: activePersona.id,
     message: mentorMessage,
     is_followup: false,
   });
 
-  return { mentor_message: mentorMessage, skipped: true };
+  return {
+    mentor_message: mentorMessage,
+    skipped: true,
+    active_persona_id: activePersona.id,
+    active_persona_title: activePersona.title,
+  };
 }
 
 async function finalize(admin: any, userId: string, body: JsonMap) {
@@ -393,9 +491,10 @@ async function finalize(admin: any, userId: string, body: JsonMap) {
   const session = await loadSession(admin, sessionId, userId);
   if (!session) return { error: "Sözlü sınav oturumu bulunamadı." };
 
-  const persona = await loadPersona(admin, session.persona_id);
   const branch = await loadBranch(admin, session.branch_id);
   const turns = await loadTurns(admin, sessionId);
+  const panel = await loadPanelPersonas(admin, session);
+  const panelMap = new Map(panel.map((p: any) => [p.id, p]));
 
   if (turns.length === 0) {
     await admin.schema("praticase")
@@ -405,6 +504,28 @@ async function finalize(admin: any, userId: string, body: JsonMap) {
     return { error: "Sınav transcripti boş, değerlendirilemiyor." };
   }
 
+  const transcriptText = turns.map((t: any) => {
+    if (t.speaker === "candidate") {
+      return `ADAY${t.was_skipped ? " (PAS)" : ""}: ${t.message}`;
+    }
+    if (t.speaker === "system") return `SİSTEM: ${t.message}`;
+    const who = t.speaker_persona_id
+      ? (panelMap.get(t.speaker_persona_id)?.title ?? "HOCA")
+      : "HOCA";
+    return `${who.toUpperCase()}: ${t.message}`;
+  }).join("\n\n");
+
+  const isPanel = session.exam_format === "panel" && panel.length >= 2;
+  const panelPromptSection = isPanel
+    ? `\n\nKomite sınavı. Hocalar:\n` +
+      panel.map((p: any) => `- ${p.title} (${p.panel_role})`).join("\n") +
+      `\n\nEK ÇIKTI: panel_summaries alanı ekle. Her hocadan AYRI bir yorum: ` +
+      `{"<persona_id>": {"verdict":"geçer/sınırda/kalır","note":"2 cümle"}}.\n` +
+      `Ayrıca mentor_summary alanı 3-5 cümlelik dramatize edilmiş "komite kararı" konuşmasıdır ` +
+      `(örn: "Komite tartıştı. Profesör katı değerlendirmesini paylaştı, doçent ipucu vermişti..."). ` +
+      `Bu konuşmayı lead hoca yapıyor gibi yaz.`
+    : "";
+
   const evaluation = await generateVertexContent({
     model: evaluationModel(),
     systemInstruction:
@@ -413,21 +534,17 @@ async function finalize(admin: any, userId: string, body: JsonMap) {
       `- Klinik akıl yürütme: 40\n- Bilgi doğruluğu: 30\n- İletişim/özgüven: 15\n- Soru-cevap hızı: 10\n- Profesyonellik: 5\n\n` +
       `JSON döndür:\n{` +
       `"total_score":0,"reasoning_score":0,"knowledge_score":0,"communication_score":0,"pace_score":0,"professionalism_score":0,` +
-      `"mentor_summary":"4-6 cümle profesyonel kapanış konuşması, Türkçe","strong_points":[],"improvement_points":[],"missed_points":[]` +
-      `}\nListeler en fazla 5 madde, her madde 1 cümle.`,
+      `"mentor_summary":"...","strong_points":[],"improvement_points":[],"missed_points":[],"panel_summaries":{}` +
+      `}\nListeler en fazla 5 madde, her madde 1 cümle.${panelPromptSection}`,
     contents: [{
       role: "user",
       parts: [{
-        text: `Hoca: ${persona?.title} (${persona?.difficulty})\nBranş: ${branch?.title}\nVaka: ${session.case_brief}\n\n` +
-          `TRANSCRIPT:\n` +
-          turns.map((t: any) =>
-            `${t.speaker === "mentor" ? "HOCA" : t.speaker === "candidate" ? "ADAY" : "SİSTEM"}` +
-            `${t.was_skipped ? " (PAS)" : ""}: ${t.message}`
-          ).join("\n\n"),
+        text: `Format: ${session.exam_format}\nBranş: ${branch?.title}\nVaka: ${session.case_brief}\n\n` +
+          `TRANSCRIPT:\n${transcriptText}`,
       }],
     }],
     temperature: 0.2,
-    maxOutputTokens: 1400,
+    maxOutputTokens: 1800,
     responseMimeType: "application/json",
   });
   const parsed = safeParse(evaluation.text);
@@ -443,6 +560,9 @@ async function finalize(admin: any, userId: string, body: JsonMap) {
   const pace = clamp(numberValue(parsed.pace_score) ?? 0, 0, 10);
   const professionalism = clamp(numberValue(parsed.professionalism_score) ?? 0, 0, 5);
   const total = clamp(numberValue(parsed.total_score) ?? (reasoning + knowledge + communication + pace + professionalism), 0, 100);
+  const panelSummaries = (parsed.panel_summaries && typeof parsed.panel_summaries === "object")
+    ? parsed.panel_summaries as JsonMap
+    : {};
 
   const update = await admin
     .schema("praticase")
@@ -461,15 +581,23 @@ async function finalize(admin: any, userId: string, body: JsonMap) {
       strong_points: Array.isArray(parsed.strong_points) ? parsed.strong_points : [],
       improvement_points: Array.isArray(parsed.improvement_points) ? parsed.improvement_points : [],
       missed_points: Array.isArray(parsed.missed_points) ? parsed.missed_points : [],
+      panel_summaries: panelSummaries,
       updated_at: new Date().toISOString(),
     })
     .eq("id", sessionId)
     .select(
-      "id,total_score,max_score,reasoning_score,knowledge_score,communication_score,pace_score,professionalism_score,mentor_summary,strong_points,improvement_points,missed_points,case_brief",
+      "id,total_score,max_score,reasoning_score,knowledge_score,communication_score,pace_score,professionalism_score,mentor_summary,strong_points,improvement_points,missed_points,case_brief,exam_format,panel_persona_ids,panel_summaries",
     )
     .single();
   if (update.error) return { error: update.error.message };
-  return { result: update.data };
+  return {
+    result: update.data,
+    panel: panel.map((p: any) => ({
+      id: p.id,
+      title: p.title,
+      panel_role: p.panel_role,
+    })),
+  };
 }
 
 async function listScenarios(admin: any, body: JsonMap) {
@@ -489,18 +617,48 @@ async function loadSession(admin: any, sessionId: string, userId: string) {
   const { data } = await admin
     .schema("praticase")
     .from("oral_exam_sessions")
-    .select("id,user_id,persona_id,branch_id,duration_seconds,case_brief,status,started_at")
+    .select(
+      "id,user_id,persona_id,branch_id,duration_seconds,case_brief,status,started_at,exam_format,panel_persona_ids",
+    )
     .eq("id", sessionId)
     .eq("user_id", userId)
     .maybeSingle();
   return data;
 }
 
+async function loadPanelPersonas(admin: any, session: any) {
+  if (session.exam_format === "panel") {
+    const ids = Array.isArray(session.panel_persona_ids)
+      ? session.panel_persona_ids
+      : [];
+    if (ids.length === 0) {
+      const { data } = await admin
+        .schema("praticase")
+        .from("oral_exam_personas")
+        .select("id,title,difficulty,system_prompt,patience_level,panel_role")
+        .order("sort_order");
+      return data ?? [];
+    }
+    const { data } = await admin
+      .schema("praticase")
+      .from("oral_exam_personas")
+      .select("id,title,difficulty,system_prompt,patience_level,panel_role")
+      .in("id", ids);
+    return data ?? [];
+  }
+  const { data } = await admin
+    .schema("praticase")
+    .from("oral_exam_personas")
+    .select("id,title,difficulty,system_prompt,patience_level,panel_role")
+    .eq("id", session.persona_id);
+  return data ?? [];
+}
+
 async function loadPersona(admin: any, id: string) {
   const { data } = await admin
     .schema("praticase")
     .from("oral_exam_personas")
-    .select("id,title,difficulty,system_prompt,patience_level")
+    .select("id,title,difficulty,system_prompt,patience_level,panel_role")
     .eq("id", id)
     .maybeSingle();
   return data;
