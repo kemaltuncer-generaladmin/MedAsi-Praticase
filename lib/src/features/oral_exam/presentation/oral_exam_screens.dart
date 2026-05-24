@@ -24,6 +24,7 @@ class _OralExamSetupScreenState extends State<OralExamSetupScreen> {
   late Future<OralExamCatalog> _catalogFuture;
   OralExamPersona? _persona;
   OralExamBranch? _branch;
+  OralExamScenario? _scenario;
   int _durationMinutes = 15;
   bool _starting = false;
 
@@ -31,6 +32,13 @@ class _OralExamSetupScreenState extends State<OralExamSetupScreen> {
   void initState() {
     super.initState();
     _catalogFuture = widget.repository.loadCatalog();
+  }
+
+  void _onBranchChanged(OralExamBranch branch) {
+    setState(() {
+      _branch = branch;
+      _scenario = null;
+    });
   }
 
   Future<void> _start() async {
@@ -41,6 +49,7 @@ class _OralExamSetupScreenState extends State<OralExamSetupScreen> {
         personaId: _persona!.id,
         branchId: _branch!.id,
         durationSeconds: _durationMinutes * 60,
+        scenarioId: _scenario?.id,
       );
       if (!mounted) return;
       await PratiCaseHaptics.medium();
@@ -126,10 +135,39 @@ class _OralExamSetupScreenState extends State<OralExamSetupScreen> {
                         _BranchChip(
                           branch: branch,
                           selected: _branch?.id == branch.id,
-                          onTap: () => setState(() => _branch = branch),
+                          onTap: () => _onBranchChanged(branch),
                         ),
                     ],
                   ),
+                  if (_branch != null &&
+                      catalog.scenariosFor(_branch!.id).isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    FadeSlideIn(child: _SectionTitle('Vaka')),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Hazır senaryo seçebilir veya rastgele AI vakası ile başlayabilirsin.',
+                      style: TextStyle(
+                        color: PratiCaseColors.muted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _ScenarioRandomTile(
+                      selected: _scenario == null,
+                      onTap: () => setState(() => _scenario = null),
+                    ),
+                    const SizedBox(height: 10),
+                    for (final scenario in catalog.scenariosFor(_branch!.id))
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _ScenarioTile(
+                          scenario: scenario,
+                          selected: _scenario?.id == scenario.id,
+                          onTap: () => setState(() => _scenario = scenario),
+                        ),
+                      ),
+                  ],
                   const SizedBox(height: 20),
                   FadeSlideIn(child: _SectionTitle('Sınav Süresi')),
                   const SizedBox(height: 10),
@@ -365,6 +403,197 @@ class _PersonaTile extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScenarioRandomTile extends StatelessWidget {
+  const _ScenarioRandomTile({required this.selected, required this.onTap});
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: PratiCaseDurations.fast,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: selected
+              ? PratiCaseColors.teal.withValues(alpha: 0.08)
+              : PratiCaseColors.white,
+          borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+          border: Border.all(
+            color: selected ? PratiCaseColors.teal : PratiCaseColors.border,
+            width: selected ? 1.4 : 1,
+          ),
+          boxShadow: selected ? null : PratiCaseShadows.card,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: PratiCaseColors.teal.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.shuffle_rounded,
+                color: PratiCaseColors.teal,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'AI Rastgele Vaka',
+                    style: TextStyle(
+                      color: PratiCaseColors.navy,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 14,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Hoca branş bilgisiyle her seferinde özgün bir vaka üretir.',
+                    style: TextStyle(
+                      color: PratiCaseColors.muted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (selected)
+              const Icon(Icons.check_circle_rounded,
+                  color: PratiCaseColors.teal),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScenarioTile extends StatelessWidget {
+  const _ScenarioTile({
+    required this.scenario,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final OralExamScenario scenario;
+  final bool selected;
+  final VoidCallback onTap;
+
+  Color get _accent {
+    switch (scenario.difficultyFloor) {
+      case 'Kolay':
+        return PratiCaseColors.successGreen;
+      case 'Orta':
+        return PratiCaseColors.gold;
+      case 'Zor':
+        return PratiCaseColors.errorRed;
+      default:
+        return PratiCaseColors.teal;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: PratiCaseDurations.fast,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: selected
+              ? PratiCaseColors.teal.withValues(alpha: 0.08)
+              : PratiCaseColors.white,
+          borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+          border: Border.all(
+            color: selected ? PratiCaseColors.teal : PratiCaseColors.border,
+            width: selected ? 1.4 : 1,
+          ),
+          boxShadow: selected ? null : PratiCaseShadows.card,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: _accent.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.assignment_ind_rounded,
+                    color: _accent,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    scenario.title,
+                    style: const TextStyle(
+                      color: PratiCaseColors.navy,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _accent.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    scenario.difficultyFloor,
+                    style: TextStyle(
+                      color: _accent,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                if (selected) ...[
+                  const SizedBox(width: 6),
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    color: PratiCaseColors.teal,
+                    size: 20,
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              scenario.caseBrief,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: PratiCaseColors.slateBlue,
+                fontSize: 12.5,
+                height: 1.5,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],

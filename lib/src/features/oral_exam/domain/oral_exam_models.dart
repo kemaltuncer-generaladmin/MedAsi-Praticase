@@ -32,11 +32,38 @@ class OralExamBranch {
   final int sortOrder;
 }
 
+class OralExamScenario {
+  const OralExamScenario({
+    required this.id,
+    required this.branchId,
+    required this.title,
+    required this.caseBrief,
+    required this.difficultyFloor,
+    required this.sortOrder,
+  });
+
+  final String id;
+  final String branchId;
+  final String title;
+  final String caseBrief;
+  final String difficultyFloor;
+  final int sortOrder;
+}
+
 class OralExamCatalog {
-  const OralExamCatalog({required this.personas, required this.branches});
+  const OralExamCatalog({
+    required this.personas,
+    required this.branches,
+    required this.scenariosByBranch,
+  });
 
   final List<OralExamPersona> personas;
   final List<OralExamBranch> branches;
+  final Map<String, List<OralExamScenario>> scenariosByBranch;
+
+  List<OralExamScenario> scenariosFor(String branchId) {
+    return scenariosByBranch[branchId] ?? const <OralExamScenario>[];
+  }
 }
 
 class OralExamSession {

@@ -22,6 +22,34 @@ class SupabaseOralExamRepository implements OralExamRepository {
           .from('oral_exam_branches')
           .select('id,title,description,sort_order')
           .order('sort_order');
+      final scenariosByBranch = <String, List<OralExamScenario>>{};
+      try {
+        final scenarioRows = await _client
+            .schema('praticase')
+            .from('oral_exam_scenarios')
+            .select('id,branch_id,title,case_brief,difficulty_floor,sort_order')
+            .order('sort_order');
+        for (final row in scenarioRows) {
+          final branchId = _string(row, 'branch_id');
+          scenariosByBranch.putIfAbsent(branchId, () => []).add(
+                OralExamScenario(
+                  id: _string(row, 'id'),
+                  branchId: branchId,
+                  title: _string(row, 'title'),
+                  caseBrief: _string(row, 'case_brief'),
+                  difficultyFloor: _string(row, 'difficulty_floor'),
+                  sortOrder: _int(row, 'sort_order'),
+                ),
+              );
+        }
+      } on PostgrestException catch (error) {
+        if (error.code != '42P01' &&
+            error.code != 'PGRST205' &&
+            !error.message.toLowerCase().contains('does not exist') &&
+            !error.message.toLowerCase().contains('schema cache')) {
+          rethrow;
+        }
+      }
       return OralExamCatalog(
         personas: [
           for (final row in personaRows)
@@ -43,6 +71,7 @@ class SupabaseOralExamRepository implements OralExamRepository {
               sortOrder: _int(row, 'sort_order'),
             ),
         ],
+        scenariosByBranch: scenariosByBranch,
       );
     } on PostgrestException catch (error) {
       throw OralExamUnavailable(_friendly(error));
@@ -54,12 +83,15 @@ class SupabaseOralExamRepository implements OralExamRepository {
     required String personaId,
     required String branchId,
     required int durationSeconds,
+    String? scenarioId,
   }) async {
     final response = await _invoke({
       'action': 'start',
       'persona_id': personaId,
       'branch_id': branchId,
       'duration_seconds': durationSeconds,
+      if (scenarioId != null && scenarioId.isNotEmpty)
+        'scenario_id': scenarioId,
     });
     final persona = (response['persona'] as Map?) ?? const {};
     final branch = (response['branch'] as Map?) ?? const {};

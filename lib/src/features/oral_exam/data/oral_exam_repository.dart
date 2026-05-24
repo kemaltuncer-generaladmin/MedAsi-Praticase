@@ -7,6 +7,7 @@ abstract interface class OralExamRepository {
     required String personaId,
     required String branchId,
     required int durationSeconds,
+    String? scenarioId,
   });
 
   Future<OralExamTurnResult> sendAnswer({

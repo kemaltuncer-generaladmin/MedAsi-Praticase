@@ -81,6 +81,8 @@ Deno.serve(async (request) => {
         return withOrigin(await skipQuestion(admin, userId, body), origin);
       case "finalize":
         return withOrigin(await finalize(admin, userId, body), origin);
+      case "list_scenarios":
+        return withOrigin(await listScenarios(admin, body), origin);
       default:
         return jsonResponse({ error: "Unknown action" }, 400, origin);
     }
@@ -102,6 +104,7 @@ Deno.serve(async (request) => {
 async function startSession(admin: any, userId: string, body: JsonMap) {
   const personaId = stringValue(body.persona_id) || "patient_assistant";
   const branchId = stringValue(body.branch_id) || "dahiliye";
+  const scenarioId = stringValue(body.scenario_id);
   const durationSeconds = Math.min(1800, Math.max(300, numberValue(body.duration_seconds) ?? 900));
 
   const { data: persona } = await admin
@@ -120,34 +123,81 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
     .maybeSingle();
   if (!branch) return { error: "Branş bulunamadı." };
 
-  // Vaka brief'i ve açılış sorusu üret
-  const opening = await generateVertexContent({
-    model: historyModel(),
-    systemInstruction:
-      `${persona.system_prompt}\n\nGörev: ${branch.title} stajında sözlü sınav vakası başlat. ` +
-      `Türkçe konuş. Önce 2-3 cümlelik vaka brifi (yaş, cinsiyet, şikayet, başvuru yeri, kısa öykü) sun, ` +
-      `ardından İLK soruyu sor. Vaka brifi + tek soru. JSON döndür: ` +
-      `{"case_brief":"...","mentor_message":"vaka brifi + ilk soru tek paragraf"}.`,
-    contents: [{
-      role: "user",
-      parts: [{
-        text: `Branş bilgisi: ${branch.case_seed}\nZorluk: ${persona.difficulty}\nHoca tipi: ${persona.title}\n` +
-          `Sınav süresi: ${Math.round(durationSeconds / 60)} dakika.\n` +
-          `Vaka klinik olarak gerçekçi, ayırt edilebilir, tartışılabilir olsun.`,
-      }],
-    }],
-    temperature: 0.7,
-    maxOutputTokens: 600,
-    responseMimeType: "application/json",
-  });
-  const parsed = safeParse(opening.text);
-  const caseBrief = stringValue(parsed.case_brief);
-  const mentorMessage = stringValue(parsed.mentor_message) || caseBrief;
+  let scenario: any = null;
+  if (scenarioId) {
+    const { data } = await admin
+      .schema("praticase")
+      .from("oral_exam_scenarios")
+      .select("id,title,case_brief,opening_complaint,learning_objectives,expected_differentials,red_flags,ideal_management")
+      .eq("id", scenarioId)
+      .eq("branch_id", branch.id)
+      .maybeSingle();
+    scenario = data;
+  }
 
-  await chargeAiCoins({
-    admin, userId, feature: "praticase-oral-exam-start",
-    model: opening.model, usageMetadata: opening.usageMetadata,
-  }).catch(() => {});
+  let caseBrief = "";
+  let mentorMessage = "";
+
+  if (scenario) {
+    // Kürasyon edilmiş senaryo: AI sadece personaya uygun açılış metnini yazsın
+    caseBrief = stringValue(scenario.case_brief);
+    const opening = await generateVertexContent({
+      model: historyModel(),
+      systemInstruction:
+        `${persona.system_prompt}\n\nGörev: aşağıda verilen önceden hazırlanmış sözlü sınav vakasını ` +
+        `sun ve ilk soruyu sor. Türkçe konuş. Personana uygun tonla:\n` +
+        `1) Vaka brifini AYNEN paragraf olarak oku/sun.\n` +
+        `2) Tek bir açılış sorusu sor (anamnez/yaklaşım sorusu).\n` +
+        `JSON döndür: {"mentor_message":"vaka brifi + tek soru"}`,
+      contents: [{
+        role: "user",
+        parts: [{
+          text: `BRANŞ: ${branch.title}\nVAKA BAŞLIK: ${scenario.title}\n\n` +
+            `VAKA BRİFİ:\n${scenario.case_brief}\n\n` +
+            `HASTANIN AÇILIŞ CÜMLESİ: ${scenario.opening_complaint}\n\n` +
+            `Öğrenme hedefleri (rehber): ${JSON.stringify(scenario.learning_objectives)}\n` +
+            `Sınav süresi: ${Math.round(durationSeconds / 60)} dakika.`,
+        }],
+      }],
+      temperature: 0.45,
+      maxOutputTokens: 600,
+      responseMimeType: "application/json",
+    });
+    const parsed = safeParse(opening.text);
+    mentorMessage = stringValue(parsed.mentor_message) || caseBrief;
+    await chargeAiCoins({
+      admin, userId, feature: "praticase-oral-exam-start",
+      model: opening.model, usageMetadata: opening.usageMetadata,
+    }).catch(() => {});
+  } else {
+    // Senaryo seçilmedi → AI rastgele üretir
+    const opening = await generateVertexContent({
+      model: historyModel(),
+      systemInstruction:
+        `${persona.system_prompt}\n\nGörev: ${branch.title} stajında sözlü sınav vakası başlat. ` +
+        `Türkçe konuş. Önce 2-3 cümlelik vaka brifi (yaş, cinsiyet, şikayet, başvuru yeri, kısa öykü) sun, ` +
+        `ardından İLK soruyu sor. Vaka brifi + tek soru. JSON döndür: ` +
+        `{"case_brief":"...","mentor_message":"vaka brifi + ilk soru tek paragraf"}.`,
+      contents: [{
+        role: "user",
+        parts: [{
+          text: `Branş bilgisi: ${branch.case_seed}\nZorluk: ${persona.difficulty}\nHoca tipi: ${persona.title}\n` +
+            `Sınav süresi: ${Math.round(durationSeconds / 60)} dakika.\n` +
+            `Vaka klinik olarak gerçekçi, ayırt edilebilir, tartışılabilir olsun.`,
+        }],
+      }],
+      temperature: 0.7,
+      maxOutputTokens: 600,
+      responseMimeType: "application/json",
+    });
+    const parsed = safeParse(opening.text);
+    caseBrief = stringValue(parsed.case_brief);
+    mentorMessage = stringValue(parsed.mentor_message) || caseBrief;
+    await chargeAiCoins({
+      admin, userId, feature: "praticase-oral-exam-start",
+      model: opening.model, usageMetadata: opening.usageMetadata,
+    }).catch(() => {});
+  }
 
   const { data: session, error } = await admin
     .schema("praticase")
@@ -420,6 +470,19 @@ async function finalize(admin: any, userId: string, body: JsonMap) {
     .single();
   if (update.error) return { error: update.error.message };
   return { result: update.data };
+}
+
+async function listScenarios(admin: any, body: JsonMap) {
+  const branchId = stringValue(body.branch_id);
+  let q = admin
+    .schema("praticase")
+    .from("oral_exam_scenarios")
+    .select("id,branch_id,title,case_brief,difficulty_floor,sort_order")
+    .order("sort_order");
+  if (branchId) q = q.eq("branch_id", branchId);
+  const { data, error } = await q;
+  if (error) return { error: error.message };
+  return { scenarios: data ?? [] };
 }
 
 async function loadSession(admin: any, sessionId: string, userId: string) {
