@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -251,11 +253,11 @@ class _PressableScaleState extends State<PressableScale>
     }
   }
 
-  Future<void> _handleTap() async {
-    if (widget.hapticsOnTap) {
-      await PratiCaseHaptics.selection();
-    }
+  void _handleTap() {
     widget.onTap?.call();
+    if (widget.hapticsOnTap) {
+      unawaited(PratiCaseHaptics.selection().catchError((_) {}));
+    }
   }
 
   @override
