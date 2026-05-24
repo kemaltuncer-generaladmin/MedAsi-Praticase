@@ -30,6 +30,10 @@
 	<string>Sesli sınav modunda sorularınızı hastaya konuşarak iletmek için mikrofon kullanılır.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Sesli sınav modunda konuşmanızı Türkçe metne çevirmek için konuşma tanıma kullanılır.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>SKAdNetworkItems</key>
+	<array/>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

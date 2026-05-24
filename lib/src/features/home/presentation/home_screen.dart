@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/praticase_colors.dart';
+import '../../../app/theme/praticase_motion.dart';
 import '../../../app/theme/praticase_tokens.dart';
 import '../../../shared/ui/ui.dart';
 import '../../cases/data/cases_repository.dart';
@@ -71,80 +72,87 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         }
         final dashboard = snapshot.requireData;
+        final sections = <Widget>[
+          _HomeHeader(
+            dashboard: dashboard,
+            onOpenNotifications: widget.onOpenNotifications,
+            onOpenProfile: widget.onOpenProfile,
+            unreadNotificationCount: widget.unreadNotificationCount,
+          ),
+          const SizedBox(height: 30),
+          _Greeting(user: dashboard.user, onSearch: widget.onOpenCases),
+          const SizedBox(height: 28),
+          if (dashboard.continuedCase != null) ...[
+            _SectionHeader(
+              title: 'Devam Edilen Vaka',
+              onViewAll: widget.onOpenCases,
+            ),
+            const SizedBox(height: 14),
+            _ContinuedCaseCard(
+              continuedCase: dashboard.continuedCase,
+              onOpenCase: () =>
+                  _openCaseDetail(dashboard.continuedCase!.caseId),
+            ),
+            if (dashboard.banners.isNotEmpty) ...[
+              const SizedBox(height: 26),
+              _BannerCarousel(
+                banners: dashboard.banners,
+                onCta: _openBannerRoute,
+              ),
+            ],
+          ] else ...[
+            _QuickActions(
+              onSingleStation: widget.onOpenCases,
+              onMiniOsce: widget.onOpenExams,
+              onTheoreticalExam: widget.onOpenTheoreticalExam,
+            ),
+            const SizedBox(height: 28),
+            _SectionHeader(
+              title: 'Genel Bakış',
+              onViewAll: widget.onOpenProgress,
+            ),
+            const SizedBox(height: 14),
+            _OverviewCharts(stats: dashboard.stats),
+          ],
+          if (dashboard.recommendedCases.isNotEmpty ||
+              dashboard.continuedCase == null) ...[
+            const SizedBox(height: 28),
+            _SectionHeader(
+              title: 'Önerilen Vakalar',
+              onViewAll: widget.onOpenCases,
+            ),
+            const SizedBox(height: 14),
+            _RecommendedCases(
+              cases: dashboard.recommendedCases,
+              onOpenCase: _openCaseDetail,
+            ),
+          ],
+          if (dashboard.badgeSummary != null) ...[
+            const SizedBox(height: 28),
+            _BadgePanel(
+              summary: dashboard.badgeSummary,
+              onOpenBadges: widget.onOpenBadges,
+            ),
+          ],
+          if (dashboard.continuedCase == null &&
+              dashboard.banners.isNotEmpty) ...[
+            const SizedBox(height: 28),
+            _BannerCarousel(
+              banners: dashboard.banners,
+              onCta: _openBannerRoute,
+            ),
+          ],
+        ];
         return RefreshIndicator(
           onRefresh: _refresh,
           child: PratiCaseResponsiveListView(
             padding: PratiCaseResponsive.pagePadding(context),
             children: [
-              _HomeHeader(
-                dashboard: dashboard,
-                onOpenNotifications: widget.onOpenNotifications,
-                onOpenProfile: widget.onOpenProfile,
-                unreadNotificationCount: widget.unreadNotificationCount,
-              ),
-              const SizedBox(height: 30),
-              _Greeting(user: dashboard.user, onSearch: widget.onOpenCases),
-              const SizedBox(height: 28),
-              if (dashboard.continuedCase != null) ...[
-                _SectionHeader(
-                  title: 'Devam Edilen Vaka',
-                  onViewAll: widget.onOpenCases,
+              for (var index = 0; index < sections.length; index++)
+                FadeSlideIn(
+                  delay: Duration(milliseconds: 30 * index),
+                  child: sections[index],
                 ),
-                const SizedBox(height: 14),
-                _ContinuedCaseCard(
-                  continuedCase: dashboard.continuedCase,
-                  onOpenCase: () =>
-                      _openCaseDetail(dashboard.continuedCase!.caseId),
-                ),
-                if (dashboard.banners.isNotEmpty) ...[
-                  const SizedBox(height: 26),
-                  _BannerCarousel(
-                    banners: dashboard.banners,
-                    onCta: _openBannerRoute,
-                  ),
-                ],
-              ] else ...[
-                _QuickActions(
-                  onSingleStation: widget.onOpenCases,
-                  onMiniOsce: widget.onOpenExams,
-                  onTheoreticalExam: widget.onOpenTheoreticalExam,
-                ),
-                const SizedBox(height: 28),
-                _SectionHeader(
-                  title: 'Genel Bakış',
-                  onViewAll: widget.onOpenProgress,
-                ),
-                const SizedBox(height: 14),
-                _OverviewCharts(stats: dashboard.stats),
-              ],
-              if (dashboard.recommendedCases.isNotEmpty ||
-                  dashboard.continuedCase == null) ...[
-                const SizedBox(height: 28),
-                _SectionHeader(
-                  title: 'Önerilen Vakalar',
-                  onViewAll: widget.onOpenCases,
-                ),
-                const SizedBox(height: 14),
-                _RecommendedCases(
-                  cases: dashboard.recommendedCases,
-                  onOpenCase: _openCaseDetail,
-                ),
-              ],
-              if (dashboard.badgeSummary != null) ...[
-                const SizedBox(height: 28),
-                _BadgePanel(
-                  summary: dashboard.badgeSummary,
-                  onOpenBadges: widget.onOpenBadges,
-                ),
-              ],
-              if (dashboard.continuedCase == null &&
-                  dashboard.banners.isNotEmpty) ...[
-                const SizedBox(height: 28),
-                _BannerCarousel(
-                  banners: dashboard.banners,
-                  onCta: _openBannerRoute,
-                ),
-              ],
             ],
           ),
         );
@@ -1227,9 +1235,7 @@ class _HomeLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: CircularProgressIndicator(color: PratiCaseColors.teal),
-    );
+    return const Center(child: PratiCaseSpinner());
   }
 }
 

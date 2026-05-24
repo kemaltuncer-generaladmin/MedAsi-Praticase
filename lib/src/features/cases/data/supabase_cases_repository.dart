@@ -186,6 +186,25 @@ class SupabaseCasesRepository implements CasesRepository {
   @override
   Future<List<PhysicalExamGroup>> loadPhysicalExamGroups(String caseId) async {
     try {
+      try {
+        final rows = await _client
+            .schema('praticase')
+            .from('case_physical_exam_groups_v')
+            .select('id,title,sort_order')
+            .eq('case_id', caseId)
+            .order('sort_order');
+        if (rows.isNotEmpty) {
+          return [
+            for (final row in rows)
+              PhysicalExamGroup(
+                id: _string(row, 'id'),
+                title: _string(row, 'title'),
+              ),
+          ];
+        }
+      } on PostgrestException catch (error) {
+        if (!_isMissingRelation(error)) rethrow;
+      }
       final rows = await _client
           .schema('praticase')
           .from('physical_exam_groups')
@@ -210,14 +229,6 @@ class SupabaseCasesRepository implements CasesRepository {
     required String caseId,
   }) async {
     try {
-      final groups = await _client
-          .schema('praticase')
-          .from('physical_exam_groups')
-          .select(
-            'id,physical_exam_options(id,title,finding,point_value,sort_order)',
-          )
-          .eq('case_id', caseId)
-          .order('sort_order');
       final selectedRows = await _client
           .schema('praticase')
           .from('session_physical_exam_findings')
@@ -226,6 +237,37 @@ class SupabaseCasesRepository implements CasesRepository {
       final selected = {
         for (final row in selectedRows) _string(row, 'option_id'),
       };
+      try {
+        final optionRows = await _client
+            .schema('praticase')
+            .from('case_physical_exam_options_v')
+            .select('id,group_id,title,finding,point_value,sort_order')
+            .eq('case_id', caseId)
+            .order('sort_order');
+        if (optionRows.isNotEmpty) {
+          return [
+            for (final row in optionRows)
+              PhysicalExamOption(
+                id: _string(row, 'id'),
+                groupId: _string(row, 'group_id'),
+                title: _string(row, 'title'),
+                finding: _string(row, 'finding'),
+                pointValue: _int(row, 'point_value'),
+                isSelected: selected.contains(_string(row, 'id')),
+              ),
+          ];
+        }
+      } on PostgrestException catch (error) {
+        if (!_isMissingRelation(error)) rethrow;
+      }
+      final groups = await _client
+          .schema('praticase')
+          .from('physical_exam_groups')
+          .select(
+            'id,physical_exam_options(id,title,finding,point_value,sort_order)',
+          )
+          .eq('case_id', caseId)
+          .order('sort_order');
       final options = <PhysicalExamOption>[];
       for (final group in groups) {
         final groupId = _string(group, 'id');
@@ -264,6 +306,17 @@ class SupabaseCasesRepository implements CasesRepository {
     required String optionId,
   }) async {
     try {
+      try {
+        await _client
+            .schema('praticase')
+            .rpc('upsert_session_physical_selection', params: {
+              'p_session_id': sessionId,
+              'p_option_id': optionId,
+            });
+        return;
+      } on PostgrestException catch (error) {
+        if (!_isMissingFunction(error)) rethrow;
+      }
       await _client
           .schema('praticase')
           .from('session_physical_exam_findings')
@@ -276,6 +329,22 @@ class SupabaseCasesRepository implements CasesRepository {
   @override
   Future<List<TestGroup>> loadTestGroups(String caseId) async {
     try {
+      try {
+        final rows = await _client
+            .schema('praticase')
+            .from('case_test_groups_v')
+            .select('id,title,sort_order')
+            .eq('case_id', caseId)
+            .order('sort_order');
+        if (rows.isNotEmpty) {
+          return [
+            for (final row in rows)
+              TestGroup(id: _string(row, 'id'), title: _string(row, 'title')),
+          ];
+        }
+      } on PostgrestException catch (error) {
+        if (!_isMissingRelation(error)) rethrow;
+      }
       final rows = await _client
           .schema('praticase')
           .from('test_groups')
@@ -297,12 +366,6 @@ class SupabaseCasesRepository implements CasesRepository {
     required String caseId,
   }) async {
     try {
-      final groups = await _client
-          .schema('praticase')
-          .from('test_groups')
-          .select('id,test_options(id,title,result,point_cost,sort_order)')
-          .eq('case_id', caseId)
-          .order('sort_order');
       final selectedRows = await _client
           .schema('praticase')
           .from('session_requested_tests')
@@ -311,6 +374,35 @@ class SupabaseCasesRepository implements CasesRepository {
       final selected = {
         for (final row in selectedRows) _string(row, 'option_id'),
       };
+      try {
+        final optionRows = await _client
+            .schema('praticase')
+            .from('case_test_options_v')
+            .select('id,group_id,title,result,point_cost,sort_order')
+            .eq('case_id', caseId)
+            .order('sort_order');
+        if (optionRows.isNotEmpty) {
+          return [
+            for (final row in optionRows)
+              TestOption(
+                id: _string(row, 'id'),
+                groupId: _string(row, 'group_id'),
+                title: _string(row, 'title'),
+                result: _string(row, 'result'),
+                pointCost: _int(row, 'point_cost'),
+                isSelected: selected.contains(_string(row, 'id')),
+              ),
+          ];
+        }
+      } on PostgrestException catch (error) {
+        if (!_isMissingRelation(error)) rethrow;
+      }
+      final groups = await _client
+          .schema('praticase')
+          .from('test_groups')
+          .select('id,test_options(id,title,result,point_cost,sort_order)')
+          .eq('case_id', caseId)
+          .order('sort_order');
       final options = <TestOption>[];
       for (final group in groups) {
         final groupId = _string(group, 'id');
@@ -348,6 +440,18 @@ class SupabaseCasesRepository implements CasesRepository {
     required String optionId,
   }) async {
     try {
+      try {
+        await _client.schema('praticase').rpc(
+          'upsert_session_test_request',
+          params: {
+            'p_session_id': sessionId,
+            'p_option_id': optionId,
+          },
+        );
+        return;
+      } on PostgrestException catch (error) {
+        if (!_isMissingFunction(error)) rethrow;
+      }
       await _client.schema('praticase').from('session_requested_tests').upsert({
         'session_id': sessionId,
         'option_id': optionId,
@@ -614,6 +718,7 @@ class SupabaseCasesRepository implements CasesRepository {
 
   @override
   Future<LabResultDetail?> loadLabResult(String testOptionId) async {
+    if (testOptionId.startsWith('global:')) return null;
     try {
       final row = await _client
           .schema('praticase')
@@ -635,6 +740,7 @@ class SupabaseCasesRepository implements CasesRepository {
 
   @override
   Future<ImagingResultDetail?> loadImagingResult(String testOptionId) async {
+    if (testOptionId.startsWith('global:')) return null;
     try {
       final row = await _client
           .schema('praticase')
@@ -915,9 +1021,24 @@ class SupabaseCasesRepository implements CasesRepository {
   }
 
   String _message(PostgrestException error) {
-    if (error.code == '42P01' || error.message.contains('schema')) {
+    if (_isMissingRelation(error) || _isMissingFunction(error)) {
       return 'Vaka verisi şu anda hazırlanıyor. Lütfen daha sonra tekrar deneyin.';
     }
     return 'Canlı vaka verisi alınamadı. Lütfen bağlantı ve yetkileri kontrol edin.';
+  }
+
+  bool _isMissingRelation(PostgrestException error) {
+    if (error.code == '42P01' || error.code == 'PGRST205') return true;
+    final message = error.message.toLowerCase();
+    return message.contains('does not exist') ||
+        message.contains('schema cache') ||
+        message.contains('not found in the schema');
+  }
+
+  bool _isMissingFunction(PostgrestException error) {
+    if (error.code == '42883' || error.code == 'PGRST202') return true;
+    final message = error.message.toLowerCase();
+    return message.contains('function') &&
+        (message.contains('does not exist') || message.contains('not found'));
   }
 }

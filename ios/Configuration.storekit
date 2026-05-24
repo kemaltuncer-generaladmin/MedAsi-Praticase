@@ -1,0 +1,122 @@
+{
+  "identifier" : "PRATICASE-STOREKIT-CONFIG",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "299.99",
+      "familyShareable" : false,
+      "internalID" : "com.medasi.praticase.lifetime",
+      "localizations" : [
+        {
+          "description" : "PratiCase Premium içeriklerine tek seferlik ödemeyle sınırsız erişim.",
+          "displayName" : "Yaşam Boyu Premium",
+          "locale" : "tr_TR"
+        },
+        {
+          "description" : "Lifetime access to PratiCase Premium with a single one-time purchase.",
+          "displayName" : "Lifetime Premium",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.medasi.praticase.lifetime",
+      "referenceName" : "PratiCase Lifetime",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_compatibilityTimeRate" : 1,
+    "_disableDialogs" : false,
+    "_failTransactionsEnabled" : false,
+    "_locale" : "tr_TR",
+    "_storefront" : "TUR",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "praticase.premium.group",
+      "localizations" : [
+        {
+          "description" : "PratiCase Premium aboneliği. Sınırsız vaka, AI hasta ve detaylı karne.",
+          "displayName" : "PratiCase Premium",
+          "locale" : "tr_TR"
+        },
+        {
+          "description" : "PratiCase Premium subscription. Unlimited cases, AI patient and detailed scoring.",
+          "displayName" : "PratiCase Premium",
+          "locale" : "en_US"
+        }
+      ],
+      "name" : "PratiCase Premium",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "39.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "com.medasi.praticase.monthly",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Aylık otomatik yenilenen PratiCase Premium aboneliği. İstediğin zaman iptal edebilirsin.",
+              "displayName" : "Aylık Premium",
+              "locale" : "tr_TR"
+            },
+            {
+              "description" : "Auto-renewing monthly PratiCase Premium subscription. Cancel anytime.",
+              "displayName" : "Monthly Premium",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.medasi.praticase.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "PratiCase Monthly",
+          "subscriptionGroupID" : "praticase.premium.group",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "299.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "com.medasi.praticase.yearly",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Yıllık otomatik yenilenen PratiCase Premium aboneliği. Aylık plana göre tasarruflu.",
+              "displayName" : "Yıllık Premium",
+              "locale" : "tr_TR"
+            },
+            {
+              "description" : "Auto-renewing annual PratiCase Premium subscription. Best value.",
+              "displayName" : "Yearly Premium",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.medasi.praticase.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "PratiCase Yearly",
+          "subscriptionGroupID" : "praticase.premium.group",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

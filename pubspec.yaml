@@ -38,6 +38,8 @@ dependencies:
   speech_to_text: ^7.4.0
   flutter_tts: ^4.2.5
   in_app_purchase: ^3.2.3
+  in_app_purchase_storekit: ^0.4.4
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:

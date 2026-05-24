@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
 import '../../../app/theme/praticase_colors.dart';
+import '../../../app/theme/praticase_motion.dart';
 import '../data/progress_repository.dart';
 import '../domain/progress_models.dart';
 
@@ -146,7 +147,7 @@ class _StoreScreenState extends State<StoreScreen> {
         future: _catalogFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: PratiCaseSpinner());
           }
           if (snapshot.hasError) {
             return Center(

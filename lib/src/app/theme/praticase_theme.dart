@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'praticase_colors.dart';
+import 'praticase_motion.dart';
 import 'praticase_tokens.dart';
 
 abstract final class PratiCaseTheme {
@@ -18,6 +19,17 @@ abstract final class PratiCaseTheme {
       colorScheme: colorScheme,
       scaffoldBackgroundColor: PratiCaseColors.softSurface,
       visualDensity: VisualDensity.standard,
+      splashFactory: InkSparkle.splashFactory,
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: <TargetPlatform, PageTransitionsBuilder>{
+          TargetPlatform.iOS: PratiCasePageTransitions(),
+          TargetPlatform.android: PratiCasePageTransitions(),
+          TargetPlatform.macOS: PratiCasePageTransitions(),
+          TargetPlatform.linux: PratiCasePageTransitions(),
+          TargetPlatform.windows: PratiCasePageTransitions(),
+          TargetPlatform.fuchsia: PratiCasePageTransitions(),
+        },
+      ),
       appBarTheme: const AppBarTheme(
         backgroundColor: PratiCaseColors.white,
         foregroundColor: PratiCaseColors.navy,

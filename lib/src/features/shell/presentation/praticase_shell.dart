@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/praticase_colors.dart';
+import '../../../app/theme/praticase_motion.dart';
 import '../../../app/theme/praticase_tokens.dart';
 import '../../../shared/ui/ui.dart';
 import '../../auth/data/auth_repository.dart';
@@ -384,10 +385,14 @@ class _NavItem extends StatelessWidget {
         button: true,
         label: label,
         child: InkWell(
-          onTap: onTap,
+          onTap: () {
+            if (!selected) PratiCaseHaptics.selection();
+            onTap();
+          },
           borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
+            duration: PratiCaseDurations.fast,
+            curve: PratiCaseCurves.standard,
             height: 62,
             margin: const EdgeInsets.symmetric(horizontal: 2),
             decoration: BoxDecoration(
@@ -400,7 +405,19 @@ class _NavItem extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 180),
+                  duration: PratiCaseDurations.fast,
+                  switchInCurve: PratiCaseCurves.standard,
+                  switchOutCurve: PratiCaseCurves.exit,
+                  transitionBuilder: (child, animation) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: ScaleTransition(
+                        scale: Tween<double>(begin: 0.86, end: 1)
+                            .animate(animation),
+                        child: child,
+                      ),
+                    );
+                  },
                   child: Icon(
                     icon,
                     key: ValueKey(selected),

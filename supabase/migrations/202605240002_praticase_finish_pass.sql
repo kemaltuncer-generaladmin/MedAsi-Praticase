@@ -144,7 +144,8 @@ set display_name = coalesce(
   'PratiCase Öğrencisi'
 );
 
-create or replace view praticase.user_profile_cards
+drop view if exists praticase.user_profile_cards cascade;
+create view praticase.user_profile_cards
 with (security_invoker = true) as
 select
   profiles.id as user_id,
@@ -172,8 +173,10 @@ left join praticase.leaderboard_scores leaderboard on leaderboard.user_id = prof
 left join praticase.user_dashboard_stats stats on stats.user_id = profiles.id
 left join praticase.user_app_settings settings on settings.user_id = profiles.id
 where profiles.id = auth.uid();
+grant select on praticase.user_profile_cards to authenticated, service_role;
 
-create or replace view praticase.session_result_cards
+drop view if exists praticase.session_result_cards cascade;
+create view praticase.session_result_cards
 with (security_invoker = true) as
 select
   summaries.session_id,
@@ -195,6 +198,7 @@ from praticase.session_result_summaries summaries
 join praticase.exam_sessions sessions on sessions.id = summaries.session_id
 join praticase.cases cases on cases.id = sessions.case_id
 where sessions.user_id = auth.uid();
+grant select on praticase.session_result_cards to authenticated, service_role;
 
 alter table praticase.user_notifications
   add column if not exists campaign_id uuid,

@@ -273,18 +273,26 @@ class SupabaseHomeRepository implements HomeRepository {
   }
 
   String _friendlyDatabaseMessage(PostgrestException error) {
-    if (error.code == '42P01' || error.message.contains('schema')) {
+    if (_isOptionalSourceMissing(error)) {
       return 'Ana ekran verisi şu anda hazırlanıyor. Lütfen daha sonra tekrar deneyin.';
+    }
+    if (error.code == 'PGRST301' || error.code == '401') {
+      return 'Oturumun süresi dolmuş olabilir. Lütfen yeniden giriş yap.';
     }
     return 'Ana ekran canlı verisi alınamadı. Lütfen bağlantı ve yetkileri kontrol edin.';
   }
 
   bool _isOptionalSourceMissing(PostgrestException error) {
-    final message = error.message.toLowerCase();
-    return error.code == '42P01' ||
+    if (error.code == '42P01' ||
         error.code == 'PGRST205' ||
-        message.contains('schema cache') ||
+        error.code == '42883' ||
+        error.code == 'PGRST202') {
+      return true;
+    }
+    final message = error.message.toLowerCase();
+    return message.contains('schema cache') ||
         message.contains('could not find') ||
-        message.contains('does not exist');
+        message.contains('does not exist') ||
+        message.contains('not found in the schema');
   }
 }

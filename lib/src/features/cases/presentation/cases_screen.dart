@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../app/theme/praticase_colors.dart';
+import '../../../app/theme/praticase_motion.dart';
 import '../../../app/theme/praticase_tokens.dart';
 import '../../../shared/ui/ui.dart';
 import '../data/cases_repository.dart';

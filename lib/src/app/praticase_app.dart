@@ -7,7 +7,10 @@ import '../features/home/data/home_repository.dart';
 import '../features/progress/data/progress_repository.dart';
 import '../features/shell/presentation/praticase_shell.dart';
 import '../features/theoretical_exam/data/theoretical_exam_repository.dart';
+import 'theme/praticase_colors.dart';
+import 'theme/praticase_motion.dart';
 import 'theme/praticase_theme.dart';
+import 'theme/praticase_tokens.dart';
 
 class PratiCaseApp extends StatefulWidget {
   const PratiCaseApp({
@@ -64,31 +67,57 @@ class _PratiCaseAppState extends State<PratiCaseApp> {
 
   @override
   Widget build(BuildContext context) {
+    final Widget body;
+    final String bodyKey;
+    if (_restoringSession) {
+      body = const _PratiCaseStartupScreen();
+      bodyKey = 'startup';
+    } else if (_gate == _SessionGate.authenticated) {
+      body = PratiCaseShell(
+        authRepository: widget.authRepository,
+        homeRepository: widget.homeRepository,
+        casesRepository: widget.casesRepository,
+        progressRepository: widget.progressRepository,
+        theoreticalExamRepository: widget.theoreticalExamRepository,
+        onSignOut: _signOut,
+      );
+      bodyKey = 'shell';
+    } else {
+      body = AuthFlow(
+        authRepository: widget.authRepository,
+        initialStep: _gate == _SessionGate.profilePending
+            ? AuthStep.profileSetup
+            : AuthStep.onboarding,
+        initialEmail: _initialEmail,
+        initialFullName: _initialFullName,
+        onAuthenticated: () =>
+            setState(() => _gate = _SessionGate.authenticated),
+      );
+      bodyKey = 'auth';
+    }
+
     return MaterialApp(
       title: 'PratiCase',
       debugShowCheckedModeBanner: false,
       theme: PratiCaseTheme.light(),
-      home: _restoringSession
-          ? const _PratiCaseStartupScreen()
-          : _gate == _SessionGate.authenticated
-          ? PratiCaseShell(
-              authRepository: widget.authRepository,
-              homeRepository: widget.homeRepository,
-              casesRepository: widget.casesRepository,
-              progressRepository: widget.progressRepository,
-              theoreticalExamRepository: widget.theoreticalExamRepository,
-              onSignOut: _signOut,
-            )
-          : AuthFlow(
-              authRepository: widget.authRepository,
-              initialStep: _gate == _SessionGate.profilePending
-                  ? AuthStep.profileSetup
-                  : AuthStep.onboarding,
-              initialEmail: _initialEmail,
-              initialFullName: _initialFullName,
-              onAuthenticated: () =>
-                  setState(() => _gate = _SessionGate.authenticated),
+      home: AnimatedSwitcher(
+        duration: PratiCaseDurations.emphasized,
+        switchInCurve: PratiCaseCurves.emphasized,
+        switchOutCurve: PratiCaseCurves.exit,
+        transitionBuilder: (child, animation) {
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.02),
+                end: Offset.zero,
+              ).animate(animation),
+              child: child,
             ),
+          );
+        },
+        child: KeyedSubtree(key: ValueKey(bodyKey), child: body),
+      ),
     );
   }
 }
@@ -100,9 +129,43 @@ class _PratiCaseStartupScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Color(0xFFF7F9FB),
-      body: Center(child: CircularProgressIndicator()),
+    return Scaffold(
+      backgroundColor: PratiCaseColors.softSurface,
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+              child: Image.asset(
+                'assets/auth/praticase_icon.png',
+                width: 72,
+                height: 72,
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(text: 'Prati'),
+                  TextSpan(
+                    text: 'Case',
+                    style: TextStyle(color: PratiCaseColors.teal),
+                  ),
+                ],
+              ),
+              style: TextStyle(
+                color: PratiCaseColors.navy,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.4,
+              ),
+            ),
+            const SizedBox(height: 22),
+            const PratiCaseSpinner(),
+          ],
+        ),
+      ),
     );
   }
 }

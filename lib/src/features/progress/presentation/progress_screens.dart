@@ -7,6 +7,8 @@ import '../../../app/theme/praticase_colors.dart';
 import '../../../app/theme/praticase_tokens.dart';
 import '../../../shared/ui/responsive.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../store/data/store_controller.dart';
+import '../../store/presentation/subscription_status_screen.dart';
 import '../data/progress_repository.dart';
 import '../domain/progress_models.dart';
 import 'store_screen.dart';
@@ -311,6 +313,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Icons.storefront_outlined,
                   'Mağaza',
                   semanticsId: 'menu.store',
+                ),
+                _MenuItem(
+                  Icons.diamond_outlined,
+                  'Premium Abonelik',
+                  semanticsId: 'menu.subscription',
                 ),
                 _MenuItem(
                   Icons.settings_outlined,
@@ -3539,6 +3546,15 @@ class _MenuPanel extends StatelessWidget {
                         Navigator.of(context).push(
                           MaterialPageRoute<void>(
                             builder: (_) => StoreScreen(repository: repository),
+                          ),
+                        );
+                      }
+                      if (title == 'Premium Abonelik') {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => SubscriptionStatusScreen(
+                              controller: StoreController(),
+                            ),
                           ),
                         );
                       }

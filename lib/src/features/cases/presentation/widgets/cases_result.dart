@@ -1,18 +1,38 @@
 part of '../cases_screen.dart';
 
-class _ResultHero extends StatelessWidget {
+class _ResultHero extends StatefulWidget {
   const _ResultHero({required this.result});
 
   final ExamResultSummary result;
 
   @override
+  State<_ResultHero> createState() => _ResultHeroState();
+}
+
+class _ResultHeroState extends State<_ResultHero> {
+  bool _animated = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() => _animated = true);
+      PratiCaseHaptics.success();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final percentage = result.percentage;
+    final percentage = widget.result.percentage;
     final scoreColor = percentage >= 80
         ? PratiCaseColors.successGreen
         : percentage >= 60
         ? PratiCaseColors.gold
         : PratiCaseColors.errorRed;
+    final endValue = widget.result.maxScore == 0
+        ? 0.0
+        : (widget.result.totalScore / widget.result.maxScore).clamp(0.0, 1.0);
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 36, 22, 30),
       decoration: const BoxDecoration(
@@ -29,43 +49,61 @@ class _ResultHero extends StatelessWidget {
             child: Stack(
               alignment: Alignment.center,
               children: [
-                SizedBox(
-                  width: 120,
-                  height: 120,
-                  child: CircularProgressIndicator(
-                    value: result.maxScore == 0
-                        ? 0
-                        : (result.totalScore / result.maxScore).clamp(0.0, 1.0),
-                    strokeWidth: 8,
-                    backgroundColor: PratiCaseColors.white.withValues(
-                      alpha: 0.18,
-                    ),
-                    color: scoreColor,
-                    strokeCap: StrokeCap.round,
+                TweenAnimationBuilder<double>(
+                  tween: Tween<double>(
+                    begin: 0,
+                    end: _animated ? endValue : 0,
                   ),
+                  duration: const Duration(milliseconds: 1100),
+                  curve: PratiCaseCurves.overshoot,
+                  builder: (context, value, _) {
+                    return SizedBox(
+                      width: 120,
+                      height: 120,
+                      child: CircularProgressIndicator(
+                        value: value,
+                        strokeWidth: 8,
+                        backgroundColor: PratiCaseColors.white.withValues(
+                          alpha: 0.18,
+                        ),
+                        color: scoreColor,
+                        strokeCap: StrokeCap.round,
+                      ),
+                    );
+                  },
                 ),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '%$percentage',
-                      style: const TextStyle(
-                        color: PratiCaseColors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
-                        height: 1.0,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${result.totalScore}/${result.maxScore}',
-                      style: TextStyle(
-                        color: PratiCaseColors.white.withValues(alpha: 0.72),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
+                TweenAnimationBuilder<double>(
+                  tween: Tween<double>(
+                    begin: 0,
+                    end: _animated ? percentage.toDouble() : 0,
+                  ),
+                  duration: const Duration(milliseconds: 1100),
+                  curve: PratiCaseCurves.overshoot,
+                  builder: (context, value, _) {
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '%${value.round()}',
+                          style: const TextStyle(
+                            color: PratiCaseColors.white,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w900,
+                            height: 1.0,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${widget.result.totalScore}/${widget.result.maxScore}',
+                          style: TextStyle(
+                            color: PratiCaseColors.white.withValues(alpha: 0.72),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),
@@ -84,7 +122,7 @@ class _ResultHero extends StatelessWidget {
           Text(
             percentage >= 80
                 ? 'Mükemmel bir teşhis süreci yönettiniz.'
-                : '${result.caseTitle} için gelişim alanların hazır.',
+                : '${widget.result.caseTitle} için gelişim alanların hazır.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: PratiCaseColors.white.withValues(alpha: 0.88),

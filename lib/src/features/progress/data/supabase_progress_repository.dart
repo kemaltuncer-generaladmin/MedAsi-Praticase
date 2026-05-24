@@ -801,10 +801,25 @@ class SupabaseProgressRepository implements ProgressRepository {
   }
 
   String _message(PostgrestException error) {
-    if (error.code == '42P01' || error.message.contains('schema')) {
+    if (_isMissingSource(error)) {
       return 'Profil ve gelişim verisi şu anda hazırlanıyor. Lütfen daha sonra tekrar deneyin.';
     }
+    if (error.code == 'PGRST301' || error.code == '401') {
+      return 'Oturumun süresi dolmuş olabilir. Lütfen yeniden giriş yap.';
+    }
     return 'Canlı profil/gelişim verisi alınamadı. Lütfen bağlantı ve yetkileri kontrol edin.';
+  }
+
+  bool _isMissingSource(PostgrestException error) {
+    if (error.code == '42P01' || error.code == 'PGRST205' ||
+        error.code == '42883' || error.code == 'PGRST202') {
+      return true;
+    }
+    final message = error.message.toLowerCase();
+    return message.contains('does not exist') ||
+        message.contains('schema cache') ||
+        message.contains('not found in the schema') ||
+        message.contains('could not find');
   }
 
   StoreCatalog _storeCatalog(Map<String, dynamic> data) {

@@ -421,7 +421,8 @@ $$;
 
 grant execute on function praticase.finalize_exam_session(uuid) to authenticated;
 
-create or replace view praticase.user_profile_cards
+drop view if exists praticase.user_profile_cards cascade;
+create view praticase.user_profile_cards
 with (security_invoker = true) as
 select
   profiles.id as user_id,
@@ -450,5 +451,6 @@ left join praticase.leaderboard_scores leaderboard on leaderboard.user_id = prof
 left join praticase.user_dashboard_stats stats on stats.user_id = profiles.id
 left join praticase.user_app_settings settings on settings.user_id = profiles.id
 where profiles.id = auth.uid();
+grant select on praticase.user_profile_cards to authenticated, service_role;
 
 commit;
