@@ -4,6 +4,7 @@ import '../features/auth/data/auth_repository.dart';
 import '../features/auth/presentation/auth_flow.dart';
 import '../features/cases/data/cases_repository.dart';
 import '../features/home/data/home_repository.dart';
+import '../features/oral_exam/data/oral_exam_repository.dart';
 import '../features/progress/data/progress_repository.dart';
 import '../features/shell/presentation/praticase_shell.dart';
 import '../features/theoretical_exam/data/theoretical_exam_repository.dart';
@@ -19,6 +20,7 @@ class PratiCaseApp extends StatefulWidget {
     required this.casesRepository,
     required this.progressRepository,
     required this.theoreticalExamRepository,
+    required this.oralExamRepository,
     super.key,
   });
 
@@ -27,6 +29,7 @@ class PratiCaseApp extends StatefulWidget {
   final CasesRepository casesRepository;
   final ProgressRepository progressRepository;
   final TheoreticalExamRepository theoreticalExamRepository;
+  final OralExamRepository oralExamRepository;
 
   @override
   State<PratiCaseApp> createState() => _PratiCaseAppState();
@@ -79,6 +82,7 @@ class _PratiCaseAppState extends State<PratiCaseApp> {
         casesRepository: widget.casesRepository,
         progressRepository: widget.progressRepository,
         theoreticalExamRepository: widget.theoreticalExamRepository,
+        oralExamRepository: widget.oralExamRepository,
         onSignOut: _signOut,
       );
       bodyKey = 'shell';

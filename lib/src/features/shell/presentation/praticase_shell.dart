@@ -11,6 +11,8 @@ import '../../cases/data/cases_repository.dart';
 import '../../cases/presentation/cases_screen.dart';
 import '../../home/data/home_repository.dart';
 import '../../home/presentation/home_screen.dart';
+import '../../oral_exam/data/oral_exam_repository.dart';
+import '../../oral_exam/presentation/oral_exam_screens.dart';
 import '../../progress/data/progress_repository.dart';
 import '../../progress/domain/progress_models.dart';
 import '../../progress/presentation/progress_screens.dart';
@@ -24,6 +26,7 @@ class PratiCaseShell extends StatefulWidget {
     required this.casesRepository,
     required this.progressRepository,
     required this.theoreticalExamRepository,
+    required this.oralExamRepository,
     required this.onSignOut,
     super.key,
   });
@@ -33,6 +36,7 @@ class PratiCaseShell extends StatefulWidget {
   final CasesRepository casesRepository;
   final ProgressRepository progressRepository;
   final TheoreticalExamRepository theoreticalExamRepository;
+  final OralExamRepository oralExamRepository;
   final Future<void> Function() onSignOut;
 
   @override
@@ -110,6 +114,13 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
             ),
           ),
         ),
+        onOpenOralExam: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => OralExamSetupScreen(
+              repository: widget.oralExamRepository,
+            ),
+          ),
+        ),
         onOpenProgress: () => setState(() => _selectedIndex = 3),
         unreadNotificationCount: _unreadNotificationCount,
         onOpenNotifications: _openNotifications,
@@ -129,6 +140,7 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
       _ExamsScreen(
         progressRepository: widget.progressRepository,
         theoreticalExamRepository: widget.theoreticalExamRepository,
+        oralExamRepository: widget.oralExamRepository,
         onOpenCases: () => setState(() => _selectedIndex = 1),
         unreadNotificationCount: _unreadNotificationCount ?? 0,
         onOpenNotifications: _openNotifications,
@@ -450,6 +462,7 @@ class _ExamsScreen extends StatefulWidget {
   const _ExamsScreen({
     required this.progressRepository,
     required this.theoreticalExamRepository,
+    required this.oralExamRepository,
     required this.onOpenCases,
     required this.onOpenNotifications,
     required this.onOpenProfile,
@@ -458,6 +471,7 @@ class _ExamsScreen extends StatefulWidget {
 
   final ProgressRepository progressRepository;
   final TheoreticalExamRepository theoreticalExamRepository;
+  final OralExamRepository oralExamRepository;
   final VoidCallback onOpenCases;
   final VoidCallback onOpenNotifications;
   final VoidCallback onOpenProfile;
@@ -552,6 +566,16 @@ class _ExamsScreenState extends State<_ExamsScreen> {
           MaterialPageRoute<void>(
             builder: (_) => TheoreticalExamSetupScreen(
               repository: widget.theoreticalExamRepository,
+            ),
+          ),
+        );
+        return;
+      case 'oral_exam':
+      case 'sozlu_sinav':
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => OralExamSetupScreen(
+              repository: widget.oralExamRepository,
             ),
           ),
         );
@@ -1505,6 +1529,9 @@ IconData _examModeIcon(String key) {
     case 'theoretical':
     case 'school':
       return Icons.school_rounded;
+    case 'oral_exam':
+    case 'voice':
+      return Icons.record_voice_over_rounded;
     default:
       return Icons.assignment_outlined;
   }

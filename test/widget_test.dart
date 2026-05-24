@@ -24,6 +24,7 @@ import 'package:praticase/src/features/shell/presentation/praticase_shell.dart';
 import 'package:praticase/src/features/theoretical_exam/data/theoretical_exam_repository.dart';
 import 'package:praticase/src/features/theoretical_exam/domain/theoretical_exam_models.dart';
 import 'package:praticase/src/features/theoretical_exam/presentation/theoretical_exam_screen.dart';
+import 'package:praticase/src/features/oral_exam/data/oral_exam_repository.dart';
 
 void main() {
   testWidgets('PratiCase auth onboarding renders', (tester) async {
@@ -34,6 +35,7 @@ void main() {
         casesRepository: _FakeCasesRepository(),
         progressRepository: _FakeProgressRepository(),
         theoreticalExamRepository: _FakeTheoreticalExamRepository(),
+        oralExamRepository: _FakeOralExamRepository(),
       ),
     );
     await tester.pump();
@@ -561,6 +563,7 @@ void main() {
           casesRepository: _FakeCasesRepository(),
           progressRepository: _FakeProgressRepository(),
           theoreticalExamRepository: _FakeTheoreticalExamRepository(),
+        oralExamRepository: _FakeOralExamRepository(),
           onSignOut: () async {},
         ),
       ),
@@ -582,6 +585,7 @@ void main() {
           casesRepository: _FakeCasesRepository(),
           progressRepository: _FakeProgressRepository(),
           theoreticalExamRepository: _FakeTheoreticalExamRepository(),
+        oralExamRepository: _FakeOralExamRepository(),
           onSignOut: () async {},
         ),
       ),
@@ -747,6 +751,8 @@ class _FakeProgressRepository extends Fake implements ProgressRepository {
 
 class _FakeTheoreticalExamRepository extends Fake
     implements TheoreticalExamRepository {}
+
+class _FakeOralExamRepository extends Fake implements OralExamRepository {}
 
 class _RecordingTheoreticalExamRepository extends Fake
     implements TheoreticalExamRepository {
