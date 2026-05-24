@@ -97,10 +97,7 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
               ),
               const SizedBox(height: 16),
               if (controller.errorMessage != null)
-                _StatusBanner(
-                  message: controller.errorMessage!,
-                  isError: true,
-                ),
+                _StatusBanner(message: controller.errorMessage!, isError: true),
               if (controller.statusMessage != null &&
                   controller.errorMessage == null)
                 _StatusBanner(
@@ -141,9 +138,7 @@ class _StatusCard extends StatelessWidget {
             : null,
         color: hasActive ? null : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: hasActive
-            ? null
-            : Border.all(color: PratiCaseColors.border),
+        border: hasActive ? null : Border.all(color: PratiCaseColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -154,16 +149,17 @@ class _StatusCard extends StatelessWidget {
                 hasActive
                     ? Icons.workspace_premium_rounded
                     : Icons.lock_outline_rounded,
-                color:
-                    hasActive ? PratiCaseColors.gold : PratiCaseColors.muted,
+                color: hasActive ? PratiCaseColors.gold : PratiCaseColors.muted,
               ),
               const SizedBox(width: 8),
-              Text(
-                hasActive ? 'Premium Aktif' : 'Aktif abonelik bulunmuyor',
-                style: TextStyle(
-                  color: hasActive ? Colors.white : PratiCaseColors.navy,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 16,
+              Expanded(
+                child: Text(
+                  hasActive ? 'Premium Aktif' : 'Aktif abonelik bulunmuyor',
+                  style: TextStyle(
+                    color: hasActive ? Colors.white : PratiCaseColors.navy,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                  ),
                 ),
               ),
             ],
@@ -181,8 +177,8 @@ class _StatusCard extends StatelessWidget {
           Text(
             hasActive
                 ? remaining == null
-                    ? 'Abonelik süresi okunamadı.'
-                    : 'Mevcut dönem bitimine ${_formatDuration(remaining)} kaldı.'
+                      ? 'Abonelik süresi okunamadı.'
+                      : 'Mevcut dönem bitimine ${_formatDuration(remaining)} kaldı.'
                 : 'Sınırsız vakaya erişmek için bir paket seçerek başla.',
             style: TextStyle(
               color: hasActive
@@ -228,8 +224,8 @@ class _DetailsCard extends StatelessWidget {
       child: Column(
         children: [
           _DetailRow(
-            label: 'Plan kodu',
-            value: state.productCode.isEmpty ? '-' : state.productCode,
+            label: 'Paket',
+            value: state.productName.isEmpty ? '-' : state.productName,
           ),
           _DetailRow(
             label: 'Dönem başlangıcı',
@@ -245,17 +241,12 @@ class _DetailsCard extends StatelessWidget {
           ),
           _DetailRow(
             label: 'Kalan soru hakkı',
-            value: '${state.remainingQuestionAmount}',
+            value: _formatWholeNumber(state.remainingQuestionAmount),
           ),
           _DetailRow(
-            label: 'Kalan MedAsi Coin',
-            value: state.remainingCoinAmount.toStringAsFixed(1),
+            label: 'Kalan Medasi Coin',
+            value: _formatWholeNumber(state.remainingCoinAmount),
           ),
-          if (state.environment.isNotEmpty)
-            _DetailRow(
-              label: 'Ortam',
-              value: state.environment,
-            ),
         ],
       ),
     );
@@ -267,6 +258,13 @@ class _DetailsCard extends StatelessWidget {
     String two(int v) => v.toString().padLeft(2, '0');
     return '${local.year}-${two(local.month)}-${two(local.day)} '
         '${two(local.hour)}:${two(local.minute)}';
+  }
+
+  String _formatWholeNumber(num value) {
+    return value.round().toString().replaceAllMapped(
+      RegExp(r'\B(?=(\d{3})+(?!\d))'),
+      (_) => '.',
+    );
   }
 }
 
@@ -329,8 +327,10 @@ class _WarningsCard extends StatelessWidget {
         children: [
           const Row(
             children: [
-              Icon(Icons.notifications_active_rounded,
-                  color: PratiCaseColors.gold),
+              Icon(
+                Icons.notifications_active_rounded,
+                color: PratiCaseColors.gold,
+              ),
               SizedBox(width: 8),
               Text(
                 'Süre hatırlatıcısı',
@@ -384,8 +384,10 @@ class _ActionsCard extends StatelessWidget {
       child: Column(
         children: [
           ListTile(
-            leading: const Icon(Icons.shopping_bag_outlined,
-                color: PratiCaseColors.teal),
+            leading: const Icon(
+              Icons.shopping_bag_outlined,
+              color: PratiCaseColors.teal,
+            ),
             title: Text(
               hasActiveSubscription
                   ? 'Aboneliği yönet / iptal et'
@@ -400,8 +402,10 @@ class _ActionsCard extends StatelessWidget {
           ),
           const Divider(height: 1, indent: 16, endIndent: 16),
           ListTile(
-            leading: const Icon(Icons.restore_rounded,
-                color: PratiCaseColors.teal),
+            leading: const Icon(
+              Icons.restore_rounded,
+              color: PratiCaseColors.teal,
+            ),
             title: const Text('Satın almaları geri yükle'),
             subtitle: const Text(
               'Aynı Apple kimliğiyle yapılan tüm satın almaları yeniler.',
@@ -412,8 +416,10 @@ class _ActionsCard extends StatelessWidget {
           if (!hasActiveSubscription) ...[
             const Divider(height: 1, indent: 16, endIndent: 16),
             ListTile(
-              leading: const Icon(Icons.workspace_premium_outlined,
-                  color: PratiCaseColors.gold),
+              leading: const Icon(
+                Icons.workspace_premium_outlined,
+                color: PratiCaseColors.gold,
+              ),
               title: const Text('Premium’a yükselt'),
               subtitle: const Text(
                 'Aylık, yıllık veya yaşam boyu planlardan birini seç.',
@@ -449,9 +455,7 @@ class _StatusBanner extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            isError
-                ? Icons.error_outline_rounded
-                : Icons.info_outline_rounded,
+            isError ? Icons.error_outline_rounded : Icons.info_outline_rounded,
             color: iconColor,
             size: 20,
           ),
@@ -526,8 +530,7 @@ class _FaqList extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  childrenPadding:
-                      const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   children: [
                     Align(
                       alignment: Alignment.centerLeft,

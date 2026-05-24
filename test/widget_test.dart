@@ -27,8 +27,29 @@ import 'package:praticase/src/features/theoretical_exam/presentation/theoretical
 import 'package:praticase/src/features/oral_exam/data/oral_exam_repository.dart';
 import 'package:praticase/src/features/oral_exam/domain/oral_exam_models.dart';
 import 'package:praticase/src/features/oral_exam/presentation/oral_exam_screens.dart';
+import 'package:praticase/src/features/progress/presentation/store_screen.dart';
+import 'package:praticase/src/shared/data/user_facing_error.dart';
 
 void main() {
+  test('technical service detail is replaced with student-facing copy', () {
+    expect(
+      PratiCaseUserMessage.store('permission denied for table store_products'),
+      PratiCaseUserMessage.storeFailure,
+    );
+    expect(
+      PratiCaseUserMessage.report('error code: 502'),
+      PratiCaseUserMessage.reportFailure,
+    );
+    expect(
+      PratiCaseUserMessage.mentorMessage('{"mentor_message":"raw"}'),
+      contains('klinik gerekçenle'),
+    );
+    expect(
+      PratiCaseUserMessage.safe('session_id zorunlu.'),
+      PratiCaseUserMessage.generalFailure,
+    );
+  });
+
   testWidgets('PratiCase auth onboarding renders', (tester) async {
     await tester.pumpWidget(
       PratiCaseApp(
@@ -420,6 +441,14 @@ void main() {
     expect(find.text('Önce muayene sistemini seç.'), findsOneWidget);
     expect(find.text('Batın'), findsOneWidget);
     expect(find.text('Rebound ve defans'), findsNothing);
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, 'Tetkiklere Geç'),
+          )
+          .onPressed,
+      isNull,
+    );
 
     await tester.tap(find.text('Batın'));
     await tester.pumpAndSettle();
@@ -427,6 +456,18 @@ void main() {
     expect(find.text('Batın Bulguları'), findsOneWidget);
     expect(find.text('Rebound ve defans'), findsOneWidget);
     expect(find.text('Sistem Değiştir'), findsOneWidget);
+
+    await tester.tap(find.text('Rebound ve defans'));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, 'Tetkiklere Geç'),
+          )
+          .onPressed,
+      isNotNull,
+    );
   });
 
   testWidgets('tests screen asks for group and opens lab fallback result', (
@@ -449,6 +490,12 @@ void main() {
     expect(find.text('Önce tetkik grubunu seç.'), findsOneWidget);
     expect(find.text('Laboratuvar'), findsOneWidget);
     expect(find.text('Hemogram'), findsNothing);
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, 'Tanıya Geç'))
+          .onPressed,
+      isNull,
+    );
 
     await tester.tap(find.text('Laboratuvar'));
     await tester.pumpAndSettle();
@@ -465,6 +512,82 @@ void main() {
     expect(
       find.text('Lökosit yüksek, nötrofil hakimiyeti var.'),
       findsOneWidget,
+    );
+
+    await tester.tap(find.byIcon(Icons.arrow_back_rounded).first);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, 'Tanıya Geç'))
+          .onPressed,
+      isNotNull,
+    );
+  });
+
+  testWidgets('diagnosis bottom action remains above keyboard', (tester) async {
+    await _setViewport(tester, const Size(390, 844));
+    final repository = _DiagnosisManagementCasesRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(
+            size: Size(390, 844),
+            viewInsets: EdgeInsets.only(bottom: 320),
+          ),
+          child: DiagnosisScreen(
+            repository: repository,
+            sessionId: 'session-1',
+            caseId: 'case-1',
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final button = find.widgetWithText(FilledButton, 'Yönetim Planına Geç');
+    expect(button, findsOneWidget);
+    expect(tester.getBottomLeft(button).dy, lessThan(844 - 300));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('management requires an actual plan before result', (
+    tester,
+  ) async {
+    await _setIPhone14Viewport(tester);
+    final repository = _DiagnosisManagementCasesRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ManagementPlanScreen(
+          repository: repository,
+          sessionId: 'session-1',
+          caseId: 'case-1',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, 'Sınavı Bitir ve Değerlendir'),
+          )
+          .onPressed,
+      isNull,
+    );
+
+    await tester.tap(find.text('Sıvı resüsitasyonu'));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, 'Sınavı Bitir ve Değerlendir'),
+          )
+          .onPressed,
+      isNotNull,
     );
   });
 
@@ -620,6 +743,32 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('oral exam finalize hides provider errors and offers retry', (
+    tester,
+  ) async {
+    await _setViewport(tester, const Size(390, 1100));
+    final repository = _FailingFinalizeOralExamRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: OralExamRoomScreen(
+          repository: repository,
+          session: repository.panelSession,
+          voiceAdapter: _FakeVoiceExamAdapter(),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.text('Sınavı Bitir'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Bitir ve Değerlendir'));
+    await tester.pumpAndSettle();
+
+    expect(find.text(PratiCaseUserMessage.reportFailure), findsOneWidget);
+    expect(find.text('Tekrar Dene'), findsOneWidget);
+    expect(find.textContaining('502'), findsNothing);
+  });
+
   testWidgets('shell keeps bottom navigation on iPad portrait', (tester) async {
     await _setViewport(tester, const Size(768, 1024));
 
@@ -664,7 +813,7 @@ void main() {
     expect(find.text('Vakalar'), findsOneWidget);
   });
 
-  testWidgets('theoretical setup sends selected Qlinik topics', (tester) async {
+  testWidgets('theoretical setup sends selected Medasi topics', (tester) async {
     await _setViewport(tester, const Size(390, 1200));
     final repository = _RecordingTheoreticalExamRepository();
 
@@ -735,7 +884,7 @@ void main() {
     );
   });
 
-  testWidgets('theoretical result syncs solved answers to Qlinik progress', (
+  testWidgets('theoretical result syncs solved answers to progress', (
     tester,
   ) async {
     await _setIPhone14Viewport(tester);
@@ -757,7 +906,27 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repository.submittedAttempt?.selectedOptionIds, {'q-1': '0'});
-    expect(find.text('Qlinik ile senkronlandı'), findsOneWidget);
+    expect(find.text('İlerlemen kaydedildi'), findsOneWidget);
+  });
+
+  testWidgets('store product cards remain readable at large text scale', (
+    tester,
+  ) async {
+    await _setViewport(tester, const Size(360, 900));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(1.6)),
+          child: StoreScreen(repository: _StoreProgressRepository()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Medasi Cüzdanı'), findsOneWidget);
+    expect(find.text('Yoğun OSCE Hazırlık Paketi'), findsOneWidget);
+    expect(find.textContaining('2.795 soru'), findsWidgets);
+    expect(tester.takeException(), isNull);
   });
 }
 
@@ -926,6 +1095,13 @@ class _CommitteeOralExamRepository extends Fake implements OralExamRepository {
   }
 }
 
+class _FailingFinalizeOralExamRepository extends _CommitteeOralExamRepository {
+  @override
+  Future<OralExamResult> finalizeSession(String sessionId) async {
+    throw const OralExamUnavailable('error code: 502');
+  }
+}
+
 class _RecordingTheoreticalExamRepository extends Fake
     implements TheoreticalExamRepository {
   Set<String> lastCourses = const {};
@@ -1041,6 +1217,32 @@ class _ProfileProgressRepository extends Fake implements ProgressRepository {
         offlineMode: false,
         caseDownloadsEnabled: false,
       ),
+    );
+  }
+}
+
+class _StoreProgressRepository extends Fake implements ProgressRepository {
+  @override
+  Future<StoreCatalog> loadStoreCatalog() async {
+    return const StoreCatalog(
+      walletBalance: 1459.2,
+      questionQuota: 2795,
+      aiQuota: 0,
+      products: [
+        StoreProduct(
+          code: 'osce-intense',
+          name: 'Yoğun OSCE Hazırlık Paketi',
+          description:
+              'Vaka çözümü ve sözlü komite çalışmaları için ortak hak paketi.',
+          priceCents: 29900,
+          currency: 'TRY',
+          questionAmount: 2795,
+          coinAmount: 1459.2,
+          appStoreProductId: 'com.medasi.praticase.intense',
+          isFeatured: true,
+          interval: 'month',
+        ),
+      ],
     );
   }
 }
@@ -1464,6 +1666,126 @@ class _LabCasesRepository extends Fake implements CasesRepository {
   @override
   Future<ImagingResultDetail?> loadImagingResult(String testOptionId) async =>
       null;
+
+  @override
+  Future<void> advanceSession({
+    required String sessionId,
+    required String step,
+  }) async {}
+}
+
+class _DiagnosisManagementCasesRepository extends Fake
+    implements CasesRepository {
+  _DiagnosisManagementCasesRepository()
+    : _session = ExamSessionOverview(
+        id: 'session-1',
+        caseId: 'case-1',
+        caseTitle: 'Akut Apandisit',
+        patient: _ChatFlowCasesRepository._patient,
+        currentStep: 'diagnosis',
+        remainingPoints: 300,
+        budgetPoints: 300,
+        durationMinutes: 7,
+        startedAt: DateTime.now().subtract(const Duration(minutes: 5)),
+      );
+
+  final ExamSessionOverview _session;
+  final selectedManagement = <String>{};
+  DiagnosisAnswer? savedDiagnosis;
+  ManagementPlanAnswer? savedManagement;
+
+  @override
+  Future<ExamSessionOverview> loadSession(String sessionId) async => _session;
+
+  @override
+  Future<DiagnosisAnswer?> loadDiagnosisAnswer(String sessionId) async {
+    return savedDiagnosis ??
+        const DiagnosisAnswer(
+          primaryDiagnosis: 'Akut apandisit',
+          reasoning: '',
+          selectedOptionIds: [],
+        );
+  }
+
+  @override
+  Future<List<DiagnosisOption>> loadDiagnosisOptions({
+    required String sessionId,
+    required String caseId,
+  }) async {
+    return const [
+      DiagnosisOption(
+        id: 'appendicitis',
+        title: 'Akut apandisit',
+        isSelected: false,
+      ),
+      DiagnosisOption(
+        id: 'renal-colic',
+        title: 'Renal kolik',
+        isSelected: false,
+      ),
+    ];
+  }
+
+  @override
+  Future<void> saveDiagnosisAnswer({
+    required String sessionId,
+    required String primaryDiagnosis,
+    required List<String> selectedOptionIds,
+    required String reasoning,
+  }) async {
+    savedDiagnosis = DiagnosisAnswer(
+      primaryDiagnosis: primaryDiagnosis,
+      reasoning: reasoning,
+      selectedOptionIds: selectedOptionIds,
+    );
+  }
+
+  @override
+  Future<ManagementPlanAnswer?> loadManagementPlan(String sessionId) async {
+    return savedManagement;
+  }
+
+  @override
+  Future<List<ManagementOption>> loadManagementOptions({
+    required String sessionId,
+    required String caseId,
+  }) async {
+    return [
+      ManagementOption(
+        id: 'iv-fluid',
+        category: 'İlk Yaklaşım',
+        title: 'Sıvı resüsitasyonu',
+        pointValue: 4,
+        isSelected: selectedManagement.contains('iv-fluid'),
+      ),
+      ManagementOption(
+        id: 'surgery-consult',
+        category: 'Konsültasyon',
+        title: 'Genel cerrahi konsültasyonu',
+        pointValue: 4,
+        isSelected: selectedManagement.contains('surgery-consult'),
+      ),
+    ];
+  }
+
+  @override
+  Future<void> saveManagementPlan({
+    required String sessionId,
+    required String diagnosis,
+    required List<String> selectedOptionIds,
+    required String note,
+    String consultationDestination = '',
+  }) async {
+    selectedManagement
+      ..clear()
+      ..addAll(selectedOptionIds);
+    savedManagement = ManagementPlanAnswer(
+      diagnosis: diagnosis,
+      note: note,
+      selectedOptionIds: selectedOptionIds,
+      consultationDestination: consultationDestination,
+    );
+  }
 
   @override
   Future<void> advanceSession({

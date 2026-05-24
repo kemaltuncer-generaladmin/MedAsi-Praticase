@@ -9,7 +9,7 @@ abstract final class AuthRepositoryFactory {
     final config = AuthConfig.fromEnvironment();
     if (!config.canUseSupabase) {
       throw const PratiCaseConfigurationException(
-        'SUPABASE_URL ve SUPABASE_ANON_KEY tanımlanmadan PratiCase başlatılamaz.',
+        'Uygulamaya erişim şu anda sağlanamıyor. Lütfen daha sonra tekrar dene veya destek ekibine ulaş.',
       );
     }
 

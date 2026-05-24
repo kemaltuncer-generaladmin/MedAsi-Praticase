@@ -69,7 +69,7 @@ Deno.serve(async (request) => {
 
   if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey || !authorization) {
     return jsonResponse(
-      { error: "Live Supabase configuration is missing" },
+      { error: "Teorik sınav şu anda yüklenemedi. Lütfen tekrar dene." },
       500,
       origin,
     );
@@ -80,7 +80,11 @@ Deno.serve(async (request) => {
   });
   const { data: authData, error: authError } = await userClient.auth.getUser();
   if (authError || !authData.user) {
-    return jsonResponse({ error: "Unauthorized" }, 401, origin);
+    return jsonResponse(
+      { error: "Oturum doğrulanamadı. Lütfen tekrar giriş yap." },
+      401,
+      origin,
+    );
   }
 
   const admin = createClient(supabaseUrl, serviceRoleKey, {
@@ -123,7 +127,11 @@ Deno.serve(async (request) => {
     );
   }
 
-  return jsonResponse({ error: "Unknown action" }, 400, origin);
+  return jsonResponse(
+    { error: "Teorik sınav işlemi şu anda tamamlanamadı." },
+    400,
+    origin,
+  );
 });
 
 async function loadFilters(admin: any, userId: string) {
@@ -142,7 +150,9 @@ async function loadFilters(admin: any, userId: string) {
     const fallback = await admin.rpc("question_filter_options", {
       p_user_id: userId,
     });
-    if (fallback.error) return { error: fallback.error.message };
+    if (fallback.error) {
+      return { error: "Teorik sınav filtreleri şu anda yüklenemedi." };
+    }
     data = fallback.data ?? [];
   }
 
@@ -465,7 +475,7 @@ async function submitAttempt(admin: any, userId: string, body: JsonMap) {
     results,
     warning: syncedCount === answers.length
       ? ""
-      : "Bazı yanıtlar Qlinik ilerleme kaydına işlenemedi.",
+      : "Bazı yanıtlar ilerleme kaydına işlenemedi.",
   };
 }
 

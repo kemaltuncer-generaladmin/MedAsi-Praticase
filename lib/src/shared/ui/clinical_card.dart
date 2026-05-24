@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app/theme/praticase_colors.dart';
+import '../../app/theme/praticase_motion.dart';
 import '../../app/theme/praticase_tokens.dart';
 
 class ClinicalCard extends StatelessWidget {
@@ -32,13 +33,17 @@ class ClinicalCard extends StatelessWidget {
       boxShadow: elevated ? PratiCaseShadows.card : null,
     );
 
-    if (onTap == null) {
-      return Container(padding: padding, decoration: decoration, child: child);
-    }
-    return InkWell(
+    final inner = Container(
+      padding: padding,
+      decoration: decoration,
+      child: child,
+    );
+
+    if (onTap == null) return inner;
+
+    return PressableScale(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(radius),
-      child: Ink(decoration: decoration, padding: padding, child: child),
+      child: inner,
     );
   }
 }

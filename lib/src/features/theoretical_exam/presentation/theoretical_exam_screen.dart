@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/praticase_colors.dart';
+import '../../../app/theme/praticase_motion.dart';
 import '../../../app/theme/praticase_tokens.dart';
+import '../../../shared/data/user_facing_error.dart';
 import '../../../shared/ui/responsive.dart';
 import '../data/theoretical_exam_repository.dart';
 import '../domain/theoretical_exam_models.dart';
@@ -165,13 +167,13 @@ class _TheoreticalExamSetupScreenState
       setState(() => _loadingQuestions = false);
       if (questions.isEmpty) {
         _showMessage(
-          'Bu seçim için Qlinik soru bankasında tekrar etmeyen soru bulunamadı.',
+          'Bu seçim için Medasi soru havuzunda tekrar etmeyen soru bulunamadı.',
         );
         return;
       }
       if (questions.length < totalQuestionCount) {
         _showMessage(
-          'Qlinik bu seçim için ${questions.length}/$totalQuestionCount tekrar etmeyen soru verdi.',
+          'Bu seçim için $totalQuestionCount sorudan ${questions.length} tekrar etmeyen soru hazırlandı.',
         );
       }
       _openExam(questions);
@@ -230,7 +232,7 @@ class _TheoreticalExamSetupScreenState
             if (snapshot.connectionState != ConnectionState.done) {
               return const _StateView(
                 icon: Icons.assignment_outlined,
-                title: 'Qlinik soru bankası yükleniyor',
+                title: 'Soru havuzu yükleniyor',
                 body: 'Ders ve konu filtreleri hazırlanıyor.',
               );
             }
@@ -265,7 +267,7 @@ class _TheoreticalExamSetupScreenState
                 _SectionCard(
                   title: 'Ders Seçimi',
                   child: filters.courses.isEmpty
-                      ? const Text('Qlinik soru bankasında ders bulunamadı.')
+                      ? const Text('Medasi soru havuzunda ders bulunamadı.')
                       : Wrap(
                           spacing: 8,
                           runSpacing: 8,
@@ -466,28 +468,46 @@ class _TheoreticalExamSessionScreenState
               onFinish: _finish,
             ),
             Expanded(
-              child: PratiCaseResponsiveListView(
-                maxWidth: PratiCaseBreakpoints.flowContentMaxWidth,
-                padding: PratiCaseResponsive.pagePadding(
-                  context,
-                  top: 12,
-                  includeNavigationReserve: false,
-                ),
-                children: [
-                  _QuestionCard(question: question),
-                  const SizedBox(height: 12),
-                  for (final option in question.options) ...[
-                    _OptionTile(
-                      option: option,
-                      selected: selectedOption == option.id,
-                      correct: false,
-                      wrong: false,
-                      reveal: false,
-                      onTap: () => _select(option.id),
+              child: AnimatedSwitcher(
+                duration: PratiCaseDurations.standard,
+                switchInCurve: PratiCaseCurves.emphasized,
+                switchOutCurve: PratiCaseCurves.exit,
+                transitionBuilder: (child, animation) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0, 0.04),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
                     ),
-                    const SizedBox(height: 8),
+                  );
+                },
+                child: PratiCaseResponsiveListView(
+                  key: ValueKey(_index),
+                  maxWidth: PratiCaseBreakpoints.flowContentMaxWidth,
+                  padding: PratiCaseResponsive.pagePadding(
+                    context,
+                    top: 12,
+                    includeNavigationReserve: false,
+                  ),
+                  children: [
+                    _QuestionCard(question: question),
+                    const SizedBox(height: 12),
+                    for (final option in question.options) ...[
+                      _OptionTile(
+                        option: option,
+                        selected: selectedOption == option.id,
+                        correct: false,
+                        wrong: false,
+                        reveal: false,
+                        onTap: () => _select(option.id),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
             SafeArea(
@@ -558,7 +578,7 @@ class _IntroCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           const Text(
-            'Qlinik soru bankasından komite denemesi',
+            'Medasi soru havuzundan komite denemesi',
             style: TextStyle(
               color: PratiCaseColors.white,
               fontSize: 22,
@@ -665,7 +685,7 @@ class _CoursePlanEditor extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           if (topicOptions.isEmpty)
-            const Text('Bu ders için Qlinik konu verisi bulunamadı.')
+            const Text('Bu ders için konu verisi bulunamadı.')
           else
             Wrap(
               spacing: 8,
@@ -822,8 +842,9 @@ class _SharedQuotaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final usable = total <= 0 ? 0 : remaining.clamp(0, total).toInt();
     return _SectionCard(
-      title: 'Qlinik Ortak Soru Hakkı',
+      title: 'Medasi Soru Hakkı',
       child: Row(
         children: [
           const Icon(
@@ -833,8 +854,8 @@ class _SharedQuotaCard extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              '$remaining/$total tekrar etmeyen soru kullanılabilir. '
-              'Teslim edilen soru Qlinik ve PratiCase boyunca yeniden gösterilmez.',
+              '$usable/$total tekrar etmeyen soru kullanılabilir. '
+              'Yanıtladığın sorular desteklenen Medasi uygulamalarında tekrar gösterilmez.',
               style: const TextStyle(
                 color: PratiCaseColors.navy,
                 fontWeight: FontWeight.w700,
@@ -992,9 +1013,10 @@ class _OptionTile extends StatelessWidget {
         : selected
         ? PratiCaseColors.teal
         : null;
-    return InkWell(
+    return PressableScale(
       onTap: reveal ? null : onTap,
-      borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+      scale: 0.98,
+      hapticsOnTap: !reveal,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.all(14),
@@ -1112,7 +1134,7 @@ class _TheoreticalResultView extends StatelessWidget {
         children: [
           _ScoreCard(attempt: attempt, elapsed: elapsed),
           const SizedBox(height: 14),
-          _QlinikSyncCard(submissionFuture: submissionFuture),
+          _QuestionPoolSyncCard(submissionFuture: submissionFuture),
           const SizedBox(height: 14),
           for (final question in attempt.questions) ...[
             _ReviewQuestionCard(
@@ -1177,8 +1199,8 @@ class _ScoreCard extends StatelessWidget {
   }
 }
 
-class _QlinikSyncCard extends StatelessWidget {
-  const _QlinikSyncCard({required this.submissionFuture});
+class _QuestionPoolSyncCard extends StatelessWidget {
+  const _QuestionPoolSyncCard({required this.submissionFuture});
 
   final Future<TheoreticalExamSubmissionResult>? submissionFuture;
 
@@ -1188,8 +1210,8 @@ class _QlinikSyncCard extends StatelessWidget {
     if (future == null) {
       return const _SyncSurface(
         icon: Icons.sync_problem_rounded,
-        title: 'Qlinik senkronu beklemede',
-        body: 'Yanıtlar sonuç ekranı açıldığında Qlinik ilerlemene işlenir.',
+        title: 'Senkron beklemede',
+        body: 'Yanıtlar sonuç ekranı açıldığında ilerleme kaydına işlenir.',
       );
     }
     return FutureBuilder<TheoreticalExamSubmissionResult>(
@@ -1198,8 +1220,8 @@ class _QlinikSyncCard extends StatelessWidget {
         if (snapshot.connectionState != ConnectionState.done) {
           return const _SyncSurface(
             icon: Icons.sync_rounded,
-            title: 'Qlinik ile senkronlanıyor',
-            body: 'Çözdüğün sorular Qlinik tekrar havuzundan düşürülüyor.',
+            title: 'İlerlemen kaydediliyor',
+            body: 'Çözdüğün sorular tekrar havuzundan çıkarılıyor.',
           );
         }
         if (snapshot.hasError) {
@@ -1214,11 +1236,9 @@ class _QlinikSyncCard extends StatelessWidget {
           icon: result.fullySynced
               ? Icons.verified_rounded
               : Icons.sync_problem_rounded,
-          title: result.fullySynced
-              ? 'Qlinik ile senkronlandı'
-              : 'Kısmi senkron',
+          title: result.fullySynced ? 'İlerlemen kaydedildi' : 'Kısmi senkron',
           body: result.fullySynced
-              ? '${result.syncedCount} yanıt Qlinik ilerlemene işlendi.'
+              ? '${result.syncedCount} yanıt ilerleme kaydına işlendi.'
               : '${result.syncedCount}/${result.submittedCount} yanıt işlendi. ${result.errorMessage}',
         );
       },
@@ -1469,9 +1489,8 @@ String _difficultyLabel(String value) {
 }
 
 String _errorText(Object? error) {
-  final text = error?.toString() ?? '';
-  if (text.trim().isEmpty) return 'Canlı veri bağlantısı kurulamadı.';
-  return text
-      .replaceFirst('Exception: ', '')
-      .replaceFirst('TheoreticalExamUnavailable: ', '');
+  if (error is TheoreticalExamUnavailable) {
+    return PratiCaseUserMessage.theoreticalExam(error.message);
+  }
+  return PratiCaseUserMessage.theoreticalExamFailure;
 }

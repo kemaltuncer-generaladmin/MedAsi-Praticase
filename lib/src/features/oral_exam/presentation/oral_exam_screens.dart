@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../app/theme/praticase_colors.dart';
 import '../../../app/theme/praticase_motion.dart';
 import '../../../app/theme/praticase_tokens.dart';
+import '../../../shared/data/user_facing_error.dart';
 import '../../../shared/ui/ui.dart';
 import '../../cases/data/voice_exam_adapter.dart';
 import '../data/oral_exam_repository.dart';
@@ -179,7 +180,7 @@ class _OralExamSetupScreenState extends State<OralExamSetupScreen> {
                     FadeSlideIn(child: _SectionTitle('Vaka')),
                     const SizedBox(height: 4),
                     const Text(
-                      'Hazır senaryo seçebilir veya rastgele AI vakası ile başlayabilirsin.',
+                      'Hazır senaryo seçebilir veya yeni bir rastgele vaka ile başlayabilirsin.',
                       style: TextStyle(
                         color: PratiCaseColors.muted,
                         fontSize: 12,
@@ -794,7 +795,7 @@ class _ScenarioRandomTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'AI Rastgele Vaka',
+                    'Rastgele Vaka',
                     style: TextStyle(
                       color: PratiCaseColors.navy,
                       fontWeight: FontWeight.w900,
@@ -1173,6 +1174,19 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
     );
   }
 
+  void _showFailure(String message, {VoidCallback? onRetry}) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        action: onRetry == null
+            ? null
+            : SnackBarAction(label: 'Tekrar Dene', onPressed: onRetry),
+      ),
+    );
+  }
+
   Future<void> _send() async {
     final text = _messageController.text.trim();
     if (text.isEmpty || _sending || _finalizing) return;
@@ -1216,9 +1230,7 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
       }
     } on OralExamUnavailable catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
+      _showFailure(PratiCaseUserMessage.oralExam(error.message));
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -1250,9 +1262,7 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
       unawaited(_scrollToBottom());
     } on OralExamUnavailable catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
+      _showFailure(PratiCaseUserMessage.oralExam(error.message));
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -1273,10 +1283,11 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
       );
     } on OralExamUnavailable catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
       setState(() => _finalizing = false);
+      _showFailure(
+        PratiCaseUserMessage.report(error.message),
+        onRetry: _finalize,
+      );
     }
   }
 
@@ -1361,7 +1372,7 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Sınavı bitir?'),
         content: const Text(
-          'Şu ana kadar verdiğin cevaplar değerlendirilip karne çıkarılacak.',
+          'Şu ana kadar verdiğin cevaplar değerlendirilip karnen hazırlanacak.',
         ),
         actions: [
           TextButton(
@@ -1453,7 +1464,15 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
                   if (_sending && index == _messages.length) {
                     return const _MentorTypingBubble();
                   }
-                  return _ExamBubble(message: _messages[index]);
+                  final msg = _messages[index];
+                  return FadeSlideIn(
+                    key: ValueKey('msg_$index'),
+                    offset: Offset(
+                      msg.speaker == 'candidate' ? 0.04 : -0.04,
+                      0,
+                    ),
+                    child: _ExamBubble(message: msg),
+                  );
                 },
               ),
             ),
@@ -1541,7 +1560,7 @@ class _PanelBanner extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Komisyon birlikte değerlendirir; yalnızca soru soran hocaya cevap ver.',
+            'Komite birlikte değerlendirir; yanıtını aktif hocaya ver.',
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.72),
               fontSize: 11,
@@ -2102,9 +2121,28 @@ class _ComposerBar extends StatelessWidget {
                           : 'Cevabını yaz veya mikrofona dokun',
                       filled: true,
                       fillColor: PratiCaseColors.softSurface,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide.none,
+                        borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
+                        borderSide: const BorderSide(
+                          color: PratiCaseColors.border,
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
+                        borderSide: const BorderSide(
+                          color: PratiCaseColors.border,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
+                        borderSide: const BorderSide(
+                          color: PratiCaseColors.teal,
+                          width: 1.5,
+                        ),
                       ),
                     ),
                     onSubmitted: (_) => onSend(),
@@ -2157,7 +2195,7 @@ class _ComposerBar extends StatelessWidget {
                           )
                         : const Icon(Icons.check_circle_rounded, size: 18),
                     label: Text(
-                      finalizing ? 'Karne çıkıyor...' : 'Sınavı Bitir',
+                      finalizing ? 'Karne hazırlanıyor...' : 'Sınavı Bitir',
                     ),
                   ),
                 ),

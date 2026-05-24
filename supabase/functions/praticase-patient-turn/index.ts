@@ -40,7 +40,7 @@ Deno.serve(async (request) => {
 
   if (!supabaseUrl || !supabaseAnonKey || !authorization) {
     return jsonResponse(
-      { error: "Live Supabase configuration is missing" },
+      { error: "Hasta görüşmesi şu anda başlatılamadı. Lütfen tekrar dene." },
       500,
       origin,
     );
@@ -52,14 +52,14 @@ Deno.serve(async (request) => {
 
   if (!sessionId || !message) {
     return jsonResponse(
-      { error: "sessionId and message are required" },
+      { error: "Hasta görüşmesine devam etmek için bir soru yazmalısın." },
       400,
       origin,
     );
   }
   if (message.length > 1200) {
     return jsonResponse(
-      { error: "Message is too long" },
+      { error: "Sorunu daha kısa yazarak tekrar dene." },
       413,
       origin,
     );
@@ -67,7 +67,7 @@ Deno.serve(async (request) => {
 
   if (!vertexConfigured()) {
     return jsonResponse(
-      { error: "Vertex AI configuration is missing" },
+      { error: "Hasta yanıtı şu anda alınamadı. Lütfen tekrar dene." },
       500,
       origin,
     );
@@ -94,7 +94,7 @@ Deno.serve(async (request) => {
     .single();
 
   if (sessionError || !session) {
-    return jsonResponse({ error: "Exam session not found" }, 404, origin);
+    return jsonResponse({ error: "Bu sınav oturumu bulunamadı." }, 404, origin);
   }
   try {
     await ensureAiCoinBalance(admin, String(session.user_id ?? ""));
@@ -123,7 +123,11 @@ Deno.serve(async (request) => {
     .limit(12);
 
   if (messagesError) {
-    return jsonResponse({ error: messagesError.message }, 400, origin);
+    return jsonResponse(
+      { error: "Görüşme geçmişi şu anda yüklenemedi. Lütfen tekrar dene." },
+      400,
+      origin,
+    );
   }
 
   const caseData = Array.isArray(session.cases)
@@ -183,9 +187,9 @@ Deno.serve(async (request) => {
     aiResponse = generated.text;
     usageMetadata = generated.usageMetadata;
     model = generated.model;
-  } catch (error) {
+  } catch {
     return jsonResponse(
-      { error: "Vertex AI patient turn failed", detail: errorMessage(error) },
+      { error: "Hasta yanıtı şu anda alınamadı. Lütfen tekrar dene." },
       502,
       origin,
     );
@@ -225,7 +229,11 @@ Deno.serve(async (request) => {
     .insert({ session_id: sessionId, sender: "candidate", message });
 
   if (insertCandidateError) {
-    return jsonResponse({ error: insertCandidateError.message }, 400, origin);
+    return jsonResponse(
+      { error: "Yanıtın şu anda kaydedilemedi. Lütfen tekrar dene." },
+      400,
+      origin,
+    );
   }
 
   const { data: patientMessage, error: insertPatientError } = await supabase
@@ -236,7 +244,11 @@ Deno.serve(async (request) => {
     .single();
 
   if (insertPatientError) {
-    return jsonResponse({ error: insertPatientError.message }, 400, origin);
+    return jsonResponse(
+      { error: "Hasta yanıtı şu anda kaydedilemedi. Lütfen tekrar dene." },
+      400,
+      origin,
+    );
   }
 
   return jsonResponse(
@@ -251,7 +263,3 @@ Deno.serve(async (request) => {
     origin,
   );
 });
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}

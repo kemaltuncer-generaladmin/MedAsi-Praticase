@@ -50,10 +50,7 @@ class _ResultHeroState extends State<_ResultHero> {
               alignment: Alignment.center,
               children: [
                 TweenAnimationBuilder<double>(
-                  tween: Tween<double>(
-                    begin: 0,
-                    end: _animated ? endValue : 0,
-                  ),
+                  tween: Tween<double>(begin: 0, end: _animated ? endValue : 0),
                   duration: const Duration(milliseconds: 1100),
                   curve: PratiCaseCurves.overshoot,
                   builder: (context, value, _) {
@@ -96,7 +93,9 @@ class _ResultHeroState extends State<_ResultHero> {
                         Text(
                           '${widget.result.totalScore}/${widget.result.maxScore}',
                           style: TextStyle(
-                            color: PratiCaseColors.white.withValues(alpha: 0.72),
+                            color: PratiCaseColors.white.withValues(
+                              alpha: 0.72,
+                            ),
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
                           ),
@@ -146,7 +145,7 @@ class _ScoreGrid extends StatelessWidget {
       return const _CenteredState(
         icon: Icons.query_stats_rounded,
         title: 'Puan dağılımı yok',
-        body: 'Canlı rubric sonuçları oluştuğunda burada görünür.',
+        body: 'Değerlendirme dağılımı şu anda hazırlanamadı.',
       );
     }
     return Container(
@@ -217,13 +216,30 @@ class _ScoreBar extends StatelessWidget {
         const SizedBox(height: 6),
         ClipRRect(
           borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
-          child: LinearProgressIndicator(
-            value: percent.clamp(0.0, 1.0),
-            minHeight: 8,
-            backgroundColor: PratiCaseColors.border,
-            color: barColor,
+          child: TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0, end: percent.clamp(0.0, 1.0)),
+            duration: const Duration(milliseconds: 900),
+            curve: PratiCaseCurves.overshoot,
+            builder: (context, value, _) => LinearProgressIndicator(
+              value: value,
+              minHeight: 8,
+              backgroundColor: PratiCaseColors.border,
+              color: barColor,
+            ),
           ),
         ),
+        if (score.title.toLowerCase().contains('yönetim') &&
+            score.score == 0) ...[
+          const SizedBox(height: 7),
+          const Text(
+            'Puanlanabilir bir yönetim adımı seçilmedi.',
+            style: TextStyle(
+              color: PratiCaseColors.muted,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -369,7 +385,10 @@ class _IdealApproachCard extends StatelessWidget {
     return _SectionCard(
       title: 'İdeal Yaklaşım Özeti',
       child: Text(
-        text.isEmpty ? 'Canlı karne özeti henüz oluşmadı.' : text,
+        text.isEmpty
+            ? 'Değerlendirme özeti hazırlanamadı; güçlü yönlerin ve gelişim '
+                  'alanların son yanıtlarına göre yukarıda gösterildi.'
+            : text,
         style: const TextStyle(
           color: PratiCaseColors.slateBlue,
           fontWeight: FontWeight.w700,

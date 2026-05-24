@@ -31,7 +31,8 @@ class PaywallScreen extends StatefulWidget {
 }
 
 class _PaywallScreenState extends State<PaywallScreen> {
-  static const _eulaUrl = 'https://praticase.medasi.com.tr/yasal/kullanim-sartlari';
+  static const _eulaUrl =
+      'https://praticase.medasi.com.tr/yasal/kullanim-sartlari';
   static const _privacyUrl = 'https://praticase.medasi.com.tr/yasal/gizlilik';
 
   PratiCaseStoreProduct? _selected;
@@ -134,10 +135,12 @@ class _PaywallScreenState extends State<PaywallScreen> {
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
                   children: [
                     _Hero(
-                      title: widget.titleOverride ??
+                      title:
+                          widget.titleOverride ??
                           'PratiCase Premium ile OSCE’ye hazır ol',
-                      subtitle: widget.subtitleOverride ??
-                          'Sınırsız vaka, AI hasta diyalogları ve detaylı '
+                      subtitle:
+                          widget.subtitleOverride ??
+                          'Sınırsız vaka, sanal hasta görüşmeleri ve detaylı '
                               'rubrik karneleriyle klinik performansını '
                               'gerçek sınava taşı.',
                     ),
@@ -265,8 +268,11 @@ class _PremiumBadge extends StatelessWidget {
       child: const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.workspace_premium_rounded,
-              color: PratiCaseColors.gold, size: 18),
+          Icon(
+            Icons.workspace_premium_rounded,
+            color: PratiCaseColors.gold,
+            size: 18,
+          ),
           SizedBox(width: 6),
           Text(
             'PratiCase Premium',
@@ -292,8 +298,8 @@ class _BenefitList extends StatelessWidget {
       'Tüm branşlardan vakalara sınırsız erişim.',
     ),
     (
-      Icons.smart_toy_outlined,
-      'AI sanal hasta',
+      Icons.record_voice_over_outlined,
+      'Sanal hasta görüşmesi',
       'Gerçekçi anamnez diyalogları ve süreli sınav modu.',
     ),
     (
@@ -303,8 +309,8 @@ class _BenefitList extends StatelessWidget {
     ),
     (
       Icons.savings_outlined,
-      'Aylık MedAsi Coin paketi',
-      'AI mentor ve teorik soru paketleri için ortak cüzdan.',
+      'Aylık Medasi Coin paketi',
+      'Sözlü sınav ve teorik soru paketleri için ortak cüzdan.',
     ),
   ];
 
@@ -331,8 +337,11 @@ class _BenefitList extends StatelessWidget {
                       color: PratiCaseColors.teal.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(entry.$1,
-                        color: PratiCaseColors.teal, size: 20),
+                    child: Icon(
+                      entry.$1,
+                      color: PratiCaseColors.teal,
+                      size: 20,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -380,7 +389,8 @@ class _ProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final periodLabel = product.periodLabel;
-    final priceText = product.localizedPrice ??
+    final priceText =
+        product.localizedPrice ??
         '${(product.priceCents / 100).toStringAsFixed(2)} ${product.currency}';
     final originalPriceText = product.originalPriceCents == null
         ? null
@@ -400,89 +410,93 @@ class _ProductCard extends StatelessWidget {
               color: Colors.white,
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                color: selected
-                    ? PratiCaseColors.teal
-                    : PratiCaseColors.border,
+                color: selected ? PratiCaseColors.teal : PratiCaseColors.border,
                 width: selected ? 2 : 1,
               ),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  width: 22,
-                  height: 22,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: selected
-                          ? PratiCaseColors.teal
-                          : PratiCaseColors.border,
-                      width: 2,
-                    ),
-                    color: selected
-                        ? PratiCaseColors.teal
-                        : Colors.transparent,
-                  ),
-                  child: selected
-                      ? const Icon(Icons.check, size: 14, color: Colors.white)
-                      : null,
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              product.localizedTitle?.isNotEmpty == true
-                                  ? product.localizedTitle!
-                                  : product.name,
-                              style: const TextStyle(
-                                color: PratiCaseColors.navy,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                          if (product.badge.isNotEmpty) ...[
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: PratiCaseColors.gold
-                                    .withValues(alpha: 0.16),
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: Text(
-                                product.badge,
-                                style: const TextStyle(
-                                  color: PratiCaseColors.gold,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      width: 22,
+                      height: 22,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: selected
+                              ? PratiCaseColors.teal
+                              : PratiCaseColors.border,
+                          width: 2,
+                        ),
+                        color: selected
+                            ? PratiCaseColors.teal
+                            : Colors.transparent,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        product.description,
+                      child: selected
+                          ? const Icon(
+                              Icons.check,
+                              size: 14,
+                              color: Colors.white,
+                            )
+                          : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        product.localizedTitle?.isNotEmpty == true
+                            ? product.localizedTitle!
+                            : product.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: PratiCaseColors.muted,
-                          height: 1.35,
+                          color: PratiCaseColors.navy,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    if (product.badge.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: PratiCaseColors.gold.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          product.badge,
+                          style: const TextStyle(
+                            color: PratiCaseColors.gold,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 11,
+                          ),
                         ),
                       ),
                     ],
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  product.description,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: PratiCaseColors.muted,
+                    height: 1.35,
                   ),
                 ),
-                const SizedBox(width: 14),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
                       priceText,
@@ -492,6 +506,14 @@ class _ProductCard extends StatelessWidget {
                         fontSize: 18,
                       ),
                     ),
+                    if (periodLabel.isNotEmpty)
+                      Text(
+                        '/$periodLabel',
+                        style: const TextStyle(
+                          color: PratiCaseColors.muted,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     if (originalPriceText != null)
                       Text(
                         originalPriceText,
@@ -499,14 +521,6 @@ class _ProductCard extends StatelessWidget {
                           color: PratiCaseColors.muted,
                           fontSize: 12,
                           decoration: TextDecoration.lineThrough,
-                        ),
-                      ),
-                    if (periodLabel.isNotEmpty)
-                      Text(
-                        '/$periodLabel',
-                        style: const TextStyle(
-                          color: PratiCaseColors.muted,
-                          fontSize: 12,
                         ),
                       ),
                   ],
@@ -537,25 +551,22 @@ class _PurchaseButton extends StatelessWidget {
     final label = product == null
         ? 'Bir paket seçin'
         : product!.isSubscription
-            ? 'Aboneliği başlat'
-            : 'Satın al';
+        ? 'Aboneliği başlat'
+        : 'Satın al';
     return SizedBox(
       width: double.infinity,
-      height: 54,
       child: ElevatedButton(
         onPressed: disabled ? null : onTap,
         style: ElevatedButton.styleFrom(
           backgroundColor: PratiCaseColors.teal,
           foregroundColor: Colors.white,
-          disabledBackgroundColor:
-              PratiCaseColors.teal.withValues(alpha: 0.4),
+          disabledBackgroundColor: PratiCaseColors.teal.withValues(alpha: 0.4),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
-          textStyle: const TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
-          ),
+          textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+          minimumSize: const Size.fromHeight(54),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         ),
         child: busy
             ? const SizedBox(
@@ -594,9 +605,7 @@ class _StatusBanner extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            isError
-                ? Icons.error_outline_rounded
-                : Icons.info_outline_rounded,
+            isError ? Icons.error_outline_rounded : Icons.info_outline_rounded,
             color: iconColor,
             size: 20,
           ),
@@ -620,8 +629,9 @@ class _RenewalDisclosure extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final localText =
-        product?.isSubscription == true ? _renewalText(product!) : _oneTimeText;
+    final localText = product?.isSubscription == true
+        ? _renewalText(product!)
+        : _oneTimeText;
     return Text(
       localText,
       style: const TextStyle(
@@ -639,7 +649,8 @@ class _RenewalDisclosure extends StatelessWidget {
       'devam edebilirsiniz.';
 
   String _renewalText(PratiCaseStoreProduct product) {
-    final price = product.localizedPrice ??
+    final price =
+        product.localizedPrice ??
         '${(product.priceCents / 100).toStringAsFixed(2)} ${product.currency}';
     final period = product.periodLabel.isNotEmpty
         ? product.periodLabel
@@ -654,10 +665,7 @@ class _RenewalDisclosure extends StatelessWidget {
 }
 
 class _LegalLinks extends StatelessWidget {
-  const _LegalLinks({
-    required this.onOpenEula,
-    required this.onOpenPrivacy,
-  });
+  const _LegalLinks({required this.onOpenEula, required this.onOpenPrivacy});
 
   final VoidCallback onOpenEula;
   final VoidCallback onOpenPrivacy;

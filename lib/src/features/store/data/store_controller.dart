@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
+import '../../../shared/data/user_facing_error.dart';
 import '../domain/store_product.dart';
 import '../domain/subscription_state.dart';
 import 'storekit_repository.dart';
@@ -14,11 +15,9 @@ import 'storekit_service.dart';
 /// görür. Apple guideline'larına uygun şekilde tüm satın alma işlemleri
 /// kullanıcıya geri bildirim verir.
 class StoreController extends ChangeNotifier {
-  StoreController({
-    StoreKitRepository? repository,
-    StoreKitService? service,
-  })  : _repository = repository ?? StoreKitRepository(),
-        _service = service ?? StoreKitService();
+  StoreController({StoreKitRepository? repository, StoreKitService? service})
+    : _repository = repository ?? StoreKitRepository(),
+      _service = service ?? StoreKitService();
 
   final StoreKitRepository _repository;
   final StoreKitService _service;
@@ -55,9 +54,9 @@ class StoreController extends ChangeNotifier {
       _products = await _service.attachStoreKitMetadata(catalog);
       _subscriptionState = await _repository.loadSubscriptionState();
     } on StorePurchaseException catch (error) {
-      _errorMessage = error.message;
-    } catch (error) {
-      _errorMessage = 'Mağaza verisi alınamadı: $error';
+      _errorMessage = PratiCaseUserMessage.store(error.message);
+    } on Object {
+      _errorMessage = PratiCaseUserMessage.storeFailure;
     } finally {
       _setBusy(false);
     }
@@ -75,10 +74,10 @@ class StoreController extends ChangeNotifier {
         _setBusy(false);
       }
     } on StorePurchaseException catch (error) {
-      _errorMessage = error.message;
+      _errorMessage = PratiCaseUserMessage.purchase(error.message);
       _setBusy(false);
-    } catch (error) {
-      _errorMessage = 'Satın alma başlatılamadı: $error';
+    } on Object {
+      _errorMessage = PratiCaseUserMessage.purchaseFailure;
       _setBusy(false);
     }
   }
@@ -91,10 +90,11 @@ class StoreController extends ChangeNotifier {
     try {
       await _service.restorePurchases();
     } on StorePurchaseException catch (error) {
-      _errorMessage = error.message;
+      _errorMessage = PratiCaseUserMessage.purchase(error.message);
       _setBusy(false);
-    } catch (error) {
-      _errorMessage = 'Geri yükleme başarısız oldu: $error';
+    } on Object {
+      _errorMessage =
+          'Satın almalar şu anda geri yüklenemedi. Lütfen tekrar dene.';
       _setBusy(false);
     }
   }
@@ -111,7 +111,7 @@ class StoreController extends ChangeNotifier {
         _setBusy(false);
         return;
       case PurchaseStatus.error:
-        _errorMessage = purchase.error?.message ?? 'App Store hatası.';
+        _errorMessage = PratiCaseUserMessage.purchase(purchase.error?.message);
         _statusMessage = null;
         _setBusy(false);
         return;
@@ -125,8 +125,7 @@ class StoreController extends ChangeNotifier {
   Future<void> _completeServerVerification(PurchaseDetails purchase) async {
     final product = _findProduct(purchase.productID);
     if (product == null) {
-      _errorMessage = 'Satın alınan ürün Supabase tarafında tanımlı değil: '
-          '${purchase.productID}';
+      _errorMessage = 'Satın alınan paket doğrulanamadı. Lütfen tekrar dene.';
       await _service.completePurchase(purchase);
       _setBusy(false);
       return;
@@ -153,9 +152,9 @@ class StoreController extends ChangeNotifier {
         await _repository.loadCatalog(),
       );
     } on StorePurchaseException catch (error) {
-      _errorMessage = error.message;
-    } catch (error) {
-      _errorMessage = 'Doğrulama sırasında hata oluştu: $error';
+      _errorMessage = PratiCaseUserMessage.purchase(error.message);
+    } on Object {
+      _errorMessage = PratiCaseUserMessage.purchaseFailure;
     } finally {
       _setBusy(false);
     }

@@ -1,0 +1,425 @@
+appId: com.medasi.praticase
+name: 101 profile menu items QA
+tags:
+  - qa
+env:
+  USERNAME: ${MAESTRO_USERNAME}
+  PASSWORD: ${MAESTRO_PASSWORD}
+---
+# Fresh launch with login
+- launchApp:
+    clearState: true
+    stopApp: true
+- waitForAnimationToEnd:
+    timeout: 5000
+- extendedWaitUntil:
+    visible: "Giriş Yap"
+    timeout: 15000
+- tapOn: "Giriş Yap"
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn:
+    text: "doktor@hastane.com"
+- inputText: ${USERNAME}
+- hideKeyboard
+- tapOn:
+    text: "••••••••"
+- inputText: ${PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: "cta.login-submit"
+- runFlow:
+    when:
+      visible:
+        id: "cta.complete-profile"
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: "cta.complete-profile"
+          direction: DOWN
+      - tapOn:
+          id: "cta.complete-profile"
+- extendedWaitUntil:
+    visible:
+      id: "nav.home"
+    timeout: 45000
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# Go to Profile tab (fresh, scroll at top)
+- tapOn:
+    id: "nav.profile"
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# -- 1. Vaka Geçmişim --
+- scrollUntilVisible:
+    element:
+      id: "menu.case-history"
+    direction: DOWN
+    timeout: 15000
+    visibilityPercentage: 50
+    speed: 30
+- tapOn:
+    id: "menu.case-history"
+- waitForAnimationToEnd:
+    timeout: 6000
+- takeScreenshot: artifacts/qa_menu_01_case_history
+- scroll
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: artifacts/qa_menu_01b_case_history_scroll
+- back
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# -- 2. Favori Vakalarım --
+- scrollUntilVisible:
+    element:
+      id: "menu.favorites"
+    direction: DOWN
+    timeout: 15000
+    visibilityPercentage: 50
+    speed: 30
+- tapOn:
+    id: "menu.favorites"
+- waitForAnimationToEnd:
+    timeout: 6000
+- takeScreenshot: artifacts/qa_menu_02_favorites
+- back
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# -- 3. Notlarım --
+- scrollUntilVisible:
+    element:
+      id: "menu.notes"
+    direction: DOWN
+    timeout: 15000
+    visibilityPercentage: 50
+    speed: 30
+- tapOn:
+    id: "menu.notes"
+- waitForAnimationToEnd:
+    timeout: 6000
+- takeScreenshot: artifacts/qa_menu_03_notes
+- back
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# -- 4. Günlük Hedefler --
+- scrollUntilVisible:
+    element:
+      id: "menu.daily-goals"
+    direction: DOWN
+    timeout: 15000
+    visibilityPercentage: 50
+    speed: 30
+- tapOn:
+    id: "menu.daily-goals"
+- waitForAnimationToEnd:
+    timeout: 6000
+- takeScreenshot: artifacts/qa_menu_04_daily_goals
+- scroll
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: artifacts/qa_menu_04b_daily_goals_scroll
+- back
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# -- 5. Liderlik Tablosu --
+- scrollUntilVisible:
+    element:
+      id: "menu.leaderboard"
+    direction: DOWN
+    timeout: 15000
+    visibilityPercentage: 50
+    speed: 30
+- tapOn:
+    id: "menu.leaderboard"
+- waitForAnimationToEnd:
+    timeout: 6000
+- takeScreenshot: artifacts/qa_menu_05_leaderboard
+- scroll
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: artifacts/qa_menu_05b_leaderboard_scroll
+- back
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# -- 6. Bildirimler --
+- scrollUntilVisible:
+    element:
+      id: "menu.notifications"
+    direction: DOWN
+    timeout: 15000
+    visibilityPercentage: 50
+    speed: 30
+- tapOn:
+    id: "menu.notifications"
+- waitForAnimationToEnd:
+    timeout: 6000
+- takeScreenshot: artifacts/qa_menu_06_notifications
+- back
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# -- 7. Başarılarım --
+- scrollUntilVisible:
+    element:
+      id: "menu.badges"
+    direction: DOWN
+    timeout: 15000
+    visibilityPercentage: 50
+    speed: 30
+- tapOn:
+    id: "menu.badges"
+- waitForAnimationToEnd:
+    timeout: 6000
+- takeScreenshot: artifacts/qa_menu_07_badges
+- scroll
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: artifacts/qa_menu_07b_badges_scroll
+- back
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# -- 8. Mağaza --
+- scrollUntilVisible:
+    element:
+      id: "menu.store"
+    direction: DOWN
+    timeout: 15000
+    visibilityPercentage: 50
+    speed: 30
+- tapOn:
+    id: "menu.store"
+- waitForAnimationToEnd:
+    timeout: 6000
+- takeScreenshot: artifacts/qa_menu_08_store
+- scroll
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: artifacts/qa_menu_08b_store_scroll
+- back
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# -- 9. Premium Abonelik --
+- scrollUntilVisible:
+    element:
+      id: "menu.subscription"
+    direction: DOWN
+    timeout: 15000
+    visibilityPercentage: 50
+    speed: 30
+- tapOn:
+    id: "menu.subscription"
+- waitForAnimationToEnd:
+    timeout: 6000
+- takeScreenshot: artifacts/qa_menu_09_subscription
+- scroll
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: artifacts/qa_menu_09b_subscription_scroll
+- back
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# -- 10. Ayarlar --
+- scrollUntilVisible:
+    element:
+      id: "menu.settings"
+    direction: DOWN
+    timeout: 15000
+    visibilityPercentage: 50
+    speed: 30
+- tapOn:
+    id: "menu.settings"
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: artifacts/qa_menu_10a_settings
+- scroll
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: artifacts/qa_menu_10b_settings_scroll
+- scroll
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: artifacts/qa_menu_10c_settings_bottom
+
+# -- Settings sub-screens --
+# Account Security
+- scrollUntilVisible:
+    element:
+      text: "Hesap ve Güvenlik"
+    direction: UP
+    timeout: 10000
+- tapOn:
+    text: "Hesap ve Güvenlik"
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: artifacts/qa_settings_01_account
+- back
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Notification settings
+- tapOn:
+    text: "Bildirim Tercihleri"
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: artifacts/qa_settings_02_notifications
+- back
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Theme
+- tapOn:
+    text: "Tema ve Görünüm"
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: artifacts/qa_settings_03_theme
+- back
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Back from settings
+- back
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# -- 11. Yardım ve Destek --
+- scrollUntilVisible:
+    element:
+      id: "menu.help"
+    direction: DOWN
+    timeout: 15000
+    visibilityPercentage: 50
+    speed: 30
+- tapOn:
+    id: "menu.help"
+- waitForAnimationToEnd:
+    timeout: 6000
+- takeScreenshot: artifacts/qa_menu_11_help
+- scroll
+- waitForAnimationToEnd:
+    timeout: 2000
+- takeScreenshot: artifacts/qa_menu_11b_help_scroll
+- back
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# -- 12. İndirmelerim --
+- scrollUntilVisible:
+    element:
+      id: "menu.downloads"
+    direction: DOWN
+    timeout: 15000
+    visibilityPercentage: 50
+    speed: 30
+- tapOn:
+    id: "menu.downloads"
+- waitForAnimationToEnd:
+    timeout: 6000
+- takeScreenshot: artifacts/qa_menu_12_downloads
+- back
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# ========== EXAM MODES ==========
+- tapOn:
+    id: "nav.exams"
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Sözlü Sınav
+- tapOn:
+    text: "Sözlü Sınav"
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: artifacts/qa_exam_01_sozlu
+- back
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Teorik Sınav
+- tapOn:
+    id: "nav.exams"
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn:
+    text: "Teorik Sınav"
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: artifacts/qa_exam_02_teorik
+- back
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Zayıf Konulardan Sınav
+- tapOn:
+    id: "nav.exams"
+- waitForAnimationToEnd:
+    timeout: 3000
+- scrollUntilVisible:
+    element:
+      text: "Zayıf Konulardan"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    text: "Zayıf Konulardan"
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: artifacts/qa_exam_03_weak
+- back
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Mini OSCE
+- tapOn:
+    id: "nav.exams"
+- waitForAnimationToEnd:
+    timeout: 3000
+- scrollUntilVisible:
+    element:
+      text: "Mini OSCE"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    text: "Mini OSCE"
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: artifacts/qa_exam_04_mini_osce
+- back
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Tek İstasyon
+- tapOn:
+    id: "nav.exams"
+- waitForAnimationToEnd:
+    timeout: 3000
+- scrollUntilVisible:
+    element:
+      text: "Tek İstasyon"
+    direction: DOWN
+    timeout: 10000
+- tapOn:
+    text: "Tek İstasyon"
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: artifacts/qa_exam_05_tek_istasyon
+- back
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Final home
+- tapOn:
+    id: "nav.home"
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: artifacts/qa_final_home

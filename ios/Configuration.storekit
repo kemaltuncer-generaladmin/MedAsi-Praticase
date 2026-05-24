@@ -5,24 +5,94 @@
   ],
   "products" : [
     {
-      "displayPrice" : "299.99",
+      "displayPrice" : "20.00",
       "familyShareable" : false,
-      "internalID" : "com.medasi.praticase.lifetime",
+      "internalID" : "com.medasi.praticase.questions50",
       "localizations" : [
         {
-          "description" : "PratiCase Premium içeriklerine tek seferlik ödemeyle sınırsız erişim.",
-          "displayName" : "Yaşam Boyu Premium",
+          "description" : "PratiCase içinde kullanılabilen 50 ek soru hakkı sağlar.",
+          "displayName" : "50 Soru Hakkı",
           "locale" : "tr_TR"
-        },
-        {
-          "description" : "Lifetime access to PratiCase Premium with a single one-time purchase.",
-          "displayName" : "Lifetime Premium",
-          "locale" : "en_US"
         }
       ],
-      "productID" : "com.medasi.praticase.lifetime",
-      "referenceName" : "PratiCase Lifetime",
-      "type" : "NonConsumable"
+      "productID" : "com.medasi.praticase.questions50",
+      "referenceName" : "PratiCase 50 Questions",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "30.00",
+      "familyShareable" : false,
+      "internalID" : "com.medasi.praticase.questions100",
+      "localizations" : [
+        {
+          "description" : "PratiCase içinde kullanılabilen 100 ek soru hakkı sağlar.",
+          "displayName" : "100 Soru Hakkı",
+          "locale" : "tr_TR"
+        }
+      ],
+      "productID" : "com.medasi.praticase.questions100",
+      "referenceName" : "PratiCase 100 Questions",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "80.00",
+      "familyShareable" : false,
+      "internalID" : "com.medasi.praticase.questions300",
+      "localizations" : [
+        {
+          "description" : "PratiCase içinde kullanılabilen 300 ek soru hakkı sağlar.",
+          "displayName" : "300 Soru Hakkı",
+          "locale" : "tr_TR"
+        }
+      ],
+      "productID" : "com.medasi.praticase.questions300",
+      "referenceName" : "PratiCase 300 Questions",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "40.00",
+      "familyShareable" : false,
+      "internalID" : "com.medasi.praticase.mc10",
+      "localizations" : [
+        {
+          "description" : "Medasi ekosisteminde desteklenen PratiCase özelliklerinde kullanılabilen 10 coin sağlar.",
+          "displayName" : "10 Medasi Coin",
+          "locale" : "tr_TR"
+        }
+      ],
+      "productID" : "com.medasi.praticase.mc10",
+      "referenceName" : "PratiCase 10 MC",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "65.00",
+      "familyShareable" : false,
+      "internalID" : "com.medasi.praticase.mc20",
+      "localizations" : [
+        {
+          "description" : "Medasi ekosisteminde desteklenen PratiCase özelliklerinde kullanılabilen 20 coin sağlar.",
+          "displayName" : "20 Medasi Coin",
+          "locale" : "tr_TR"
+        }
+      ],
+      "productID" : "com.medasi.praticase.mc20",
+      "referenceName" : "PratiCase 20 MC",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "180.00",
+      "familyShareable" : false,
+      "internalID" : "com.medasi.praticase.mc50",
+      "localizations" : [
+        {
+          "description" : "Medasi ekosisteminde desteklenen PratiCase özelliklerinde kullanılabilen 50 coin sağlar.",
+          "displayName" : "50 Medasi Coin",
+          "locale" : "tr_TR"
+        }
+      ],
+      "productID" : "com.medasi.praticase.mc50",
+      "referenceName" : "PratiCase 50 MC",
+      "type" : "Consumable"
     }
   ],
   "settings" : {
@@ -40,14 +110,9 @@
       "id" : "praticase.premium.group",
       "localizations" : [
         {
-          "description" : "PratiCase Premium aboneliği. Sınırsız vaka, AI hasta ve detaylı karne.",
+          "description" : "PratiCase Premium abonelikleri.",
           "displayName" : "PratiCase Premium",
           "locale" : "tr_TR"
-        },
-        {
-          "description" : "PratiCase Premium subscription. Unlimited cases, AI patient and detailed scoring.",
-          "displayName" : "PratiCase Premium",
-          "locale" : "en_US"
         }
       ],
       "name" : "PratiCase Premium",
@@ -59,26 +124,21 @@
           "codeOffers" : [
 
           ],
-          "displayPrice" : "39.99",
+          "displayPrice" : "100.00",
           "familyShareable" : false,
           "groupNumber" : 1,
-          "internalID" : "com.medasi.praticase.monthly",
+          "internalID" : "com.medasi.praticase.weekly",
           "introductoryOffer" : null,
           "localizations" : [
             {
-              "description" : "Aylık otomatik yenilenen PratiCase Premium aboneliği. İstediğin zaman iptal edebilirsin.",
-              "displayName" : "Aylık Premium",
+              "description" : "PratiCase Premium'a haftalık erişim, soru hakkı ve Medasi coin avantajı sağlar.",
+              "displayName" : "Haftalık PratiCase Premium",
               "locale" : "tr_TR"
-            },
-            {
-              "description" : "Auto-renewing monthly PratiCase Premium subscription. Cancel anytime.",
-              "displayName" : "Monthly Premium",
-              "locale" : "en_US"
             }
           ],
-          "productID" : "com.medasi.praticase.monthly",
-          "recurringSubscriptionPeriod" : "P1M",
-          "referenceName" : "PratiCase Monthly",
+          "productID" : "com.medasi.praticase.weekly",
+          "recurringSubscriptionPeriod" : "P1W",
+          "referenceName" : "PratiCase Premium Weekly",
           "subscriptionGroupID" : "praticase.premium.group",
           "type" : "RecurringSubscription"
         },
@@ -89,26 +149,21 @@
           "codeOffers" : [
 
           ],
-          "displayPrice" : "299.99",
+          "displayPrice" : "500.00",
           "familyShareable" : false,
-          "groupNumber" : 2,
-          "internalID" : "com.medasi.praticase.yearly",
+          "groupNumber" : 1,
+          "internalID" : "com.medasi.praticase.monthly",
           "introductoryOffer" : null,
           "localizations" : [
             {
-              "description" : "Yıllık otomatik yenilenen PratiCase Premium aboneliği. Aylık plana göre tasarruflu.",
-              "displayName" : "Yıllık Premium",
+              "description" : "PratiCase Premium'a aylık erişim, daha yüksek soru hakkı ve Medasi coin avantajı sağlar.",
+              "displayName" : "Aylık PratiCase Premium",
               "locale" : "tr_TR"
-            },
-            {
-              "description" : "Auto-renewing annual PratiCase Premium subscription. Best value.",
-              "displayName" : "Yearly Premium",
-              "locale" : "en_US"
             }
           ],
-          "productID" : "com.medasi.praticase.yearly",
-          "recurringSubscriptionPeriod" : "P1Y",
-          "referenceName" : "PratiCase Yearly",
+          "productID" : "com.medasi.praticase.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "PratiCase Premium Monthly",
           "subscriptionGroupID" : "praticase.premium.group",
           "type" : "RecurringSubscription"
         }

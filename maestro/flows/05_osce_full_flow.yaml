@@ -25,6 +25,7 @@ env:
       id: "case-list-item"
     direction: DOWN
     timeout: 15000
+- scroll
 - tapOn:
     id: "case-list-item"
     index: 0
@@ -129,6 +130,6 @@ env:
     id: "cta.bottom-action"
 # AI scoring can take up to 90 seconds
 - extendedWaitUntil:
-    visible: "Sonuc"
+    visible: "Sonuç"
     timeout: 90000
 - takeScreenshot: artifacts/05i_result

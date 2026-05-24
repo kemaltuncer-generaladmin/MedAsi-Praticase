@@ -67,7 +67,7 @@ class _ConfigurationGate extends StatelessWidget {
                   ),
                   const SizedBox(height: 20),
                   const Text(
-                    'PratiCase yapılandırması eksik',
+                    'PratiCase şu anda başlatılamadı',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: PratiCaseColors.navy,

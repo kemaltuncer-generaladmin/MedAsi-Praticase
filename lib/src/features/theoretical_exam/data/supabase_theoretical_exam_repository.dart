@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../shared/data/user_facing_error.dart';
 import '../domain/theoretical_exam_models.dart';
 import 'theoretical_exam_repository.dart';
 
@@ -15,7 +16,7 @@ class SupabaseTheoreticalExamRepository implements TheoreticalExamRepository {
     final filters = data['filters'];
     if (filters is! List) {
       throw const TheoreticalExamUnavailable(
-        'Qlinik soru filtreleri okunamadı.',
+        PratiCaseUserMessage.theoreticalExamFailure,
       );
     }
 
@@ -95,7 +96,9 @@ class SupabaseTheoreticalExamRepository implements TheoreticalExamRepository {
     });
     final rows = data['questions'];
     if (rows is! List) {
-      throw const TheoreticalExamUnavailable('Qlinik soruları okunamadı.');
+      throw const TheoreticalExamUnavailable(
+        PratiCaseUserMessage.theoreticalExamFailure,
+      );
     }
     return [
       for (final row in rows)
@@ -139,22 +142,26 @@ class SupabaseTheoreticalExamRepository implements TheoreticalExamRepository {
       final data = response.data;
       if (data is Map<String, dynamic>) {
         final error = data['error']?.toString().trim() ?? '';
-        if (error.isNotEmpty) throw TheoreticalExamUnavailable(error);
+        if (error.isNotEmpty) {
+          throw TheoreticalExamUnavailable(
+            PratiCaseUserMessage.theoreticalExam(error),
+          );
+        }
         return data;
       }
       if (data is Map) return Map<String, dynamic>.from(data);
-      throw const TheoreticalExamUnavailable('Teorik sınav yanıtı okunamadı.');
-    } on FunctionException catch (error) {
-      throw TheoreticalExamUnavailable(
-        error.details?.toString() ??
-            error.reasonPhrase ??
-            'Teorik sınav servisi açılamadı.',
+      throw const TheoreticalExamUnavailable(
+        PratiCaseUserMessage.theoreticalExamFailure,
+      );
+    } on FunctionException {
+      throw const TheoreticalExamUnavailable(
+        PratiCaseUserMessage.theoreticalExamFailure,
       );
     } on TheoreticalExamUnavailable {
       rethrow;
     } on Object {
       throw const TheoreticalExamUnavailable(
-        'Teorik sınav servisiyle bağlantı kurulamadı.',
+        PratiCaseUserMessage.theoreticalExamFailure,
       );
     }
   }

@@ -55,7 +55,7 @@ Deno.serve(async (request) => {
 
   if (!supabaseUrl || !supabaseAnonKey || !authorization) {
     return jsonResponse(
-      { error: "Live Supabase configuration is missing" },
+      { error: "Karne şu anda hazırlanamadı. Yanıtların kaydedildi." },
       500,
       origin,
     );
@@ -65,7 +65,7 @@ Deno.serve(async (request) => {
   const sessionId = String(body.sessionId ?? body.session_id ?? "").trim();
 
   if (!sessionId) {
-    return jsonResponse({ error: "sessionId is required" }, 400, origin);
+    return jsonResponse({ error: "Sınav oturumu bulunamadı." }, 400, origin);
   }
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -82,14 +82,18 @@ Deno.serve(async (request) => {
     sessionId,
   );
   if (contextError) {
-    return jsonResponse({ error: contextError }, 400, origin);
+    return jsonResponse(
+      { error: "Karne şu anda hazırlanamadı. Yanıtların kaydedildi." },
+      400,
+      origin,
+    );
   }
   const userId = String(
     (context?.session as Record<string, unknown> | undefined)?.userId ?? "",
   );
   if (!admin) {
     return jsonResponse(
-      { error: "AI enrichment service is unavailable" },
+      { error: "Karne şu anda hazırlanamadı. Yanıtların kaydedildi." },
       503,
       origin,
     );
@@ -110,7 +114,7 @@ Deno.serve(async (request) => {
       "Vertex AI configuration is missing",
     );
     return jsonResponse(
-      { error: "Vertex AI configuration is missing" },
+      { error: "Karne şu anda hazırlanamadı. Yanıtların kaydedildi." },
       500,
       origin,
     );
@@ -170,7 +174,7 @@ Deno.serve(async (request) => {
   } catch (error) {
     await recordEnrichmentFailure(admin, sessionId, errorMessage(error));
     return jsonResponse(
-      { error: "Vertex AI scoring failed", detail: errorMessage(error) },
+      { error: "Karne şu anda hazırlanamadı. Yanıtların kaydedildi." },
       502,
       origin,
     );
@@ -226,7 +230,11 @@ Deno.serve(async (request) => {
     .single();
 
   if (error) {
-    return jsonResponse({ error: error.message }, 400, origin);
+    return jsonResponse(
+      { error: "Karne şu anda hazırlanamadı. Yanıtların kaydedildi." },
+      400,
+      origin,
+    );
   }
 
   return jsonResponse(

@@ -14,7 +14,7 @@ import '../domain/subscription_state.dart';
 /// varsayılan olduğu için ek konfigürasyon gerekmiyor.
 class StoreKitService {
   StoreKitService({InAppPurchase? iap, this.bundleIdentifier})
-      : _iap = iap ?? InAppPurchase.instance;
+    : _iap = iap ?? InAppPurchase.instance;
 
   final InAppPurchase _iap;
   final String? bundleIdentifier;
@@ -92,9 +92,8 @@ class StoreKitService {
       product.appStoreProductId,
     });
     if (response.productDetails.isEmpty) {
-      throw StorePurchaseException(
-        'Bu paket şu anda App Store üzerinden gelmedi: '
-        '${product.appStoreProductId}',
+      throw const StorePurchaseException(
+        'Bu paket şu anda App Store üzerinden satın alınamıyor.',
         code: 'app_store_product_unavailable',
       );
     }

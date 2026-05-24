@@ -39,7 +39,9 @@ Deno.serve(async (request) => {
     !authorization
   ) {
     return jsonResponse(
-      { error: "Live Supabase configuration is missing" },
+      {
+        error: "Sözlü sınav işlemi şu anda tamamlanamadı. Lütfen tekrar dene.",
+      },
       500,
       origin,
     );
@@ -50,7 +52,11 @@ Deno.serve(async (request) => {
   });
   const { data: authData, error: authError } = await userClient.auth.getUser();
   if (authError || !authData.user) {
-    return jsonResponse({ error: "Unauthorized" }, 401, origin);
+    return jsonResponse(
+      { error: "Oturum doğrulanamadı. Lütfen tekrar giriş yap." },
+      401,
+      origin,
+    );
   }
 
   const admin = createClient(supabaseUrl, supabaseServiceRoleKey, {
@@ -59,7 +65,9 @@ Deno.serve(async (request) => {
 
   if (!vertexConfigured()) {
     return jsonResponse(
-      { error: "Vertex AI configuration is missing" },
+      {
+        error: "Sözlü sınav işlemi şu anda tamamlanamadı. Lütfen tekrar dene.",
+      },
       500,
       origin,
     );
@@ -100,7 +108,11 @@ Deno.serve(async (request) => {
       case "list_scenarios":
         return withOrigin(await listScenarios(admin, body), origin);
       default:
-        return jsonResponse({ error: "Unknown action" }, 400, origin);
+        return jsonResponse(
+          { error: "Sözlü sınav işlemi şu anda tamamlanamadı." },
+          400,
+          origin,
+        );
     }
   } catch (error) {
     if (error instanceof InsufficientCoinBalanceError) {
@@ -116,8 +128,7 @@ Deno.serve(async (request) => {
     }
     return jsonResponse(
       {
-        error: "Sözlü sınav servisi hatası",
-        detail: errorMessage(error),
+        error: "Sözlü sınav işlemi şu anda tamamlanamadı. Lütfen tekrar dene.",
       },
       502,
       origin,
@@ -218,9 +229,8 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
       responseMimeType: "application/json",
     });
     const parsed = safeParse(opening.text);
-    mentorMessage = stringValue(parsed.mentor_message) ||
-      stringValue(opening.text) ||
-      caseBrief;
+    mentorMessage = safeGeneratedMessage(parsed.mentor_message) ||
+      `${caseBrief} Öncelikle bu hastaya yaklaşımını nasıl başlatırsın?`;
     await chargeAiCoins({
       admin,
       userId,
@@ -251,11 +261,10 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
       responseMimeType: "application/json",
     });
     const parsed = safeParse(opening.text);
-    caseBrief = stringValue(parsed.case_brief);
-    mentorMessage = stringValue(parsed.mentor_message) ||
-      stringValue(opening.text) ||
-      caseBrief;
-    if (!caseBrief && mentorMessage) caseBrief = mentorMessage;
+    caseBrief = safeGeneratedMessage(parsed.case_brief) ||
+      `${branch.title} birimine klinik değerlendirme için başvuran bir hasta.`;
+    mentorMessage = safeGeneratedMessage(parsed.mentor_message) ||
+      `${caseBrief} Öncelikle yaklaşımını nasıl yapılandırırsın?`;
     await chargeAiCoins({
       admin,
       userId,
@@ -287,7 +296,7 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
     )
     .single();
   if (error || !session) {
-    return { error: error?.message ?? "Sözlü sınav başlatılamadı." };
+    return { error: "Sözlü sınav şu anda başlatılamadı. Lütfen tekrar dene." };
   }
 
   await admin.schema("praticase").from("oral_exam_turns").insert({
@@ -380,6 +389,40 @@ async function takeTurn(admin: any, userId: string, body: JsonMap) {
     session.duration_seconds - elapsedSeconds,
   );
 
+  if (isInsufficientCandidateAnswer(candidateMessage)) {
+    const mentorMessage =
+      "Bu yanıt klinik değerlendirme için yeterli değil. Tanı gerekçeni veya yaklaşımını bir cümleyle açıklar mısın?";
+    const turnEval = {
+      score_delta: -3,
+      is_correct: false,
+      reasoning: "Yanıt klinik değerlendirme için yetersiz.",
+    };
+    await admin.schema("praticase").from("oral_exam_turns").insert({
+      session_id: sessionId,
+      sequence: nextSequence + 1,
+      speaker: "mentor",
+      speaker_persona_id: activePersona.id,
+      message: mentorMessage,
+      is_followup: true,
+      evaluation: turnEval,
+    });
+    return {
+      mentor_message: mentorMessage,
+      committee_messages: [{
+        persona_id: activePersona.id,
+        persona_title: activePersona.title,
+        message: mentorMessage,
+        asks_question: true,
+      }],
+      is_followup: true,
+      should_end: remainingSeconds <= 0,
+      remaining_seconds: remainingSeconds,
+      turn_evaluation: turnEval,
+      active_persona_id: activePersona.id,
+      active_persona_title: activePersona.title,
+    };
+  }
+
   const transcript = [...turns, {
     sequence: nextSequence,
     speaker: "candidate",
@@ -447,16 +490,8 @@ async function takeTurn(admin: any, userId: string, body: JsonMap) {
     responseMimeType: "application/json",
   });
   const parsed = safeParse(response.text);
-  let mentorMessage = stringValue(parsed.mentor_message);
-  if (!mentorMessage) {
-    const rawFallback = stringValue(response.text)
-      .replace(/^```json\s*/i, "")
-      .replace(/^```\s*/i, "")
-      .replace(/```$/i, "")
-      .trim();
-    mentorMessage = rawFallback ||
-      `${activePersona.title}: Devam edelim, lütfen son cevabını biraz daha açar mısın?`;
-  }
+  const mentorMessage = safeGeneratedMessage(parsed.mentor_message) ||
+    `${activePersona.title}: Devam edelim, lütfen son cevabını klinik gerekçenle biraz daha açar mısın?`;
   const isFollowup = parsed.is_followup === true;
   const shouldEnd = parsed.should_end === true || remainingSeconds <= 0;
   const turnEval = (parsed.turn_evaluation as JsonMap | undefined) ?? {};
@@ -562,13 +597,10 @@ async function skipQuestion(admin: any, userId: string, body: JsonMap) {
     responseMimeType: "application/json",
   });
   const parsed = safeParse(response.text);
-  let mentorMessage = stringValue(parsed.mentor_message);
-  if (!mentorMessage) {
-    mentorMessage = stringValue(response.text) ||
-      `${
-        activePersona?.title ?? "Hoca"
-      }: Geç o zaman, bir sonraki soruya geçelim.`;
-  }
+  const mentorMessage = safeGeneratedMessage(parsed.mentor_message) ||
+    `${
+      activePersona?.title ?? "Hoca"
+    }: Bu soruyu atlıyoruz; sonraki klinik soruyla devam edelim.`;
   const mentorReplies = isPanelTurn
     ? committeeReplies(parsed, panel, activePersona, mentorMessage)
     : [{
@@ -672,6 +704,16 @@ async function finalize(admin: any, userId: string, body: JsonMap) {
     responseMimeType: "application/json",
   });
   const parsed = safeParse(evaluation.text);
+  if (
+    numberValue(parsed.total_score) === null &&
+    numberValue(parsed.reasoning_score) === null &&
+    numberValue(parsed.knowledge_score) === null
+  ) {
+    return {
+      error:
+        "Karne şu anda hazırlanamadı. Yanıtların kaydedildi, tekrar deneyebilirsin.",
+    };
+  }
 
   await chargeAiCoins({
     admin,
@@ -718,16 +760,11 @@ async function finalize(admin: any, userId: string, body: JsonMap) {
       communication_score: communication,
       pace_score: pace,
       professionalism_score: professionalism,
-      mentor_summary: stringValue(parsed.mentor_summary),
-      strong_points: Array.isArray(parsed.strong_points)
-        ? parsed.strong_points
-        : [],
-      improvement_points: Array.isArray(parsed.improvement_points)
-        ? parsed.improvement_points
-        : [],
-      missed_points: Array.isArray(parsed.missed_points)
-        ? parsed.missed_points
-        : [],
+      mentor_summary: safeGeneratedMessage(parsed.mentor_summary) ||
+        "Komite değerlendirmesi tamamlandı. Güçlü yönlerin ve gelişim alanların aşağıda özetlendi.",
+      strong_points: safeGeneratedList(parsed.strong_points),
+      improvement_points: safeGeneratedList(parsed.improvement_points),
+      missed_points: safeGeneratedList(parsed.missed_points),
       panel_summaries: panelSummaries,
       updated_at: new Date().toISOString(),
     })
@@ -736,7 +773,12 @@ async function finalize(admin: any, userId: string, body: JsonMap) {
       "id,total_score,max_score,reasoning_score,knowledge_score,communication_score,pace_score,professionalism_score,mentor_summary,strong_points,improvement_points,missed_points,case_brief,exam_format,panel_persona_ids,panel_summaries",
     )
     .single();
-  if (update.error) return { error: update.error.message };
+  if (update.error) {
+    return {
+      error:
+        "Karne şu anda hazırlanamadı. Yanıtların kaydedildi, tekrar deneyebilirsin.",
+    };
+  }
   return {
     result: update.data,
     panel: panel.map((p: any) => ({
@@ -756,7 +798,7 @@ async function listScenarios(admin: any, body: JsonMap) {
     .order("sort_order");
   if (branchId) q = q.eq("branch_id", branchId);
   const { data, error } = await q;
-  if (error) return { error: error.message };
+  if (error) return { error: "Sözlü sınav senaryoları şu anda yüklenemedi." };
   return { scenarios: data ?? [] };
 }
 
@@ -854,7 +896,7 @@ function committeeReplies(
     const raw = rawMessages.find((message) =>
       stringValue(message.persona_id) === personaId
     );
-    return stringValue(raw?.message);
+    return safeGeneratedMessage(raw?.message);
   };
 
   const comments = panel
@@ -884,19 +926,18 @@ function safeParse(raw: string): JsonMap {
   try {
     return JSON.parse(cleaned) as JsonMap;
   } catch {
-    // JSON parse failed — try to salvage the first {...} block, otherwise
-    // expose the raw text so the user still sees a mentor response instead
-    // of an empty bubble.
+    // Parse only a complete JSON object; a raw model response must not reach
+    // a chat bubble.
     const start = cleaned.indexOf("{");
     const end = cleaned.lastIndexOf("}");
     if (start >= 0 && end > start) {
       try {
         return JSON.parse(cleaned.slice(start, end + 1)) as JsonMap;
       } catch {
-        // fall through to raw fallback
+        // fall through to the safe empty response
       }
     }
-    return cleaned ? { mentor_message: cleaned } : {};
+    return {};
   }
 }
 
@@ -917,6 +958,31 @@ function stringValue(value: unknown) {
     : String(value).trim();
 }
 
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
+function safeGeneratedMessage(value: unknown) {
+  const message = stringValue(value);
+  if (!message || looksStructuredPayload(message)) return "";
+  return message;
+}
+
+function safeGeneratedList(value: unknown) {
+  return Array.isArray(value)
+    ? value.map(safeGeneratedMessage).filter((message) => message.length > 0)
+    : [];
+}
+
+function looksStructuredPayload(message: string) {
+  return (
+    (message.startsWith("{") && message.endsWith("}")) ||
+    (message.startsWith("[") && message.endsWith("]")) ||
+    /"(mentor_message|case_brief|turn_evaluation|panel_summaries)"/i.test(
+      message,
+    )
+  );
+}
+
+function isInsufficientCandidateAnswer(message: string) {
+  const normalized = message.toLocaleLowerCase("tr").replace(/\s+/g, " ")
+    .trim();
+  return normalized.length < 3 ||
+    ["naber", "selam", "test", "slay", "slaay"].includes(normalized);
 }

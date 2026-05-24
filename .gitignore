@@ -14,6 +14,7 @@ migrate_working_dir/
 AGENTS.md
 .env.praticase
 .env.deploy.local
+*.p8
 supabase/.temp/
 .dart_tool/praticase_env.json
 ios/Flutter/PratiCaseEnv.xcconfig
