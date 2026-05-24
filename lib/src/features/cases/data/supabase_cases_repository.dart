@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../domain/osce_case.dart';
@@ -467,7 +469,7 @@ class SupabaseCasesRepository implements CasesRepository {
       final note = await _client
           .schema('praticase')
           .from('session_management_notes')
-          .select('diagnosis,plan_note')
+          .select('diagnosis,plan_note,consultation_destination')
           .eq('session_id', sessionId)
           .maybeSingle();
       if (note == null) return null;
@@ -482,6 +484,7 @@ class SupabaseCasesRepository implements CasesRepository {
         selectedOptionIds: [
           for (final row in selectedRows) _string(row, 'option_id'),
         ],
+        consultationDestination: _string(note, 'consultation_destination'),
       );
     } on PostgrestException catch (error) {
       throw CasesDataUnavailable(_message(error));
@@ -494,6 +497,7 @@ class SupabaseCasesRepository implements CasesRepository {
     required String diagnosis,
     required List<String> selectedOptionIds,
     required String note,
+    String consultationDestination = '',
   }) async {
     try {
       await _client
@@ -503,8 +507,14 @@ class SupabaseCasesRepository implements CasesRepository {
             'session_id': sessionId,
             'diagnosis': diagnosis.trim(),
             'plan_note': note.trim(),
+            'consultation_destination': consultationDestination.trim(),
             'updated_at': DateTime.now().toUtc().toIso8601String(),
           });
+      await _client
+          .schema('praticase')
+          .from('session_management_plan_items')
+          .delete()
+          .eq('session_id', sessionId);
       if (selectedOptionIds.isNotEmpty) {
         await _client
             .schema('praticase')
@@ -570,17 +580,21 @@ class SupabaseCasesRepository implements CasesRepository {
 
   Future<void> _finalizeSession(String sessionId) async {
     try {
-      final response = await _client.functions.invoke(
+      await _finalizeSessionWithRubric(sessionId);
+      unawaited(_requestAiEnrichment(sessionId));
+    } on CasesDataUnavailable {
+      rethrow;
+    }
+  }
+
+  Future<void> _requestAiEnrichment(String sessionId) async {
+    try {
+      await _client.functions.invoke(
         'praticase-complete-session',
         body: {'sessionId': sessionId},
       );
-      if (response.status >= 400) {
-        throw CasesDataUnavailable(_functionMessage(response.data));
-      }
-    } on CasesDataUnavailable {
-      await _finalizeSessionWithRubric(sessionId);
     } on Object {
-      await _finalizeSessionWithRubric(sessionId);
+      // The deterministic result is already available; AI feedback is optional.
     }
   }
 

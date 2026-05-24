@@ -76,12 +76,18 @@ class HomeBanner {
     required this.title,
     required this.subtitle,
     required this.ctaLabel,
+    this.ctaRoute,
+    this.imageUrl,
+    this.imageAltText = '',
   });
 
   final String id;
   final String title;
   final String subtitle;
   final String ctaLabel;
+  final String? ctaRoute;
+  final String? imageUrl;
+  final String imageAltText;
 }
 
 class DashboardStats {

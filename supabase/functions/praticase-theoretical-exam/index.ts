@@ -35,6 +35,7 @@ type QuestionRow = {
 type TopicRequest = {
   topic: string;
   metadataValue: string;
+  difficulty: string;
 };
 
 type CourseRequestPlan = {
@@ -89,15 +90,33 @@ Deno.serve(async (request) => {
   const action = stringValue(body.action);
 
   if (action === "filters") {
+    const rateLimit = await enforceQuestionRateLimit(
+      admin,
+      authData.user.id,
+      "filters",
+    );
+    if (rateLimit) return withOrigin(rateLimit, origin);
     return withOrigin(await loadFilters(admin, authData.user.id), origin);
   }
   if (action === "questions") {
+    const rateLimit = await enforceQuestionRateLimit(
+      admin,
+      authData.user.id,
+      "delivery",
+    );
+    if (rateLimit) return withOrigin(rateLimit, origin);
     return withOrigin(
       await loadQuestions(admin, authData.user.id, body),
       origin,
     );
   }
   if (action === "submit_attempt") {
+    const rateLimit = await enforceQuestionRateLimit(
+      admin,
+      authData.user.id,
+      "answer",
+    );
+    if (rateLimit) return withOrigin(rateLimit, origin);
     return withOrigin(
       await submitAttempt(admin, authData.user.id, body),
       origin,
@@ -108,14 +127,28 @@ Deno.serve(async (request) => {
 });
 
 async function loadFilters(admin: any, userId: string) {
-  const { data, error } = await admin.rpc("question_filter_options", {
+  const payloadResult = await admin.rpc("question_filter_payload", {
     p_user_id: userId,
   });
-
-  if (error) return { error: error.message };
+  let data: unknown;
+  let totalQuestions = 0;
+  let remainingQuestions = 0;
+  if (!payloadResult.error) {
+    const payload = isJsonMap(payloadResult.data) ? payloadResult.data : {};
+    data = Array.isArray(payload.filters) ? payload.filters : [];
+    totalQuestions = numberValue(payload.total_questions) ?? 0;
+    remainingQuestions = numberValue(payload.remaining_questions) ?? 0;
+  } else {
+    const fallback = await admin.rpc("question_filter_options", {
+      p_user_id: userId,
+    });
+    if (fallback.error) return { error: fallback.error.message };
+    data = fallback.data ?? [];
+  }
 
   const filtersByKey = new Map<string, JsonMap>();
-  for (const row of data ?? []) {
+  const filterRows = Array.isArray(data) ? data : [];
+  for (const row of filterRows) {
     const subject = stringValue(row.subject);
     const topic = stringValue(row.topic);
     const metadataValue = stringValue(row.metadata_value);
@@ -123,7 +156,9 @@ async function loadFilters(admin: any, userId: string) {
     const total = numberValue(row.total_count) ?? 0;
     if (!subject) continue;
     if (remaining <= 0) continue;
-    const key = `${subject}\u0000${topic}\u0000${metadataValue}`;
+    const difficulty = stringValue(row.difficulty);
+    const key =
+      `${subject}\u0000${topic}\u0000${metadataValue}\u0000${difficulty}`;
     const existing = filtersByKey.get(key);
     if (existing) {
       existing.total_count = (numberValue(existing.total_count) ?? 0) + total;
@@ -135,6 +170,7 @@ async function loadFilters(admin: any, userId: string) {
       subject,
       topic,
       metadata_value: metadataValue,
+      difficulty,
       total_count: total,
       remaining_count: remaining,
     });
@@ -147,7 +183,22 @@ async function loadFilters(admin: any, userId: string) {
       "tr",
     )
   );
-  return { filters };
+  if (totalQuestions === 0) {
+    totalQuestions = [...filtersByKey.values()].reduce(
+      (sum, row) => sum + (numberValue(row.total_count) ?? 0),
+      0,
+    );
+    remainingQuestions = [...filtersByKey.values()].reduce(
+      (sum, row) => sum + (numberValue(row.remaining_count) ?? 0),
+      0,
+    );
+  }
+  return {
+    filters,
+    total_questions: totalQuestions,
+    remaining_questions: remainingQuestions,
+    filter_groups: filters.length,
+  };
 }
 
 async function loadQuestions(
@@ -178,6 +229,7 @@ async function loadQuestions(
           subject: plan.subject,
           topic: "",
           metadataValue: "",
+          difficulty: "",
         },
         planLimit,
         limit,
@@ -200,6 +252,7 @@ async function loadQuestions(
           subject: plan.subject,
           topic: topic.topic,
           metadataValue: topic.metadataValue,
+          difficulty: topic.difficulty,
         },
         topicLimit,
         limit,
@@ -239,6 +292,7 @@ async function appendQuestions(
       p_subject: filter.subject || null,
       p_topic: filter.topic || null,
       p_metadata: filter.metadataValue || null,
+      p_difficulty: filter.difficulty || null,
     });
     if (error) return error.message;
     const rows = (data ?? []) as QuestionRow[];
@@ -274,10 +328,13 @@ function requestPlans(body: JsonMap): CourseRequestPlan[] {
       const metadataValue = isJsonMap(rawTopic)
         ? stringValue(rawTopic.metadata_value ?? rawTopic.metadataValue)
         : stringValue(rawTopic);
-      const key = `${topic}\u0000${metadataValue}`;
+      const difficulty = isJsonMap(rawTopic)
+        ? stringValue(rawTopic.difficulty)
+        : "";
+      const key = `${topic}\u0000${metadataValue}\u0000${difficulty}`;
       if ((!topic && !metadataValue) || seenTopics.has(key)) continue;
       seenTopics.add(key);
-      topics.push({ topic, metadataValue });
+      topics.push({ topic, metadataValue, difficulty });
       if (topics.length >= limit) break;
     }
     plans.push({ subject, limit, topics });
@@ -293,7 +350,11 @@ function requestPlans(body: JsonMap): CourseRequestPlan[] {
     return [{
       subject: "",
       limit,
-      topics: topics.map((topic) => ({ topic, metadataValue: topic })),
+      topics: topics.map((topic) => ({
+        topic,
+        metadataValue: topic,
+        difficulty: "",
+      })),
     }];
   }
   const perSubject = Math.max(1, Math.floor(limit / subjects.length));
@@ -304,7 +365,11 @@ function requestPlans(body: JsonMap): CourseRequestPlan[] {
     return {
       subject,
       limit: subjectLimit,
-      topics: topics.map((topic) => ({ topic, metadataValue: topic })),
+      topics: topics.map((topic) => ({
+        topic,
+        metadataValue: topic,
+        difficulty: "",
+      })),
     };
   }));
 }
@@ -319,6 +384,35 @@ function capPlans(plans: CourseRequestPlan[]) {
     remaining -= limit;
   }
   return capped;
+}
+
+async function enforceQuestionRateLimit(
+  admin: any,
+  userId: string,
+  bucket: "answer" | "delivery" | "filters",
+): Promise<JsonMap | null> {
+  const limits = {
+    answer: { requests: 45, windowSeconds: 60 },
+    delivery: { requests: 12, windowSeconds: 60 },
+    filters: { requests: 20, windowSeconds: 60 },
+  }[bucket];
+  const { data: allowed, error } = await admin.rpc(
+    "check_edge_action_rate_limit",
+    {
+      p_user_id: userId,
+      p_action: `questions_${bucket}`,
+      p_limit: limits.requests,
+      p_window_seconds: limits.windowSeconds,
+    },
+  );
+  if (error) return { error: "Soru kotası şu anda doğrulanamadı." };
+  if (allowed !== true) {
+    return {
+      error:
+        "Çok sık soru isteği gönderildi. Kısa bir ara verip tekrar deneyin.",
+    };
+  }
+  return null;
 }
 
 async function submitAttempt(admin: any, userId: string, body: JsonMap) {

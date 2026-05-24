@@ -136,19 +136,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     loading: _loading,
                     onPressed: _submit,
                   ),
-                  const SizedBox(height: PratiCaseSpacing.xl),
-                  const _DividerLabel(),
-                  const SizedBox(height: PratiCaseSpacing.lg),
-                  _ProviderButton(
-                    icon: Icons.g_mobiledata_rounded,
-                    label: 'Google ile devam et',
-                    onPressed: _signInWithGoogle,
-                  ),
-                  const SizedBox(height: PratiCaseSpacing.sm),
-                  const _ProviderButton(
-                    icon: Icons.apple_rounded,
-                    label: 'Apple ile devam et',
-                  ),
                 ],
               ),
             ),
@@ -171,20 +158,6 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
-  }
-
-  Future<void> _signInWithGoogle() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      await widget.repository.signInWithGoogle();
-    } on AuthFailure catch (failure) {
-      setState(() => _error = failure.message);
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
   }
 }
 
@@ -232,65 +205,6 @@ class _LoginBrandHeader extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _DividerLabel extends StatelessWidget {
-  const _DividerLabel();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Expanded(child: Divider(color: PratiCaseColors.border)),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            'veya',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: PratiCaseColors.muted),
-          ),
-        ),
-        const Expanded(child: Divider(color: PratiCaseColors.border)),
-      ],
-    );
-  }
-}
-
-class _ProviderButton extends StatelessWidget {
-  const _ProviderButton({
-    required this.icon,
-    required this.label,
-    this.onPressed,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return OutlinedButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, color: PratiCaseColors.ink, size: 20),
-      label: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-      style: OutlinedButton.styleFrom(
-        minimumSize: const Size.fromHeight(52),
-        foregroundColor: PratiCaseColors.ink,
-        side: const BorderSide(color: PratiCaseColors.border),
-        iconColor: PratiCaseColors.ink,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
-        ),
-      ),
     );
   }
 }

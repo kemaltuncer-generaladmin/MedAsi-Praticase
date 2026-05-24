@@ -154,12 +154,14 @@ class TimeoutCasesRepository implements CasesRepository {
     required String diagnosis,
     required List<String> selectedOptionIds,
     required String note,
+    String consultationDestination = '',
   }) => _delegate
       .saveManagementPlan(
         sessionId: sessionId,
         diagnosis: diagnosis,
         selectedOptionIds: selectedOptionIds,
         note: note,
+        consultationDestination: consultationDestination,
       )
       .withRepositoryTimeout();
 
@@ -310,6 +312,27 @@ class TimeoutProgressRepository implements ProgressRepository {
   @override
   Future<void> saveAppSettings(AppSettings settings) =>
       _delegate.saveAppSettings(settings).withRepositoryTimeout();
+
+  @override
+  Future<StoreCatalog> loadStoreCatalog() =>
+      _delegate.loadStoreCatalog().withRepositoryTimeout();
+
+  @override
+  Future<StoreCatalog> completeStorePurchase({
+    required StoreProduct product,
+    required String purchaseId,
+    required String verificationSource,
+    required String localVerificationData,
+    required String serverVerificationData,
+  }) => _delegate
+      .completeStorePurchase(
+        product: product,
+        purchaseId: purchaseId,
+        verificationSource: verificationSource,
+        localVerificationData: localVerificationData,
+        serverVerificationData: serverVerificationData,
+      )
+      .withRepositoryTimeout();
 }
 
 class TimeoutTheoreticalExamRepository implements TheoreticalExamRepository {

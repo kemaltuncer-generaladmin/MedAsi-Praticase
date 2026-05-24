@@ -7,6 +7,7 @@ import 'package:praticase/src/features/auth/data/auth_repository.dart';
 import 'package:praticase/src/features/auth/domain/auth_user.dart';
 import 'package:praticase/src/features/auth/domain/profile_setup.dart';
 import 'package:praticase/src/features/auth/presentation/screens/profile_setup_screen.dart';
+import 'package:praticase/src/features/auth/presentation/screens/login_screen.dart';
 import 'package:praticase/src/features/auth/presentation/screens/register_screen.dart';
 import 'package:praticase/src/features/auth/presentation/screens/reset_password_screen.dart';
 import 'package:praticase/src/features/cases/data/cases_repository.dart';
@@ -89,6 +90,24 @@ void main() {
     await tester.pump();
 
     expect(find.text('6 haneli doğrulama kodunu gir.'), findsOneWidget);
+  });
+
+  testWidgets('login exposes email auth only', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LoginScreen(
+          repository: _TestAuthRepository(),
+          onBack: () {},
+          onForgotPassword: () {},
+          onRegister: () {},
+          onSignedIn: (_) {},
+        ),
+      ),
+    );
+
+    expect(find.text('Google ile devam et'), findsNothing);
+    expect(find.text('Apple ile devam et'), findsNothing);
+    expect(find.text('Giriş Yap'), findsOneWidget);
   });
 
   testWidgets('settings logout confirmation calls sign out callback', (
@@ -288,6 +307,7 @@ void main() {
 
     expect(find.byTooltip('Bildirimler'), findsOneWidget);
     expect(find.byTooltip('Profilim'), findsOneWidget);
+    expect(find.text('Sıralama'), findsNothing);
     await tester.tap(find.byTooltip('Bildirimler'));
     await tester.tap(find.byTooltip('Profilim'));
 
@@ -431,6 +451,7 @@ void main() {
 
     expect(find.text('Laboratuvar Tetkikleri'), findsOneWidget);
     expect(find.text('Hemogram'), findsOneWidget);
+    expect(find.text('2 p'), findsNothing);
 
     await tester.tap(find.text('Hemogram'));
     await tester.pumpAndSettle();
@@ -572,7 +593,7 @@ void main() {
   });
 
   testWidgets('theoretical setup sends selected Qlinik topics', (tester) async {
-    await _setIPhone14Viewport(tester);
+    await _setViewport(tester, const Size(390, 1200));
     final repository = _RecordingTheoreticalExamRepository();
 
     await tester.pumpWidget(
@@ -1326,9 +1347,6 @@ class _TestAuthRepository implements AuthRepository {
   }) async {
     return AuthUser(id: 'test-user', email: email, fullName: fullName);
   }
-
-  @override
-  Future<void> signInWithGoogle() async {}
 
   @override
   Future<void> sendPasswordResetCode(String email) async {}

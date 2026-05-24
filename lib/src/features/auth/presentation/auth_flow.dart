@@ -23,20 +23,34 @@ class AuthFlow extends StatefulWidget {
   const AuthFlow({
     required this.authRepository,
     required this.onAuthenticated,
+    this.initialStep = AuthStep.onboarding,
+    this.initialEmail = '',
+    this.initialFullName = '',
     super.key,
   });
 
   final AuthRepository authRepository;
   final VoidCallback onAuthenticated;
+  final AuthStep initialStep;
+  final String initialEmail;
+  final String initialFullName;
 
   @override
   State<AuthFlow> createState() => _AuthFlowState();
 }
 
 class _AuthFlowState extends State<AuthFlow> {
-  AuthStep _step = AuthStep.onboarding;
-  String _email = '';
-  String _fullName = '';
+  late AuthStep _step;
+  late String _email;
+  late String _fullName;
+
+  @override
+  void initState() {
+    super.initState();
+    _step = widget.initialStep;
+    _email = widget.initialEmail;
+    _fullName = widget.initialFullName;
+  }
 
   void _go(AuthStep step) => setState(() => _step = step);
 
@@ -100,7 +114,11 @@ class _AuthFlowState extends State<AuthFlow> {
       AuthStep.profileSetup => ProfileSetupScreen(
         repository: widget.authRepository,
         fullName: _fullName,
-        onBack: () => _go(AuthStep.verifyEmail),
+        onBack: () => _go(
+          widget.initialStep == AuthStep.profileSetup
+              ? AuthStep.login
+              : AuthStep.verifyEmail,
+        ),
         onCompleted: widget.onAuthenticated,
       ),
     };

@@ -100,7 +100,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 26),
                   _BannerCarousel(
                     banners: dashboard.banners,
-                    onCta: widget.onOpenCases,
+                    onCta: _openBannerRoute,
                   ),
                 ],
               ] else ...[
@@ -142,7 +142,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 28),
                 _BannerCarousel(
                   banners: dashboard.banners,
-                  onCta: widget.onOpenCases,
+                  onCta: _openBannerRoute,
                 ),
               ],
             ],
@@ -161,6 +161,23 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  void _openBannerRoute(HomeBanner banner) {
+    switch (banner.ctaRoute) {
+      case '/progress':
+        widget.onOpenProgress?.call();
+        return;
+      case '/theoretical-exam':
+        widget.onOpenTheoreticalExam?.call();
+        return;
+      case '/exams':
+        widget.onOpenExams?.call();
+        return;
+      default:
+        widget.onOpenCases?.call();
+        return;
+    }
   }
 }
 
@@ -285,7 +302,7 @@ class _BannerCarousel extends StatefulWidget {
   const _BannerCarousel({required this.banners, required this.onCta});
 
   final List<HomeBanner> banners;
-  final VoidCallback? onCta;
+  final ValueChanged<HomeBanner>? onCta;
 
   @override
   State<_BannerCarousel> createState() => _BannerCarouselState();
@@ -328,7 +345,9 @@ class _BannerCarouselState extends State<_BannerCarousel> {
             itemBuilder: (context, index) {
               return _HeroBanner(
                 banner: widget.banners[index],
-                onCta: widget.onCta,
+                onCta: widget.onCta == null
+                    ? null
+                    : () => widget.onCta!(widget.banners[index]),
               );
             },
           ),
@@ -381,11 +400,25 @@ class _HeroBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(PratiCaseRadius.xxl),
         child: Stack(
           children: [
-            const Positioned(
+            Positioned(
               right: 12,
               top: 26,
               bottom: 18,
-              child: _ClinicalIllustration(),
+              child: banner.imageUrl == null
+                  ? const _ClinicalIllustration()
+                  : Semantics(
+                      label: banner.imageAltText,
+                      image: true,
+                      child: SizedBox(
+                        width: 94,
+                        child: Image.network(
+                          banner.imageUrl!,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, _, _) =>
+                              const _ClinicalIllustration(),
+                        ),
+                      ),
+                    ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 110, 20),

@@ -60,7 +60,9 @@ class SupabaseHomeRepository implements HomeRepository {
       return await _client
           .schema('praticase')
           .from('home_banners')
-          .select('id,title,subtitle,cta_label')
+          .select(
+            'id,title,subtitle,cta_label,cta_route,image_url,image_storage_path,image_alt_text,deep_link',
+          )
           .eq('is_active', true)
           .order('sort_order')
           .limit(5);
@@ -194,11 +196,22 @@ class SupabaseHomeRepository implements HomeRepository {
   }
 
   HomeBanner _bannerFromRow(Map<String, dynamic> row) {
+    final imageUrl = _readString(row, 'image_url');
+    final storagePath = _readString(row, 'image_storage_path');
     return HomeBanner(
       id: _readString(row, 'id') ?? '',
       title: _readString(row, 'title') ?? '',
       subtitle: _readString(row, 'subtitle') ?? '',
       ctaLabel: _readString(row, 'cta_label') ?? 'Başla',
+      ctaRoute: _readString(row, 'deep_link') ?? _readString(row, 'cta_route'),
+      imageUrl:
+          imageUrl ??
+          (storagePath == null
+              ? null
+              : _client.storage
+                    .from('praticase-home')
+                    .getPublicUrl(storagePath)),
+      imageAltText: _readString(row, 'image_alt_text') ?? '',
     );
   }
 

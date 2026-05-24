@@ -30,8 +30,10 @@ class PratiCaseApp extends StatefulWidget {
 }
 
 class _PratiCaseAppState extends State<PratiCaseApp> {
-  bool _authenticated = false;
+  _SessionGate _gate = _SessionGate.loggedOut;
   bool _restoringSession = true;
+  String _initialEmail = '';
+  String _initialFullName = '';
 
   @override
   void initState() {
@@ -43,7 +45,13 @@ class _PratiCaseAppState extends State<PratiCaseApp> {
     final user = await widget.authRepository.currentUser();
     if (!mounted) return;
     setState(() {
-      _authenticated = user?.profileCompleted == true;
+      _initialEmail = user?.email ?? '';
+      _initialFullName = user?.fullName ?? '';
+      _gate = user == null
+          ? _SessionGate.loggedOut
+          : user.profileCompleted
+          ? _SessionGate.authenticated
+          : _SessionGate.profilePending;
       _restoringSession = false;
     });
   }
@@ -51,7 +59,7 @@ class _PratiCaseAppState extends State<PratiCaseApp> {
   Future<void> _signOut() async {
     await widget.authRepository.signOut();
     if (!mounted) return;
-    setState(() => _authenticated = false);
+    setState(() => _gate = _SessionGate.loggedOut);
   }
 
   @override
@@ -62,7 +70,7 @@ class _PratiCaseAppState extends State<PratiCaseApp> {
       theme: PratiCaseTheme.light(),
       home: _restoringSession
           ? const _PratiCaseStartupScreen()
-          : _authenticated
+          : _gate == _SessionGate.authenticated
           ? PratiCaseShell(
               authRepository: widget.authRepository,
               homeRepository: widget.homeRepository,
@@ -73,11 +81,19 @@ class _PratiCaseAppState extends State<PratiCaseApp> {
             )
           : AuthFlow(
               authRepository: widget.authRepository,
-              onAuthenticated: () => setState(() => _authenticated = true),
+              initialStep: _gate == _SessionGate.profilePending
+                  ? AuthStep.profileSetup
+                  : AuthStep.onboarding,
+              initialEmail: _initialEmail,
+              initialFullName: _initialFullName,
+              onAuthenticated: () =>
+                  setState(() => _gate = _SessionGate.authenticated),
             ),
     );
   }
 }
+
+enum _SessionGate { loggedOut, profilePending, authenticated }
 
 class _PratiCaseStartupScreen extends StatelessWidget {
   const _PratiCaseStartupScreen();

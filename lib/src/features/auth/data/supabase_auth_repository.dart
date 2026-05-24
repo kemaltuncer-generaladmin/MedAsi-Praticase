@@ -39,7 +39,7 @@ class SupabaseAuthRepository implements AuthRepository {
       if (user == null) {
         throw const AuthFailure('Giriş tamamlanamadı.');
       }
-      return user.toDomain();
+      return user.toDomain(profileCompleted: await _profileCompleted(user));
     } on AuthException catch (error) {
       throw AuthFailure(_friendlyMessage(error.message));
     }
@@ -55,7 +55,12 @@ class SupabaseAuthRepository implements AuthRepository {
       final response = await _client.auth.signUp(
         email: email.trim(),
         password: password,
-        data: {'full_name': fullName.trim(), 'source_app': 'praticase'},
+        data: {
+          'full_name': fullName.trim(),
+          'source_app': 'praticase',
+          'accepted_terms': true,
+          'consent_version': 'praticase-auth-v1',
+        },
         emailRedirectTo: _config.redirectUrl,
       );
       final user = response.user;
@@ -68,18 +73,6 @@ class SupabaseAuthRepository implements AuthRepository {
         acceptedTerms: true,
       );
       return user.toDomain();
-    } on AuthException catch (error) {
-      throw AuthFailure(_friendlyMessage(error.message));
-    }
-  }
-
-  @override
-  Future<void> signInWithGoogle() async {
-    try {
-      await _client.auth.signInWithOAuth(
-        OAuthProvider.google,
-        redirectTo: _config.redirectUrl,
-      );
     } on AuthException catch (error) {
       throw AuthFailure(_friendlyMessage(error.message));
     }
@@ -151,24 +144,29 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   Future<domain.AuthUser> completeProfile(ProfileSetup setup) async {
     try {
-      final response = await _client.auth.updateUser(
-        UserAttributes(
-          data: {
-            'praticase_profile_completed': true,
-            'grade': setup.grade,
-            'target_branches': setup.targetBranches,
-            'daily_goal': setup.dailyGoal,
-            'osce_exam_date': setup.examDate?.toIso8601String(),
-          },
-        ),
-      );
-      final user = response.user;
+      final user = _client.auth.currentUser;
       if (user == null) {
-        throw const AuthFailure('Profil güncellenemedi.');
+        throw const AuthFailure('Profil kurulumu için oturum gerekli.');
       }
-      await _upsertProfile(user: user, setup: setup);
-      return user.toDomain(profileCompleted: true);
+      await _client
+          .schema('praticase')
+          .rpc(
+            'complete_user_profile',
+            params: {
+              'p_grade': setup.grade,
+              'p_class_level': _classLevel(setup.grade),
+              'p_target_exam': setup.targetExam,
+              'p_target_branches': setup.targetBranches,
+              'p_target': _profileTarget(setup),
+              'p_daily_goal': setup.dailyGoal,
+              'p_exam_date': setup.examDate?.toIso8601String(),
+            },
+          );
+      final refreshed = _client.auth.currentUser ?? user;
+      return refreshed.toDomain(profileCompleted: true);
     } on AuthException catch (error) {
+      throw AuthFailure(_friendlyMessage(error.message));
+    } on PostgrestException catch (error) {
       throw AuthFailure(_friendlyMessage(error.message));
     }
   }

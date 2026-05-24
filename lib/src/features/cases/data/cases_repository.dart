@@ -71,6 +71,7 @@ abstract interface class CasesRepository {
     required String diagnosis,
     required List<String> selectedOptionIds,
     required String note,
+    String consultationDestination = '',
   });
 
   Future<ExamResultSummary> loadResult(String sessionId);

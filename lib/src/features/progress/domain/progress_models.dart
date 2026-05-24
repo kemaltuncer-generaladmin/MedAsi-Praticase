@@ -68,6 +68,9 @@ class ProfileCard {
     required this.dailyStreak,
     required this.successRatePercent,
     required this.settings,
+    this.dailyGoal = 1,
+    this.osceExamDate,
+    this.targetBranches = const [],
   });
 
   final String displayName;
@@ -80,6 +83,9 @@ class ProfileCard {
   final int dailyStreak;
   final int successRatePercent;
   final AppSettings settings;
+  final int dailyGoal;
+  final DateTime? osceExamDate;
+  final List<String> targetBranches;
 }
 
 class ClinicalProgressSummary {
@@ -118,10 +124,7 @@ class ProgressResultInsight {
 }
 
 class ProgressFeedbackInsight {
-  const ProgressFeedbackInsight({
-    required this.title,
-    required this.items,
-  });
+  const ProgressFeedbackInsight({required this.title, required this.items});
 
   final String title;
   final List<String> items;
@@ -235,4 +238,46 @@ class UserNote {
   final String category;
   final String? caseTitle;
   final DateTime updatedAt;
+}
+
+class StoreCatalog {
+  const StoreCatalog({
+    required this.products,
+    required this.walletBalance,
+    required this.questionQuota,
+    required this.aiQuota,
+    this.warnings = const [],
+  });
+
+  final List<StoreProduct> products;
+  final double walletBalance;
+  final int questionQuota;
+  final int aiQuota;
+  final List<String> warnings;
+}
+
+class StoreProduct {
+  const StoreProduct({
+    required this.code,
+    required this.name,
+    required this.description,
+    required this.priceCents,
+    required this.currency,
+    required this.questionAmount,
+    required this.coinAmount,
+    required this.appStoreProductId,
+    required this.isFeatured,
+    this.interval = '',
+  });
+
+  final String code;
+  final String name;
+  final String description;
+  final int priceCents;
+  final String currency;
+  final int questionAmount;
+  final double coinAmount;
+  final String appStoreProductId;
+  final bool isFeatured;
+  final String interval;
 }

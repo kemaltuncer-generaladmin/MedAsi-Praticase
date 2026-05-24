@@ -257,6 +257,11 @@ class _TheoreticalExamSetupScreenState
               children: [
                 const _IntroCard(),
                 const SizedBox(height: 16),
+                _SharedQuotaCard(
+                  remaining: filters.remainingQuestionCount,
+                  total: filters.totalQuestionCount,
+                ),
+                const SizedBox(height: 12),
                 _SectionCard(
                   title: 'Ders Seçimi',
                   child: filters.courses.isEmpty
@@ -800,6 +805,40 @@ class _PlanSummary extends StatelessWidget {
               style: const TextStyle(
                 color: PratiCaseColors.navy,
                 fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SharedQuotaCard extends StatelessWidget {
+  const _SharedQuotaCard({required this.remaining, required this.total});
+
+  final int remaining;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SectionCard(
+      title: 'Qlinik Ortak Soru Hakkı',
+      child: Row(
+        children: [
+          const Icon(
+            Icons.account_balance_wallet_outlined,
+            color: PratiCaseColors.teal,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              '$remaining/$total tekrar etmeyen soru kullanılabilir. '
+              'Teslim edilen soru Qlinik ve PratiCase boyunca yeniden gösterilmez.',
+              style: const TextStyle(
+                color: PratiCaseColors.navy,
+                fontWeight: FontWeight.w700,
+                height: 1.35,
               ),
             ),
           ),

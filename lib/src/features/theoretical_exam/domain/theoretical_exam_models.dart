@@ -3,11 +3,15 @@ class TheoreticalExamFilters {
     required this.courses,
     required this.topicsByCourse,
     this.topicOptionsByCourse = const <String, List<TheoreticalTopicOption>>{},
+    this.totalQuestionCount = 0,
+    this.remainingQuestionCount = 0,
   });
 
   final List<String> courses;
   final Map<String, List<String>> topicsByCourse;
   final Map<String, List<TheoreticalTopicOption>> topicOptionsByCourse;
+  final int totalQuestionCount;
+  final int remainingQuestionCount;
 
   List<String> topicsFor(Set<String> selectedCourses) {
     final topics = <String>{};

@@ -53,6 +53,16 @@ abstract interface class ProgressRepository {
   });
 
   Future<void> saveAppSettings(AppSettings settings);
+
+  Future<StoreCatalog> loadStoreCatalog();
+
+  Future<StoreCatalog> completeStorePurchase({
+    required StoreProduct product,
+    required String purchaseId,
+    required String verificationSource,
+    required String localVerificationData,
+    required String serverVerificationData,
+  });
 }
 
 class ProgressDataUnavailable implements Exception {

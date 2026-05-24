@@ -9,6 +9,7 @@ import '../../../shared/ui/responsive.dart';
 import '../../auth/data/auth_repository.dart';
 import '../data/progress_repository.dart';
 import '../domain/progress_models.dart';
+import 'store_screen.dart';
 
 class BadgesScreen extends StatefulWidget {
   const BadgesScreen({required this.repository, super.key});
@@ -194,7 +195,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   }
 }
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({
     required this.authRepository,
     required this.repository,
@@ -211,9 +212,22 @@ class ProfileScreen extends StatelessWidget {
   final VoidCallback? onOpenNotifications;
 
   @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  late Future<ProfileCard> _profileFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _profileFuture = widget.repository.loadProfile();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return FutureBuilder<ProfileCard>(
-      future: repository.loadProfile(),
+      future: _profileFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return const _ProgressPage(
@@ -244,10 +258,10 @@ class ProfileScreen extends StatelessWidget {
           padding: PratiCaseResponsive.pagePadding(context),
           children: [
             _ProfileBrandHeader(
-              repository: repository,
+              repository: widget.repository,
               profile: profile,
-              unreadNotificationCount: unreadNotificationCount,
-              onOpenNotifications: onOpenNotifications,
+              unreadNotificationCount: widget.unreadNotificationCount,
+              onOpenNotifications: widget.onOpenNotifications,
             ),
             const SizedBox(height: 24),
             _ProfileHero(profile: profile),
@@ -255,8 +269,8 @@ class ProfileScreen extends StatelessWidget {
             _StatsPanel(profile: profile),
             const SizedBox(height: 16),
             _MenuPanel(
-              authRepository: authRepository,
-              repository: repository,
+              authRepository: widget.authRepository,
+              repository: widget.repository,
               items: const [
                 _MenuItem(
                   Icons.history_rounded,
@@ -294,6 +308,11 @@ class ProfileScreen extends StatelessWidget {
                   semanticsId: 'menu.badges',
                 ),
                 _MenuItem(
+                  Icons.storefront_outlined,
+                  'Mağaza',
+                  semanticsId: 'menu.store',
+                ),
+                _MenuItem(
                   Icons.settings_outlined,
                   'Ayarlar',
                   semanticsId: 'menu.settings',
@@ -309,7 +328,7 @@ class ProfileScreen extends StatelessWidget {
                   semanticsId: 'menu.downloads',
                 ),
               ],
-              onSignOut: onSignOut,
+              onSignOut: widget.onSignOut,
             ),
           ],
         );
@@ -1125,7 +1144,7 @@ class DailyGoalsScreen extends StatelessWidget {
                   _SettingsRow(
                     Icons.timer_outlined,
                     'Tek İstasyon',
-                    value: '1 vaka',
+                    value: '${snapshot.requireData.dailyGoal} vaka',
                     onTap: () {
                       Navigator.of(context).popUntil((route) => route.isFirst);
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -3513,6 +3532,13 @@ class _MenuPanel extends StatelessWidget {
                           MaterialPageRoute<void>(
                             builder: (_) =>
                                 BadgesScreen(repository: repository),
+                          ),
+                        );
+                      }
+                      if (title == 'Mağaza') {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => StoreScreen(repository: repository),
                           ),
                         );
                       }

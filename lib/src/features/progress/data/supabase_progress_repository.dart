@@ -19,12 +19,15 @@ class SupabaseProgressRepository implements ProgressRepository {
           .from('exam_mode_cards')
           .select('id,title,subtitle,icon_key,action_key,sort_order')
           .eq('is_active', true)
+          .neq('id', 'branch_package')
           .order('sort_order');
       return [
         for (final row in rows)
           ExamModeItem(
             id: _string(row, 'id'),
-            title: _string(row, 'title'),
+            title: _string(row, 'id') == 'theoretical_exam'
+                ? 'Teorik Sınav'
+                : _string(row, 'title'),
             subtitle: _string(row, 'subtitle'),
             iconKey: _string(row, 'icon_key'),
             actionKey: _string(row, 'action_key'),
@@ -32,6 +35,63 @@ class SupabaseProgressRepository implements ProgressRepository {
       ];
     } on PostgrestException catch (error) {
       throw ProgressDataUnavailable(_message(error));
+    }
+  }
+
+  @override
+  Future<StoreCatalog> loadStoreCatalog() async {
+    try {
+      final response = await _client.functions.invoke(
+        'qlinik',
+        body: {'action': 'store'},
+      );
+      final data = response.data is Map
+          ? Map<String, dynamic>.from(response.data as Map)
+          : const <String, dynamic>{};
+      final error = data['error']?.toString().trim() ?? '';
+      if (error.isNotEmpty) throw ProgressDataUnavailable(error);
+      return _storeCatalog(data);
+    } on FunctionException catch (error) {
+      throw ProgressDataUnavailable(
+        error.details?.toString() ?? 'Qlinik mağazası açılamadı.',
+      );
+    }
+  }
+
+  @override
+  Future<StoreCatalog> completeStorePurchase({
+    required StoreProduct product,
+    required String purchaseId,
+    required String verificationSource,
+    required String localVerificationData,
+    required String serverVerificationData,
+  }) async {
+    try {
+      final response = await _client.functions.invoke(
+        'qlinik',
+        body: {
+          'action': 'complete_store_purchase',
+          'product_code': product.code,
+          'store_product_id': product.appStoreProductId,
+          'provider': 'app_store',
+          'purchase_id': purchaseId,
+          'verification_data': {
+            'source': verificationSource,
+            'local_verification_data': localVerificationData,
+            'server_verification_data': serverVerificationData,
+          },
+        },
+      );
+      final data = response.data is Map
+          ? Map<String, dynamic>.from(response.data as Map)
+          : const <String, dynamic>{};
+      final error = data['error']?.toString().trim() ?? '';
+      if (error.isNotEmpty) throw ProgressDataUnavailable(error);
+      return loadStoreCatalog();
+    } on FunctionException catch (error) {
+      throw ProgressDataUnavailable(
+        error.details?.toString() ?? 'Satın alma doğrulanamadı.',
+      );
     }
   }
 
@@ -101,7 +161,8 @@ class SupabaseProgressRepository implements ProgressRepository {
           .select(
             'display_name,email,class_level,target,total_points,solved_case_count,'
             'correct_diagnosis_rate,daily_streak,success_rate_percent,display_mode,'
-            'language,text_size,sound_and_haptics,data_usage,offline_mode,case_downloads_enabled',
+            'language,text_size,sound_and_haptics,data_usage,offline_mode,case_downloads_enabled,'
+            'target_branches,daily_goal,osce_exam_date',
           )
           .maybeSingle();
       if (row == null) {
@@ -127,6 +188,9 @@ class SupabaseProgressRepository implements ProgressRepository {
         correctDiagnosisRate: _int(row, 'correct_diagnosis_rate'),
         dailyStreak: _int(row, 'daily_streak'),
         successRatePercent: _int(row, 'success_rate_percent'),
+        dailyGoal: _int(row, 'daily_goal') <= 0 ? 1 : _int(row, 'daily_goal'),
+        osceExamDate: DateTime.tryParse(_string(row, 'osce_exam_date')),
+        targetBranches: _stringList(row['target_branches']),
         settings: AppSettings(
           displayMode: _string(row, 'display_mode').isEmpty
               ? 'Sistem'
@@ -163,6 +227,7 @@ class SupabaseProgressRepository implements ProgressRepository {
           )
           .order('ended_at', ascending: false);
       final totals = <String, (int, int)>{
+        'communication': (0, 0),
         'history': (0, 0),
         'physical': (0, 0),
         'tests': (0, 0),
@@ -185,6 +250,7 @@ class SupabaseProgressRepository implements ProgressRepository {
       return ClinicalProgressSummary(
         sessionCount: rows.length,
         categoryScores: [
+          _skillScore('communication', 'İletişim', totals),
           _skillScore('history', 'Anamnez', totals),
           _skillScore('physical', 'Fizik Muayene', totals),
           _skillScore('tests', 'Tetkik İnceleme', totals),
@@ -207,10 +273,7 @@ class SupabaseProgressRepository implements ProgressRepository {
           .from('user_notification_cards')
           .select('id,title,body,is_read,created_at')
           .order('created_at', ascending: false);
-      return [
-        for (final row in rows)
-          _notification(row),
-      ];
+      return [for (final row in rows) _notification(row)];
     } on PostgrestException catch (error) {
       throw ProgressDataUnavailable(_message(error));
     }
@@ -572,10 +635,9 @@ class SupabaseProgressRepository implements ProgressRepository {
     final user = _client.auth.currentUser;
     if (user == null) return;
     try {
-      await _client.schema('praticase').rpc(
-        'refresh_user_badges',
-        params: {'p_user_id': user.id},
-      );
+      await _client
+          .schema('praticase')
+          .rpc('refresh_user_badges', params: {'p_user_id': user.id});
     } on PostgrestException {
       // Older databases can still serve badge cards without the refresh RPC.
     }
@@ -659,7 +721,8 @@ class SupabaseProgressRepository implements ProgressRepository {
       title: _string(row, 'title'),
       body: _string(row, 'body'),
       isRead: row['is_read'] == true,
-      createdAt: DateTime.tryParse(_string(row, 'created_at')) ?? DateTime.now(),
+      createdAt:
+          DateTime.tryParse(_string(row, 'created_at')) ?? DateTime.now(),
     );
   }
 
@@ -718,6 +781,9 @@ class SupabaseProgressRepository implements ProgressRepository {
 
   String? _categoryKey(String title) {
     final normalized = title.toLowerCase();
+    if (normalized.contains('iletişim') || normalized.contains('iletisim')) {
+      return 'communication';
+    }
     if (normalized.contains('anamnez')) return 'history';
     if (normalized.contains('fizik') || normalized.contains('muayene')) {
       return 'physical';
@@ -739,5 +805,44 @@ class SupabaseProgressRepository implements ProgressRepository {
       return 'Profil ve gelişim verisi şu anda hazırlanıyor. Lütfen daha sonra tekrar deneyin.';
     }
     return 'Canlı profil/gelişim verisi alınamadı. Lütfen bağlantı ve yetkileri kontrol edin.';
+  }
+
+  StoreCatalog _storeCatalog(Map<String, dynamic> data) {
+    final profile = data['profile'] is Map
+        ? Map<String, dynamic>.from(data['profile'] as Map)
+        : const <String, dynamic>{};
+    final products = data['products'] is List
+        ? data['products'] as List
+        : const [];
+    final warnings = data['wallet_warnings'] is List
+        ? data['wallet_warnings'] as List
+        : const [];
+    return StoreCatalog(
+      walletBalance: (profile['wallet_balance'] as num?)?.toDouble() ?? 0,
+      questionQuota: _int(profile, 'question_quota'),
+      aiQuota: _int(profile, 'ai_quota'),
+      warnings: [
+        for (final item in warnings)
+          if (item is Map &&
+              (item['message']?.toString().trim() ?? '').isNotEmpty)
+            item['message'].toString().trim(),
+      ],
+      products: [
+        for (final item in products)
+          if (item is Map)
+            StoreProduct(
+              code: item['code']?.toString() ?? '',
+              name: item['name']?.toString() ?? '',
+              description: item['description']?.toString() ?? '',
+              priceCents: (item['price_cents'] as num?)?.round() ?? 0,
+              currency: item['currency']?.toString() ?? 'TRY',
+              questionAmount: (item['question_amount'] as num?)?.round() ?? 0,
+              coinAmount: (item['coin_amount'] as num?)?.toDouble() ?? 0,
+              appStoreProductId: item['app_store_product_id']?.toString() ?? '',
+              isFeatured: item['is_featured'] == true,
+              interval: item['interval']?.toString() ?? '',
+            ),
+      ],
+    );
   }
 }

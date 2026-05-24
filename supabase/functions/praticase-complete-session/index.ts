@@ -61,14 +61,6 @@ Deno.serve(async (request) => {
     );
   }
 
-  if (!vertexConfigured()) {
-    return jsonResponse(
-      { error: "Vertex AI configuration is missing" },
-      500,
-      origin,
-    );
-  }
-
   const body = await request.json().catch(() => ({}));
   const sessionId = String(body.sessionId ?? body.session_id ?? "").trim();
 
@@ -95,10 +87,43 @@ Deno.serve(async (request) => {
   const userId = String(
     (context?.session as Record<string, unknown> | undefined)?.userId ?? "",
   );
+  if (!admin) {
+    return jsonResponse(
+      { error: "AI enrichment service is unavailable" },
+      503,
+      origin,
+    );
+  }
+  await admin.schema("praticase").from("session_ai_enrichments").upsert({
+    session_id: sessionId,
+    user_id: userId,
+    status: "running",
+    provider: "vertex_ai",
+    model: evaluationModel(),
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "session_id" });
+
+  if (!vertexConfigured()) {
+    await recordEnrichmentFailure(
+      admin,
+      sessionId,
+      "Vertex AI configuration is missing",
+    );
+    return jsonResponse(
+      { error: "Vertex AI configuration is missing" },
+      500,
+      origin,
+    );
+  }
   try {
     await ensureAiCoinBalance(admin, userId);
   } catch (error) {
     if (error instanceof InsufficientCoinBalanceError) {
+      await recordEnrichmentFailure(
+        admin,
+        sessionId,
+        "Yetersiz MedAsi Coin bakiyesi.",
+      );
       return jsonResponse(
         {
           error:
@@ -143,6 +168,7 @@ Deno.serve(async (request) => {
     model = generated.model;
     score = normalizeScore(parseJson(generated.text));
   } catch (error) {
+    await recordEnrichmentFailure(admin, sessionId, errorMessage(error));
     return jsonResponse(
       { error: "Vertex AI scoring failed", detail: errorMessage(error) },
       502,
@@ -164,6 +190,11 @@ Deno.serve(async (request) => {
     walletBalance = charge.walletBalance;
   } catch (error) {
     if (error instanceof InsufficientCoinBalanceError) {
+      await recordEnrichmentFailure(
+        admin,
+        sessionId,
+        "Yetersiz MedAsi Coin bakiyesi.",
+      );
       return jsonResponse(
         {
           error:
@@ -178,21 +209,21 @@ Deno.serve(async (request) => {
     throw error;
   }
 
-  const { data, error } = await supabase
-    .schema("praticase")
-    .rpc("finalize_exam_session_ai", {
-      p_session_id: sessionId,
-      p_total_score: score.totalScore,
-      p_max_score: score.maxScore,
-      p_category_scores: score.categoryScores,
-      p_strong_points: score.strongPoints,
-      p_improvement_points: score.improvementPoints,
-      p_critical_mistakes: score.criticalMistakes,
-      p_unnecessary_tests: score.unnecessaryTests,
-      p_missed_history: score.missedHistory,
-      p_missed_physical_exam: score.missedPhysicalExam,
-      p_ideal_approach: score.idealApproach,
-    });
+  const { data, error } = await admin.schema("praticase")
+    .from("session_ai_enrichments")
+    .update({
+      status: "completed",
+      provider: "vertex_ai",
+      model,
+      feedback: score,
+      usage_metadata: usageMetadata,
+      charged_coin_amount: chargedCoinAmount,
+      error_message: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("session_id", sessionId)
+    .select("session_id,status,feedback")
+    .single();
 
   if (error) {
     return jsonResponse({ error: error.message }, 400, origin);
@@ -200,7 +231,7 @@ Deno.serve(async (request) => {
 
   return jsonResponse(
     {
-      result: Array.isArray(data) ? data[0] : data,
+      enrichment: data,
       model,
       chargedCoinAmount,
       walletBalance,
@@ -209,6 +240,19 @@ Deno.serve(async (request) => {
     origin,
   );
 });
+
+async function recordEnrichmentFailure(
+  // deno-lint-ignore no-explicit-any
+  admin: any,
+  sessionId: string,
+  message: string,
+) {
+  await admin.schema("praticase").from("session_ai_enrichments").update({
+    status: "failed",
+    error_message: message.slice(0, 500),
+    updated_at: new Date().toISOString(),
+  }).eq("session_id", sessionId);
+}
 
 async function buildScoringContext(
   // deno-lint-ignore no-explicit-any

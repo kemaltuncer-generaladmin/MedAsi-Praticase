@@ -232,11 +232,13 @@ class ManagementPlanAnswer {
     required this.diagnosis,
     required this.note,
     required this.selectedOptionIds,
+    this.consultationDestination = '',
   });
 
   final String diagnosis;
   final String note;
   final List<String> selectedOptionIds;
+  final String consultationDestination;
 }
 
 class ResultCategoryScore {

@@ -39,7 +39,6 @@ class _CasesScreenState extends State<CasesScreen> {
   String? _branch;
   String? _difficulty;
   String? _setting;
-  String _sort = 'Önerilen';
   late Future<List<OsceCaseSummary>> _casesFuture;
 
   @override
@@ -207,13 +206,6 @@ class _CasesScreenState extends State<CasesScreen> {
                     },
                   ),
                 ],
-                const SizedBox(height: 18),
-                _FilterStrip(
-                  label: 'Sıralama',
-                  items: const ['Önerilen', 'Puan', 'Son Skor'],
-                  selected: _sort,
-                  onSelected: (value) => setState(() => _sort = value),
-                ),
                 const SizedBox(height: 24),
                 Row(
                   children: [
@@ -271,17 +263,11 @@ class _CasesScreenState extends State<CasesScreen> {
       _branch = null;
       _difficulty = null;
       _setting = null;
-      _sort = 'Önerilen';
     });
   }
 
   int get _activeFilterCount {
-    return [
-      _branch,
-      _difficulty,
-      _setting,
-      _sort == 'Önerilen' ? null : _sort,
-    ].whereType<String>().length;
+    return [_branch, _difficulty, _setting].whereType<String>().length;
   }
 
   List<OsceCaseSummary> _visibleCases(List<OsceCaseSummary> cases) {
@@ -309,12 +295,13 @@ class _CasesScreenState extends State<CasesScreen> {
   }
 
   int _caseSorter(OsceCaseSummary a, OsceCaseSummary b) {
-    return switch (_sort) {
-      'Puan' => b.points.compareTo(a.points),
-      'Son Skor' => (b.lastScore ?? -1).compareTo(a.lastScore ?? -1),
-      _ => a.title.compareTo(b.title),
-    };
+    final solvedOrder = _solved(a).compareTo(_solved(b));
+    if (solvedOrder != 0) return solvedOrder;
+    return a.title.toLowerCase().compareTo(b.title.toLowerCase());
   }
+
+  int _solved(OsceCaseSummary item) =>
+      item.lastScore != null || item.progressPercent == 100 ? 1 : 0;
 
   Map<String, int> _counts(Iterable<String> values) {
     final counts = <String, int>{'Tümü': 0};
@@ -625,7 +612,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
         ),
       );
       await _bundleFuture;
-      await _speakLatestPatient(bundle.copyWith(messages: sortedMessages));
+      unawaited(_speakLatestPatient(bundle.copyWith(messages: sortedMessages)));
       _scheduleScrollToBottom();
     } on CasesDataUnavailable catch (error) {
       _restoreFailedMessage(text);
@@ -689,7 +676,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
     if (enabled) {
       await _voiceAdapter.initialize();
       final bundle = await _bundleFuture;
-      await _speakLatestPatient(bundle);
+      unawaited(_speakLatestPatient(bundle));
     } else {
       await _voiceAdapter.stopListening();
       await _voiceAdapter.stopSpeaking();
@@ -1129,9 +1116,6 @@ class _TestsScreenState extends State<TestsScreen> {
           final selectedCount = bundle.options
               .where((item) => item.isSelected)
               .length;
-          final selectedCost = bundle.options
-              .where((item) => item.isSelected)
-              .fold<int>(0, (sum, item) => sum + item.pointCost);
           return Column(
             children: [
               _ExamTopBar(
@@ -1148,7 +1132,9 @@ class _TestsScreenState extends State<TestsScreen> {
                     const SizedBox(height: 18),
                     _SelectionSummary(
                       text: 'İstem Listem ($selectedCount)',
-                      subtext: '$selectedCost puan',
+                      subtext: selectedCount == 0
+                          ? 'Henüz tetkik istenmedi'
+                          : '$selectedCount tetkik istendi',
                     ),
                     const SizedBox(height: 18),
                     if (bundle.groups.isEmpty)
@@ -1348,7 +1334,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
                     _InputBlock(
                       label: 'Ön Tanı',
                       controller: _primaryController,
-                      hint: 'Kesinleşen veya en olası ön tanınızı yazın.',
+                      hint: 'Klinik olarak en olası ön tanınızı yazın.',
                       maxLines: 2,
                       semanticsIdentifier: 'input.primary-diagnosis',
                     ),
@@ -1422,6 +1408,7 @@ class ManagementPlanScreen extends StatefulWidget {
 class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
   final _diagnosisController = TextEditingController();
   final _noteController = TextEditingController();
+  final _consultationController = TextEditingController();
   late Future<_ManagementBundle> _bundleFuture;
   final _selected = <String>{};
 
@@ -1429,12 +1416,16 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
   void initState() {
     super.initState();
     _bundleFuture = _load();
+    _consultationController.addListener(_onConsultationChanged);
   }
+
+  void _onConsultationChanged() => setState(() {});
 
   @override
   void dispose() {
     _diagnosisController.dispose();
     _noteController.dispose();
+    _consultationController.dispose();
     super.dispose();
   }
 
@@ -1452,6 +1443,7 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
         ? answer!.diagnosis
         : diagnosisAnswer?.primaryDiagnosis ?? '';
     _noteController.text = answer?.note ?? '';
+    _consultationController.text = answer?.consultationDestination ?? '';
     _selected
       ..clear()
       ..addAll(answer?.selectedOptionIds ?? const []);
@@ -1459,11 +1451,16 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
   }
 
   Future<void> _save() async {
+    if (_requiresConsultationDestination &&
+        _consultationController.text.trim().isEmpty) {
+      return;
+    }
     await widget.repository.saveManagementPlan(
       sessionId: widget.sessionId,
       diagnosis: _diagnosisController.text,
       selectedOptionIds: _selected.toList(),
       note: _noteController.text,
+      consultationDestination: _consultationController.text,
     );
     await widget.repository.advanceSession(
       sessionId: widget.sessionId,
@@ -1479,6 +1476,17 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
       ),
     );
   }
+
+  bool get _requiresConsultationDestination {
+    return _selected.any(
+      (id) => _visibleOptions.any(
+        (option) =>
+            option.id == id && option.category.toLowerCase().contains('kons'),
+      ),
+    );
+  }
+
+  List<ManagementOption> _visibleOptions = const [];
 
   @override
   Widget build(BuildContext context) {
@@ -1506,6 +1514,7 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
           for (final option in bundle.options) {
             grouped.putIfAbsent(option.category, () => []).add(option);
           }
+          _visibleOptions = bundle.options;
           return Column(
             children: [
               _ExamTopBar(
@@ -1525,7 +1534,7 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
                     _InputBlock(
                       label: 'Ön Tanı',
                       controller: _diagnosisController,
-                      hint: 'Kesinleşen veya en olası ön tanınızı yazın.',
+                      hint: 'Klinik olarak en olası ön tanınızı yazın.',
                       maxLines: 2,
                     ),
                     const SizedBox(height: 18),
@@ -1571,6 +1580,17 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
                         ),
                         const SizedBox(height: 14),
                       ],
+                    if (_requiresConsultationDestination) ...[
+                      _InputBlock(
+                        label: 'Konsültasyon Birimi',
+                        controller: _consultationController,
+                        hint:
+                            'Hastayı hangi branşa veya birime yönlendireceksiniz?',
+                        maxLines: 2,
+                        semanticsIdentifier: 'input.consultation-destination',
+                      ),
+                      const SizedBox(height: 14),
+                    ],
                     _InputBlock(
                       label: 'Acil Müdahaleler ve Ek Tetkikler',
                       controller: _noteController,
@@ -1578,19 +1598,6 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
                           'Acil prosedür, ileri görüntüleme veya ek laboratuvar taleplerini klinik gerekçesiyle yazın.',
                       maxLines: 5,
                       semanticsIdentifier: 'input.management-plan',
-                    ),
-                    const SizedBox(height: 14),
-                    OutlinedButton.icon(
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => MedicationInfoScreen(
-                            repository: widget.repository,
-                            caseId: widget.caseId,
-                          ),
-                        ),
-                      ),
-                      icon: const Icon(Icons.medication_outlined),
-                      label: const Text('İlaç / Tedavi Bilgisi'),
                     ),
                   ],
                 ),
@@ -1602,7 +1609,11 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
       bottom: _BottomAction(
         label: 'Sınavı Bitir ve Değerlendir',
         icon: Icons.check_circle_rounded,
-        onPressed: _save,
+        onPressed:
+            _requiresConsultationDestination &&
+                _consultationController.text.trim().isEmpty
+            ? null
+            : _save,
       ),
     );
   }
@@ -2980,7 +2991,7 @@ class _ExamTopBar extends StatelessWidget {
               Expanded(
                 child: _ExamHeaderPill(
                   icon: Icons.assessment_outlined,
-                  text: '${session.remainingPoints}/${session.budgetPoints} p',
+                  text: 'Süreli İstasyon',
                 ),
               ),
             ],
@@ -4063,11 +4074,7 @@ class _FindingsCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(PratiCaseRadius.sm),
                   border: item.isSelected
                       ? Border.all(color: PratiCaseColors.teal, width: 1.5)
-                      : Border.all(
-                          color: item.pointValue < 0
-                              ? PratiCaseColors.errorRed.withValues(alpha: 0.2)
-                              : PratiCaseColors.border,
-                        ),
+                      : Border.all(color: PratiCaseColors.border),
                 ),
                 child: Material(
                   type: MaterialType.transparency,
@@ -4149,11 +4156,6 @@ class _TestGroupPicker extends StatelessWidget {
                   (option) => option.groupId == group.id && option.isSelected,
                 )
                 .length,
-            selectedCost: options
-                .where(
-                  (option) => option.groupId == group.id && option.isSelected,
-                )
-                .fold<int>(0, (sum, option) => sum + option.pointCost),
             onTap: () => onSelected(group.id),
           ),
           const SizedBox(height: 10),
@@ -4168,14 +4170,12 @@ class _TestGroupTile extends StatelessWidget {
     required this.group,
     required this.optionCount,
     required this.selectedCount,
-    required this.selectedCost,
     required this.onTap,
   });
 
   final TestGroup group;
   final int optionCount;
   final int selectedCount;
-  final int selectedCost;
   final VoidCallback onTap;
 
   @override
@@ -4212,7 +4212,7 @@ class _TestGroupTile extends StatelessWidget {
                   Text(
                     selectedCount == 0
                         ? '$optionCount tetkik seçeneği'
-                        : '$selectedCount/$optionCount istendi · $selectedCost puan',
+                        : '$selectedCount/$optionCount istendi',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -4284,7 +4284,6 @@ class _TestOptionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasPenalty = item.pointCost < 0;
     return Container(
       decoration: BoxDecoration(
         color: item.isSelected
@@ -4323,36 +4322,11 @@ class _TestOptionTile extends StatelessWidget {
               ? Text(item.result, maxLines: 3, overflow: TextOverflow.ellipsis)
               : null,
           isThreeLine: item.isSelected && item.result.isNotEmpty,
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: hasPenalty
-                      ? PratiCaseColors.errorRed.withValues(alpha: 0.10)
-                      : PratiCaseColors.surfaceContainer,
-                  borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
-                ),
-                child: Text(
-                  '${item.pointCost} p',
-                  style: TextStyle(
-                    color: hasPenalty
-                        ? PratiCaseColors.errorRed
-                        : PratiCaseColors.slateBlue,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-              const SizedBox(width: PratiCaseSpacing.xs),
-              Icon(
-                item.isSelected
-                    ? Icons.visibility_outlined
-                    : Icons.add_circle_outline_rounded,
-                color: PratiCaseColors.teal,
-              ),
-            ],
+          trailing: Icon(
+            item.isSelected
+                ? Icons.visibility_outlined
+                : Icons.add_circle_outline_rounded,
+            color: PratiCaseColors.teal,
           ),
         ),
       ),
@@ -5149,7 +5123,6 @@ class _ManagementOptionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isRecommended = option.pointValue >= 5;
     return Container(
       margin: const EdgeInsets.only(bottom: PratiCaseSpacing.sm),
       decoration: BoxDecoration(
@@ -5173,66 +5146,13 @@ class _ManagementOptionTile extends StatelessWidget {
             horizontal: PratiCaseSpacing.md,
             vertical: 4,
           ),
-          title: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  option.title,
-                  style: const TextStyle(
-                    color: PratiCaseColors.navy,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              const SizedBox(width: PratiCaseSpacing.sm),
-              if (isRecommended)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: PratiCaseColors.gold.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
-                  ),
-                  child: const Text(
-                    'Önerilen',
-                    style: TextStyle(
-                      color: PratiCaseColors.gold,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              if (option.pointValue != 0) ...[
-                const SizedBox(width: PratiCaseSpacing.xs),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: option.pointValue > 0
-                        ? PratiCaseColors.successGreen.withValues(alpha: 0.12)
-                        : PratiCaseColors.errorRed.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
-                  ),
-                  child: Text(
-                    option.pointValue > 0
-                        ? '+${option.pointValue}p'
-                        : '${option.pointValue}p',
-                    style: TextStyle(
-                      color: option.pointValue > 0
-                          ? PratiCaseColors.successGreen
-                          : PratiCaseColors.errorRed,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              ],
-            ],
+          title: Text(
+            option.title,
+            style: const TextStyle(
+              color: PratiCaseColors.navy,
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+            ),
           ),
         ),
       ),

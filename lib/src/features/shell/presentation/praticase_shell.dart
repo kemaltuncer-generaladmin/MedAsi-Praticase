@@ -550,55 +550,75 @@ class _ExamsScreenState extends State<_ExamsScreen> {
   }
 }
 
-class _ProgressSummaryScreen extends StatelessWidget {
+class _ProgressSummaryScreen extends StatefulWidget {
   const _ProgressSummaryScreen({required this.repository});
 
   final ProgressRepository repository;
 
   @override
+  State<_ProgressSummaryScreen> createState() => _ProgressSummaryScreenState();
+}
+
+class _ProgressSummaryScreenState extends State<_ProgressSummaryScreen> {
+  late Future<(ProfileCard, ClinicalProgressSummary, List<BadgeCard>)>
+  _progressFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _progressFuture = _loadProgress();
+  }
+
+  Future<void> _refresh() async {
+    setState(() => _progressFuture = _loadProgress());
+    await _progressFuture;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return FutureBuilder<
-      (ProfileCard, ClinicalProgressSummary, List<BadgeCard>)
-    >(
-      future: _loadProgress(),
-      builder: (context, snapshot) {
-        return PratiCaseResponsiveListView(
-          padding: PratiCaseResponsive.pagePadding(context),
-          children: [
-            const _ProgressTitleBar(),
-            const SizedBox(height: 18),
-            if (snapshot.connectionState != ConnectionState.done)
-              const _ShellStateCard(
-                icon: Icons.insights_outlined,
-                title: 'Gelişim yükleniyor',
-                body: 'Canlı profil ve performans verisi hazırlanıyor.',
-              )
-            else if (snapshot.hasError)
-              const _ShellStateCard(
-                icon: Icons.cloud_off_rounded,
-                title: 'Gelişim açılamadı',
-                body:
-                    'Canlı veri bağlantısı kurulduğunda performans özeti burada görünür.',
-              )
-            else ...[
-              _ProgressSummaryLayout(
-                profile: snapshot.requireData.$1,
-                summary: snapshot.requireData.$2,
-                badges: snapshot.requireData.$3,
-                repository: repository,
-              ),
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: FutureBuilder<(ProfileCard, ClinicalProgressSummary, List<BadgeCard>)>(
+        future: _progressFuture,
+        builder: (context, snapshot) {
+          return PratiCaseResponsiveListView(
+            padding: PratiCaseResponsive.pagePadding(context),
+            children: [
+              const _ProgressTitleBar(),
+              const SizedBox(height: 18),
+              if (snapshot.connectionState != ConnectionState.done)
+                const _ShellStateCard(
+                  icon: Icons.insights_outlined,
+                  title: 'Gelişim yükleniyor',
+                  body: 'Canlı profil ve performans verisi hazırlanıyor.',
+                )
+              else if (snapshot.hasError)
+                const _ShellStateCard(
+                  icon: Icons.cloud_off_rounded,
+                  title: 'Gelişim açılamadı',
+                  body:
+                      'Canlı veri bağlantısı kurulduğunda performans özeti burada görünür.',
+                )
+              else ...[
+                _ProgressSummaryLayout(
+                  profile: snapshot.requireData.$1,
+                  summary: snapshot.requireData.$2,
+                  badges: snapshot.requireData.$3,
+                  repository: widget.repository,
+                ),
+              ],
             ],
-          ],
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
   Future<(ProfileCard, ClinicalProgressSummary, List<BadgeCard>)>
   _loadProgress() async {
-    final profile = repository.loadProfile();
-    final summary = repository.loadClinicalProgressSummary();
-    final badges = repository.loadBadges();
+    final profile = widget.repository.loadProfile();
+    final summary = widget.repository.loadClinicalProgressSummary();
+    final badges = widget.repository.loadBadges();
     return (await profile, await summary, await badges);
   }
 }

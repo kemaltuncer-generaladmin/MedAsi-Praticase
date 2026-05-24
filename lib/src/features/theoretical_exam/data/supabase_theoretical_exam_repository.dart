@@ -53,6 +53,8 @@ class SupabaseTheoreticalExamRepository implements TheoreticalExamRepository {
     final courses = topicsByCourse.keys.toList()..sort(_compare);
     return TheoreticalExamFilters(
       courses: courses,
+      totalQuestionCount: _int(data, 'total_questions'),
+      remainingQuestionCount: _int(data, 'remaining_questions'),
       topicsByCourse: {
         for (final entry in topicsByCourse.entries)
           entry.key: (entry.value.toList()..sort(_compare)),

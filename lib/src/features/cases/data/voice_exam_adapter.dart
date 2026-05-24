@@ -69,11 +69,9 @@ abstract interface class VoiceExamAdapter {
 }
 
 class NativeVoiceExamAdapter implements VoiceExamAdapter {
-  NativeVoiceExamAdapter({
-    SpeechToText? speech,
-    FlutterTts? tts,
-  }) : _speech = speech ?? SpeechToText(),
-       _tts = tts ?? FlutterTts();
+  NativeVoiceExamAdapter({SpeechToText? speech, FlutterTts? tts})
+    : _speech = speech ?? SpeechToText(),
+      _tts = tts ?? FlutterTts();
 
   final SpeechToText _speech;
   final FlutterTts _tts;
@@ -92,23 +90,19 @@ class NativeVoiceExamAdapter implements VoiceExamAdapter {
     final available = await _speech.initialize(
       onStatus: _handleSpeechStatus,
       onError: (error) => _emit(
-        _state.copyWith(
-          listening: false,
-          errorMessage: error.errorMsg,
-        ),
+        _state.copyWith(listening: false, errorMessage: error.errorMsg),
       ),
     );
     await _tts.setLanguage('tr-TR');
     await _tts.setSpeechRate(0.48);
     await _tts.setPitch(1);
-    await _tts.awaitSpeakCompletion(true);
+    await _tts.awaitSpeakCompletion(false);
     _tts.setStartHandler(() => _emit(_state.copyWith(speaking: true)));
     _tts.setCompletionHandler(() => _emit(_state.copyWith(speaking: false)));
     _tts.setCancelHandler(() => _emit(_state.copyWith(speaking: false)));
     _tts.setErrorHandler(
-      (message) => _emit(
-        _state.copyWith(speaking: false, errorMessage: message),
-      ),
+      (message) =>
+          _emit(_state.copyWith(speaking: false, errorMessage: message)),
     );
     _emit(
       _state.copyWith(
