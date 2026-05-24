@@ -1,0 +1,7 @@
+appId: com.medasi.praticase
+---
+# PratiCase Maestro test suite.
+# Run all flows:   ~/.maestro/bin/maestro test maestro/flows/
+# Run single flow: ~/.maestro/bin/maestro test maestro/flows/01_smoke.yaml
+# Credentials are injected via env, never hardcoded:
+#   MAESTRO_USERNAME=...  MAESTRO_PASSWORD=...

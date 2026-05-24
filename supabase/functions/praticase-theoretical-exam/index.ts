@@ -29,6 +29,18 @@ type QuestionRow = {
   explanation: string;
   option_rationales: unknown;
   tags: unknown;
+  metadata?: unknown;
+};
+
+type TopicRequest = {
+  topic: string;
+  metadataValue: string;
+};
+
+type CourseRequestPlan = {
+  subject: string;
+  limit: number;
+  topics: TopicRequest[];
 };
 
 Deno.serve(async (request) => {
@@ -77,68 +89,306 @@ Deno.serve(async (request) => {
   const action = stringValue(body.action);
 
   if (action === "filters") {
-    return withOrigin(await loadFilters(admin), origin);
+    return withOrigin(await loadFilters(admin, authData.user.id), origin);
   }
   if (action === "questions") {
-    return withOrigin(await loadQuestions(admin, body), origin);
+    return withOrigin(
+      await loadQuestions(admin, authData.user.id, body),
+      origin,
+    );
+  }
+  if (action === "submit_attempt") {
+    return withOrigin(
+      await submitAttempt(admin, authData.user.id, body),
+      origin,
+    );
   }
 
   return jsonResponse({ error: "Unknown action" }, 400, origin);
 });
 
-async function loadFilters(admin: any) {
-  const { data, error } = await admin
-    .from("questions")
-    .select("subject,topic")
-    .eq("is_user_generated", false)
-    .order("subject")
-    .order("topic")
-    .limit(10000);
+async function loadFilters(admin: any, userId: string) {
+  const { data, error } = await admin.rpc("question_filter_options", {
+    p_user_id: userId,
+  });
 
   if (error) return { error: error.message };
 
-  const seen = new Set<string>();
-  const filters = [];
+  const filtersByKey = new Map<string, JsonMap>();
   for (const row of data ?? []) {
     const subject = stringValue(row.subject);
     const topic = stringValue(row.topic);
+    const metadataValue = stringValue(row.metadata_value);
+    const remaining = numberValue(row.remaining_count) ?? 0;
+    const total = numberValue(row.total_count) ?? 0;
     if (!subject) continue;
-    const key = `${subject}\u0000${topic}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    filters.push({ subject, topic });
+    if (remaining <= 0) continue;
+    const key = `${subject}\u0000${topic}\u0000${metadataValue}`;
+    const existing = filtersByKey.get(key);
+    if (existing) {
+      existing.total_count = (numberValue(existing.total_count) ?? 0) + total;
+      existing.remaining_count = (numberValue(existing.remaining_count) ?? 0) +
+        remaining;
+      continue;
+    }
+    filtersByKey.set(key, {
+      subject,
+      topic,
+      metadata_value: metadataValue,
+      total_count: total,
+      remaining_count: remaining,
+    });
   }
+  const filters = [...filtersByKey.values()].sort((a, b) =>
+    stringValue(a.subject).localeCompare(stringValue(b.subject), "tr") ||
+    stringValue(a.topic).localeCompare(stringValue(b.topic), "tr") ||
+    stringValue(a.metadata_value).localeCompare(
+      stringValue(b.metadata_value),
+      "tr",
+    )
+  );
   return { filters };
 }
 
 async function loadQuestions(
   admin: any,
+  userId: string,
   body: JsonMap,
 ) {
-  const subjects = stringArray(body.subjects).slice(0, 24);
-  const topic = stringValue(body.topic);
-  const limit = clampNumber(body.limit, 1, 100, 20);
-  const fetchLimit = Math.min(Math.max(limit * 8, 120), 1000);
+  const plans = requestPlans(body);
+  const limit = Math.min(
+    100,
+    plans.reduce((total, plan) => total + plan.limit, 0) ||
+      clampNumber(body.limit, 1, 100, 20),
+  );
+  const delivered = new Map<string, QuestionRow>();
 
-  let query = admin
-    .from("questions")
-    .select(
-      "id,subject,topic,difficulty,text,options,correct_index,explanation,option_rationales,tags",
-    )
-    .eq("is_user_generated", false)
-    .order("created_at", { ascending: false })
-    .limit(fetchLimit);
+  for (const plan of plans) {
+    if (delivered.size >= limit) break;
+    const planLimit = Math.min(plan.limit, limit - delivered.size);
+    if (planLimit <= 0) continue;
 
-  if (subjects.length > 0) query = query.in("subject", subjects);
-  if (topic) query = query.eq("topic", topic);
+    const topicRequests = plan.topics.slice(0, planLimit);
+    if (topicRequests.length === 0) {
+      const error = await appendQuestions(
+        admin,
+        userId,
+        delivered,
+        {
+          subject: plan.subject,
+          topic: "",
+          metadataValue: "",
+        },
+        planLimit,
+        limit,
+      );
+      if (error) return { error };
+      continue;
+    }
 
-  const { data, error } = await query;
-  if (error) return { error: error.message };
+    const base = Math.floor(planLimit / topicRequests.length);
+    const remainder = planLimit % topicRequests.length;
+    for (let index = 0; index < topicRequests.length; index += 1) {
+      if (delivered.size >= limit) break;
+      const topic = topicRequests[index];
+      const topicLimit = base + (index < remainder ? 1 : 0);
+      const error = await appendQuestions(
+        admin,
+        userId,
+        delivered,
+        {
+          subject: plan.subject,
+          topic: topic.topic,
+          metadataValue: topic.metadataValue,
+        },
+        topicLimit,
+        limit,
+      );
+      if (error) return { error };
+    }
+  }
 
-  const questions = shuffle((data ?? []) as QuestionRow[])
-    .slice(0, limit)
-    .map(publicExamQuestion);
+  const deliveredRows = [...delivered.values()];
+  const answerRows = await answerDataFor(
+    admin,
+    deliveredRows.map((row) => stringValue(row.id)),
+  );
+  const questions = deliveredRows.map((row) =>
+    publicExamQuestion({
+      ...row,
+      ...(answerRows.get(stringValue(row.id)) ?? {}),
+    })
+  );
   return { questions };
+}
+
+async function appendQuestions(
+  admin: any,
+  userId: string,
+  delivered: Map<string, QuestionRow>,
+  filter: TopicRequest & { subject: string },
+  desiredCount: number,
+  globalLimit: number,
+) {
+  const target = Math.min(globalLimit, delivered.size + desiredCount);
+  while (delivered.size < target) {
+    const remaining = Math.min(20, target - delivered.size);
+    const { data, error } = await admin.rpc("next_global_questions", {
+      p_user_id: userId,
+      p_limit: remaining,
+      p_subject: filter.subject || null,
+      p_topic: filter.topic || null,
+      p_metadata: filter.metadataValue || null,
+    });
+    if (error) return error.message;
+    const rows = (data ?? []) as QuestionRow[];
+    if (rows.length === 0) break;
+    const before = delivered.size;
+    for (const row of rows) {
+      delivered.set(stringValue(row.id), row);
+      if (delivered.size >= target) break;
+    }
+    if (rows.length < remaining || delivered.size === before) break;
+  }
+  return "";
+}
+
+function requestPlans(body: JsonMap): CourseRequestPlan[] {
+  const rawPlans = Array.isArray(body.plans) ? body.plans : [];
+  const plans: CourseRequestPlan[] = [];
+  const seenSubjects = new Set<string>();
+
+  for (const value of rawPlans) {
+    if (!isJsonMap(value)) continue;
+    const subject = stringValue(value.subject);
+    if (!subject || seenSubjects.has(subject)) continue;
+    seenSubjects.add(subject);
+    const limit = clampNumber(value.limit, 1, 100, 10);
+    const rawTopics = Array.isArray(value.topics) ? value.topics : [];
+    const topics: TopicRequest[] = [];
+    const seenTopics = new Set<string>();
+    for (const rawTopic of rawTopics) {
+      const topic = isJsonMap(rawTopic)
+        ? stringValue(rawTopic.topic)
+        : stringValue(rawTopic);
+      const metadataValue = isJsonMap(rawTopic)
+        ? stringValue(rawTopic.metadata_value ?? rawTopic.metadataValue)
+        : stringValue(rawTopic);
+      const key = `${topic}\u0000${metadataValue}`;
+      if ((!topic && !metadataValue) || seenTopics.has(key)) continue;
+      seenTopics.add(key);
+      topics.push({ topic, metadataValue });
+      if (topics.length >= limit) break;
+    }
+    plans.push({ subject, limit, topics });
+    if (plans.length >= 20) break;
+  }
+
+  if (plans.length > 0) return capPlans(plans);
+
+  const subjects = stringArray(body.subjects).slice(0, 20);
+  const topics = stringArray(body.topics).slice(0, 100);
+  const limit = clampNumber(body.limit, 1, 100, 20);
+  if (subjects.length === 0) {
+    return [{
+      subject: "",
+      limit,
+      topics: topics.map((topic) => ({ topic, metadataValue: topic })),
+    }];
+  }
+  const perSubject = Math.max(1, Math.floor(limit / subjects.length));
+  let remainder = limit % subjects.length;
+  return capPlans(subjects.map((subject) => {
+    const subjectLimit = perSubject + (remainder > 0 ? 1 : 0);
+    if (remainder > 0) remainder -= 1;
+    return {
+      subject,
+      limit: subjectLimit,
+      topics: topics.map((topic) => ({ topic, metadataValue: topic })),
+    };
+  }));
+}
+
+function capPlans(plans: CourseRequestPlan[]) {
+  let remaining = 100;
+  const capped: CourseRequestPlan[] = [];
+  for (const plan of plans) {
+    if (remaining <= 0) break;
+    const limit = Math.min(plan.limit, remaining);
+    capped.push({ ...plan, limit, topics: plan.topics.slice(0, limit) });
+    remaining -= limit;
+  }
+  return capped;
+}
+
+async function submitAttempt(admin: any, userId: string, body: JsonMap) {
+  const answers = Array.isArray(body.answers) ? body.answers : [];
+  const elapsedSeconds = clampNumber(body.elapsedSeconds, 0, 24 * 60 * 60, 0);
+  let syncedCount = 0;
+  let remainingQuestionQuota: number | null = null;
+  const results = [];
+
+  for (const value of answers) {
+    if (!isJsonMap(value)) continue;
+    const questionId = stringValue(value.questionId);
+    const selectedIndex = Number.parseInt(stringValue(value.selectedOptionId));
+    if (!questionId || !Number.isFinite(selectedIndex)) continue;
+    const { data, error } = await admin.rpc("submit_answer_compact", {
+      p_user_id: userId,
+      p_question_id: questionId,
+      p_selected_index: selectedIndex,
+      p_elapsed_seconds: elapsedSeconds,
+    });
+    if (error) {
+      results.push({ questionId, error: error.message });
+      continue;
+    }
+    syncedCount += 1;
+    const row = isJsonMap(data) ? data : {};
+    const attemptId = stringValue(row.attempt_id);
+    if (attemptId) {
+      const learning = await admin.rpc("medasi_learning_record_attempt", {
+        p_attempt_id: attemptId,
+        p_refresh_rollups: true,
+      });
+      if (learning.error) {
+        results.push({
+          questionId,
+          attemptId,
+          learningWarning: learning.error.message,
+        });
+      }
+    }
+    remainingQuestionQuota = numberValue(row.remaining_question_quota) ??
+      remainingQuestionQuota;
+    results.push({ questionId, result: row });
+  }
+
+  return {
+    submittedCount: answers.length,
+    syncedCount,
+    remainingQuestionQuota,
+    results,
+    warning: syncedCount === answers.length
+      ? ""
+      : "Bazı yanıtlar Qlinik ilerleme kaydına işlenemedi.",
+  };
+}
+
+async function answerDataFor(admin: any, ids: string[]) {
+  const cleanIds = ids.filter((id) => id.length > 0);
+  if (cleanIds.length === 0) return new Map<string, Partial<QuestionRow>>();
+  const { data, error } = await admin
+    .from("questions")
+    .select("id,correct_index,explanation,option_rationales")
+    .in("id", cleanIds);
+  if (error) return new Map<string, Partial<QuestionRow>>();
+  return new Map(
+    (data ?? []).map((row: Partial<QuestionRow>) => [
+      stringValue(row.id),
+      row,
+    ]),
+  );
 }
 
 function publicExamQuestion(row: QuestionRow) {
@@ -153,6 +403,7 @@ function publicExamQuestion(row: QuestionRow) {
     explanation: stringValue(row.explanation),
     option_rationales: stringArray(row.option_rationales),
     tags: stringArray(row.tags),
+    metadata: isJsonMap(row.metadata) ? row.metadata : {},
   };
 }
 
@@ -230,4 +481,8 @@ function stringArray(value: unknown) {
   return value
     .map((item) => stringValue(item))
     .filter((item) => item.length > 0);
+}
+
+function isJsonMap(value: unknown): value is JsonMap {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

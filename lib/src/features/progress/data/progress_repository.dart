@@ -15,6 +15,10 @@ abstract interface class ProgressRepository {
 
   Future<int> loadUnreadNotificationCount();
 
+  Stream<List<NotificationCard>> watchNotifications();
+
+  Stream<int> watchUnreadNotificationCount();
+
   Future<void> markNotificationRead(String notificationId);
 
   Future<void> markAllNotificationsRead();

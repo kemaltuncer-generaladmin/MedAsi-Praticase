@@ -525,13 +525,14 @@ class SupabaseCasesRepository implements CasesRepository {
       final existing = await _loadResultCard(sessionId);
       if (existing != null) return existing;
       await _finalizeSession(sessionId);
-      final result = await _loadResultCard(sessionId);
-      if (result == null) {
-        throw const CasesDataUnavailable(
-          'Sonuç karnesi oluşturulamadı. Lütfen tekrar deneyin.',
-        );
+      for (var attempt = 0; attempt < 8; attempt++) {
+        final result = await _loadResultCard(sessionId);
+        if (result != null) return result;
+        await Future<void>.delayed(Duration(milliseconds: 450 + attempt * 250));
       }
-      return result;
+      throw const CasesDataUnavailable(
+        'Sonuç karnesi oluşturulamadı. Lütfen tekrar deneyin.',
+      );
     } on PostgrestException catch (error) {
       throw CasesDataUnavailable(_message(error));
     }

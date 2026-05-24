@@ -1,0 +1,38 @@
+appId: com.medasi.praticase
+env:
+  USERNAME: ${MAESTRO_USERNAME}
+  PASSWORD: ${MAESTRO_PASSWORD}
+---
+# Reusable login subflow. Launches cold and signs in via real Supabase.
+- launchApp:
+    clearState: true
+    stopApp: true
+- tapOn: "Giriş Yap"
+- assertVisible: "E-posta Adresi"
+- tapOn:
+    text: "doktor@hastane.com"
+- inputText: ${USERNAME}
+- hideKeyboard
+- tapOn:
+    text: "••••••••"
+- inputText: ${PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: "cta.login-submit"
+# Profile-setup wizard appears on fresh installs (state was cleared).
+# Pre-selected defaults are valid; just confirm and continue.
+- runFlow:
+    when:
+      visible:
+        id: "cta.complete-profile"
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: "cta.complete-profile"
+          direction: DOWN
+      - tapOn:
+          id: "cta.complete-profile"
+- extendedWaitUntil:
+    visible:
+      id: "nav.home"
+    timeout: 45000

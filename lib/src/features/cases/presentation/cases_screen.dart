@@ -7,6 +7,7 @@ import '../../../app/theme/praticase_colors.dart';
 import '../../../app/theme/praticase_tokens.dart';
 import '../../../shared/ui/ui.dart';
 import '../data/cases_repository.dart';
+import '../data/voice_exam_adapter.dart';
 import '../domain/osce_case.dart';
 
 part 'widgets/cases_chat.dart';
@@ -38,8 +39,6 @@ class _CasesScreenState extends State<CasesScreen> {
   String? _branch;
   String? _difficulty;
   String? _setting;
-  String? _duration;
-  String? _status;
   String _sort = 'Önerilen';
   late Future<List<OsceCaseSummary>> _casesFuture;
 
@@ -77,21 +76,13 @@ class _CasesScreenState extends State<CasesScreen> {
     return FutureBuilder<List<OsceCaseSummary>>(
       future: _casesFuture,
       builder: (context, snapshot) {
-        final bottom =
-            MediaQuery.paddingOf(context).bottom +
-            PratiCaseSpacing.bottomNavReserve;
         final allCases = snapshot.data ?? const <OsceCaseSummary>[];
         final visibleCases = _visibleCases(allCases);
         return RefreshIndicator(
           onRefresh: _refresh,
-          child: ListView(
+          child: PratiCaseResponsiveListView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: EdgeInsets.fromLTRB(
-              PratiCaseSpacing.pageHorizontal,
-              PratiCaseSpacing.pageTop,
-              PratiCaseSpacing.pageHorizontal,
-              bottom,
-            ),
+            padding: PratiCaseResponsive.pagePadding(context),
             children: [
               _MobileHeader(
                 onOpenNotifications: widget.onOpenNotifications,
@@ -161,71 +152,65 @@ class _CasesScreenState extends State<CasesScreen> {
                     snapshot.requireData.map((item) => item.branch),
                   ),
                   onSelected: (value) {
-                    setState(() => _branch = value == 'Tümü' ? null : value);
+                    setState(() {
+                      _branch = value == 'Tümü' ? null : value;
+                      _difficulty = null;
+                      _setting = null;
+                    });
                   },
                 ),
-                const SizedBox(height: 18),
-                _FilterStrip(
-                  label: 'Zorluk',
-                  items: const ['Tümü', 'Kolay', 'Orta', 'Zor'],
-                  selected: _difficulty ?? 'Tümü',
-                  counts: _counts(
-                    snapshot.requireData.map((item) => item.difficulty.label),
-                  ),
-                  onSelected: (value) {
-                    setState(
-                      () => _difficulty = value == 'Tümü' ? null : value,
-                    );
-                  },
-                ),
-                const SizedBox(height: 18),
-                _FilterStrip(
-                  label: 'Klinik Ortam',
-                  items: [
-                    'Tümü',
-                    ...{
-                      for (final item in snapshot.requireData)
-                        if (item.setting.trim().isNotEmpty) item.setting,
+                if (_branch != null) ...[
+                  const SizedBox(height: 18),
+                  _FilterStrip(
+                    label: 'Zorluk',
+                    items: const ['Tümü', 'Kolay', 'Orta', 'Zor'],
+                    selected: _difficulty ?? 'Tümü',
+                    counts: _counts(
+                      snapshot.requireData
+                          .where((item) => item.branch == _branch)
+                          .map((item) => item.difficulty.label),
+                    ),
+                    onSelected: (value) {
+                      setState(() {
+                        _difficulty = value == 'Tümü' ? null : value;
+                        _setting = null;
+                      });
                     },
-                  ],
-                  selected: _setting ?? 'Tümü',
-                  counts: _counts(
-                    snapshot.requireData.map((item) => item.setting),
                   ),
-                  onSelected: (value) {
-                    setState(() => _setting = value == 'Tümü' ? null : value);
-                  },
-                ),
-                const SizedBox(height: 18),
-                _FilterStrip(
-                  label: 'Süre',
-                  items: const ['Tümü', '≤7 dk', '8-10 dk', '10+ dk'],
-                  selected: _duration ?? 'Tümü',
-                  counts: _durationCounts(snapshot.requireData),
-                  onSelected: (value) {
-                    setState(() => _duration = value == 'Tümü' ? null : value);
-                  },
-                ),
-                const SizedBox(height: 18),
-                _FilterStrip(
-                  label: 'Durum',
-                  items: const [
-                    'Tümü',
-                    'Favoriler',
-                    'Devam Eden',
-                    'Tamamlanan',
-                    'Düşük Skor',
-                  ],
-                  selected: _status ?? 'Tümü',
-                  counts: _statusCounts(snapshot.requireData),
-                  onSelected: (value) {
-                    setState(() => _status = value == 'Tümü' ? null : value);
-                  },
-                ),
+                ],
+                if (_branch != null && _difficulty != null) ...[
+                  const SizedBox(height: 18),
+                  _FilterStrip(
+                    label: 'Klinik Ortam',
+                    items: [
+                      'Tümü',
+                      ...{
+                        for (final item in snapshot.requireData)
+                          if (item.branch == _branch &&
+                              item.difficulty.label == _difficulty &&
+                              item.setting.trim().isNotEmpty)
+                            item.setting,
+                      },
+                    ],
+                    selected: _setting ?? 'Tümü',
+                    counts: _counts(
+                      snapshot.requireData
+                          .where(
+                            (item) =>
+                                item.branch == _branch &&
+                                item.difficulty.label == _difficulty,
+                          )
+                          .map((item) => item.setting),
+                    ),
+                    onSelected: (value) {
+                      setState(() => _setting = value == 'Tümü' ? null : value);
+                    },
+                  ),
+                ],
                 const SizedBox(height: 18),
                 _FilterStrip(
                   label: 'Sıralama',
-                  items: const ['Önerilen', 'Süre', 'Puan', 'Son Skor'],
+                  items: const ['Önerilen', 'Puan', 'Son Skor'],
                   selected: _sort,
                   onSelected: (value) => setState(() => _sort = value),
                 ),
@@ -254,13 +239,10 @@ class _CasesScreenState extends State<CasesScreen> {
                     body: 'Arama veya filtreleri değiştirerek tekrar dene.',
                   )
                 else
-                  for (final item in visibleCases) ...[
-                    _CaseListCard(
-                      item: item,
-                      onTap: () => _openDetail(context, item.id),
-                    ),
-                    const SizedBox(height: 14),
-                  ],
+                  _CaseResultsGrid(
+                    cases: visibleCases,
+                    onOpenCase: (item) => _openDetail(context, item.id),
+                  ),
               ],
             ],
           ),
@@ -289,8 +271,6 @@ class _CasesScreenState extends State<CasesScreen> {
       _branch = null;
       _difficulty = null;
       _setting = null;
-      _duration = null;
-      _status = null;
       _sort = 'Önerilen';
     });
   }
@@ -300,8 +280,6 @@ class _CasesScreenState extends State<CasesScreen> {
       _branch,
       _difficulty,
       _setting,
-      _duration,
-      _status,
       _sort == 'Önerilen' ? null : _sort,
     ].whereType<String>().length;
   }
@@ -324,38 +302,14 @@ class _CasesScreenState extends State<CasesScreen> {
         return false;
       }
       if (_setting != null && item.setting != _setting) return false;
-      if (!_matchesDuration(item)) return false;
-      if (!_matchesStatus(item)) return false;
       return true;
     }).toList();
     filtered.sort(_caseSorter);
     return filtered;
   }
 
-  bool _matchesDuration(OsceCaseSummary item) {
-    return switch (_duration) {
-      '≤7 dk' => item.durationMinutes <= 7,
-      '8-10 dk' => item.durationMinutes >= 8 && item.durationMinutes <= 10,
-      '10+ dk' => item.durationMinutes > 10,
-      _ => true,
-    };
-  }
-
-  bool _matchesStatus(OsceCaseSummary item) {
-    return switch (_status) {
-      'Favoriler' => item.isBookmarked,
-      'Devam Eden' =>
-        item.progressPercent != null && (item.progressPercent ?? 0) < 100,
-      'Tamamlanan' =>
-        item.progressPercent != null && (item.progressPercent ?? 0) >= 100,
-      'Düşük Skor' => item.lastScore != null && (item.lastScore ?? 100) < 75,
-      _ => true,
-    };
-  }
-
   int _caseSorter(OsceCaseSummary a, OsceCaseSummary b) {
     return switch (_sort) {
-      'Süre' => a.durationMinutes.compareTo(b.durationMinutes),
       'Puan' => b.points.compareTo(a.points),
       'Son Skor' => (b.lastScore ?? -1).compareTo(a.lastScore ?? -1),
       _ => a.title.compareTo(b.title),
@@ -371,45 +325,6 @@ class _CasesScreenState extends State<CasesScreen> {
       counts[value] = (counts[value] ?? 0) + 1;
     }
     return counts;
-  }
-
-  Map<String, int> _durationCounts(List<OsceCaseSummary> cases) {
-    return {
-      'Tümü': cases.length,
-      '≤7 dk': cases.where((item) => item.durationMinutes <= 7).length,
-      '8-10 dk': cases
-          .where(
-            (item) => item.durationMinutes >= 8 && item.durationMinutes <= 10,
-          )
-          .length,
-      '10+ dk': cases.where((item) => item.durationMinutes > 10).length,
-    };
-  }
-
-  Map<String, int> _statusCounts(List<OsceCaseSummary> cases) {
-    return {
-      'Tümü': cases.length,
-      'Favoriler': cases.where((item) => item.isBookmarked).length,
-      'Devam Eden': cases
-          .where(
-            (item) =>
-                item.progressPercent != null &&
-                (item.progressPercent ?? 0) < 100,
-          )
-          .length,
-      'Tamamlanan': cases
-          .where(
-            (item) =>
-                item.progressPercent != null &&
-                (item.progressPercent ?? 0) >= 100,
-          )
-          .length,
-      'Düşük Skor': cases
-          .where(
-            (item) => item.lastScore != null && (item.lastScore ?? 100) < 75,
-          )
-          .length,
-    };
   }
 }
 
@@ -454,16 +369,16 @@ class _CaseSearchFilterScreenState extends State<CaseSearchFilterScreen> {
             child: Column(
               children: [
                 _FilterSummaryRow(
-                  label: 'Klinik Dal',
-                  value: 'Canlı vaka verisine göre',
+                  label: '1. Branş',
+                  value: 'Önce klinik dal seçilir',
                 ),
                 _FilterSummaryRow(
-                  label: 'Vaka Türü',
-                  value: 'Tüm yayınlanmış vakalar',
+                  label: '2. Zorluk',
+                  value: 'Branşa uygun zorluk açılır',
                 ),
                 _FilterSummaryRow(
-                  label: 'Süre',
-                  value: 'Vaka süresine göre listelenir',
+                  label: '3. Klinik Ortam',
+                  value: 'Son adımda ortam daraltılır',
                 ),
               ],
             ),
@@ -631,11 +546,13 @@ class PatientChatScreen extends StatefulWidget {
   const PatientChatScreen({
     required this.repository,
     required this.sessionId,
+    this.voiceAdapter,
     super.key,
   });
 
   final CasesRepository repository;
   final String sessionId;
+  final VoiceExamAdapter? voiceAdapter;
 
   @override
   State<PatientChatScreen> createState() => _PatientChatScreenState();
@@ -644,19 +561,31 @@ class PatientChatScreen extends StatefulWidget {
 class _PatientChatScreenState extends State<PatientChatScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
+  late final VoiceExamAdapter _voiceAdapter;
+  StreamSubscription<VoiceExamState>? _voiceSubscription;
   late Future<_ChatBundle> _bundleFuture;
   bool _sending = false;
   bool _navigating = false;
+  bool _voiceExamMode = false;
   String? _pendingCandidateMessage;
+  VoiceExamState _voiceState = const VoiceExamState();
 
   @override
   void initState() {
     super.initState();
+    _voiceAdapter = widget.voiceAdapter ?? NativeVoiceExamAdapter();
+    _voiceState = _voiceAdapter.state;
+    _voiceSubscription = _voiceAdapter.states.listen((state) {
+      if (!mounted) return;
+      setState(() => _voiceState = state);
+    });
     _bundleFuture = _load();
   }
 
   @override
   void dispose() {
+    _voiceSubscription?.cancel();
+    _voiceAdapter.dispose();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -689,12 +618,14 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
       );
       final bundle = await _bundleFuture;
       final messages = await widget.repository.loadMessages(widget.sessionId);
+      final sortedMessages = _chronologicalMessages(messages);
       setState(
         () => _bundleFuture = Future.value(
-          bundle.copyWith(messages: _chronologicalMessages(messages)),
+          bundle.copyWith(messages: sortedMessages),
         ),
       );
       await _bundleFuture;
+      await _speakLatestPatient(bundle.copyWith(messages: sortedMessages));
       _scheduleScrollToBottom();
     } on CasesDataUnavailable catch (error) {
       _restoreFailedMessage(text);
@@ -750,6 +681,67 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
     } finally {
       if (mounted) setState(() => _navigating = false);
     }
+  }
+
+  Future<void> _toggleVoiceExamMode() async {
+    final enabled = !_voiceExamMode;
+    setState(() => _voiceExamMode = enabled);
+    if (enabled) {
+      await _voiceAdapter.initialize();
+      final bundle = await _bundleFuture;
+      await _speakLatestPatient(bundle);
+    } else {
+      await _voiceAdapter.stopListening();
+      await _voiceAdapter.stopSpeaking();
+    }
+  }
+
+  Future<void> _toggleListening() async {
+    if (_voiceState.listening) {
+      await _voiceAdapter.stopListening();
+      return;
+    }
+    await _voiceAdapter.startListening(
+      onPartialText: (text) {
+        if (!mounted || text.trim().isEmpty) return;
+        setState(() {
+          _messageController.text = text.trim();
+          _messageController.selection = TextSelection.collapsed(
+            offset: _messageController.text.length,
+          );
+        });
+      },
+      onFinalText: (text) {
+        if (!mounted || text.trim().isEmpty) return;
+        setState(() {
+          _messageController.text = text.trim();
+          _messageController.selection = TextSelection.collapsed(
+            offset: _messageController.text.length,
+          );
+        });
+        if (_voiceExamMode) unawaited(_send());
+      },
+    );
+  }
+
+  Future<void> _toggleMute() async {
+    await _voiceAdapter.setMuted(!_voiceState.muted);
+  }
+
+  Future<void> _speakLatestPatient(_ChatBundle bundle) async {
+    if (!_voiceExamMode || _voiceState.muted) return;
+    final text = _latestPatientText(bundle);
+    if (text.trim().isEmpty) return;
+    await _voiceAdapter.speak(text);
+  }
+
+  String _latestPatientText(_ChatBundle bundle) {
+    for (final message in bundle.messages.reversed) {
+      if (!message.fromCandidate && message.message.trim().isNotEmpty) {
+        return message.message;
+      }
+    }
+    return bundle.session.patient.openingLine;
   }
 
   void _restoreFailedMessage(String text) {
@@ -811,6 +803,11 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
                   scrollController: _scrollController,
                   pendingCandidateMessage: _pendingCandidateMessage,
                   patientTyping: _sending,
+                  voiceState: _voiceState,
+                  voiceExamMode: _voiceExamMode,
+                  onReplayPatient: () => _speakLatestPatient(bundle),
+                  onStopSpeaking: _voiceAdapter.stopSpeaking,
+                  onToggleMute: _toggleMute,
                   onOpenProgress: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
                       builder: (_) => CaseProgressScreen(
@@ -832,8 +829,12 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
               _ChatComposer(
                 controller: _messageController,
                 sending: _sending,
+                voiceState: _voiceState,
+                voiceExamMode: _voiceExamMode,
                 onSend: _send,
                 onNext: _navigating ? null : _next,
+                onToggleVoiceMode: _toggleVoiceExamMode,
+                onToggleListening: _toggleListening,
               ),
             ],
           );
@@ -1607,7 +1608,7 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
   }
 }
 
-class ResultScreen extends StatelessWidget {
+class ResultScreen extends StatefulWidget {
   const ResultScreen({
     required this.repository,
     required this.sessionId,
@@ -1618,10 +1619,29 @@ class ResultScreen extends StatelessWidget {
   final String sessionId;
 
   @override
+  State<ResultScreen> createState() => _ResultScreenState();
+}
+
+class _ResultScreenState extends State<ResultScreen> {
+  late Future<ExamResultSummary> _resultFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _resultFuture = widget.repository.loadResult(widget.sessionId);
+  }
+
+  void _retry() {
+    setState(() {
+      _resultFuture = widget.repository.loadResult(widget.sessionId);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return _FlowScaffold(
       body: FutureBuilder<ExamResultSummary>(
-        future: repository.loadResult(sessionId),
+        future: _resultFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return const _CenteredState(
@@ -1631,10 +1651,23 @@ class ResultScreen extends StatelessWidget {
             );
           }
           if (snapshot.hasError) {
-            return _CenteredState(
-              icon: Icons.cloud_off_rounded,
-              title: 'Sonuç karnesi açılamadı',
-              body: _errorText(snapshot.error),
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
+              children: [
+                const _StepTopBar(title: 'Sonuç Karnesi'),
+                const SizedBox(height: 18),
+                _CenteredState(
+                  icon: Icons.cloud_off_rounded,
+                  title: 'Sonuç karnesi açılamadı',
+                  body: _errorText(snapshot.error),
+                ),
+                const SizedBox(height: 14),
+                FilledButton.icon(
+                  onPressed: _retry,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Tekrar Dene'),
+                ),
+              ],
             );
           }
           final result = snapshot.requireData;
@@ -1704,7 +1737,8 @@ class ResultScreen extends StatelessWidget {
                 onSuggestedCases: () {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (_) => CasesScreen(repository: repository),
+                      builder: (_) =>
+                          CasesScreen(repository: widget.repository),
                     ),
                   );
                 },
@@ -2235,7 +2269,14 @@ class _FlowScaffold extends StatelessWidget {
       child: Scaffold(
         resizeToAvoidBottomInset: resizeToAvoidBottomInset,
         backgroundColor: backgroundColor,
-        body: SafeArea(bottom: false, child: body),
+        body: SafeArea(
+          bottom: false,
+          child: PratiCaseResponsiveFrame(
+            maxWidth: PratiCaseBreakpoints.flowContentMaxWidth,
+            expandHeight: true,
+            child: body,
+          ),
+        ),
         bottomNavigationBar: bottom == null
             ? null
             : SafeArea(
@@ -2250,14 +2291,21 @@ class _FlowScaffold extends StatelessWidget {
                       ),
                     ),
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      PratiCaseSpacing.pageHorizontal,
-                      10,
-                      PratiCaseSpacing.pageHorizontal,
-                      12,
+                  child: PratiCaseResponsiveFrame(
+                    maxWidth: PratiCaseBreakpoints.flowContentMaxWidth,
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        PratiCaseResponsive.horizontalPaddingForWidth(
+                          MediaQuery.sizeOf(context).width,
+                        ),
+                        10,
+                        PratiCaseResponsive.horizontalPaddingForWidth(
+                          MediaQuery.sizeOf(context).width,
+                        ),
+                        12,
+                      ),
+                      child: bottom,
                     ),
-                    child: bottom,
                   ),
                 ),
               ),
@@ -2284,9 +2332,10 @@ class _MobileHeader extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(PratiCaseRadius.sm),
           child: Image.asset(
-            'assets/branding/praticase.png',
+            'assets/auth/praticase_icon.png',
             width: 44,
             height: 44,
+            fit: BoxFit.cover,
           ),
         ),
         const SizedBox(width: 12),
@@ -2585,7 +2634,9 @@ class _CaseFilterOverview extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: ratio,
                     minHeight: 8,
-                    backgroundColor: PratiCaseColors.white.withValues(alpha: 0.24),
+                    backgroundColor: PratiCaseColors.white.withValues(
+                      alpha: 0.24,
+                    ),
                     color: PratiCaseColors.tealBright,
                   ),
                 ),
@@ -2664,7 +2715,9 @@ class _FilterStrip extends StatelessWidget {
                           color: active
                               ? Colors.white.withValues(alpha: 0.20)
                               : PratiCaseColors.surfaceContainerLow,
-                          borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+                          borderRadius: BorderRadius.circular(
+                            PratiCaseRadius.pill,
+                          ),
                         ),
                         child: Text(
                           '$count',
@@ -2716,84 +2769,117 @@ class _CaseListCard extends StatelessWidget {
           decoration: _cardDecoration(radius: 22),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                _SoftIcon(
-                  icon: _caseIcon(item.iconKey),
-                  color: _difficultyColor(item.difficulty),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: PratiCaseColors.navy,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: [
-                          _ChipTag(label: item.branch),
-                          _ChipTag(
-                            label: item.difficulty.label,
-                            tone: _difficultyColor(item.difficulty),
-                          ),
-                          _ChipTag(label: '${item.durationMinutes} dk'),
-                        ],
-                      ),
-                    ],
+            children: [
+              Row(
+                children: [
+                  _SoftIcon(
+                    icon: _caseIcon(item.iconKey),
+                    color: _difficultyColor(item.difficulty),
                   ),
-                ),
-                const SizedBox(width: 10),
-                const _RoundArrow(),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Text(
-              item.summary,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: PratiCaseColors.slateBlue,
-                height: 1.35,
-                fontWeight: FontWeight.w600,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: PratiCaseColors.navy,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            _ChipTag(label: item.branch),
+                            _ChipTag(
+                              label: item.difficulty.label,
+                              tone: _difficultyColor(item.difficulty),
+                            ),
+                            _ChipTag(label: '${item.durationMinutes} dk'),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const _RoundArrow(),
+                ],
               ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                _Metric(
-                  icon: Icons.local_hospital_outlined,
-                  text: item.setting,
+              const SizedBox(height: 14),
+              Text(
+                item.summary,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: PratiCaseColors.slateBlue,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
                 ),
-                const SizedBox(width: 14),
-                _Metric(
-                  icon: Icons.groups_rounded,
-                  text: '${item.solvedCount} çözen',
-                ),
-                const Spacer(),
-                if (score != null)
-                  _TinyPill(text: 'Son skor $score')
-                else if (progress != null)
-                  _TinyPill(text: '%$progress devam')
-                else
-                  _TinyPill(text: '${item.points} puan'),
-              ],
-            ),
-          ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  _Metric(
+                    icon: Icons.local_hospital_outlined,
+                    text: item.setting,
+                  ),
+                  const SizedBox(width: 14),
+                  _Metric(
+                    icon: Icons.groups_rounded,
+                    text: '${item.solvedCount} çözen',
+                  ),
+                  const Spacer(),
+                  if (score != null)
+                    _TinyPill(text: 'Son skor $score')
+                  else if (progress != null)
+                    _TinyPill(text: '%$progress devam')
+                  else
+                    _TinyPill(text: '${item.points} puan'),
+                ],
+              ),
+            ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _CaseResultsGrid extends StatelessWidget {
+  const _CaseResultsGrid({required this.cases, required this.onOpenCase});
+
+  final List<OsceCaseSummary> cases;
+  final ValueChanged<OsceCaseSummary> onOpenCase;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = PratiCaseResponsive.columnsForWidth(
+          constraints.maxWidth,
+          desktop: 2,
+        );
+        final spacing = columns == 1 ? 0.0 : 14.0;
+        final itemWidth =
+            (constraints.maxWidth - spacing * (columns - 1)) / columns;
+        return Wrap(
+          spacing: spacing,
+          runSpacing: 14,
+          children: [
+            for (final item in cases)
+              SizedBox(
+                width: itemWidth,
+                child: _CaseListCard(item: item, onTap: () => onOpenCase(item)),
+              ),
+          ],
+        );
+      },
     );
   }
 }
@@ -3204,7 +3290,9 @@ class _DetailHero extends StatelessWidget {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(gradient: PratiCaseGradients.hero),
+              decoration: const BoxDecoration(
+                gradient: PratiCaseGradients.hero,
+              ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -3306,7 +3394,9 @@ class _HeroPill extends StatelessWidget {
       decoration: BoxDecoration(
         color: PratiCaseColors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
-        border: Border.all(color: PratiCaseColors.white.withValues(alpha: 0.22)),
+        border: Border.all(
+          color: PratiCaseColors.white.withValues(alpha: 0.22),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -3478,14 +3568,17 @@ class _GoalsCard extends StatelessWidget {
             const Text('Canlı hedef listesi tanımlanmadı.')
           else
             for (final goal in goals)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(
-                  Icons.check_box_rounded,
-                  color: PratiCaseColors.teal,
+              Material(
+                type: MaterialType.transparency,
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(
+                    Icons.check_box_rounded,
+                    color: PratiCaseColors.teal,
+                  ),
+                  title: Text(goal.title),
+                  trailing: Text('${goal.points} puan'),
                 ),
-                title: Text(goal.title),
-                trailing: Text('${goal.points} puan'),
               ),
         ],
       ),
@@ -3498,6 +3591,11 @@ class _AnamnesisWorkspace extends StatelessWidget {
     required this.bundle,
     required this.scrollController,
     required this.patientTyping,
+    required this.voiceState,
+    required this.voiceExamMode,
+    required this.onReplayPatient,
+    required this.onStopSpeaking,
+    required this.onToggleMute,
     required this.onOpenProgress,
     required this.onAddNote,
     this.pendingCandidateMessage,
@@ -3506,35 +3604,31 @@ class _AnamnesisWorkspace extends StatelessWidget {
   final _ChatBundle bundle;
   final ScrollController scrollController;
   final bool patientTyping;
+  final VoiceExamState voiceState;
+  final bool voiceExamMode;
   final String? pendingCandidateMessage;
+  final VoidCallback onReplayPatient;
+  final VoidCallback onStopSpeaking;
+  final VoidCallback onToggleMute;
   final VoidCallback onOpenProgress;
   final VoidCallback onAddNote;
 
   @override
   Widget build(BuildContext context) {
-    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
     return Column(
       children: [
         Padding(
-          padding: EdgeInsets.fromLTRB(20, keyboardOpen ? 8 : 12, 20, 8),
-          child: Column(
-            children: [
-              if (keyboardOpen)
-                _AnamnesisPatientStrip(session: bundle.session)
-              else ...[
-                const _PhaseTabs(activeStep: 1),
-                const SizedBox(height: 12),
-                _AnamnesisBriefCard(
-                  session: bundle.session,
-                  detail: bundle.detail,
-                ),
-                const SizedBox(height: 10),
-                _AnamnesisActionRow(
-                  onOpenProgress: onOpenProgress,
-                  onAddNote: onAddNote,
-                ),
-              ],
-            ],
+          padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+          child: _AnamnesisCompactHeader(
+            session: bundle.session,
+            detail: bundle.detail,
+            voiceState: voiceState,
+            voiceExamMode: voiceExamMode,
+            onReplayPatient: onReplayPatient,
+            onStopSpeaking: onStopSpeaking,
+            onToggleMute: onToggleMute,
+            onOpenProgress: onOpenProgress,
+            onAddNote: onAddNote,
           ),
         ),
         Expanded(
@@ -3544,6 +3638,7 @@ class _AnamnesisWorkspace extends StatelessWidget {
             scrollController: scrollController,
             pendingCandidateMessage: pendingCandidateMessage,
             patientTyping: patientTyping,
+            voiceState: voiceState,
           ),
         ),
       ],
@@ -3551,168 +3646,107 @@ class _AnamnesisWorkspace extends StatelessWidget {
   }
 }
 
-class _AnamnesisBriefCard extends StatelessWidget {
-  const _AnamnesisBriefCard({required this.session, required this.detail});
+class _AnamnesisCompactHeader extends StatelessWidget {
+  const _AnamnesisCompactHeader({
+    required this.session,
+    required this.detail,
+    required this.voiceState,
+    required this.voiceExamMode,
+    required this.onReplayPatient,
+    required this.onStopSpeaking,
+    required this.onToggleMute,
+    required this.onOpenProgress,
+    required this.onAddNote,
+  });
 
   final ExamSessionOverview session;
   final OsceCaseDetail detail;
+  final VoiceExamState voiceState;
+  final bool voiceExamMode;
+  final VoidCallback onReplayPatient;
+  final VoidCallback onStopSpeaking;
+  final VoidCallback onToggleMute;
+  final VoidCallback onOpenProgress;
+  final VoidCallback onAddNote;
 
   @override
   Widget build(BuildContext context) {
-    final patient = session.patient;
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(radius: 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.white,
+        borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+        border: Border.all(color: PratiCaseColors.border),
+        boxShadow: PratiCaseShadows.card,
+      ),
+      child: Row(
         children: [
-          Row(
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: PratiCaseColors.teal.withValues(alpha: 0.10),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: PratiCaseColors.teal.withValues(alpha: 0.18),
-                  ),
-                ),
-                child: const Icon(
-                  Icons.person_rounded,
-                  color: PratiCaseColors.teal,
-                  size: 26,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      patient.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: PratiCaseColors.navy,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Wrap(
-                      spacing: 7,
-                      runSpacing: 6,
-                      children: [
-                        _PatientMiniPill(
-                          icon: Icons.cake_outlined,
-                          text: '${patient.age}, ${patient.gender}',
-                        ),
-                        _PatientMiniPill(
-                          icon: Icons.local_hospital_outlined,
-                          text: patient.applicationSetting,
-                        ),
-                        _PatientMiniPill(
-                          icon: Icons.schedule_rounded,
-                          text: patient.complaintDuration,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
           Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
-              color: PratiCaseColors.teal.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(PratiCaseRadius.md),
-              border: Border.all(
-                color: PratiCaseColors.teal.withValues(alpha: 0.12),
-              ),
+              color: PratiCaseColors.teal.withValues(alpha: 0.10),
+              shape: BoxShape.circle,
             ),
+            child: const Icon(
+              Icons.person_rounded,
+              color: PratiCaseColors.teal,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Aday Yönergesi',
-                  style: TextStyle(
-                    color: PratiCaseColors.teal,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 6),
                 Text(
-                  detail.candidatePrompt,
-                  maxLines: 3,
+                  '${session.patient.name} ile anamnez',
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: PratiCaseColors.navy,
-                    height: 1.35,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  detail.candidatePrompt,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: PratiCaseColors.muted,
+                    fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AnamnesisPatientStrip extends StatelessWidget {
-  const _AnamnesisPatientStrip({required this.session});
-
-  final ExamSessionOverview session;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 48,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: PratiCaseColors.white,
-        borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-        border: Border.all(color: PratiCaseColors.border),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.record_voice_over_outlined,
-            color: PratiCaseColors.teal,
+          const SizedBox(width: 4),
+          _CompactIconButton(
+            tooltip: 'Hasta sesini yeniden oynat',
+            icon: voiceState.speaking
+                ? Icons.stop_circle_outlined
+                : Icons.volume_up_outlined,
+            onPressed: voiceState.speaking ? onStopSpeaking : onReplayPatient,
+            active: voiceExamMode && voiceState.speaking,
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            flex: 3,
-            child: Text(
-              '${session.patient.name} ile anamnez',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: PratiCaseColors.navy,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
+          _CompactIconButton(
+            tooltip: voiceState.muted ? 'Sesi aç' : 'Sesi kapat',
+            icon: voiceState.muted
+                ? Icons.volume_off_outlined
+                : Icons.volume_down_outlined,
+            onPressed: onToggleMute,
+            active: voiceState.muted,
           ),
-          const SizedBox(width: 8),
-          Flexible(
-            flex: 2,
-            child: Text(
-              session.patient.mainComplaint,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.end,
-              style: const TextStyle(
-                color: PratiCaseColors.muted,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
+          _CompactIconButton(
+            tooltip: 'Vaka ilerlemesi',
+            icon: Icons.timeline_rounded,
+            onPressed: onOpenProgress,
+          ),
+          _CompactIconButton(
+            tooltip: 'Not ekle',
+            icon: Icons.note_add_outlined,
+            onPressed: onAddNote,
           ),
         ],
       ),
@@ -3720,35 +3754,38 @@ class _AnamnesisPatientStrip extends StatelessWidget {
   }
 }
 
-class _AnamnesisActionRow extends StatelessWidget {
-  const _AnamnesisActionRow({
-    required this.onOpenProgress,
-    required this.onAddNote,
+class _CompactIconButton extends StatelessWidget {
+  const _CompactIconButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+    this.active = false,
   });
 
-  final VoidCallback onOpenProgress;
-  final VoidCallback onAddNote;
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onPressed;
+  final bool active;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: onOpenProgress,
-            icon: const Icon(Icons.timeline_rounded),
-            label: const FittedBox(child: Text('Vaka İlerlemesi')),
-          ),
+    return Tooltip(
+      message: tooltip,
+      child: IconButton(
+        onPressed: onPressed,
+        visualDensity: VisualDensity.compact,
+        style: IconButton.styleFrom(
+          backgroundColor: active
+              ? PratiCaseColors.teal.withValues(alpha: 0.12)
+              : Colors.transparent,
+          foregroundColor: active
+              ? PratiCaseColors.teal
+              : PratiCaseColors.muted,
+          fixedSize: const Size(38, 38),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: onAddNote,
-            icon: const Icon(Icons.note_add_outlined),
-            label: const Text('Not Ekle'),
-          ),
-        ),
-      ],
+        icon: Icon(icon, size: 20),
+      ),
     );
   }
 }
@@ -3759,6 +3796,7 @@ class _ConversationPanel extends StatelessWidget {
     required this.messages,
     required this.scrollController,
     required this.patientTyping,
+    required this.voiceState,
     this.pendingCandidateMessage,
   });
 
@@ -3766,6 +3804,7 @@ class _ConversationPanel extends StatelessWidget {
   final List<ChatMessage> messages;
   final ScrollController scrollController;
   final bool patientTyping;
+  final VoiceExamState voiceState;
   final String? pendingCandidateMessage;
 
   @override
@@ -3774,16 +3813,17 @@ class _ConversationPanel extends StatelessWidget {
     final conversationCount =
         messages.length + (pending == null || pending.isEmpty ? 0 : 1) + 1;
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+      margin: EdgeInsets.zero,
       decoration: BoxDecoration(
-        color: PratiCaseColors.white,
-        borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-        border: Border.all(color: PratiCaseColors.border),
+        color: PratiCaseColors.softSurface,
+        border: Border(
+          top: BorderSide(color: PratiCaseColors.navy.withValues(alpha: 0.06)),
+        ),
       ),
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
             child: Row(
               children: [
                 const Icon(
@@ -3802,15 +3842,22 @@ class _ConversationPanel extends StatelessWidget {
                   ),
                 ),
                 _TinyPill(text: '$conversationCount mesaj'),
+                if (voiceState.partialText.trim().isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: _TinyPill(
+                      text: 'Dinleniyor: ${voiceState.partialText}',
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
-          const Divider(height: 1, color: PratiCaseColors.border),
           Expanded(
             child: ListView(
               controller: scrollController,
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
               children: [
                 _ChatBubble(
                   message: session.patient.openingLine,
@@ -4022,39 +4069,42 @@ class _FindingsCard extends StatelessWidget {
                               : PratiCaseColors.border,
                         ),
                 ),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: PratiCaseSpacing.md,
-                  ),
-                  title: Text(
-                    item.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: PratiCaseColors.navy,
-                      fontWeight: FontWeight.w800,
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: PratiCaseSpacing.md,
                     ),
+                    title: Text(
+                      item.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: PratiCaseColors.navy,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    subtitle: item.isSelected && item.finding.isNotEmpty
+                        ? Text(
+                            item.finding,
+                            style: const TextStyle(
+                              color: PratiCaseColors.slateBlue,
+                              height: 1.35,
+                            ),
+                          )
+                        : null,
+                    isThreeLine: item.isSelected && item.finding.isNotEmpty,
+                    trailing: Icon(
+                      item.isSelected
+                          ? Icons.check_circle_rounded
+                          : Icons.radio_button_unchecked_rounded,
+                      color: item.isSelected
+                          ? PratiCaseColors.teal
+                          : PratiCaseColors.border,
+                      size: 26,
+                    ),
+                    onTap: () => onSelect(item.id),
                   ),
-                  subtitle: item.isSelected && item.finding.isNotEmpty
-                      ? Text(
-                          item.finding,
-                          style: const TextStyle(
-                            color: PratiCaseColors.slateBlue,
-                            height: 1.35,
-                          ),
-                        )
-                      : null,
-                  isThreeLine: item.isSelected && item.finding.isNotEmpty,
-                  trailing: Icon(
-                    item.isSelected
-                        ? Icons.check_circle_rounded
-                        : Icons.radio_button_unchecked_rounded,
-                    color: item.isSelected
-                        ? PratiCaseColors.teal
-                        : PratiCaseColors.border,
-                    size: 26,
-                  ),
-                  onTap: () => onSelect(item.id),
                 ),
               ),
             ],
@@ -4242,75 +4292,68 @@ class _TestOptionTile extends StatelessWidget {
             : PratiCaseColors.white,
         borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
         border: item.isSelected
-            ? Border(
-                left: const BorderSide(color: PratiCaseColors.teal, width: 3),
-                top: BorderSide(
-                  color: PratiCaseColors.teal.withValues(alpha: 0.3),
-                ),
-                right: BorderSide(
-                  color: PratiCaseColors.teal.withValues(alpha: 0.3),
-                ),
-                bottom: BorderSide(
-                  color: PratiCaseColors.teal.withValues(alpha: 0.3),
-                ),
+            ? Border.all(
+                color: PratiCaseColors.teal.withValues(alpha: 0.45),
+                width: 1.4,
               )
             : Border.all(color: PratiCaseColors.border),
         boxShadow: PratiCaseShadows.card,
       ),
-      child: ListTile(
-        onTap: item.isSelected ? onOpenDetail : onRequest,
-        leading: _SoftIcon(
-          icon: Icons.science_outlined,
-          color: item.isSelected ? PratiCaseColors.successGreen : PratiCaseColors.teal,
-          size: 42,
-        ),
-        title: Text(
-          item.title,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: PratiCaseColors.navy,
-            fontWeight: FontWeight.w800,
+      child: Material(
+        type: MaterialType.transparency,
+        child: ListTile(
+          onTap: item.isSelected ? onOpenDetail : onRequest,
+          leading: _SoftIcon(
+            icon: Icons.science_outlined,
+            color: item.isSelected
+                ? PratiCaseColors.successGreen
+                : PratiCaseColors.teal,
+            size: 42,
           ),
-        ),
-        subtitle: item.isSelected && item.result.isNotEmpty
-            ? Text(
-                item.result,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              )
-            : null,
-        isThreeLine: item.isSelected && item.result.isNotEmpty,
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: hasPenalty
-                    ? PratiCaseColors.errorRed.withValues(alpha: 0.10)
-                    : PratiCaseColors.surfaceContainer,
-                borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
-              ),
-              child: Text(
-                '${item.pointCost} p',
-                style: TextStyle(
+          title: Text(
+            item.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: PratiCaseColors.navy,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          subtitle: item.isSelected && item.result.isNotEmpty
+              ? Text(item.result, maxLines: 3, overflow: TextOverflow.ellipsis)
+              : null,
+          isThreeLine: item.isSelected && item.result.isNotEmpty,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
                   color: hasPenalty
-                      ? PratiCaseColors.errorRed
-                      : PratiCaseColors.slateBlue,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
+                      ? PratiCaseColors.errorRed.withValues(alpha: 0.10)
+                      : PratiCaseColors.surfaceContainer,
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+                ),
+                child: Text(
+                  '${item.pointCost} p',
+                  style: TextStyle(
+                    color: hasPenalty
+                        ? PratiCaseColors.errorRed
+                        : PratiCaseColors.slateBlue,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: PratiCaseSpacing.xs),
-            Icon(
-              item.isSelected
-                  ? Icons.visibility_outlined
-                  : Icons.add_circle_outline_rounded,
-              color: PratiCaseColors.teal,
-            ),
-          ],
+              const SizedBox(width: PratiCaseSpacing.xs),
+              Icon(
+                item.isSelected
+                    ? Icons.visibility_outlined
+                    : Icons.add_circle_outline_rounded,
+                color: PratiCaseColors.teal,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -4341,20 +4384,25 @@ class _DiagnosisTile extends StatelessWidget {
           width: selected ? 1.5 : 1,
         ),
       ),
-      child: CheckboxListTile(
-        value: selected,
-        onChanged: (value) => onChanged(value ?? false),
-        activeColor: PratiCaseColors.teal,
-        checkColor: PratiCaseColors.white,
-        tileColor: Colors.transparent,
-        title: Text(
-          title,
-          style: TextStyle(
-            color: selected ? PratiCaseColors.navy : PratiCaseColors.slateBlue,
-            fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+      child: Material(
+        type: MaterialType.transparency,
+        child: CheckboxListTile(
+          value: selected,
+          onChanged: (value) => onChanged(value ?? false),
+          activeColor: PratiCaseColors.teal,
+          checkColor: PratiCaseColors.white,
+          tileColor: Colors.transparent,
+          title: Text(
+            title,
+            style: TextStyle(
+              color: selected
+                  ? PratiCaseColors.navy
+                  : PratiCaseColors.slateBlue,
+              fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+            ),
           ),
+          shape: const RoundedRectangleBorder(),
         ),
-        shape: const RoundedRectangleBorder(),
       ),
     );
   }
@@ -4767,10 +4815,16 @@ class _FilterSummaryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(label),
-      trailing: Text(value, style: const TextStyle(color: PratiCaseColors.muted)),
+    return Material(
+      type: MaterialType.transparency,
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        title: Text(label),
+        trailing: Text(
+          value,
+          style: const TextStyle(color: PratiCaseColors.muted),
+        ),
+      ),
     );
   }
 }
@@ -4785,7 +4839,10 @@ class _ChipTag extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = tone ?? PratiCaseColors.teal;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: PratiCaseSpacing.sm, vertical: 5),
+      padding: const EdgeInsets.symmetric(
+        horizontal: PratiCaseSpacing.sm,
+        vertical: 5,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
@@ -4817,6 +4874,8 @@ class _TinyPill extends StatelessWidget {
       ),
       child: Text(
         text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: const TextStyle(
           color: PratiCaseColors.gold,
           fontSize: 12,
@@ -5103,75 +5162,83 @@ class _ManagementOptionTile extends StatelessWidget {
           width: isSelected ? 1.5 : 1,
         ),
       ),
-      child: CheckboxListTile(
-        value: isSelected,
-        onChanged: (value) => onChanged(value ?? false),
-        activeColor: PratiCaseColors.teal,
-        checkColor: PratiCaseColors.white,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: PratiCaseSpacing.md,
-          vertical: 4,
-        ),
-        title: Row(
-          children: [
-            Expanded(
-              child: Text(
-                option.title,
-                style: const TextStyle(
-                  color: PratiCaseColors.navy,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-            const SizedBox(width: PratiCaseSpacing.sm),
-            if (isRecommended)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color: PratiCaseColors.gold.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
-                ),
-                child: const Text(
-                  'Önerilen',
-                  style: TextStyle(
-                    color: PratiCaseColors.gold,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            if (option.pointValue != 0) ...[
-              const SizedBox(width: PratiCaseSpacing.xs),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color: option.pointValue > 0
-                      ? PratiCaseColors.successGreen.withValues(alpha: 0.12)
-                      : PratiCaseColors.errorRed.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
-                ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: CheckboxListTile(
+          value: isSelected,
+          onChanged: (value) => onChanged(value ?? false),
+          activeColor: PratiCaseColors.teal,
+          checkColor: PratiCaseColors.white,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: PratiCaseSpacing.md,
+            vertical: 4,
+          ),
+          title: Row(
+            children: [
+              Expanded(
                 child: Text(
-                  option.pointValue > 0
-                      ? '+${option.pointValue}p'
-                      : '${option.pointValue}p',
-                  style: TextStyle(
-                    color: option.pointValue > 0
-                        ? PratiCaseColors.successGreen
-                        : PratiCaseColors.errorRed,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
+                  option.title,
+                  style: const TextStyle(
+                    color: PratiCaseColors.navy,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
                   ),
                 ),
               ),
+              const SizedBox(width: PratiCaseSpacing.sm),
+              if (isRecommended)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: PratiCaseColors.gold.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+                  ),
+                  child: const Text(
+                    'Önerilen',
+                    style: TextStyle(
+                      color: PratiCaseColors.gold,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              if (option.pointValue != 0) ...[
+                const SizedBox(width: PratiCaseSpacing.xs),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: option.pointValue > 0
+                        ? PratiCaseColors.successGreen.withValues(alpha: 0.12)
+                        : PratiCaseColors.errorRed.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+                  ),
+                  child: Text(
+                    option.pointValue > 0
+                        ? '+${option.pointValue}p'
+                        : '${option.pointValue}p',
+                    style: TextStyle(
+                      color: option.pointValue > 0
+                          ? PratiCaseColors.successGreen
+                          : PratiCaseColors.errorRed,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
   }
 }
-
 
 BoxDecoration _cardDecoration({double radius = 16}) {
   return BoxDecoration(

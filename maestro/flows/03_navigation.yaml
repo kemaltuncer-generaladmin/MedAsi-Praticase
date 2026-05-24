@@ -1,0 +1,47 @@
+appId: com.medasi.praticase
+name: 03 navigation - bottom nav across all 5 tabs
+tags:
+  - navigation
+env:
+  USERNAME: ${MAESTRO_USERNAME}
+  PASSWORD: ${MAESTRO_PASSWORD}
+---
+# Asserts target only the stable nav identifiers; rendered Flutter Text
+# widgets are not always exposed via accessibility tree on release builds,
+# so we rely on the identifier + screenshot for visual verification.
+- runFlow: ../shared/login.yaml
+- tapOn:
+    id: "nav.cases"
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible:
+    id: "nav.cases"
+- takeScreenshot: artifacts/03a_cases
+- tapOn:
+    id: "nav.exams"
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible:
+    id: "nav.exams"
+- takeScreenshot: artifacts/03b_exams
+- tapOn:
+    id: "nav.progress"
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible:
+    id: "nav.progress"
+- takeScreenshot: artifacts/03c_progress
+- tapOn:
+    id: "nav.profile"
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible:
+    id: "nav.profile"
+- takeScreenshot: artifacts/03d_profile
+- tapOn:
+    id: "nav.home"
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible:
+    id: "nav.home"
+- takeScreenshot: artifacts/03e_home

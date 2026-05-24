@@ -2,9 +2,14 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders, isAllowedOrigin, jsonResponse } from "../_shared/cors.ts";
 import {
   evaluationModel,
-  generateVertexText,
+  generateVertexContent,
   vertexConfigured,
 } from "../_shared/vertex_ai.ts";
+import {
+  chargeAiCoins,
+  ensureAiCoinBalance,
+  InsufficientCoinBalanceError,
+} from "../_shared/medasi_coin.ts";
 import {
   loadCaseChecklists,
   mergeCaseChecklistContext,
@@ -45,6 +50,7 @@ Deno.serve(async (request) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const authorization = request.headers.get("Authorization");
 
   if (!supabaseUrl || !supabaseAnonKey || !authorization) {
@@ -73,6 +79,11 @@ Deno.serve(async (request) => {
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: authorization } },
   });
+  const admin = supabaseServiceRoleKey
+    ? createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: { persistSession: false },
+    })
+    : null;
 
   const { data: context, error: contextError } = await buildScoringContext(
     supabase,
@@ -81,11 +92,33 @@ Deno.serve(async (request) => {
   if (contextError) {
     return jsonResponse({ error: contextError }, 400, origin);
   }
+  const userId = String(
+    (context?.session as Record<string, unknown> | undefined)?.userId ?? "",
+  );
+  try {
+    await ensureAiCoinBalance(admin, userId);
+  } catch (error) {
+    if (error instanceof InsufficientCoinBalanceError) {
+      return jsonResponse(
+        {
+          error:
+            "MedAsi Coin bakiyen yeterli değil. Sonuç karnesini oluşturmak için cüzdandan coin yükleyebilirsin.",
+          wallet_balance: error.walletBalance,
+          required_balance: error.requiredBalance,
+        },
+        402,
+        origin,
+      );
+    }
+    throw error;
+  }
 
   let score: AiScore;
+  let usageMetadata: Record<string, unknown> = {};
+  let model = evaluationModel();
   try {
-    const raw = await generateVertexText({
-      model: evaluationModel(),
+    const generated = await generateVertexContent({
+      model,
       systemInstruction:
         "Sen PratiCase OSCE sınav değerlendiricisisin. Öğrenci performansını 100 puan üzerinden, verilen rubrik ve vaka hedeflerine göre değerlendir. Öğrenciye tıbbi karar desteği değil, eğitim amaçlı OSCE performans karnesi üret. Gereksiz tetkikleri, kritik hataları, eksik anamnez ve muayene başlıklarını açıkça belirt. Sadece geçerli JSON döndür; markdown, açıklama veya kod bloğu kullanma.",
       contents: [
@@ -106,13 +139,43 @@ Deno.serve(async (request) => {
       maxOutputTokens: 2200,
       responseMimeType: "application/json",
     });
-    score = normalizeScore(parseJson(raw));
+    usageMetadata = generated.usageMetadata;
+    model = generated.model;
+    score = normalizeScore(parseJson(generated.text));
   } catch (error) {
     return jsonResponse(
       { error: "Vertex AI scoring failed", detail: errorMessage(error) },
       502,
       origin,
     );
+  }
+
+  let chargedCoinAmount = 0;
+  let walletBalance: number | null = null;
+  try {
+    const charge = await chargeAiCoins({
+      admin,
+      userId,
+      feature: "praticase-complete-session",
+      model,
+      usageMetadata,
+    });
+    chargedCoinAmount = charge.chargedCoinAmount;
+    walletBalance = charge.walletBalance;
+  } catch (error) {
+    if (error instanceof InsufficientCoinBalanceError) {
+      return jsonResponse(
+        {
+          error:
+            "MedAsi Coin bakiyen yeterli değil. Sonuç karnesini oluşturmak için cüzdandan coin yükleyebilirsin.",
+          wallet_balance: error.walletBalance,
+          required_balance: error.requiredBalance,
+        },
+        402,
+        origin,
+      );
+    }
+    throw error;
   }
 
   const { data, error } = await supabase
@@ -138,7 +201,9 @@ Deno.serve(async (request) => {
   return jsonResponse(
     {
       result: Array.isArray(data) ? data[0] : data,
-      model: evaluationModel(),
+      model,
+      chargedCoinAmount,
+      walletBalance,
     },
     200,
     origin,
@@ -154,7 +219,7 @@ async function buildScoringContext(
     .schema("praticase")
     .from("exam_sessions")
     .select(
-      "id,case_id,mode,current_step,started_at,ended_at,cases(title,branch,difficulty,duration_minutes,setting,candidate_prompt,patient_profile,expected_history,expected_physical_exam,expected_differentials,expected_tests,unnecessary_tests,management_steps,critical_mistakes,rubric)",
+      "id,user_id,case_id,mode,current_step,started_at,ended_at,cases(title,branch,difficulty,duration_minutes,setting,candidate_prompt,patient_profile,expected_history,expected_physical_exam,expected_differentials,expected_tests,unnecessary_tests,management_steps,critical_mistakes,rubric)",
     )
     .eq("id", sessionId)
     .single();
@@ -224,6 +289,7 @@ async function buildScoringContext(
     data: {
       session: {
         id: session.id,
+        userId: session.user_id,
         mode: session.mode,
         currentStep: session.current_step,
         startedAt: session.started_at,

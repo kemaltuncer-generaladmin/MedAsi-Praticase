@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:praticase/src/app/praticase_app.dart';
@@ -8,6 +10,7 @@ import 'package:praticase/src/features/auth/presentation/screens/profile_setup_s
 import 'package:praticase/src/features/auth/presentation/screens/register_screen.dart';
 import 'package:praticase/src/features/auth/presentation/screens/reset_password_screen.dart';
 import 'package:praticase/src/features/cases/data/cases_repository.dart';
+import 'package:praticase/src/features/cases/data/voice_exam_adapter.dart';
 import 'package:praticase/src/features/cases/domain/osce_case.dart';
 import 'package:praticase/src/features/cases/presentation/cases_screen.dart';
 import 'package:praticase/src/features/home/data/home_repository.dart';
@@ -16,7 +19,10 @@ import 'package:praticase/src/features/home/presentation/home_screen.dart';
 import 'package:praticase/src/features/progress/data/progress_repository.dart';
 import 'package:praticase/src/features/progress/domain/progress_models.dart';
 import 'package:praticase/src/features/progress/presentation/progress_screens.dart';
+import 'package:praticase/src/features/shell/presentation/praticase_shell.dart';
 import 'package:praticase/src/features/theoretical_exam/data/theoretical_exam_repository.dart';
+import 'package:praticase/src/features/theoretical_exam/domain/theoretical_exam_models.dart';
+import 'package:praticase/src/features/theoretical_exam/presentation/theoretical_exam_screen.dart';
 
 void main() {
   testWidgets('PratiCase auth onboarding renders', (tester) async {
@@ -208,7 +214,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('kemal.tuncer@medasi.com.tr'), findsOneWidget);
+    expect(find.text('kemal.tuncer@medasi.com.tr'), findsNothing);
+    expect(find.text('PratiCase Öğrencisi'), findsOneWidget);
     expect(find.text('PratiCase Üyesi'), findsOneWidget);
     expect(find.text('İstatistiklerim'), findsOneWidget);
   });
@@ -301,7 +308,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Aday Yönergesi'), findsOneWidget);
+    expect(find.textContaining('Mert Yılmaz'), findsOneWidget);
     expect(
       find.text('Karın ağrısı ile başvuran hastayı değerlendiriniz.'),
       findsOneWidget,
@@ -333,6 +340,40 @@ void main() {
       tester.getTopLeft(questionBubble).dy,
       lessThan(tester.getTopLeft(answerBubble).dy),
     );
+  });
+
+  testWidgets('voice anamnesis controls can speak and auto-send final speech', (
+    tester,
+  ) async {
+    await _setViewport(tester, const Size(390, 1040));
+    final repository = _ChatFlowCasesRepository();
+    final voice = _FakeVoiceExamAdapter();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PatientChatScreen(
+          repository: repository,
+          sessionId: 'session-1',
+          voiceAdapter: voice,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Sesli Sınav'));
+    await tester.pumpAndSettle();
+
+    expect(voice.initialized, isTrue);
+    expect(
+      voice.spokenTexts,
+      contains('Hocam merhaba, karnımın sağ alt tarafı ağrıyor.'),
+    );
+
+    await tester.tap(find.byTooltip('Sesle yaz'));
+    await tester.pumpAndSettle();
+
+    expect(repository.lastQuestion, 'Ağrınız ne zaman başladı?');
+    expect(find.text('Dün akşam başladı, giderek arttı.'), findsOneWidget);
   });
 
   testWidgets('physical exam asks for system before showing findings', (
@@ -461,16 +502,323 @@ void main() {
     );
     expect(find.text('Önerilen Vakalar'), findsOneWidget);
   });
+
+  testWidgets('home quick actions expose Teorik Sınav without Pratik Sınav', (
+    tester,
+  ) async {
+    await _setIPhone14Viewport(tester);
+    var openedTheoreticalExam = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: HomeScreen(
+            repository: _EmptyLiveHomeRepository(),
+            casesRepository: _FakeCasesRepository(),
+            onOpenTheoreticalExam: () => openedTheoreticalExam = true,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Teorik Sınav'), findsOneWidget);
+    expect(find.text('Pratik Sınav'), findsNothing);
+    await tester.tap(find.text('Teorik Sınav'));
+
+    expect(openedTheoreticalExam, isTrue);
+  });
+
+  testWidgets('shell keeps bottom navigation on iPad portrait', (tester) async {
+    await _setViewport(tester, const Size(768, 1024));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PratiCaseShell(
+          authRepository: _TestAuthRepository(),
+          homeRepository: _EmptyLiveHomeRepository(),
+          casesRepository: _FakeCasesRepository(),
+          progressRepository: _FakeProgressRepository(),
+          theoreticalExamRepository: _FakeTheoreticalExamRepository(),
+          onSignOut: () async {},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(NavigationRail), findsNothing);
+    expect(find.text('Ana Sayfa'), findsWidgets);
+  });
+
+  testWidgets('shell switches to navigation rail on web width', (tester) async {
+    await _setViewport(tester, const Size(1200, 800));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PratiCaseShell(
+          authRepository: _TestAuthRepository(),
+          homeRepository: _EmptyLiveHomeRepository(),
+          casesRepository: _FakeCasesRepository(),
+          progressRepository: _FakeProgressRepository(),
+          theoreticalExamRepository: _FakeTheoreticalExamRepository(),
+          onSignOut: () async {},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(NavigationRail), findsOneWidget);
+    expect(find.text('Vakalar'), findsOneWidget);
+  });
+
+  testWidgets('theoretical setup sends selected Qlinik topics', (tester) async {
+    await _setIPhone14Viewport(tester);
+    final repository = _RecordingTheoreticalExamRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(home: TheoreticalExamSetupScreen(repository: repository)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Dahiliye'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Kardiyoloji'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Sepsis'));
+    await tester.tap(find.text('Sepsis'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Kalp yetmezliği'));
+    await tester.tap(find.text('Kalp yetmezliği'));
+    await tester.pumpAndSettle();
+    final startButton = find.widgetWithText(FilledButton, 'Denemeyi Başlat');
+    await tester.ensureVisible(startButton);
+    await tester.pumpAndSettle();
+    await tester.tap(startButton);
+    await tester.pumpAndSettle();
+
+    expect(repository.lastCourses, {'Dahiliye', 'Kardiyoloji'});
+    expect(repository.lastPlans.map((plan) => plan.course).toList(), [
+      'Dahiliye',
+      'Kardiyoloji',
+    ]);
+    expect(repository.lastPlans.first.questionCount, 10);
+    expect(repository.lastPlans.first.topics.single.metadataValue, 'Sepsis');
+    expect(
+      repository.lastPlans.last.topics.single.metadataValue,
+      'Kalp yetmezliği',
+    );
+    expect(find.text('Sepsis sorusu'), findsOneWidget);
+  });
+
+  testWidgets('theoretical setup limits topic count to course question count', (
+    tester,
+  ) async {
+    await _setViewport(tester, const Size(430, 1200));
+    final repository = _RecordingTheoreticalExamRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(home: TheoreticalExamSetupScreen(repository: repository)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Dahiliye'));
+    await tester.pumpAndSettle();
+
+    for (final label in _RecordingTheoreticalExamRepository.dahiliyeTopics.take(
+      10,
+    )) {
+      await tester.ensureVisible(find.text(label));
+      await tester.tap(find.text(label));
+      await tester.pumpAndSettle();
+    }
+
+    await tester.ensureVisible(find.text('Konu 11'));
+    await tester.tap(find.text('Konu 11'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Dahiliye için 10 soru seçili; en fazla 10 konu seçebilirsin.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('theoretical result syncs solved answers to Qlinik progress', (
+    tester,
+  ) async {
+    await _setIPhone14Viewport(tester);
+    final repository = _RecordingTheoreticalExamRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TheoreticalExamSessionScreen(
+          repository: repository,
+          questions: [_RecordingTheoreticalExamRepository.question],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('A seçeneği'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Bitir').last);
+    await tester.pumpAndSettle();
+
+    expect(repository.submittedAttempt?.selectedOptionIds, {'q-1': '0'});
+    expect(find.text('Qlinik ile senkronlandı'), findsOneWidget);
+  });
 }
 
 class _FakeHomeRepository extends Fake implements HomeRepository {}
 
-class _FakeCasesRepository extends Fake implements CasesRepository {}
+class _FakeCasesRepository extends Fake implements CasesRepository {
+  @override
+  Future<List<OsceCaseSummary>> loadCases({
+    String query = '',
+    String? difficulty,
+  }) async => const [];
+}
 
-class _FakeProgressRepository extends Fake implements ProgressRepository {}
+class _FakeProgressRepository extends Fake implements ProgressRepository {
+  @override
+  Stream<int> watchUnreadNotificationCount() => Stream.value(0);
+
+  @override
+  Stream<List<NotificationCard>> watchNotifications() =>
+      Stream.value(const <NotificationCard>[]);
+
+  @override
+  Future<int> loadUnreadNotificationCount() async => 0;
+
+  @override
+  Future<List<ExamModeItem>> loadExamModes() async => const [];
+
+  @override
+  Future<ProfileCard> loadProfile() async {
+    return const ProfileCard(
+      displayName: 'Ayse Yilmaz',
+      email: 'ayse@example.com',
+      classLevel: '5',
+      target: 'OSCE',
+      totalPoints: 120,
+      solvedCaseCount: 4,
+      correctDiagnosisRate: 75,
+      dailyStreak: 3,
+      successRatePercent: 82,
+      settings: AppSettings(
+        displayMode: 'Açık',
+        language: 'Türkçe',
+        textSize: 'Orta',
+        soundAndHaptics: true,
+        dataUsage: 'Standart',
+        offlineMode: false,
+        caseDownloadsEnabled: false,
+      ),
+    );
+  }
+
+  @override
+  Future<ClinicalProgressSummary> loadClinicalProgressSummary() async =>
+      const ClinicalProgressSummary(sessionCount: 0, categoryScores: []);
+
+  @override
+  Future<List<BadgeCard>> loadBadges() async => const [];
+}
 
 class _FakeTheoreticalExamRepository extends Fake
     implements TheoreticalExamRepository {}
+
+class _RecordingTheoreticalExamRepository extends Fake
+    implements TheoreticalExamRepository {
+  Set<String> lastCourses = const {};
+  List<TheoreticalCoursePlan> lastPlans = const [];
+  TheoreticalExamAttempt? submittedAttempt;
+
+  static const dahiliyeTopics = [
+    'Sepsis',
+    'Konu 2',
+    'Konu 3',
+    'Konu 4',
+    'Konu 5',
+    'Konu 6',
+    'Konu 7',
+    'Konu 8',
+    'Konu 9',
+    'Konu 10',
+    'Konu 11',
+    'Konu 12',
+  ];
+
+  static const question = TheoreticalQuestion(
+    id: 'q-1',
+    course: 'Dahiliye',
+    topic: 'Sepsis',
+    difficulty: 'medium',
+    stem: 'Sepsis sorusu',
+    correctOptionId: '0',
+    explanation: 'Qlinik açıklaması',
+    options: [
+      TheoreticalQuestionOption(id: '0', label: 'A', text: 'A seçeneği'),
+      TheoreticalQuestionOption(id: '1', label: 'B', text: 'B seçeneği'),
+    ],
+  );
+
+  @override
+  Future<TheoreticalExamFilters> loadFilters() async {
+    return TheoreticalExamFilters(
+      courses: ['Dahiliye', 'Kardiyoloji'],
+      topicsByCourse: {
+        'Dahiliye': dahiliyeTopics,
+        'Kardiyoloji': ['Kalp yetmezliği'],
+      },
+      topicOptionsByCourse: {
+        'Dahiliye': [
+          for (final topic in dahiliyeTopics)
+            TheoreticalTopicOption(
+              course: 'Dahiliye',
+              topic: 'Enfeksiyon',
+              metadataValue: topic,
+              totalCount: 20,
+              remainingCount: 20,
+            ),
+        ],
+        'Kardiyoloji': const [
+          TheoreticalTopicOption(
+            course: 'Kardiyoloji',
+            topic: 'Kalp',
+            metadataValue: 'Kalp yetmezliği',
+            totalCount: 20,
+            remainingCount: 20,
+          ),
+        ],
+      },
+    );
+  }
+
+  @override
+  Future<List<TheoreticalQuestion>> loadQuestions({
+    required Set<String> courses,
+    Set<String> topics = const <String>{},
+    List<TheoreticalCoursePlan> plans = const <TheoreticalCoursePlan>[],
+    int limit = 20,
+  }) async {
+    lastCourses = Set<String>.from(courses);
+    lastPlans = List<TheoreticalCoursePlan>.from(plans);
+    return const [question];
+  }
+
+  @override
+  Future<TheoreticalExamSubmissionResult> submitAttempt({
+    required TheoreticalExamAttempt attempt,
+    required Duration elapsed,
+  }) async {
+    submittedAttempt = attempt;
+    return TheoreticalExamSubmissionResult(
+      submittedCount: attempt.selectedOptionIds.length,
+      syncedCount: attempt.selectedOptionIds.length,
+      remainingQuestionQuota: 99,
+    );
+  }
+}
 
 class _ProfileProgressRepository extends Fake implements ProgressRepository {
   @override
@@ -580,6 +928,14 @@ class _NotificationsProgressRepository extends Fake
   Future<List<NotificationCard>> loadNotifications() async => notifications;
 
   @override
+  Stream<List<NotificationCard>> watchNotifications() =>
+      Stream.value(notifications);
+
+  @override
+  Stream<int> watchUnreadNotificationCount() =>
+      Stream.value(notifications.where((item) => !item.isRead).length);
+
+  @override
   Future<void> markAllNotificationsRead() async {
     markedAllRead = true;
     notifications = [
@@ -592,6 +948,69 @@ class _NotificationsProgressRepository extends Fake
           createdAt: item.createdAt,
         ),
     ];
+  }
+}
+
+class _FakeVoiceExamAdapter implements VoiceExamAdapter {
+  final _controller = StreamController<VoiceExamState>.broadcast();
+  final spokenTexts = <String>[];
+  VoiceExamState _state = const VoiceExamState();
+  bool initialized = false;
+
+  @override
+  VoiceExamState get state => _state;
+
+  @override
+  Stream<VoiceExamState> get states => _controller.stream;
+
+  @override
+  Future<void> initialize() async {
+    initialized = true;
+    _emit(const VoiceExamState(available: true, initialized: true));
+  }
+
+  @override
+  Future<void> startListening({
+    required void Function(String text) onFinalText,
+    required void Function(String text) onPartialText,
+  }) async {
+    await initialize();
+    _emit(_state.copyWith(listening: true));
+    onPartialText('Ağrınız');
+    onFinalText('Ağrınız ne zaman başladı?');
+    _emit(_state.copyWith(listening: false, partialText: ''));
+  }
+
+  @override
+  Future<void> stopListening() async {
+    _emit(_state.copyWith(listening: false));
+  }
+
+  @override
+  Future<void> speak(String text) async {
+    spokenTexts.add(text);
+    _emit(_state.copyWith(speaking: true));
+    _emit(_state.copyWith(speaking: false));
+  }
+
+  @override
+  Future<void> stopSpeaking() async {
+    _emit(_state.copyWith(speaking: false));
+  }
+
+  @override
+  Future<void> setMuted(bool muted) async {
+    _emit(_state.copyWith(muted: muted));
+  }
+
+  @override
+  void dispose() {
+    unawaited(_controller.close());
+  }
+
+  void _emit(VoiceExamState state) {
+    _state = state;
+    if (!_controller.isClosed) _controller.add(state);
   }
 }
 

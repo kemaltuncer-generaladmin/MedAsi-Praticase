@@ -51,14 +51,13 @@ class HomeUser {
     if (name != null && name.isNotEmpty) {
       return name.split(RegExp(r'\s+')).first;
     }
-    final prefix = email.split('@').first.trim();
-    return prefix.isEmpty ? 'Öğrenci' : prefix;
+    return 'Öğrenci';
   }
 
   String get initials {
     final source = (fullName?.trim().isNotEmpty ?? false)
         ? fullName!.trim()
-        : email.split('@').first;
+        : 'PratiCase';
     final parts = source
         .split(RegExp(r'[\s._-]+'))
         .where((part) => part.trim().isNotEmpty)

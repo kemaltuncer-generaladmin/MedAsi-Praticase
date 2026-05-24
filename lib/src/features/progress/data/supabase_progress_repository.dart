@@ -38,6 +38,7 @@ class SupabaseProgressRepository implements ProgressRepository {
   @override
   Future<List<BadgeCard>> loadBadges() async {
     try {
+      await _refreshUserBadges();
       final rows = await _client
           .schema('praticase')
           .from('user_badge_cards')
@@ -155,7 +156,12 @@ class SupabaseProgressRepository implements ProgressRepository {
       final rows = await _client
           .schema('praticase')
           .from('session_result_cards')
-          .select('category_scores');
+          .select(
+            'case_title,case_branch,ended_at,total_score,percentage,'
+            'category_scores,improvement_points,critical_mistakes,'
+            'unnecessary_tests,missed_history,missed_physical_exam',
+          )
+          .order('ended_at', ascending: false);
       final totals = <String, (int, int)>{
         'history': (0, 0),
         'physical': (0, 0),
@@ -185,6 +191,8 @@ class SupabaseProgressRepository implements ProgressRepository {
           _skillScore('diagnosis', 'Ayırıcı Tanı', totals),
           _skillScore('management', 'Yönetim & Tedavi', totals),
         ],
+        recentResults: _recentResults(rows),
+        feedback: _feedbackInsights(rows),
       );
     } on PostgrestException catch (error) {
       throw ProgressDataUnavailable(_message(error));
@@ -201,14 +209,7 @@ class SupabaseProgressRepository implements ProgressRepository {
           .order('created_at', ascending: false);
       return [
         for (final row in rows)
-          NotificationCard(
-            id: _string(row, 'id'),
-            title: _string(row, 'title'),
-            body: _string(row, 'body'),
-            isRead: row['is_read'] == true,
-            createdAt:
-                DateTime.tryParse(_string(row, 'created_at')) ?? DateTime.now(),
-          ),
+          _notification(row),
       ];
     } on PostgrestException catch (error) {
       throw ProgressDataUnavailable(_message(error));
@@ -228,6 +229,26 @@ class SupabaseProgressRepository implements ProgressRepository {
     } on PostgrestException catch (error) {
       throw ProgressDataUnavailable(_message(error));
     }
+  }
+
+  @override
+  Stream<List<NotificationCard>> watchNotifications() {
+    final user = _client.auth.currentUser;
+    if (user == null) return Stream.value(const <NotificationCard>[]);
+    return _client
+        .schema('praticase')
+        .from('user_notifications')
+        .stream(primaryKey: ['id'])
+        .eq('user_id', user.id)
+        .order('created_at', ascending: false)
+        .map((rows) => [for (final row in rows) _notification(row)]);
+  }
+
+  @override
+  Stream<int> watchUnreadNotificationCount() {
+    return watchNotifications().map(
+      (items) => items.where((item) => !item.isRead).length,
+    );
   }
 
   @override
@@ -547,6 +568,19 @@ class SupabaseProgressRepository implements ProgressRepository {
     );
   }
 
+  Future<void> _refreshUserBadges() async {
+    final user = _client.auth.currentUser;
+    if (user == null) return;
+    try {
+      await _client.schema('praticase').rpc(
+        'refresh_user_badges',
+        params: {'p_user_id': user.id},
+      );
+    } on PostgrestException {
+      // Older databases can still serve badge cards without the refresh RPC.
+    }
+  }
+
   String _currentUserLabel() {
     final user = _client.auth.currentUser;
     final metadata = user?.userMetadata ?? const <String, dynamic>{};
@@ -554,7 +588,79 @@ class SupabaseProgressRepository implements ProgressRepository {
     if (fullName is String && fullName.trim().isNotEmpty) {
       return fullName.trim();
     }
-    return user?.email ?? '';
+    return user == null ? '' : 'PratiCase Öğrencisi';
+  }
+
+  List<ProgressResultInsight> _recentResults(List<Map<String, dynamic>> rows) {
+    return [
+      for (final row in rows.take(6))
+        ProgressResultInsight(
+          caseTitle: _string(row, 'case_title').isEmpty
+              ? 'OSCE İstasyonu'
+              : _string(row, 'case_title'),
+          branch: _string(row, 'case_branch').isEmpty
+              ? 'Genel'
+              : _string(row, 'case_branch'),
+          score: _int(row, 'percentage').clamp(0, 100).toInt(),
+          endedAt: DateTime.tryParse(_string(row, 'ended_at')),
+        ),
+    ];
+  }
+
+  List<ProgressFeedbackInsight> _feedbackInsights(
+    List<Map<String, dynamic>> rows,
+  ) {
+    final critical = _topItems(rows, 'critical_mistakes');
+    final unnecessary = _topItems(rows, 'unnecessary_tests');
+    final missedHistory = _topItems(rows, 'missed_history');
+    final missedExam = _topItems(rows, 'missed_physical_exam');
+    final improvement = _topItems(rows, 'improvement_points');
+    return [
+      if (critical.isNotEmpty)
+        ProgressFeedbackInsight(title: 'Kritik Hatalar', items: critical),
+      if (missedHistory.isNotEmpty)
+        ProgressFeedbackInsight(
+          title: 'Eksik Anamnez Başlıkları',
+          items: missedHistory,
+        ),
+      if (missedExam.isNotEmpty)
+        ProgressFeedbackInsight(
+          title: 'Kaçırılan Muayeneler',
+          items: missedExam,
+        ),
+      if (unnecessary.isNotEmpty)
+        ProgressFeedbackInsight(
+          title: 'Gereksiz Tetkikler',
+          items: unnecessary,
+        ),
+      if (improvement.isNotEmpty)
+        ProgressFeedbackInsight(title: 'AI Önerileri', items: improvement),
+    ].take(4).toList();
+  }
+
+  List<String> _topItems(List<Map<String, dynamic>> rows, String key) {
+    final counts = <String, int>{};
+    for (final row in rows) {
+      for (final item in _stringList(row[key])) {
+        counts[item] = (counts[item] ?? 0) + 1;
+      }
+    }
+    final sorted = counts.entries.toList()
+      ..sort((a, b) {
+        final count = b.value.compareTo(a.value);
+        return count == 0 ? a.key.compareTo(b.key) : count;
+      });
+    return [for (final item in sorted.take(3)) item.key];
+  }
+
+  NotificationCard _notification(Map<String, dynamic> row) {
+    return NotificationCard(
+      id: _string(row, 'id'),
+      title: _string(row, 'title'),
+      body: _string(row, 'body'),
+      isRead: row['is_read'] == true,
+      createdAt: DateTime.tryParse(_string(row, 'created_at')) ?? DateTime.now(),
+    );
   }
 
   String? _caseTitle(Object? value) {
@@ -584,6 +690,16 @@ class SupabaseProgressRepository implements ProgressRepository {
   int? _nullableInt(Map<String, dynamic> row, String key) {
     if (row[key] == null) return null;
     return _int(row, key);
+  }
+
+  List<String> _stringList(Object? value) {
+    if (value is List) {
+      return [
+        for (final item in value)
+          if (item.toString().trim().isNotEmpty) item.toString().trim(),
+      ];
+    }
+    return const [];
   }
 
   ClinicalSkillScore _skillScore(

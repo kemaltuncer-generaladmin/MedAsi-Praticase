@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../app/theme/praticase_colors.dart';
 import '../../../app/theme/praticase_tokens.dart';
+import '../../../shared/ui/responsive.dart';
 import '../data/theoretical_exam_repository.dart';
 import '../domain/theoretical_exam_models.dart';
 
@@ -19,12 +20,16 @@ class TheoreticalExamSetupScreen extends StatefulWidget {
 
 class _TheoreticalExamSetupScreenState
     extends State<TheoreticalExamSetupScreen> {
+  static const _defaultCourseQuestionCount = 10;
+  static const _maxSelectedCourseCount = 20;
+  static const _maxTotalQuestionCount = 100;
+
   late Future<TheoreticalExamFilters> _filtersFuture;
-  Future<List<TheoreticalQuestion>>? _questionsFuture;
   final Set<String> _selectedCourses = <String>{};
-  final Set<String> _selectedQuestionIds = <String>{};
-  String _selectedTopic = '';
-  int _questionCount = 20;
+  final Map<String, int> _questionCountsByCourse = <String, int>{};
+  final Map<String, Set<String>> _selectedTopicKeysByCourse =
+      <String, Set<String>>{};
+  bool _loadingQuestions = false;
 
   @override
   void initState() {
@@ -35,55 +40,155 @@ class _TheoreticalExamSetupScreenState
   Future<void> _refresh() async {
     setState(() {
       _filtersFuture = widget.repository.loadFilters();
-      _questionsFuture = null;
-      _selectedQuestionIds.clear();
     });
     await _filtersFuture;
   }
 
   void _toggleCourse(String course) {
-    setState(() {
-      if (!_selectedCourses.add(course)) _selectedCourses.remove(course);
-      _selectedTopic = '';
-      _questionsFuture = null;
-      _selectedQuestionIds.clear();
-    });
-  }
-
-  void _loadQuestions() {
-    final future = widget.repository.loadQuestions(
-      courses: _selectedCourses,
-      topic: _selectedTopic,
-      limit: _questionCount,
-    );
-    setState(() {
-      _questionsFuture = future;
-      _selectedQuestionIds.clear();
-    });
-    unawaited(
-      future.then((questions) {
-        if (!mounted) return;
-        setState(() {
-          _selectedQuestionIds
-            ..clear()
-            ..addAll(questions.map((question) => question.id));
-        });
-      }),
-    );
-  }
-
-  void _startExam(List<TheoreticalQuestion> questions) {
-    final selected = [
-      for (final question in questions)
-        if (_selectedQuestionIds.contains(question.id)) question,
-    ];
-    if (selected.isEmpty) {
-      _showMessage('Deneme için en az bir soru seçmelisin.');
+    final isSelected = _selectedCourses.contains(course);
+    if (!isSelected && _selectedCourses.length >= _maxSelectedCourseCount) {
+      _showMessage('En fazla $_maxSelectedCourseCount ders seçebilirsin.');
       return;
     }
+    final remainingQuestionSlot = _maxTotalQuestionCount - _totalQuestionCount;
+    if (!isSelected && remainingQuestionSlot <= 0) {
+      _showMessage(
+        'Toplam soru sayısı en fazla $_maxTotalQuestionCount olabilir.',
+      );
+      return;
+    }
+    setState(() {
+      if (isSelected) {
+        _selectedCourses.remove(course);
+        _questionCountsByCourse.remove(course);
+        _selectedTopicKeysByCourse.remove(course);
+      } else {
+        _selectedCourses.add(course);
+        _questionCountsByCourse[course] = _defaultCourseQuestionCount
+            .clamp(1, remainingQuestionSlot)
+            .toInt();
+      }
+    });
+  }
+
+  void _setCourseQuestionCount(String course, int count) {
+    final selectedTopicCount = _selectedTopicKeysByCourse[course]?.length ?? 0;
+    final normalized = count.clamp(1, _maxTotalQuestionCount).toInt();
+    if (normalized < selectedTopicCount) {
+      _showMessage(
+        '$course için $selectedTopicCount konu seçili; soru sayısı bundan az olamaz.',
+      );
+      return;
+    }
+    final current = _questionCountsByCourse[course] ?? 0;
+    final nextTotal = _totalQuestionCount - current + normalized;
+    if (nextTotal > _maxTotalQuestionCount) {
+      _showMessage(
+        'Toplam soru sayısı en fazla $_maxTotalQuestionCount olabilir.',
+      );
+      return;
+    }
+    setState(() => _questionCountsByCourse[course] = normalized);
+  }
+
+  void _toggleTopic(String course, TheoreticalTopicOption topic) {
+    final selectedKeys = _selectedTopicKeysByCourse.putIfAbsent(
+      course,
+      () => <String>{},
+    );
+    final isSelected = selectedKeys.contains(topic.key);
+    final questionCount =
+        _questionCountsByCourse[course] ?? _defaultCourseQuestionCount;
+    if (!isSelected && selectedKeys.length >= questionCount) {
+      _showMessage(
+        '$course için $questionCount soru seçili; en fazla $questionCount konu seçebilirsin.',
+      );
+      return;
+    }
+    setState(() {
+      if (isSelected) {
+        selectedKeys.remove(topic.key);
+      } else {
+        selectedKeys.add(topic.key);
+      }
+    });
+  }
+
+  List<TheoreticalCoursePlan> _plansFor(TheoreticalExamFilters filters) {
+    return [
+      for (final course in _selectedCourses)
+        TheoreticalCoursePlan(
+          course: course,
+          questionCount:
+              _questionCountsByCourse[course] ?? _defaultCourseQuestionCount,
+          topics: [
+            for (final topic in filters.topicOptionsFor(course))
+              if ((_selectedTopicKeysByCourse[course] ?? const <String>{})
+                  .contains(topic.key))
+                topic,
+          ],
+        ),
+    ];
+  }
+
+  int get _totalQuestionCount => _selectedCourses.fold<int>(
+    0,
+    (total, course) =>
+        total +
+        (_questionCountsByCourse[course] ?? _defaultCourseQuestionCount),
+  );
+
+  Future<void> _startGeneratedExam(TheoreticalExamFilters filters) async {
+    if (_selectedCourses.isEmpty) {
+      _showMessage('En az bir ders seçmelisin.');
+      return;
+    }
+    final plans = _plansFor(filters);
+    final totalQuestionCount = plans.fold<int>(
+      0,
+      (total, plan) => total + plan.questionCount,
+    );
+    if (totalQuestionCount > _maxTotalQuestionCount) {
+      _showMessage(
+        'Toplam soru sayısı en fazla $_maxTotalQuestionCount olabilir.',
+      );
+      return;
+    }
+    setState(() => _loadingQuestions = true);
+    try {
+      final questions = await widget.repository.loadQuestions(
+        courses: _selectedCourses,
+        plans: plans,
+        limit: totalQuestionCount,
+      );
+      if (!mounted) return;
+      setState(() => _loadingQuestions = false);
+      if (questions.isEmpty) {
+        _showMessage(
+          'Bu seçim için Qlinik soru bankasında tekrar etmeyen soru bulunamadı.',
+        );
+        return;
+      }
+      if (questions.length < totalQuestionCount) {
+        _showMessage(
+          'Qlinik bu seçim için ${questions.length}/$totalQuestionCount tekrar etmeyen soru verdi.',
+        );
+      }
+      _openExam(questions);
+    } on Object catch (error) {
+      if (!mounted) return;
+      setState(() => _loadingQuestions = false);
+      _showMessage(_errorText(error));
+    }
+  }
+
+  void _openExam(List<TheoreticalQuestion> questions) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => TheoreticalExamSessionScreen(questions: selected),
+        builder: (_) => TheoreticalExamSessionScreen(
+          repository: widget.repository,
+          questions: questions,
+        ),
       ),
     );
   }
@@ -96,12 +201,11 @@ class _TheoreticalExamSetupScreenState
 
   @override
   Widget build(BuildContext context) {
-    final bottom = MediaQuery.paddingOf(context).bottom + 24;
     return Scaffold(
       backgroundColor: PratiCaseColors.softSurface,
       appBar: AppBar(
         title: const Text(
-          'Kuramsal Sınav',
+          'Teorik Sınav',
           style: TextStyle(
             color: PratiCaseColors.navy,
             fontSize: 16,
@@ -133,15 +237,23 @@ class _TheoreticalExamSetupScreenState
             if (snapshot.hasError) {
               return _StateView(
                 icon: Icons.cloud_off_rounded,
-                title: 'Kuramsal sınav açılamadı',
+                title: 'Teorik sınav açılamadı',
                 body: _errorText(snapshot.error),
               );
             }
 
             final filters = snapshot.requireData;
-            final topics = filters.topicsFor(_selectedCourses);
-            return ListView(
-              padding: EdgeInsets.fromLTRB(20, 12, 20, bottom),
+            final plans = _plansFor(filters);
+            final totalQuestionCount = plans.fold<int>(
+              0,
+              (total, plan) => total + plan.questionCount,
+            );
+            return PratiCaseResponsiveListView(
+              padding: PratiCaseResponsive.pagePadding(
+                context,
+                top: 12,
+                includeNavigationReserve: false,
+              ),
               children: [
                 const _IntroCard(),
                 const SizedBox(height: 16),
@@ -164,111 +276,63 @@ class _TheoreticalExamSetupScreenState
                 ),
                 const SizedBox(height: 12),
                 _SectionCard(
-                  title: 'Konu ve Soru Sayısı',
+                  title: 'Ders Planı',
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      DropdownButtonFormField<String>(
-                        key: ValueKey(
-                          'topic-$_selectedTopic-${topics.join('|').hashCode}',
-                        ),
-                        initialValue: _selectedTopic,
-                        decoration: const InputDecoration(
-                          labelText: 'Konu',
-                          prefixIcon: Icon(Icons.topic_outlined),
-                        ),
-                        items: [
-                          const DropdownMenuItem(
-                            value: '',
-                            child: Text('Tüm konular'),
+                      if (_selectedCourses.isEmpty)
+                        const Text(
+                          'Sınav planı için önce ders seç. Her dersin soru sayısı ayrı belirlenir.',
+                        )
+                      else
+                        for (final course in _selectedCourses) ...[
+                          _CoursePlanEditor(
+                            course: course,
+                            questionCount:
+                                _questionCountsByCourse[course] ??
+                                _defaultCourseQuestionCount,
+                            topicOptions: filters.topicOptionsFor(course),
+                            selectedTopicKeys:
+                                _selectedTopicKeysByCourse[course] ??
+                                const <String>{},
+                            onQuestionCountChanged: (count) =>
+                                _setCourseQuestionCount(course, count),
+                            onTopicToggled: (topic) =>
+                                _toggleTopic(course, topic),
                           ),
-                          for (final topic in topics)
-                            DropdownMenuItem(value: topic, child: Text(topic)),
+                          const SizedBox(height: 12),
                         ],
-                        onChanged: (value) => setState(() {
-                          _selectedTopic = value ?? '';
-                          _questionsFuture = null;
-                          _selectedQuestionIds.clear();
-                        }),
-                      ),
-                      const SizedBox(height: 14),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            for (final count in const [10, 20, 40, 60, 100])
-                              ChoiceChip(
-                                label: Text('$count soru'),
-                                selected: _questionCount == count,
-                                onSelected: (_) => setState(() {
-                                  _questionCount = count;
-                                  _questionsFuture = null;
-                                  _selectedQuestionIds.clear();
-                                }),
-                              ),
-                          ],
-                        ),
+                      _PlanSummary(
+                        selectedCourseCount: _selectedCourses.length,
+                        totalQuestionCount: totalQuestionCount,
+                        maxQuestionCount: _maxTotalQuestionCount,
+                        maxCourseCount: _maxSelectedCourseCount,
                       ),
                       const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton.icon(
-                          onPressed: _loadQuestions,
-                          icon: const Icon(Icons.manage_search_rounded),
-                          label: const Text('Soruları Getir'),
+                          onPressed: _loadingQuestions
+                              ? null
+                              : () => _startGeneratedExam(filters),
+                          icon: _loadingQuestions
+                              ? const SizedBox.square(
+                                  dimension: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.play_arrow_rounded),
+                          label: Text(
+                            _loadingQuestions
+                                ? 'Sınav Hazırlanıyor'
+                                : 'Denemeyi Başlat',
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 12),
-                if (_questionsFuture != null)
-                  FutureBuilder<List<TheoreticalQuestion>>(
-                    future: _questionsFuture,
-                    builder: (context, questionSnapshot) {
-                      if (questionSnapshot.connectionState !=
-                          ConnectionState.done) {
-                        return const _SectionCard(
-                          title: 'Sorular',
-                          child: _InlineLoading(text: 'Sorular hazırlanıyor'),
-                        );
-                      }
-                      if (questionSnapshot.hasError) {
-                        return _SectionCard(
-                          title: 'Sorular',
-                          child: Text(_errorText(questionSnapshot.error)),
-                        );
-                      }
-                      final questions =
-                          questionSnapshot.data ??
-                          const <TheoreticalQuestion>[];
-                      if (questions.isEmpty) {
-                        return const _SectionCard(
-                          title: 'Sorular',
-                          child: Text(
-                            'Bu seçim için Qlinik soru bankasında soru bulunamadı.',
-                          ),
-                        );
-                      }
-                      return _QuestionPickerCard(
-                        questions: questions,
-                        selectedIds: _selectedQuestionIds,
-                        onToggle: (id) => setState(() {
-                          if (!_selectedQuestionIds.add(id)) {
-                            _selectedQuestionIds.remove(id);
-                          }
-                        }),
-                        onSelectAll: () => setState(() {
-                          _selectedQuestionIds
-                            ..clear()
-                            ..addAll(questions.map((question) => question.id));
-                        }),
-                        onClear: () => setState(_selectedQuestionIds.clear),
-                        onStart: () => _startExam(questions),
-                      );
-                    },
-                  ),
               ],
             );
           },
@@ -279,8 +343,13 @@ class _TheoreticalExamSetupScreenState
 }
 
 class TheoreticalExamSessionScreen extends StatefulWidget {
-  const TheoreticalExamSessionScreen({required this.questions, super.key});
+  const TheoreticalExamSessionScreen({
+    required this.repository,
+    required this.questions,
+    super.key,
+  });
 
+  final TheoreticalExamRepository repository;
   final List<TheoreticalQuestion> questions;
 
   @override
@@ -296,6 +365,7 @@ class _TheoreticalExamSessionScreenState
   Duration _elapsed = Duration.zero;
   int _index = 0;
   bool _finished = false;
+  Future<TheoreticalExamSubmissionResult>? _submissionFuture;
 
   @override
   void initState() {
@@ -345,9 +415,19 @@ class _TheoreticalExamSessionScreenState
       );
       if (shouldFinish != true) return;
     }
+    final elapsed = DateTime.now().difference(_startedAt);
+    final attempt = TheoreticalExamAttempt(
+      questions: widget.questions,
+      selectedOptionIds: Map<String, String>.unmodifiable(_answers),
+      startedAt: _startedAt,
+    );
     setState(() {
       _finished = true;
-      _elapsed = DateTime.now().difference(_startedAt);
+      _elapsed = elapsed;
+      _submissionFuture = widget.repository.submitAttempt(
+        attempt: attempt,
+        elapsed: elapsed,
+      );
     });
   }
 
@@ -361,10 +441,10 @@ class _TheoreticalExamSessionScreenState
           startedAt: _startedAt,
         ),
         elapsed: _elapsed,
+        submissionFuture: _submissionFuture,
       );
     }
 
-    final bottom = MediaQuery.paddingOf(context).bottom + 18;
     final selectedOption = _answers[question.id];
     return Scaffold(
       backgroundColor: PratiCaseColors.softSurface,
@@ -381,8 +461,13 @@ class _TheoreticalExamSessionScreenState
               onFinish: _finish,
             ),
             Expanded(
-              child: ListView(
-                padding: EdgeInsets.fromLTRB(18, 12, 18, bottom),
+              child: PratiCaseResponsiveListView(
+                maxWidth: PratiCaseBreakpoints.flowContentMaxWidth,
+                padding: PratiCaseResponsive.pagePadding(
+                  context,
+                  top: 12,
+                  includeNavigationReserve: false,
+                ),
                 children: [
                   _QuestionCard(question: question),
                   const SizedBox(height: 12),
@@ -402,38 +487,41 @@ class _TheoreticalExamSessionScreenState
             ),
             SafeArea(
               top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 10, 18, 14),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _index == 0
-                            ? null
-                            : () => setState(() => _index -= 1),
-                        icon: const Icon(Icons.chevron_left_rounded),
-                        label: const Text('Önceki'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: _index == widget.questions.length - 1
-                            ? _finish
-                            : () => setState(() => _index += 1),
-                        icon: Icon(
-                          _index == widget.questions.length - 1
-                              ? Icons.flag_rounded
-                              : Icons.chevron_right_rounded,
-                        ),
-                        label: Text(
-                          _index == widget.questions.length - 1
-                              ? 'Bitir'
-                              : 'Sonraki',
+              child: PratiCaseResponsiveFrame(
+                maxWidth: PratiCaseBreakpoints.flowContentMaxWidth,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 10, 18, 14),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _index == 0
+                              ? null
+                              : () => setState(() => _index -= 1),
+                          icon: const Icon(Icons.chevron_left_rounded),
+                          label: const Text('Önceki'),
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: _index == widget.questions.length - 1
+                              ? _finish
+                              : () => setState(() => _index += 1),
+                          icon: Icon(
+                            _index == widget.questions.length - 1
+                                ? Icons.flag_rounded
+                                : Icons.chevron_right_rounded,
+                          ),
+                          label: Text(
+                            _index == widget.questions.length - 1
+                                ? 'Bitir'
+                                : 'Sonraki',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -458,7 +546,11 @@ class _IntroCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.school_rounded, color: PratiCaseColors.gold, size: 34),
+          const Icon(
+            Icons.school_rounded,
+            color: PratiCaseColors.gold,
+            size: 34,
+          ),
           const SizedBox(height: 12),
           const Text(
             'Qlinik soru bankasından komite denemesi',
@@ -471,7 +563,7 @@ class _IntroCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Dersleri ve konuyu seç, soru sayısını belirle, gelen sorulardan denemene alacaklarını işaretle.',
+            'Dersleri ve konuları seç, toplam soru sayısını belirle, deneme otomatik hazırlansın.',
             style: TextStyle(
               color: PratiCaseColors.white.withValues(alpha: 0.8),
               height: 1.4,
@@ -514,66 +606,201 @@ class _SectionCard extends StatelessWidget {
   }
 }
 
-class _QuestionPickerCard extends StatelessWidget {
-  const _QuestionPickerCard({
-    required this.questions,
-    required this.selectedIds,
-    required this.onToggle,
-    required this.onSelectAll,
-    required this.onClear,
-    required this.onStart,
+class _CoursePlanEditor extends StatelessWidget {
+  const _CoursePlanEditor({
+    required this.course,
+    required this.questionCount,
+    required this.topicOptions,
+    required this.selectedTopicKeys,
+    required this.onQuestionCountChanged,
+    required this.onTopicToggled,
   });
 
-  final List<TheoreticalQuestion> questions;
-  final Set<String> selectedIds;
-  final ValueChanged<String> onToggle;
-  final VoidCallback onSelectAll;
-  final VoidCallback onClear;
-  final VoidCallback onStart;
+  final String course;
+  final int questionCount;
+  final List<TheoreticalTopicOption> topicOptions;
+  final Set<String> selectedTopicKeys;
+  final ValueChanged<int> onQuestionCountChanged;
+  final ValueChanged<TheoreticalTopicOption> onTopicToggled;
 
   @override
   Widget build(BuildContext context) {
-    return _SectionCard(
-      title: 'Soruları Seç',
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.softSurface,
+        borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+        border: Border.all(color: PratiCaseColors.border),
+      ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Text(
-                  '${selectedIds.length}/${questions.length} soru seçildi',
-                  style: const TextStyle(
-                    color: PratiCaseColors.muted,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+              Expanded(child: _CourseTitle(course: course)),
+              const SizedBox(width: 10),
+              _QuestionStepper(
+                value: questionCount,
+                onChanged: onQuestionCountChanged,
               ),
-              TextButton(onPressed: onSelectAll, child: const Text('Tümü')),
-              TextButton(onPressed: onClear, child: const Text('Temizle')),
             ],
           ),
-          const SizedBox(height: 8),
-          for (final question in questions)
-            CheckboxListTile(
-              value: selectedIds.contains(question.id),
-              onChanged: (_) => onToggle(question.id),
-              controlAffinity: ListTileControlAffinity.leading,
-              contentPadding: EdgeInsets.zero,
-              title: Text(
-                question.stem,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w800),
-              ),
-              subtitle: Text('${question.course} • ${question.topic}'),
-            ),
           const SizedBox(height: 10),
+          Text(
+            selectedTopicKeys.isEmpty
+                ? 'Tüm konulardan otomatik seçilecek.'
+                : '${selectedTopicKeys.length} konu seçildi. Konu sayısı soru sayısını geçemez.',
+            style: const TextStyle(
+              color: PratiCaseColors.muted,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (topicOptions.isEmpty)
+            const Text('Bu ders için Qlinik konu verisi bulunamadı.')
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ChoiceChip(
+                  label: const Text('Tüm konular'),
+                  selected: selectedTopicKeys.isEmpty,
+                  onSelected: (_) {
+                    for (final topic in topicOptions) {
+                      if (selectedTopicKeys.contains(topic.key)) {
+                        onTopicToggled(topic);
+                      }
+                    }
+                  },
+                ),
+                for (final topic in topicOptions)
+                  Tooltip(
+                    message: topic.subtitle.isEmpty
+                        ? '${topic.remainingCount} soru kaldı'
+                        : '${topic.subtitle} · ${topic.remainingCount} soru kaldı',
+                    child: FilterChip(
+                      label: Text(topic.title),
+                      selected: selectedTopicKeys.contains(topic.key),
+                      onSelected: (_) => onTopicToggled(topic),
+                    ),
+                  ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CourseTitle extends StatelessWidget {
+  const _CourseTitle({required this.course});
+
+  final String course;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      course,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(
+        color: PratiCaseColors.navy,
+        fontSize: 15,
+        fontWeight: FontWeight.w900,
+        height: 1.2,
+      ),
+    );
+  }
+}
+
+class _QuestionStepper extends StatelessWidget {
+  const _QuestionStepper({required this.value, required this.onChanged});
+
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 40,
+      decoration: BoxDecoration(
+        color: PratiCaseColors.white,
+        borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+        border: Border.all(color: PratiCaseColors.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            tooltip: 'Soru azalt',
+            visualDensity: VisualDensity.compact,
+            onPressed: () => onChanged(value - 1),
+            icon: const Icon(Icons.remove_rounded, size: 18),
+          ),
           SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: selectedIds.isEmpty ? null : onStart,
-              icon: const Icon(Icons.play_arrow_rounded),
-              label: const Text('Denemeye Başla'),
+            width: 56,
+            child: Text(
+              '$value soru',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: PratiCaseColors.navy,
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Soru artır',
+            visualDensity: VisualDensity.compact,
+            onPressed: () => onChanged(value + 1),
+            icon: const Icon(Icons.add_rounded, size: 18),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlanSummary extends StatelessWidget {
+  const _PlanSummary({
+    required this.selectedCourseCount,
+    required this.totalQuestionCount,
+    required this.maxQuestionCount,
+    required this.maxCourseCount,
+  });
+
+  final int selectedCourseCount;
+  final int totalQuestionCount;
+  final int maxQuestionCount;
+  final int maxCourseCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final text =
+        '$selectedCourseCount/$maxCourseCount ders · $totalQuestionCount/$maxQuestionCount soru';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.teal.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+        border: Border.all(color: PratiCaseColors.teal.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.rule_rounded, color: PratiCaseColors.teal, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                color: PratiCaseColors.navy,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
         ],
@@ -795,10 +1022,15 @@ class _OptionTile extends StatelessWidget {
 }
 
 class _TheoreticalResultView extends StatelessWidget {
-  const _TheoreticalResultView({required this.attempt, required this.elapsed});
+  const _TheoreticalResultView({
+    required this.attempt,
+    required this.elapsed,
+    required this.submissionFuture,
+  });
 
   final TheoreticalExamAttempt attempt;
   final Duration elapsed;
+  final Future<TheoreticalExamSubmissionResult>? submissionFuture;
 
   @override
   Widget build(BuildContext context) {
@@ -806,7 +1038,7 @@ class _TheoreticalResultView extends StatelessWidget {
       backgroundColor: PratiCaseColors.softSurface,
       appBar: AppBar(
         title: const Text(
-          'Kuramsal Sınav Sonucu',
+          'Teorik Sınav Sonucu',
           style: TextStyle(
             color: PratiCaseColors.navy,
             fontSize: 16,
@@ -832,15 +1064,16 @@ class _TheoreticalResultView extends StatelessWidget {
           ),
         ],
       ),
-      body: ListView(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          12,
-          20,
-          MediaQuery.paddingOf(context).bottom + 24,
+      body: PratiCaseResponsiveListView(
+        padding: PratiCaseResponsive.pagePadding(
+          context,
+          top: 12,
+          includeNavigationReserve: false,
         ),
         children: [
           _ScoreCard(attempt: attempt, elapsed: elapsed),
+          const SizedBox(height: 14),
+          _QlinikSyncCard(submissionFuture: submissionFuture),
           const SizedBox(height: 14),
           for (final question in attempt.questions) ...[
             _ReviewQuestionCard(
@@ -898,6 +1131,105 @@ class _ScoreCard extends StatelessWidget {
               _ResultPill(text: '${attempt.answeredCount} cevaplandı'),
               _ResultPill(text: _formatDuration(elapsed)),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QlinikSyncCard extends StatelessWidget {
+  const _QlinikSyncCard({required this.submissionFuture});
+
+  final Future<TheoreticalExamSubmissionResult>? submissionFuture;
+
+  @override
+  Widget build(BuildContext context) {
+    final future = submissionFuture;
+    if (future == null) {
+      return const _SyncSurface(
+        icon: Icons.sync_problem_rounded,
+        title: 'Qlinik senkronu beklemede',
+        body: 'Yanıtlar sonuç ekranı açıldığında Qlinik ilerlemene işlenir.',
+      );
+    }
+    return FutureBuilder<TheoreticalExamSubmissionResult>(
+      future: future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const _SyncSurface(
+            icon: Icons.sync_rounded,
+            title: 'Qlinik ile senkronlanıyor',
+            body: 'Çözdüğün sorular Qlinik tekrar havuzundan düşürülüyor.',
+          );
+        }
+        if (snapshot.hasError) {
+          return _SyncSurface(
+            icon: Icons.sync_problem_rounded,
+            title: 'Senkron tamamlanamadı',
+            body: _errorText(snapshot.error),
+          );
+        }
+        final result = snapshot.requireData;
+        return _SyncSurface(
+          icon: result.fullySynced
+              ? Icons.verified_rounded
+              : Icons.sync_problem_rounded,
+          title: result.fullySynced
+              ? 'Qlinik ile senkronlandı'
+              : 'Kısmi senkron',
+          body: result.fullySynced
+              ? '${result.syncedCount} yanıt Qlinik ilerlemene işlendi.'
+              : '${result.syncedCount}/${result.submittedCount} yanıt işlendi. ${result.errorMessage}',
+        );
+      },
+    );
+  }
+}
+
+class _SyncSurface extends StatelessWidget {
+  const _SyncSurface({
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
+
+  final IconData icon;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: PratiCaseColors.teal),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: PratiCaseColors.navy,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  body,
+                  style: const TextStyle(
+                    color: PratiCaseColors.muted,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -1009,7 +1341,9 @@ class _ResultPill extends StatelessWidget {
       decoration: BoxDecoration(
         color: PratiCaseColors.white.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
-        border: Border.all(color: PratiCaseColors.white.withValues(alpha: 0.22)),
+        border: Border.all(
+          color: PratiCaseColors.white.withValues(alpha: 0.22),
+        ),
       ),
       child: Text(
         text,
@@ -1018,27 +1352,6 @@ class _ResultPill extends StatelessWidget {
           fontWeight: FontWeight.w900,
         ),
       ),
-    );
-  }
-}
-
-class _InlineLoading extends StatelessWidget {
-  const _InlineLoading({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-        const SizedBox(width: 12),
-        Expanded(child: Text(text)),
-      ],
     );
   }
 }
@@ -1056,7 +1369,7 @@ class _StateView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    return PratiCaseResponsiveListView(
       padding: const EdgeInsets.all(24),
       children: [
         const SizedBox(height: 80),

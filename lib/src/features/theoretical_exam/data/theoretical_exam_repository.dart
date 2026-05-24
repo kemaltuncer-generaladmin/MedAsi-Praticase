@@ -5,8 +5,14 @@ abstract interface class TheoreticalExamRepository {
 
   Future<List<TheoreticalQuestion>> loadQuestions({
     required Set<String> courses,
-    String topic = '',
+    Set<String> topics = const <String>{},
+    List<TheoreticalCoursePlan> plans = const <TheoreticalCoursePlan>[],
     int limit = 20,
+  });
+
+  Future<TheoreticalExamSubmissionResult> submitAttempt({
+    required TheoreticalExamAttempt attempt,
+    required Duration elapsed,
   });
 }
 

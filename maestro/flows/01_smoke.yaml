@@ -1,0 +1,16 @@
+appId: com.medasi.praticase
+name: 01 smoke - cold launch + onboarding renders
+tags:
+  - smoke
+---
+# Cold launch the release build, make sure the splash → onboarding handoff
+# completes without a crash and the branded entry screen renders.
+- launchApp:
+    clearState: true
+    stopApp: true
+- assertVisible:
+    text: "PratiCase"
+- assertVisible:
+    id: "cta.onboarding-start"
+- assertVisible: "Giriş Yap"
+- takeScreenshot: artifacts/01_onboarding

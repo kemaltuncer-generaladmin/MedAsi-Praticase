@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../app/theme/praticase_colors.dart';
 import '../../../app/theme/praticase_tokens.dart';
+import '../../../shared/ui/responsive.dart';
 import '../../auth/data/auth_repository.dart';
 import '../data/progress_repository.dart';
 import '../domain/progress_models.dart';
@@ -75,16 +78,25 @@ class _BadgesScreenState extends State<BadgesScreen> {
                 body: 'Rozet ilerlemesi oluştuğunda burada görünecek.',
               )
             else
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 0.72,
-                children: [
-                  for (final badge in visible) _BadgeCardView(badge: badge),
-                ],
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final columns = PratiCaseResponsive.columnsForWidth(
+                    constraints.maxWidth,
+                    tablet: 3,
+                    desktop: 4,
+                  );
+                  return GridView.count(
+                    crossAxisCount: columns,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: columns >= 3 ? 0.78 : 0.72,
+                    children: [
+                      for (final badge in visible) _BadgeCardView(badge: badge),
+                    ],
+                  );
+                },
               ),
           ],
         );
@@ -228,9 +240,8 @@ class ProfileScreen extends StatelessWidget {
           );
         }
         final profile = snapshot.requireData;
-        final bottomInset = MediaQuery.paddingOf(context).bottom;
-        return ListView(
-          padding: EdgeInsets.fromLTRB(20, 20, 20, bottomInset + 136),
+        return PratiCaseResponsiveListView(
+          padding: PratiCaseResponsive.pagePadding(context),
           children: [
             _ProfileBrandHeader(
               repository: repository,
@@ -247,20 +258,56 @@ class ProfileScreen extends StatelessWidget {
               authRepository: authRepository,
               repository: repository,
               items: const [
-                _MenuItem(Icons.history_rounded, 'Vaka Geçmişim', semanticsId: 'menu.case-history'),
-                _MenuItem(Icons.favorite_border_rounded, 'Favori Vakalarım', semanticsId: 'menu.favorites'),
-                _MenuItem(Icons.note_alt_outlined, 'Notlarım', semanticsId: 'menu.notes'),
+                _MenuItem(
+                  Icons.history_rounded,
+                  'Vaka Geçmişim',
+                  semanticsId: 'menu.case-history',
+                ),
+                _MenuItem(
+                  Icons.favorite_border_rounded,
+                  'Favori Vakalarım',
+                  semanticsId: 'menu.favorites',
+                ),
+                _MenuItem(
+                  Icons.note_alt_outlined,
+                  'Notlarım',
+                  semanticsId: 'menu.notes',
+                ),
                 _MenuItem(
                   Icons.local_fire_department_outlined,
                   'Günlük Hedefler',
                   semanticsId: 'menu.daily-goals',
                 ),
-                _MenuItem(Icons.leaderboard_outlined, 'Liderlik Tablosu', semanticsId: 'menu.leaderboard'),
-                _MenuItem(Icons.notifications_none_rounded, 'Bildirimler', semanticsId: 'menu.notifications'),
-                _MenuItem(Icons.workspace_premium_outlined, 'Başarılarım', semanticsId: 'menu.badges'),
-                _MenuItem(Icons.settings_outlined, 'Ayarlar', semanticsId: 'menu.settings'),
-                _MenuItem(Icons.help_outline_rounded, 'Yardım ve Destek', semanticsId: 'menu.help'),
-                _MenuItem(Icons.download_rounded, 'İndirmelerim', semanticsId: 'menu.downloads'),
+                _MenuItem(
+                  Icons.leaderboard_outlined,
+                  'Liderlik Tablosu',
+                  semanticsId: 'menu.leaderboard',
+                ),
+                _MenuItem(
+                  Icons.notifications_none_rounded,
+                  'Bildirimler',
+                  semanticsId: 'menu.notifications',
+                ),
+                _MenuItem(
+                  Icons.workspace_premium_outlined,
+                  'Başarılarım',
+                  semanticsId: 'menu.badges',
+                ),
+                _MenuItem(
+                  Icons.settings_outlined,
+                  'Ayarlar',
+                  semanticsId: 'menu.settings',
+                ),
+                _MenuItem(
+                  Icons.help_outline_rounded,
+                  'Yardım ve Destek',
+                  semanticsId: 'menu.help',
+                ),
+                _MenuItem(
+                  Icons.download_rounded,
+                  'İndirmelerim',
+                  semanticsId: 'menu.downloads',
+                ),
               ],
               onSignOut: onSignOut,
             ),
@@ -545,22 +592,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
               const SizedBox(height: 26),
-              OutlinedButton(
-                onPressed: () async {
-                  final confirmed = await Navigator.of(context).push<bool>(
-                    MaterialPageRoute<bool>(
-                      fullscreenDialog: true,
-                      builder: (_) => const LogoutConfirmScreen(),
-                    ),
-                  );
-                  if (confirmed == true) await widget.onSignOut();
-                },
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: PratiCaseColors.errorRed,
-                  side: const BorderSide(color: PratiCaseColors.errorRed),
-                  minimumSize: const Size.fromHeight(52),
+              Semantics(
+                identifier: 'menu.logout',
+                child: OutlinedButton(
+                  onPressed: () async {
+                    final confirmed = await Navigator.of(context).push<bool>(
+                      MaterialPageRoute<bool>(
+                        fullscreenDialog: true,
+                        builder: (_) => const LogoutConfirmScreen(),
+                      ),
+                    );
+                    if (confirmed == true) await widget.onSignOut();
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: PratiCaseColors.errorRed,
+                    side: const BorderSide(color: PratiCaseColors.errorRed),
+                    minimumSize: const Size.fromHeight(52),
+                  ),
+                  child: const Text('Çıkış Yap'),
                 ),
-                child: const Text('Çıkış Yap'),
               ),
             ],
           ],
@@ -722,11 +772,31 @@ class _AccountSecurityScreenState extends State<AccountSecurityScreen> {
 class _NotificationsScreenState extends State<NotificationsScreen> {
   int _selectedFilter = 0;
   late Future<List<NotificationCard>> _notificationsFuture;
+  StreamSubscription<List<NotificationCard>>? _notificationsSubscription;
+  bool _receivedInitialStreamEvent = false;
 
   @override
   void initState() {
     super.initState();
     _notificationsFuture = widget.repository.loadNotifications();
+    _notificationsSubscription = widget.repository.watchNotifications().listen((
+      notifications,
+    ) {
+      if (!mounted) return;
+      setState(() {
+        _notificationsFuture = Future.value(notifications);
+      });
+      if (_receivedInitialStreamEvent) {
+        unawaited(widget.onChanged?.call());
+      }
+      _receivedInitialStreamEvent = true;
+    }, onError: (_) {});
+  }
+
+  @override
+  void dispose() {
+    _notificationsSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _refresh() async {
@@ -1581,21 +1651,21 @@ class LogoutConfirmScreen extends StatelessWidget {
                 const Text(
                   'Oturumunuz sonlandırılacak.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: PratiCaseColors.muted,
-                    height: 1.4,
-                  ),
+                  style: TextStyle(color: PratiCaseColors.muted, height: 1.4),
                 ),
                 const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: PratiCaseColors.errorRed,
-                      minimumSize: const Size.fromHeight(48),
+                Semantics(
+                  identifier: 'cta.confirm-logout',
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: PratiCaseColors.errorRed,
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                      child: const Text('Çıkış Yap'),
                     ),
-                    child: const Text('Çıkış Yap'),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -1631,9 +1701,8 @@ class _ProgressPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
-    final list = ListView(
-      padding: EdgeInsets.fromLTRB(20, 18, 20, bottomInset + 136),
+    final list = PratiCaseResponsiveListView(
+      padding: PratiCaseResponsive.pagePadding(context, top: 18),
       children: [
         Row(
           children: [
@@ -2976,7 +3045,9 @@ class _PodiumCard extends StatelessWidget {
                 child: Text(
                   '#${entry.rank}',
                   style: TextStyle(
-                    color: isFirst ? PratiCaseColors.navy : PratiCaseColors.white,
+                    color: isFirst
+                        ? PratiCaseColors.navy
+                        : PratiCaseColors.white,
                     fontSize: 10,
                     fontWeight: FontWeight.w900,
                   ),
@@ -3093,9 +3164,10 @@ class _ProfileBrandHeader extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(PratiCaseRadius.md),
           child: Image.asset(
-            'assets/branding/praticase.png',
+            'assets/auth/praticase_icon.png',
             width: 44,
             height: 44,
+            fit: BoxFit.cover,
           ),
         ),
         const SizedBox(width: 12),
@@ -3204,10 +3276,8 @@ class _ProfileHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final avatarTitle = profile.displayName.trim().isNotEmpty
         ? profile.displayName.trim()
-        : _emailName(profile.email);
-    final title = profile.email.trim().isNotEmpty
-        ? profile.email.trim()
-        : avatarTitle;
+        : 'PratiCase Öğrencisi';
+    final title = avatarTitle;
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 26, 20, 24),
       decoration: BoxDecoration(
@@ -3259,7 +3329,9 @@ class _ProfileHero extends StatelessWidget {
             decoration: BoxDecoration(
               color: PratiCaseColors.white.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
-              border: Border.all(color: PratiCaseColors.white.withValues(alpha: 0.2)),
+              border: Border.all(
+                color: PratiCaseColors.white.withValues(alpha: 0.2),
+              ),
             ),
             child: const Row(
               mainAxisSize: MainAxisSize.min,
@@ -3378,94 +3450,102 @@ class _MenuPanel extends StatelessWidget {
             for (var index = 0; index < items.length; index++) ...[
               Semantics(
                 identifier: items[index].semanticsId ?? '',
-                child: ListTile(
-                leading: Icon(items[index].icon, color: PratiCaseColors.teal),
-                title: Text(items[index].title),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () {
-                  final title = items[index].title;
-                  if (title == 'Vaka Geçmişim') {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) =>
-                            CaseHistoryScreen(repository: repository),
-                      ),
-                    );
-                  }
-                  if (title == 'Favori Vakalarım') {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) =>
-                            FavoriteCasesScreen(repository: repository),
-                      ),
-                    );
-                  }
-                  if (title == 'Notlarım') {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => NotesScreen(repository: repository),
-                      ),
-                    );
-                  }
-                  if (title == 'Günlük Hedefler') {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) =>
-                            DailyGoalsScreen(repository: repository),
-                      ),
-                    );
-                  }
-                  if (title == 'Liderlik Tablosu') {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) =>
-                            LeaderboardScreen(repository: repository),
-                      ),
-                    );
-                  }
-                  if (title == 'Bildirimler') {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) =>
-                            NotificationsScreen(repository: repository),
-                      ),
-                    );
-                  }
-                  if (title == 'Başarılarım') {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => BadgesScreen(repository: repository),
-                      ),
-                    );
-                  }
-                  if (title == 'Ayarlar') {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => SettingsScreen(
-                          authRepository: authRepository,
-                          repository: repository,
-                          onSignOut: onSignOut,
-                        ),
-                      ),
-                    );
-                  }
-                  if (title == 'Yardım ve Destek') {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) =>
-                            HelpCenterScreen(repository: repository),
-                      ),
-                    );
-                  }
-                  if (title == 'İndirmelerim') {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => DownloadsScreen(repository: repository),
-                      ),
-                    );
-                  }
-                },
-              ),
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: ListTile(
+                    leading: Icon(
+                      items[index].icon,
+                      color: PratiCaseColors.teal,
+                    ),
+                    title: Text(items[index].title),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () {
+                      final title = items[index].title;
+                      if (title == 'Vaka Geçmişim') {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                CaseHistoryScreen(repository: repository),
+                          ),
+                        );
+                      }
+                      if (title == 'Favori Vakalarım') {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                FavoriteCasesScreen(repository: repository),
+                          ),
+                        );
+                      }
+                      if (title == 'Notlarım') {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => NotesScreen(repository: repository),
+                          ),
+                        );
+                      }
+                      if (title == 'Günlük Hedefler') {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                DailyGoalsScreen(repository: repository),
+                          ),
+                        );
+                      }
+                      if (title == 'Liderlik Tablosu') {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                LeaderboardScreen(repository: repository),
+                          ),
+                        );
+                      }
+                      if (title == 'Bildirimler') {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                NotificationsScreen(repository: repository),
+                          ),
+                        );
+                      }
+                      if (title == 'Başarılarım') {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                BadgesScreen(repository: repository),
+                          ),
+                        );
+                      }
+                      if (title == 'Ayarlar') {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => SettingsScreen(
+                              authRepository: authRepository,
+                              repository: repository,
+                              onSignOut: onSignOut,
+                            ),
+                          ),
+                        );
+                      }
+                      if (title == 'Yardım ve Destek') {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                HelpCenterScreen(repository: repository),
+                          ),
+                        );
+                      }
+                      if (title == 'İndirmelerim') {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                DownloadsScreen(repository: repository),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ),
               ),
               if (index != items.length - 1)
                 const Divider(height: 1, indent: 56, endIndent: 16),
@@ -3521,7 +3601,9 @@ class _DailyGoalHero extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: progress == 0 ? 1 : progress,
                     minHeight: 8,
-                    backgroundColor: PratiCaseColors.white.withValues(alpha: 0.24),
+                    backgroundColor: PratiCaseColors.white.withValues(
+                      alpha: 0.24,
+                    ),
                     color: PratiCaseColors.gold,
                   ),
                 ),
@@ -3585,28 +3667,31 @@ class _SettingsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      onTap: onTap,
-      enabled: onTap != null || enabled != null,
-      leading: Icon(icon, color: PratiCaseColors.navy),
-      title: Text(title),
-      trailing: enabled == null
-          ? Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (value != null)
-                  Text(
-                    value!,
-                    style: const TextStyle(color: PratiCaseColors.muted),
-                  ),
-                const Icon(Icons.chevron_right_rounded),
-              ],
-            )
-          : Switch(
-              value: enabled!,
-              activeThumbColor: PratiCaseColors.teal,
-              onChanged: onTap == null ? null : (_) => onTap!(),
-            ),
+    return Material(
+      type: MaterialType.transparency,
+      child: ListTile(
+        onTap: onTap,
+        enabled: onTap != null || enabled != null,
+        leading: Icon(icon, color: PratiCaseColors.navy),
+        title: Text(title),
+        trailing: enabled == null
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (value != null)
+                    Text(
+                      value!,
+                      style: const TextStyle(color: PratiCaseColors.muted),
+                    ),
+                  const Icon(Icons.chevron_right_rounded),
+                ],
+              )
+            : Switch(
+                value: enabled!,
+                activeThumbColor: PratiCaseColors.teal,
+                onChanged: onTap == null ? null : (_) => onTap!(),
+              ),
+      ),
     );
   }
 }
@@ -3622,44 +3707,50 @@ class _NotificationTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 4),
       decoration: _cardDecoration(),
-      child: ListTile(
-        onTap: onTap,
-        leading: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: (item.isRead ? PratiCaseColors.muted : PratiCaseColors.gold)
-                .withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+      child: Material(
+        type: MaterialType.transparency,
+        child: ListTile(
+          onTap: onTap,
+          leading: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color:
+                  (item.isRead ? PratiCaseColors.muted : PratiCaseColors.gold)
+                      .withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+            ),
+            child: Icon(
+              item.isRead
+                  ? Icons.notifications_none_rounded
+                  : Icons.star_rounded,
+              color: item.isRead ? PratiCaseColors.muted : PratiCaseColors.gold,
+            ),
           ),
-          child: Icon(
-            item.isRead ? Icons.notifications_none_rounded : Icons.star_rounded,
-            color: item.isRead ? PratiCaseColors.muted : PratiCaseColors.gold,
-          ),
-        ),
-        title: Text(
-          item.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w900),
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text(
-            '${_shortDate(item.createdAt)} • ${item.body}',
-            maxLines: 2,
+          title: Text(
+            item.title,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontWeight: FontWeight.w900),
           ),
-        ),
-        trailing: item.isRead
-            ? const Icon(Icons.check_circle_outline_rounded)
-            : const Text(
-                'Oku',
-                style: TextStyle(
-                  color: PratiCaseColors.teal,
-                  fontWeight: FontWeight.w900,
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              '${_shortDate(item.createdAt)} • ${item.body}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          trailing: item.isRead
+              ? const Icon(Icons.check_circle_outline_rounded)
+              : const Text(
+                  'Oku',
+                  style: TextStyle(
+                    color: PratiCaseColors.teal,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-              ),
+        ),
       ),
     );
   }
@@ -3831,14 +3922,17 @@ class _SimpleTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: _cardDecoration(),
-      child: ListTile(
-        leading: const Icon(
-          Icons.article_outlined,
-          color: PratiCaseColors.teal,
+      child: Material(
+        type: MaterialType.transparency,
+        child: ListTile(
+          leading: const Icon(
+            Icons.article_outlined,
+            color: PratiCaseColors.teal,
+          ),
+          title: Text(item.title),
+          subtitle: item.body.isEmpty ? null : Text(item.body),
+          trailing: const Icon(Icons.chevron_right_rounded),
         ),
-        title: Text(item.title),
-        subtitle: item.body.isEmpty ? null : Text(item.body),
-        trailing: const Icon(Icons.chevron_right_rounded),
       ),
     );
   }
@@ -3854,17 +3948,20 @@ class _FaqTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: _cardDecoration(),
-      child: ExpansionTile(
-        title: Text(item.title),
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(item.body),
+      child: Material(
+        type: MaterialType.transparency,
+        child: ExpansionTile(
+          title: Text(item.title),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(item.body),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -4487,11 +4584,4 @@ String _initial(String value) {
   final trimmed = value.trim();
   if (trimmed.isEmpty) return 'P';
   return String.fromCharCode(trimmed.runes.first).toUpperCase();
-}
-
-String _emailName(String email) {
-  final trimmed = email.trim();
-  if (trimmed.isEmpty) return 'PratiCase';
-  final local = trimmed.split('@').first.trim();
-  return local.isEmpty ? trimmed : local;
 }

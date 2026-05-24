@@ -2,10 +2,12 @@ class TheoreticalExamFilters {
   const TheoreticalExamFilters({
     required this.courses,
     required this.topicsByCourse,
+    this.topicOptionsByCourse = const <String, List<TheoreticalTopicOption>>{},
   });
 
   final List<String> courses;
   final Map<String, List<String>> topicsByCourse;
+  final Map<String, List<TheoreticalTopicOption>> topicOptionsByCourse;
 
   List<String> topicsFor(Set<String> selectedCourses) {
     final topics = <String>{};
@@ -21,6 +23,62 @@ class TheoreticalExamFilters {
     final sorted = topics.toList()..sort(_turkishCompare);
     return sorted;
   }
+
+  List<TheoreticalTopicOption> topicOptionsFor(String course) {
+    final options = topicOptionsByCourse[course];
+    if (options != null && options.isNotEmpty) return options;
+    return [
+      for (final topic in topicsByCourse[course] ?? const <String>[])
+        TheoreticalTopicOption(
+          course: course,
+          topic: topic,
+          metadataValue: topic,
+          totalCount: 0,
+          remainingCount: 0,
+        ),
+    ];
+  }
+}
+
+class TheoreticalTopicOption {
+  const TheoreticalTopicOption({
+    required this.course,
+    required this.topic,
+    required this.metadataValue,
+    required this.totalCount,
+    required this.remainingCount,
+    this.difficulty = '',
+  });
+
+  final String course;
+  final String topic;
+  final String metadataValue;
+  final int totalCount;
+  final int remainingCount;
+  final String difficulty;
+
+  String get key => '$course\u0000$topic\u0000$metadataValue';
+
+  String get title => metadataValue.isNotEmpty ? metadataValue : topic;
+
+  String get subtitle {
+    if (topic.isEmpty || topic == title) return '';
+    return topic;
+  }
+}
+
+class TheoreticalCoursePlan {
+  const TheoreticalCoursePlan({
+    required this.course,
+    required this.questionCount,
+    this.topics = const <TheoreticalTopicOption>[],
+  });
+
+  final String course;
+  final int questionCount;
+  final List<TheoreticalTopicOption> topics;
+
+  int get topicCount => topics.length;
 }
 
 class TheoreticalQuestion {
@@ -93,6 +151,22 @@ class TheoreticalExamAttempt {
     if (total == 0) return 0;
     return ((correctCount / total) * 100).round().clamp(0, 100).toInt();
   }
+}
+
+class TheoreticalExamSubmissionResult {
+  const TheoreticalExamSubmissionResult({
+    required this.submittedCount,
+    required this.syncedCount,
+    required this.remainingQuestionQuota,
+    this.errorMessage = '',
+  });
+
+  final int submittedCount;
+  final int syncedCount;
+  final int? remainingQuestionQuota;
+  final String errorMessage;
+
+  bool get fullySynced => submittedCount == syncedCount && errorMessage.isEmpty;
 }
 
 int _turkishCompare(String a, String b) =>

@@ -59,7 +59,7 @@ class _ConfigurationGate extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Image.asset(
-                    'assets/branding/praticase.png',
+                    'assets/auth/praticase_icon.png',
                     width: 72,
                     height: 72,
                   ),

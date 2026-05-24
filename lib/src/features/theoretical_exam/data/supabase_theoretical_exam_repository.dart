@@ -20,13 +20,34 @@ class SupabaseTheoreticalExamRepository implements TheoreticalExamRepository {
     }
 
     final topicsByCourse = <String, Set<String>>{};
+    final topicOptionsByCourse = <String, List<TheoreticalTopicOption>>{};
+    final seenOptions = <String>{};
     for (final value in filters) {
       if (value is! Map) continue;
       final course = _string(value, 'subject');
       final topic = _string(value, 'topic');
+      final metadataValue = _string(value, 'metadata_value');
       if (course.isEmpty) continue;
       topicsByCourse.putIfAbsent(course, () => <String>{});
-      if (topic.isNotEmpty) topicsByCourse[course]!.add(topic);
+      final displayTopic = metadataValue.isNotEmpty ? metadataValue : topic;
+      if (displayTopic.isNotEmpty) topicsByCourse[course]!.add(displayTopic);
+      final optionKey = '$course\u0000$topic\u0000$metadataValue';
+      if (seenOptions.add(optionKey)) {
+        topicOptionsByCourse.putIfAbsent(
+          course,
+          () => <TheoreticalTopicOption>[],
+        );
+        topicOptionsByCourse[course]!.add(
+          TheoreticalTopicOption(
+            course: course,
+            topic: topic,
+            metadataValue: metadataValue,
+            totalCount: _int(value, 'total_count'),
+            remainingCount: _int(value, 'remaining_count'),
+            difficulty: _string(value, 'difficulty'),
+          ),
+        );
+      }
     }
 
     final courses = topicsByCourse.keys.toList()..sort(_compare);
@@ -36,18 +57,38 @@ class SupabaseTheoreticalExamRepository implements TheoreticalExamRepository {
         for (final entry in topicsByCourse.entries)
           entry.key: (entry.value.toList()..sort(_compare)),
       },
+      topicOptionsByCourse: {
+        for (final entry in topicOptionsByCourse.entries)
+          entry.key: entry.value..sort(_compareTopicOptions),
+      },
     );
   }
 
   @override
   Future<List<TheoreticalQuestion>> loadQuestions({
     required Set<String> courses,
-    String topic = '',
+    Set<String> topics = const <String>{},
+    List<TheoreticalCoursePlan> plans = const <TheoreticalCoursePlan>[],
     int limit = 20,
   }) async {
     final data = await _invoke('questions', {
       'subjects': courses.toList()..sort(_compare),
-      'topic': topic,
+      'topics': topics.toList()..sort(_compare),
+      'plans': [
+        for (final plan in plans)
+          {
+            'subject': plan.course,
+            'limit': plan.questionCount,
+            'topics': [
+              for (final topic in plan.topics)
+                {
+                  'topic': topic.topic,
+                  'metadata_value': topic.metadataValue,
+                  'difficulty': topic.difficulty,
+                },
+            ],
+          },
+      ],
       'limit': limit,
     });
     final rows = data['questions'];
@@ -58,6 +99,30 @@ class SupabaseTheoreticalExamRepository implements TheoreticalExamRepository {
       for (final row in rows)
         if (row is Map<String, dynamic>) _question(row),
     ];
+  }
+
+  @override
+  Future<TheoreticalExamSubmissionResult> submitAttempt({
+    required TheoreticalExamAttempt attempt,
+    required Duration elapsed,
+  }) async {
+    final answers = [
+      for (final entry in attempt.selectedOptionIds.entries)
+        {'questionId': entry.key, 'selectedOptionId': entry.value},
+    ];
+    final data = await _invoke('submit_attempt', {
+      'answers': answers,
+      'elapsedSeconds': elapsed.inSeconds,
+      'startedAt': attempt.startedAt.toUtc().toIso8601String(),
+    });
+    return TheoreticalExamSubmissionResult(
+      submittedCount: _int(data, 'submittedCount'),
+      syncedCount: _int(data, 'syncedCount'),
+      remainingQuestionQuota: data['remainingQuestionQuota'] == null
+          ? null
+          : _int(data, 'remainingQuestionQuota'),
+      errorMessage: _string(data, 'warning'),
+    );
   }
 
   Future<Map<String, dynamic>> _invoke(
@@ -76,20 +141,18 @@ class SupabaseTheoreticalExamRepository implements TheoreticalExamRepository {
         return data;
       }
       if (data is Map) return Map<String, dynamic>.from(data);
-      throw const TheoreticalExamUnavailable(
-        'Kuramsal sınav yanıtı okunamadı.',
-      );
+      throw const TheoreticalExamUnavailable('Teorik sınav yanıtı okunamadı.');
     } on FunctionException catch (error) {
       throw TheoreticalExamUnavailable(
         error.details?.toString() ??
             error.reasonPhrase ??
-            'Kuramsal sınav servisi açılamadı.',
+            'Teorik sınav servisi açılamadı.',
       );
     } on TheoreticalExamUnavailable {
       rethrow;
     } on Object {
       throw const TheoreticalExamUnavailable(
-        'Kuramsal sınav servisiyle bağlantı kurulamadı.',
+        'Teorik sınav servisiyle bağlantı kurulamadı.',
       );
     }
   }
@@ -144,3 +207,16 @@ List<String> _stringList(Object? value) {
 }
 
 int _compare(String a, String b) => a.toLowerCase().compareTo(b.toLowerCase());
+
+int _compareTopicOptions(TheoreticalTopicOption a, TheoreticalTopicOption b) {
+  final titleCompare = _compare(a.title, b.title);
+  if (titleCompare != 0) return titleCompare;
+  return _compare(a.subtitle, b.subtitle);
+}
+
+int _int(Map<dynamic, dynamic> row, String key) {
+  final value = row[key];
+  if (value is int) return value;
+  if (value is num) return value.round();
+  return int.tryParse(value?.toString() ?? '') ?? 0;
+}

@@ -1,10 +1,15 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders, isAllowedOrigin, jsonResponse } from "../_shared/cors.ts";
 import {
-  generateVertexText,
+  generateVertexContent,
   historyModel,
   vertexConfigured,
 } from "../_shared/vertex_ai.ts";
+import {
+  chargeAiCoins,
+  ensureAiCoinBalance,
+  InsufficientCoinBalanceError,
+} from "../_shared/medasi_coin.ts";
 import {
   loadCaseChecklists,
   mergeCaseChecklistContext,
@@ -30,6 +35,7 @@ Deno.serve(async (request) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const authorization = request.headers.get("Authorization");
 
   if (!supabaseUrl || !supabaseAnonKey || !authorization) {
@@ -70,12 +76,17 @@ Deno.serve(async (request) => {
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: authorization } },
   });
+  const admin = supabaseServiceRoleKey
+    ? createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: { persistSession: false },
+    })
+    : null;
 
   const { data: session, error: sessionError } = await supabase
     .schema("praticase")
     .from("exam_sessions")
     .select(
-      "id,case_id,mode,current_step,cases(title,branch,difficulty,setting,candidate_prompt,patient_profile,expected_history,expected_physical_exam,expected_differentials,expected_tests,unnecessary_tests,management_steps,critical_mistakes)",
+      "id,user_id,case_id,mode,current_step,cases(title,branch,difficulty,setting,candidate_prompt,patient_profile,expected_history,expected_physical_exam,expected_differentials,expected_tests,unnecessary_tests,management_steps,critical_mistakes)",
     )
     .eq("id", sessionId)
     .eq("status", "active")
@@ -84,6 +95,23 @@ Deno.serve(async (request) => {
 
   if (sessionError || !session) {
     return jsonResponse({ error: "Exam session not found" }, 404, origin);
+  }
+  try {
+    await ensureAiCoinBalance(admin, String(session.user_id ?? ""));
+  } catch (error) {
+    if (error instanceof InsufficientCoinBalanceError) {
+      return jsonResponse(
+        {
+          error:
+            "MedAsi Coin bakiyen yeterli değil. Cüzdandan coin yükleyip kaldığın yerden devam edebilirsin.",
+          wallet_balance: error.walletBalance,
+          required_balance: error.requiredBalance,
+        },
+        402,
+        origin,
+      );
+    }
+    throw error;
   }
 
   const { data: previousMessages, error: messagesError } = await supabase
@@ -128,9 +156,11 @@ Deno.serve(async (request) => {
   };
 
   let aiResponse = "";
+  let usageMetadata: Record<string, unknown> = {};
+  let model = historyModel();
   try {
-    aiResponse = await generateVertexText({
-      model: historyModel(),
+    const generated = await generateVertexContent({
+      model,
       systemInstruction:
         "Sen PratiCase OSCE simülasyonunda sanal hastasın. Hoca, asistan veya açıklayıcı kaynak gibi konuşma; hasta gibi kısa, doğal ve Türkçe cevap ver. Sadece adayın sorduğu soruya yanıt ver. Sorulmadıkça kritik bilgiyi, tanıyı, ideal yaklaşımı veya rubrik ipucunu verme. Tıbbi terimi anlamazsan hastanın anlayacağı dille netleştirme isteyebilirsin. Verilen vaka bağlamı dışına taşma; bilinmeyen bilgide 'bilmiyorum', 'hatırlamıyorum' veya 'emin değilim' de. Sert, yargılayıcı veya aşırı uzun cevap verme.",
       contents: [
@@ -150,12 +180,43 @@ Deno.serve(async (request) => {
       temperature: 0.45,
       maxOutputTokens: 280,
     });
+    aiResponse = generated.text;
+    usageMetadata = generated.usageMetadata;
+    model = generated.model;
   } catch (error) {
     return jsonResponse(
       { error: "Vertex AI patient turn failed", detail: errorMessage(error) },
       502,
       origin,
     );
+  }
+
+  let chargedCoinAmount = 0;
+  let walletBalance: number | null = null;
+  try {
+    const charge = await chargeAiCoins({
+      admin,
+      userId: String(session.user_id ?? ""),
+      feature: "praticase-patient-turn",
+      model,
+      usageMetadata,
+    });
+    chargedCoinAmount = charge.chargedCoinAmount;
+    walletBalance = charge.walletBalance;
+  } catch (error) {
+    if (error instanceof InsufficientCoinBalanceError) {
+      return jsonResponse(
+        {
+          error:
+            "MedAsi Coin bakiyen yeterli değil. Cüzdandan coin yükleyip kaldığın yerden devam edebilirsin.",
+          wallet_balance: error.walletBalance,
+          required_balance: error.requiredBalance,
+        },
+        402,
+        origin,
+      );
+    }
+    throw error;
   }
 
   const { error: insertCandidateError } = await supabase
@@ -182,7 +243,9 @@ Deno.serve(async (request) => {
     {
       patientMessageId: patientMessage?.id ?? null,
       response: aiResponse,
-      model: historyModel(),
+      model,
+      chargedCoinAmount,
+      walletBalance,
     },
     200,
     origin,

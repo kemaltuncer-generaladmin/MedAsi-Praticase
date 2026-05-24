@@ -86,10 +86,14 @@ class ClinicalProgressSummary {
   const ClinicalProgressSummary({
     required this.sessionCount,
     required this.categoryScores,
+    this.recentResults = const [],
+    this.feedback = const [],
   });
 
   final int sessionCount;
   final List<ClinicalSkillScore> categoryScores;
+  final List<ProgressResultInsight> recentResults;
+  final List<ProgressFeedbackInsight> feedback;
 
   int percentFor(String category) {
     for (final score in categoryScores) {
@@ -97,6 +101,30 @@ class ClinicalProgressSummary {
     }
     return 0;
   }
+}
+
+class ProgressResultInsight {
+  const ProgressResultInsight({
+    required this.caseTitle,
+    required this.branch,
+    required this.score,
+    required this.endedAt,
+  });
+
+  final String caseTitle;
+  final String branch;
+  final int score;
+  final DateTime? endedAt;
+}
+
+class ProgressFeedbackInsight {
+  const ProgressFeedbackInsight({
+    required this.title,
+    required this.items,
+  });
+
+  final String title;
+  final List<String> items;
 }
 
 class ClinicalSkillScore {

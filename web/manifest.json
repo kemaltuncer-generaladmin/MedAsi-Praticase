@@ -1,11 +1,11 @@
 {
-    "name": "praticase",
-    "short_name": "praticase",
+    "name": "PratiCase",
+    "short_name": "PratiCase",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#F5F6F7",
+    "theme_color": "#0E7C78",
+    "description": "Medasi ekosistemi için OSCE simülasyon ve klinik performans uygulaması.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

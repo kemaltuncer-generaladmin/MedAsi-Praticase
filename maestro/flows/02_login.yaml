@@ -1,0 +1,51 @@
+appId: com.medasi.praticase
+name: 02 login - real Supabase auth
+tags:
+  - auth
+env:
+  USERNAME: ${MAESTRO_USERNAME}
+  PASSWORD: ${MAESTRO_PASSWORD}
+---
+- launchApp:
+    clearState: true
+    stopApp: true
+- assertVisible:
+    id: "cta.onboarding-start"
+- tapOn: "Giriş Yap"
+- assertVisible: "E-posta Adresi"
+- tapOn:
+    text: "doktor@hastane.com"
+- inputText: ${USERNAME}
+- hideKeyboard
+- tapOn:
+    text: "••••••••"
+- inputText: ${PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: "cta.login-submit"
+# Profile-setup wizard appears on fresh installs (state was cleared).
+- runFlow:
+    when:
+      visible:
+        id: "cta.complete-profile"
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: "cta.complete-profile"
+          direction: DOWN
+      - tapOn:
+          id: "cta.complete-profile"
+# After successful login the shell renders with the bottom nav.
+- extendedWaitUntil:
+    visible:
+      id: "nav.home"
+    timeout: 45000
+- assertVisible:
+    id: "nav.cases"
+- assertVisible:
+    id: "nav.exams"
+- assertVisible:
+    id: "nav.progress"
+- assertVisible:
+    id: "nav.profile"
+- takeScreenshot: artifacts/02_home_after_login

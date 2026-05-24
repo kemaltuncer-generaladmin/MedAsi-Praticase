@@ -8,6 +8,7 @@ import '../../features/theoretical_exam/data/theoretical_exam_repository.dart';
 import '../../features/theoretical_exam/domain/theoretical_exam_models.dart';
 
 const _repositoryTimeout = Duration(seconds: 25);
+const _resultRepositoryTimeout = Duration(seconds: 90);
 
 extension _TimeoutFuture<T> on Future<T> {
   Future<T> withRepositoryTimeout() => timeout(_repositoryTimeout);
@@ -164,7 +165,7 @@ class TimeoutCasesRepository implements CasesRepository {
 
   @override
   Future<ExamResultSummary> loadResult(String sessionId) =>
-      _delegate.loadResult(sessionId).withRepositoryTimeout();
+      _delegate.loadResult(sessionId).timeout(_resultRepositoryTimeout);
 
   @override
   Future<LabResultDetail?> loadLabResult(String testOptionId) =>
@@ -233,6 +234,14 @@ class TimeoutProgressRepository implements ProgressRepository {
   @override
   Future<int> loadUnreadNotificationCount() =>
       _delegate.loadUnreadNotificationCount().withRepositoryTimeout();
+
+  @override
+  Stream<List<NotificationCard>> watchNotifications() =>
+      _delegate.watchNotifications();
+
+  @override
+  Stream<int> watchUnreadNotificationCount() =>
+      _delegate.watchUnreadNotificationCount();
 
   @override
   Future<void> markNotificationRead(String notificationId) =>
@@ -315,9 +324,23 @@ class TimeoutTheoreticalExamRepository implements TheoreticalExamRepository {
   @override
   Future<List<TheoreticalQuestion>> loadQuestions({
     required Set<String> courses,
-    String topic = '',
+    Set<String> topics = const <String>{},
+    List<TheoreticalCoursePlan> plans = const <TheoreticalCoursePlan>[],
     int limit = 20,
   }) => _delegate
-      .loadQuestions(courses: courses, topic: topic, limit: limit)
+      .loadQuestions(
+        courses: courses,
+        topics: topics,
+        plans: plans,
+        limit: limit,
+      )
+      .withRepositoryTimeout();
+
+  @override
+  Future<TheoreticalExamSubmissionResult> submitAttempt({
+    required TheoreticalExamAttempt attempt,
+    required Duration elapsed,
+  }) => _delegate
+      .submitAttempt(attempt: attempt, elapsed: elapsed)
       .withRepositoryTimeout();
 }

@@ -16,61 +16,65 @@ env:
     timeout: 5000
 - takeScreenshot: artifacts/06a_profile
 
-# --- Scroll to menu items and verify they are tappable ---
+# --- Vaka Geçmişim ---
 - scrollUntilVisible:
     element:
       id: "menu.case-history"
     direction: DOWN
-    timeout: 8000
+    timeout: 10000
+    visibilityPercentage: 60
 - tapOn:
     id: "menu.case-history"
 - waitForAnimationToEnd:
-    timeout: 5000
+    timeout: 6000
 - takeScreenshot: artifacts/06b_case_history
 - back
 - waitForAnimationToEnd:
-    timeout: 4000
+    timeout: 6000
 
-# Scroll to find "Favori Vakalarım" after returning
 - scrollUntilVisible:
     element:
       id: "menu.favorites"
     direction: DOWN
-    timeout: 8000
+    timeout: 10000
+    visibilityPercentage: 60
 - tapOn:
     id: "menu.favorites"
 - waitForAnimationToEnd:
-    timeout: 5000
+    timeout: 6000
 - takeScreenshot: artifacts/06c_favorites
 - back
 - waitForAnimationToEnd:
-    timeout: 4000
+    timeout: 6000
 
-# --- Navigate to Settings ---
+# --- Settings ---
 - scrollUntilVisible:
     element:
       id: "menu.settings"
     direction: DOWN
-    timeout: 8000
+    timeout: 10000
+    visibilityPercentage: 60
 - tapOn:
     id: "menu.settings"
 - waitForAnimationToEnd:
     timeout: 5000
 - takeScreenshot: artifacts/06d_settings
 
-# --- Logout flow ---
+# --- Logout ---
 - scrollUntilVisible:
     element:
-      text: "Çıkış Yap"
+      id: "menu.logout"
     direction: DOWN
-    timeout: 8000
-- tapOn: "Çıkış Yap"
+    timeout: 10000
+    visibilityPercentage: 60
+- tapOn:
+    id: "menu.logout"
 - waitForAnimationToEnd:
     timeout: 5000
 - takeScreenshot: artifacts/06e_logout_confirm
-- tapOn: "Çıkış Yap"
+- tapOn:
+    id: "cta.confirm-logout"
 - waitForAnimationToEnd:
     timeout: 8000
-# After logout, should see login screen again
 - assertVisible: "Giriş Yap"
 - takeScreenshot: artifacts/06f_after_logout

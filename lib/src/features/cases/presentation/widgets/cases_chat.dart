@@ -12,12 +12,7 @@ class _PatientBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: PratiCaseColors.white,
         borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-        border: Border(
-          left: const BorderSide(color: PratiCaseColors.teal, width: 3),
-          top: BorderSide(color: PratiCaseColors.border),
-          right: BorderSide(color: PratiCaseColors.border),
-          bottom: BorderSide(color: PratiCaseColors.border),
-        ),
+        border: Border.all(color: PratiCaseColors.border),
         boxShadow: PratiCaseShadows.card,
       ),
       child: Row(
@@ -339,14 +334,22 @@ class _ChatComposer extends StatelessWidget {
   const _ChatComposer({
     required this.controller,
     required this.sending,
+    required this.voiceState,
+    required this.voiceExamMode,
     required this.onSend,
     required this.onNext,
+    required this.onToggleVoiceMode,
+    required this.onToggleListening,
   });
 
   final TextEditingController controller;
   final bool sending;
+  final VoiceExamState voiceState;
+  final bool voiceExamMode;
   final VoidCallback onSend;
   final VoidCallback? onNext;
+  final VoidCallback onToggleVoiceMode;
+  final VoidCallback onToggleListening;
 
   @override
   Widget build(BuildContext context) {
@@ -364,6 +367,46 @@ class _ChatComposer extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Row(
+                children: [
+                  Expanded(
+                    child: _VoiceModeChip(
+                      enabled: voiceExamMode,
+                      listening: voiceState.listening,
+                      speaking: voiceState.speaking,
+                      onTap: onToggleVoiceMode,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _ComposerIconButton(
+                    tooltip: voiceState.listening
+                        ? 'Dinlemeyi bitir'
+                        : 'Sesle yaz',
+                    icon: voiceState.listening
+                        ? Icons.stop_rounded
+                        : Icons.mic_none_rounded,
+                    active: voiceState.listening,
+                    onPressed: sending ? null : onToggleListening,
+                  ),
+                ],
+              ),
+              if (voiceState.errorMessage?.trim().isNotEmpty ?? false) ...[
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    voiceState.errorMessage!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: PratiCaseColors.errorRed,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 10),
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Expanded(
@@ -375,9 +418,13 @@ class _ChatComposer extends StatelessWidget {
                       onSubmitted: (_) => sending ? null : onSend(),
                       decoration: InputDecoration(
                         hintText: 'Hastaya sorunuzu yazın...',
-                        prefixIcon: const Icon(
-                          Icons.record_voice_over_outlined,
-                          color: PratiCaseColors.teal,
+                        prefixIcon: Icon(
+                          voiceState.listening
+                              ? Icons.hearing_rounded
+                              : Icons.record_voice_over_outlined,
+                          color: voiceState.listening
+                              ? PratiCaseColors.gold
+                              : PratiCaseColors.teal,
                         ),
                         filled: true,
                         fillColor: PratiCaseColors.softSurface,
@@ -386,16 +433,29 @@ class _ChatComposer extends StatelessWidget {
                           vertical: PratiCaseSpacing.md,
                         ),
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
-                          borderSide: const BorderSide(color: PratiCaseColors.border),
+                          borderRadius: BorderRadius.circular(
+                            PratiCaseRadius.xl,
+                          ),
+                          borderSide: const BorderSide(
+                            color: PratiCaseColors.border,
+                          ),
                         ),
                         enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
-                          borderSide: const BorderSide(color: PratiCaseColors.border),
+                          borderRadius: BorderRadius.circular(
+                            PratiCaseRadius.xl,
+                          ),
+                          borderSide: const BorderSide(
+                            color: PratiCaseColors.border,
+                          ),
                         ),
                         focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
-                          borderSide: const BorderSide(color: PratiCaseColors.teal, width: 1.5),
+                          borderRadius: BorderRadius.circular(
+                            PratiCaseRadius.xl,
+                          ),
+                          borderSide: const BorderSide(
+                            color: PratiCaseColors.teal,
+                            width: 1.5,
+                          ),
                         ),
                       ),
                     ),
@@ -413,7 +473,9 @@ class _ChatComposer extends StatelessWidget {
                           backgroundColor: PratiCaseColors.teal,
                           foregroundColor: PratiCaseColors.white,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+                            borderRadius: BorderRadius.circular(
+                              PratiCaseRadius.md,
+                            ),
                           ),
                         ),
                         icon: sending
@@ -451,7 +513,10 @@ class _ChatComposer extends StatelessWidget {
                     ),
                   ),
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: PratiCaseColors.teal, width: 1.5),
+                    side: const BorderSide(
+                      color: PratiCaseColors.teal,
+                      width: 1.5,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(PratiCaseRadius.md),
                     ),
@@ -461,6 +526,106 @@ class _ChatComposer extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _VoiceModeChip extends StatelessWidget {
+  const _VoiceModeChip({
+    required this.enabled,
+    required this.listening,
+    required this.speaking,
+    required this.onTap,
+  });
+
+  final bool enabled;
+  final bool listening;
+  final bool speaking;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = enabled
+        ? listening
+              ? 'Sesli Sınav: dinliyor'
+              : speaking
+              ? 'Sesli Sınav: hasta konuşuyor'
+              : 'Sesli Sınav açık'
+        : 'Sesli Sınav';
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+      child: Container(
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: enabled
+              ? PratiCaseColors.teal.withValues(alpha: 0.10)
+              : PratiCaseColors.softSurface,
+          borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+          border: Border.all(
+            color: enabled ? PratiCaseColors.teal : PratiCaseColors.border,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              enabled ? Icons.graphic_eq_rounded : Icons.mic_external_on,
+              color: enabled ? PratiCaseColors.teal : PratiCaseColors.muted,
+              size: 18,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: enabled ? PratiCaseColors.teal : PratiCaseColors.muted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ComposerIconButton extends StatelessWidget {
+  const _ComposerIconButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+    this.active = false,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback? onPressed;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 42,
+      height: 38,
+      child: IconButton.filledTonal(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        style: IconButton.styleFrom(
+          backgroundColor: active
+              ? PratiCaseColors.gold.withValues(alpha: 0.20)
+              : PratiCaseColors.teal.withValues(alpha: 0.10),
+          foregroundColor: active ? PratiCaseColors.gold : PratiCaseColors.teal,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+          ),
+        ),
+        icon: Icon(icon, size: 20),
       ),
     );
   }

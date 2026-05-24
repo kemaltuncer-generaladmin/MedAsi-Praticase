@@ -14,6 +14,7 @@ class HomeScreen extends StatefulWidget {
     required this.casesRepository,
     this.onOpenCases,
     this.onOpenExams,
+    this.onOpenTheoreticalExam,
     this.onOpenProgress,
     this.onOpenNotifications,
     this.onOpenProfile,
@@ -26,6 +27,7 @@ class HomeScreen extends StatefulWidget {
   final CasesRepository casesRepository;
   final VoidCallback? onOpenCases;
   final VoidCallback? onOpenExams;
+  final VoidCallback? onOpenTheoreticalExam;
   final VoidCallback? onOpenProgress;
   final VoidCallback? onOpenNotifications;
   final VoidCallback? onOpenProfile;
@@ -69,18 +71,10 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         }
         final dashboard = snapshot.requireData;
-        final bottomPadding =
-            MediaQuery.paddingOf(context).bottom +
-            PratiCaseSpacing.bottomNavReserve;
         return RefreshIndicator(
           onRefresh: _refresh,
-          child: ListView(
-            padding: EdgeInsets.fromLTRB(
-              PratiCaseSpacing.pageHorizontal,
-              PratiCaseSpacing.pageTop,
-              PratiCaseSpacing.pageHorizontal,
-              bottomPadding,
-            ),
+          child: PratiCaseResponsiveListView(
+            padding: PratiCaseResponsive.pagePadding(context),
             children: [
               _HomeHeader(
                 dashboard: dashboard,
@@ -113,6 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 _QuickActions(
                   onSingleStation: widget.onOpenCases,
                   onMiniOsce: widget.onOpenExams,
+                  onTheoreticalExam: widget.onOpenTheoreticalExam,
                 ),
                 const SizedBox(height: 28),
                 _SectionHeader(
@@ -120,7 +115,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   onViewAll: widget.onOpenProgress,
                 ),
                 const SizedBox(height: 14),
-                _StatsStrip(stats: dashboard.stats),
+                _OverviewCharts(stats: dashboard.stats),
               ],
               if (dashboard.recommendedCases.isNotEmpty ||
                   dashboard.continuedCase == null) ...[
@@ -189,7 +184,7 @@ class _HomeHeader extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(12),
           child: Image.asset(
-            'assets/branding/praticase.png',
+            'assets/auth/praticase_icon.png',
             width: 44,
             height: 44,
             fit: BoxFit.cover,
@@ -454,61 +449,235 @@ class _HeroBanner extends StatelessWidget {
   }
 }
 
-class _StatsStrip extends StatelessWidget {
-  const _StatsStrip({required this.stats});
+class _OverviewCharts extends StatelessWidget {
+  const _OverviewCharts({required this.stats});
 
   final DashboardStats? stats;
 
   @override
   Widget build(BuildContext context) {
-    if (stats == null) {
+    final data = stats;
+    if (data == null) {
       return const _EmptyPanel(
         icon: Icons.query_stats_rounded,
         title: 'Canlı performans verisi yok',
         body: 'Performans verilerin sınav çözdükçe burada oluşacak.',
       );
     }
-
-    final items = [
-      _StatItem(
-        icon: Icons.assignment_turned_in_rounded,
-        color: PratiCaseColors.tealBright,
-        value: stats!.solvedCaseCount.toString(),
-        label: 'Çözülen Vaka',
-        delta: '↗ %${stats!.solvedDeltaPercent}',
-      ),
-      _StatItem(
-        icon: Icons.track_changes_rounded,
-        color: PratiCaseColors.gold,
-        value: '%${stats!.successRatePercent}',
-        label: 'Başarı Oranı',
-        delta: '↗ %${stats!.successDeltaPercent}',
-      ),
-      _StatItem(
-        icon: Icons.emoji_events_rounded,
-        color: PratiCaseColors.slateBlue,
-        value: stats!.totalPoints.toString(),
-        label: 'Toplam Puan',
-        delta: '↗ %${stats!.pointsDeltaPercent}',
-      ),
-      _StatItem(
-        icon: Icons.local_fire_department_rounded,
-        color: PratiCaseColors.errorRed,
-        value: stats!.dailyStreak.toString(),
-        label: 'Günlük Seri',
-        delta: stats!.streakLabel ?? 'Devam!',
-      ),
-    ];
-
-    return SizedBox(
-      height: 150,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: items.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 12),
-        itemBuilder: (context, index) => _StatCard(item: items[index]),
+    final solved = data.solvedCaseCount.clamp(0, 20);
+    final streak = data.dailyStreak.clamp(0, 14);
+    final pointLevel = (data.totalPoints / 500).clamp(0.0, 1.0);
+    return ClinicalCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _ScoreRing(percent: data.successRatePercent),
+              const SizedBox(width: 16),
+              Expanded(
+                child: SizedBox(
+                  height: 92,
+                  child: CustomPaint(
+                    painter: _MiniTrendPainter(
+                      values: [
+                        data.successRatePercent - data.successDeltaPercent,
+                        data.successRatePercent - data.successDeltaPercent ~/ 2,
+                        data.successRatePercent,
+                      ],
+                    ),
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          _OverviewBar(
+            label: 'Çözülen Vaka',
+            value: '${data.solvedCaseCount}',
+            percent: solved / 20,
+            color: PratiCaseColors.teal,
+          ),
+          const SizedBox(height: 12),
+          _OverviewBar(
+            label: 'Günlük Seri',
+            value: '${data.dailyStreak} gün',
+            percent: streak / 14,
+            color: PratiCaseColors.gold,
+          ),
+          const SizedBox(height: 12),
+          _OverviewBar(
+            label: 'Toplam Puan',
+            value: '${data.totalPoints}',
+            percent: pointLevel,
+            color: PratiCaseColors.slateBlue,
+          ),
+        ],
       ),
     );
+  }
+}
+
+class _ScoreRing extends StatelessWidget {
+  const _ScoreRing({required this.percent});
+
+  final int percent;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = percent.clamp(0, 100) / 100;
+    return SizedBox(
+      width: 104,
+      height: 104,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox.expand(
+            child: CircularProgressIndicator(
+              value: value,
+              strokeWidth: 10,
+              strokeCap: StrokeCap.round,
+              backgroundColor: PratiCaseColors.surfaceContainerHighest,
+              color: PratiCaseColors.teal,
+            ),
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '%$percent',
+                style: const TextStyle(
+                  color: PratiCaseColors.navy,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const Text(
+                'Ortalama',
+                style: TextStyle(
+                  color: PratiCaseColors.muted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OverviewBar extends StatelessWidget {
+  const _OverviewBar({
+    required this.label,
+    required this.value,
+    required this.percent,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final double percent;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          flex: 3,
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: PratiCaseColors.ink,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        Expanded(
+          flex: 4,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+            child: LinearProgressIndicator(
+              value: percent.clamp(0.0, 1.0),
+              minHeight: 8,
+              backgroundColor: PratiCaseColors.surfaceContainerHighest,
+              color: color,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 58,
+          child: Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.end,
+            style: const TextStyle(
+              color: PratiCaseColors.navy,
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MiniTrendPainter extends CustomPainter {
+  const _MiniTrendPainter({required this.values});
+
+  final List<int> values;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final gridPaint = Paint()
+      ..color = PratiCaseColors.border
+      ..strokeWidth = 1;
+    for (final ratio in const [0.25, 0.5, 0.75]) {
+      final y = size.height * ratio;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+
+    final points = <Offset>[];
+    for (var index = 0; index < values.length; index++) {
+      final x = values.length == 1
+          ? size.width
+          : size.width * index / (values.length - 1);
+      final normalized = values[index].clamp(0, 100) / 100;
+      points.add(Offset(x, size.height - normalized * size.height));
+    }
+    if (points.length < 2) return;
+
+    final path = Path()..moveTo(points.first.dx, points.first.dy);
+    for (final point in points.skip(1)) {
+      path.lineTo(point.dx, point.dy);
+    }
+    final paint = Paint()
+      ..color = PratiCaseColors.tealBright
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(path, paint);
+
+    final dotPaint = Paint()..color = PratiCaseColors.gold;
+    for (final point in points) {
+      canvas.drawCircle(point, 4.5, dotPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _MiniTrendPainter oldDelegate) {
+    return oldDelegate.values.join('|') != values.join('|');
   }
 }
 
@@ -585,7 +754,8 @@ class _ContinuedCaseCard extends StatelessWidget {
                       child: LinearProgressIndicator(
                         value: (item.progressPercent.clamp(0, 100)) / 100,
                         minHeight: 7,
-                        backgroundColor: PratiCaseColors.surfaceContainerHighest,
+                        backgroundColor:
+                            PratiCaseColors.surfaceContainerHighest,
                         valueColor: const AlwaysStoppedAnimation<Color>(
                           PratiCaseColors.teal,
                         ),
@@ -630,7 +800,10 @@ class _RecommendedCases extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = (constraints.maxWidth - 12) / 2;
+        final columns = constraints.maxWidth >= 920 ? 3 : 2;
+        final spacing = 12.0;
+        final width =
+            (constraints.maxWidth - spacing * (columns - 1)) / columns;
         return SizedBox(
           height: 250,
           child: ListView.separated(
@@ -739,34 +912,88 @@ class _QuickActions extends StatelessWidget {
   const _QuickActions({
     required this.onSingleStation,
     required this.onMiniOsce,
+    required this.onTheoreticalExam,
   });
 
   final VoidCallback? onSingleStation;
   final VoidCallback? onMiniOsce;
+  final VoidCallback? onTheoreticalExam;
 
   @override
   Widget build(BuildContext context) {
-    return GridView.count(
-      crossAxisCount: 2,
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      childAspectRatio: 1.02,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      children: [
-        _QuickActionCard(
-          icon: Icons.assignment_ind_rounded,
-          title: 'Tek İstasyon',
-          subtitle: 'Odaklanmış senaryo',
-          onTap: onSingleStation,
-        ),
-        _QuickActionCard(
-          icon: Icons.view_kanban_rounded,
-          title: 'Mini OSCE',
-          subtitle: '3 istasyonlu deneme',
-          onTap: onMiniOsce,
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 760;
+        if (wide) {
+          return SizedBox(
+            height: 156,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _QuickActionCard(
+                    icon: Icons.assignment_ind_rounded,
+                    title: 'Tek İstasyon',
+                    subtitle: 'Odaklanmış senaryo',
+                    onTap: onSingleStation,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _QuickActionCard(
+                    icon: Icons.view_kanban_rounded,
+                    title: 'Mini OSCE',
+                    subtitle: '3 istasyonlu deneme',
+                    onTap: onMiniOsce,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _QuickActionCard(
+                    icon: Icons.school_rounded,
+                    title: 'Teorik Sınav',
+                    subtitle: 'Qlinik soru bankasından ders ve konu seç',
+                    onTap: onTheoreticalExam,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        return Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _QuickActionCard(
+                    icon: Icons.assignment_ind_rounded,
+                    title: 'Tek İstasyon',
+                    subtitle: 'Odaklanmış senaryo',
+                    onTap: onSingleStation,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _QuickActionCard(
+                    icon: Icons.view_kanban_rounded,
+                    title: 'Mini OSCE',
+                    subtitle: '3 istasyonlu deneme',
+                    onTap: onMiniOsce,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _QuickActionCard(
+              icon: Icons.school_rounded,
+              title: 'Teorik Sınav',
+              subtitle: 'Qlinik soru bankasından ders ve konu seç',
+              onTap: onTheoreticalExam,
+              horizontal: true,
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -777,54 +1004,99 @@ class _QuickActionCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.onTap,
+    this.horizontal = false,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
   final VoidCallback? onTap;
+  final bool horizontal;
 
   @override
   Widget build(BuildContext context) {
+    final content = horizontal
+        ? Row(
+            children: [
+              _SoftIcon(icon: icon, color: PratiCaseColors.teal, size: 50),
+              const SizedBox(width: 14),
+              Expanded(
+                child: _QuickActionText(title: title, subtitle: subtitle),
+              ),
+              const Icon(
+                Icons.arrow_forward_rounded,
+                color: PratiCaseColors.teal,
+              ),
+            ],
+          )
+        : Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _SoftIcon(icon: icon, color: PratiCaseColors.teal, size: 54),
+              const SizedBox(height: 14),
+              _QuickActionText(
+                title: title,
+                subtitle: subtitle,
+                centered: true,
+              ),
+            ],
+          );
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
       child: Ink(
         padding: const EdgeInsets.all(16),
         decoration: _cardDecoration(),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _SoftIcon(icon: icon, color: PratiCaseColors.teal, size: 54),
-            const SizedBox(height: 14),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                title,
-                maxLines: 1,
-                style: const TextStyle(
-                  color: PratiCaseColors.navy,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-            const SizedBox(height: 5),
-            Text(
-              subtitle,
-              maxLines: 2,
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: PratiCaseColors.muted,
-                fontSize: 12,
-                height: 1.15,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
+        child: content,
       ),
+    );
+  }
+}
+
+class _QuickActionText extends StatelessWidget {
+  const _QuickActionText({
+    required this.title,
+    required this.subtitle,
+    this.centered = false,
+  });
+
+  final String title;
+  final String subtitle;
+  final bool centered;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: centered
+          ? CrossAxisAlignment.center
+          : CrossAxisAlignment.start,
+      children: [
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            title,
+            maxLines: 1,
+            style: const TextStyle(
+              color: PratiCaseColors.navy,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          subtitle,
+          maxLines: 2,
+          textAlign: centered ? TextAlign.center : TextAlign.start,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: PratiCaseColors.muted,
+            fontSize: 12,
+            height: 1.15,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -936,8 +1208,8 @@ class _HomeError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 80, 20, 120),
+    return PratiCaseResponsiveListView(
+      padding: PratiCaseResponsive.pagePadding(context, top: 80),
       children: [
         StateCard.error(
           title: 'Canlı veri bağlantısı gerekli',
@@ -1150,61 +1422,6 @@ class _IconButtonShell extends StatelessWidget {
   }
 }
 
-class _StatCard extends StatelessWidget {
-  const _StatCard({required this.item});
-
-  final _StatItem item;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 132,
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
-      decoration: _cardDecoration(),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _SoftIcon(icon: item.icon, color: item.color, size: 38),
-          const SizedBox(height: 8),
-          Text(
-            item.value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: PratiCaseColors.navy,
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-              height: 1,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            item.label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: PratiCaseColors.muted,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            item.delta,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: PratiCaseColors.teal,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _SoftIcon extends StatelessWidget {
   const _SoftIcon({required this.icon, required this.color, this.size = 56});
 
@@ -1395,22 +1612,6 @@ class _CheckLine extends StatelessWidget {
       ],
     );
   }
-}
-
-class _StatItem {
-  const _StatItem({
-    required this.icon,
-    required this.color,
-    required this.value,
-    required this.label,
-    required this.delta,
-  });
-
-  final IconData icon;
-  final Color color;
-  final String value;
-  final String label;
-  final String delta;
 }
 
 BoxDecoration _cardDecoration() {

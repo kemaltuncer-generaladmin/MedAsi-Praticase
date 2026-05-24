@@ -223,7 +223,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           const SizedBox(height: PratiCaseSpacing.xxl),
           AuthPrimaryButton(
             identifier: 'cta.complete-profile',
-            label: "PratiCase'e Başla",
+            label: 'PratiCase’e Başla',
             loading: _loading,
             onPressed: _complete,
           ),
@@ -324,11 +324,12 @@ class _SetupSection extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        height: 1.2,
-                      ),
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            height: 1.2,
+                          ),
                     ),
                     if (subtitle != null)
                       Text(

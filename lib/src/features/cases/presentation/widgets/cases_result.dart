@@ -37,7 +37,9 @@ class _ResultHero extends StatelessWidget {
                         ? 0
                         : (result.totalScore / result.maxScore).clamp(0.0, 1.0),
                     strokeWidth: 8,
-                    backgroundColor: PratiCaseColors.white.withValues(alpha: 0.18),
+                    backgroundColor: PratiCaseColors.white.withValues(
+                      alpha: 0.18,
+                    ),
                     color: scoreColor,
                     strokeCap: StrokeCap.round,
                   ),
@@ -258,12 +260,7 @@ class _FeedbackCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: PratiCaseColors.white,
         borderRadius: BorderRadius.circular(PratiCaseRadius.md),
-        border: Border(
-          left: BorderSide(color: color, width: 4),
-          top: BorderSide(color: PratiCaseColors.border),
-          right: BorderSide(color: PratiCaseColors.border),
-          bottom: BorderSide(color: PratiCaseColors.border),
-        ),
+        border: Border.all(color: PratiCaseColors.border),
         boxShadow: PratiCaseShadows.card,
       ),
       child: Padding(

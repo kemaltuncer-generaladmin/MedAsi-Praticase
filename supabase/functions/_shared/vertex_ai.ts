@@ -26,8 +26,17 @@ type VertexCandidate = {
   content?: { parts?: Array<{ text?: string }> };
 };
 
+export type JsonMap = Record<string, unknown>;
+
+export type VertexGeneration = {
+  text: string;
+  usageMetadata: JsonMap;
+  model: string;
+};
+
 type VertexResponse = {
   candidates?: VertexCandidate[];
+  usageMetadata?: JsonMap;
 };
 
 const accessTokenCache = {
@@ -50,6 +59,13 @@ export function evaluationModel(): string {
 export async function generateVertexText(
   options: GenerateContentOptions,
 ): Promise<string> {
+  const generated = await generateVertexContent(options);
+  return generated.text;
+}
+
+export async function generateVertexContent(
+  options: GenerateContentOptions,
+): Promise<VertexGeneration> {
   const account = serviceAccount();
   const projectId = Deno.env.get("VERTEX_AI_PROJECT_ID")?.trim() ||
     account.project_id?.trim();
@@ -101,7 +117,11 @@ export async function generateVertexText(
   if (!text) {
     throw new Error("Vertex AI returned an empty response");
   }
-  return text;
+  return {
+    text,
+    usageMetadata: payload.usageMetadata ?? {},
+    model,
+  };
 }
 
 export function vertexConfigured(): boolean {
