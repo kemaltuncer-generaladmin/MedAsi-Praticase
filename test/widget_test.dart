@@ -25,6 +25,8 @@ import 'package:praticase/src/features/theoretical_exam/data/theoretical_exam_re
 import 'package:praticase/src/features/theoretical_exam/domain/theoretical_exam_models.dart';
 import 'package:praticase/src/features/theoretical_exam/presentation/theoretical_exam_screen.dart';
 import 'package:praticase/src/features/oral_exam/data/oral_exam_repository.dart';
+import 'package:praticase/src/features/oral_exam/domain/oral_exam_models.dart';
+import 'package:praticase/src/features/oral_exam/presentation/oral_exam_screens.dart';
 
 void main() {
   testWidgets('PratiCase auth onboarding renders', (tester) async {
@@ -552,6 +554,72 @@ void main() {
     expect(openedTheoreticalExam, isTrue);
   });
 
+  testWidgets('oral exam offers committee as an optional format', (
+    tester,
+  ) async {
+    await _setViewport(tester, const Size(390, 1100));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: OralExamSetupScreen(repository: _CommitteeOralExamRepository()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tek Hoca'), findsOneWidget);
+    expect(find.text('Komite (3 Hoca)'), findsOneWidget);
+    expect(find.text('Sözlü Sınavı Başlat'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: OralExamSetupScreen(
+          repository: _CommitteeOralExamRepository(),
+          initialFormat: OralExamFormat.panel,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Komiteye Çık'), findsOneWidget);
+    expect(find.text('Karşındaki Komite'), findsOneWidget);
+  });
+
+  testWidgets('committee turn shows all three examiners after one answer', (
+    tester,
+  ) async {
+    await _setViewport(tester, const Size(390, 1100));
+    final repository = _CommitteeOralExamRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: OralExamRoomScreen(
+          repository: repository,
+          session: repository.panelSession,
+          voiceAdapter: _FakeVoiceExamAdapter(),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.enterText(
+      find.byType(TextField),
+      'Akut koroner sendrom düşünürüm.',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.send);
+    await tester.pumpAndSettle();
+
+    expect(repository.submittedAnswer, 'Akut koroner sendrom düşünürüm.');
+    expect(find.text('Akut koroner sendrom düşünürüm.'), findsOneWidget);
+    expect(find.text('Önceliklendirme doğru.'), findsOneWidget);
+    expect(find.text('Gerekçeniz eksik kalıyor.'), findsOneWidget);
+    expect(find.text('İlk isteyeceğiniz tetkik nedir?'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('shell keeps bottom navigation on iPad portrait', (tester) async {
     await _setViewport(tester, const Size(768, 1024));
 
@@ -563,12 +631,12 @@ void main() {
           casesRepository: _FakeCasesRepository(),
           progressRepository: _FakeProgressRepository(),
           theoreticalExamRepository: _FakeTheoreticalExamRepository(),
-        oralExamRepository: _FakeOralExamRepository(),
+          oralExamRepository: _FakeOralExamRepository(),
           onSignOut: () async {},
         ),
       ),
     );
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(find.byType(NavigationRail), findsNothing);
     expect(find.text('Ana Sayfa'), findsWidgets);
@@ -585,12 +653,12 @@ void main() {
           casesRepository: _FakeCasesRepository(),
           progressRepository: _FakeProgressRepository(),
           theoreticalExamRepository: _FakeTheoreticalExamRepository(),
-        oralExamRepository: _FakeOralExamRepository(),
+          oralExamRepository: _FakeOralExamRepository(),
           onSignOut: () async {},
         ),
       ),
     );
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(find.byType(NavigationRail), findsOneWidget);
     expect(find.text('Vakalar'), findsOneWidget);
@@ -753,6 +821,110 @@ class _FakeTheoreticalExamRepository extends Fake
     implements TheoreticalExamRepository {}
 
 class _FakeOralExamRepository extends Fake implements OralExamRepository {}
+
+class _CommitteeOralExamRepository extends Fake implements OralExamRepository {
+  String? submittedAnswer;
+
+  static const panel = [
+    OralExamPersona(
+      id: 'lead',
+      title: 'Sert Profesör',
+      difficulty: 'Zor',
+      description: '',
+      patienceLevel: 3,
+      sortOrder: 1,
+      panelRole: 'lead',
+    ),
+    OralExamPersona(
+      id: 'second',
+      title: 'Sokratik Doçent',
+      difficulty: 'Orta',
+      description: '',
+      patienceLevel: 5,
+      sortOrder: 2,
+      panelRole: 'second',
+    ),
+    OralExamPersona(
+      id: 'observer',
+      title: 'Sabırlı Asistan',
+      difficulty: 'Kolay',
+      description: '',
+      patienceLevel: 8,
+      sortOrder: 3,
+      panelRole: 'observer',
+    ),
+  ];
+
+  OralExamSession get panelSession => OralExamSession(
+    id: 'panel-session',
+    durationSeconds: 900,
+    caseBrief: 'Göğüs ağrısı ile başvuran hasta.',
+    startedAt: DateTime.now(),
+    personaId: 'lead',
+    personaTitle: 'Sert Profesör',
+    difficulty: 'Zor',
+    branchId: 'dahiliye',
+    branchTitle: 'Dahiliye',
+    openingMessage: 'Bu hastada öncelikli tanınız nedir?',
+    format: OralExamFormat.panel,
+    panel: panel,
+    activePersonaId: 'lead',
+  );
+
+  @override
+  Future<OralExamCatalog> loadCatalog() async => const OralExamCatalog(
+    personas: panel,
+    branches: [
+      OralExamBranch(
+        id: 'dahiliye',
+        title: 'Dahiliye',
+        description: 'İç hastalıkları',
+        sortOrder: 1,
+      ),
+    ],
+    scenariosByBranch: {},
+  );
+
+  @override
+  Future<OralExamTurnResult> sendAnswer({
+    required String sessionId,
+    required String message,
+  }) async {
+    submittedAnswer = message;
+    return const OralExamTurnResult(
+      mentorMessage: 'İlk isteyeceğiniz tetkik nedir?',
+      mentorMessages: [
+        OralExamMessage(
+          speaker: 'mentor',
+          message: 'Önceliklendirme doğru.',
+          personaId: 'lead',
+          personaTitle: 'Sert Profesör',
+        ),
+        OralExamMessage(
+          speaker: 'mentor',
+          message: 'Gerekçeniz eksik kalıyor.',
+          personaId: 'observer',
+          personaTitle: 'Sabırlı Asistan',
+        ),
+        OralExamMessage(
+          speaker: 'mentor',
+          message: 'İlk isteyeceğiniz tetkik nedir?',
+          personaId: 'second',
+          personaTitle: 'Sokratik Doçent',
+          isFollowup: true,
+        ),
+      ],
+      isFollowup: true,
+      shouldEnd: false,
+      remainingSeconds: 880,
+      scoreDelta: 5,
+      reasoningNote: '',
+      isCorrect: true,
+      activePersonaId: 'second',
+      activePersonaTitle: 'Sokratik Doçent',
+    );
+  }
+}
 
 class _RecordingTheoreticalExamRepository extends Fake
     implements TheoreticalExamRepository {

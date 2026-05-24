@@ -16,7 +16,7 @@ abstract interface class OralExamRepository {
     required String message,
   });
 
-  Future<String> skipQuestion(String sessionId);
+  Future<List<OralExamMessage>> skipQuestion(String sessionId);
 
   Future<OralExamResult> finalizeSession(String sessionId);
 

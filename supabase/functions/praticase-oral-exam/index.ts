@@ -34,8 +34,15 @@ Deno.serve(async (request) => {
   const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const authorization = request.headers.get("Authorization");
 
-  if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey || !authorization) {
-    return jsonResponse({ error: "Live Supabase configuration is missing" }, 500, origin);
+  if (
+    !supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey ||
+    !authorization
+  ) {
+    return jsonResponse(
+      { error: "Live Supabase configuration is missing" },
+      500,
+      origin,
+    );
   }
 
   const userClient = createClient(supabaseUrl, supabaseAnonKey, {
@@ -51,7 +58,11 @@ Deno.serve(async (request) => {
   });
 
   if (!vertexConfigured()) {
-    return jsonResponse({ error: "Vertex AI configuration is missing" }, 500, origin);
+    return jsonResponse(
+      { error: "Vertex AI configuration is missing" },
+      500,
+      origin,
+    );
   }
 
   const body = await request.json().catch(() => ({})) as JsonMap;
@@ -62,11 +73,16 @@ Deno.serve(async (request) => {
     await ensureAiCoinBalance(admin, userId);
   } catch (error) {
     if (error instanceof InsufficientCoinBalanceError) {
-      return jsonResponse({
-        error: "MedAsi Coin bakiyen yeterli değil. Sözlü sınava devam etmek için cüzdandan coin yükle.",
-        wallet_balance: error.walletBalance,
-        required_balance: error.requiredBalance,
-      }, 402, origin);
+      return jsonResponse(
+        {
+          error:
+            "MedAsi Coin bakiyen yeterli değil. Sözlü sınava devam etmek için cüzdandan coin yükle.",
+          wallet_balance: error.walletBalance,
+          required_balance: error.requiredBalance,
+        },
+        402,
+        origin,
+      );
     }
     throw error;
   }
@@ -88,25 +104,38 @@ Deno.serve(async (request) => {
     }
   } catch (error) {
     if (error instanceof InsufficientCoinBalanceError) {
-      return jsonResponse({
-        error: "MedAsi Coin bakiyen yeterli değil.",
-        wallet_balance: error.walletBalance,
-        required_balance: error.requiredBalance,
-      }, 402, origin);
+      return jsonResponse(
+        {
+          error: "MedAsi Coin bakiyen yeterli değil.",
+          wallet_balance: error.walletBalance,
+          required_balance: error.requiredBalance,
+        },
+        402,
+        origin,
+      );
     }
-    return jsonResponse({
-      error: "Sözlü sınav servisi hatası",
-      detail: errorMessage(error),
-    }, 502, origin);
+    return jsonResponse(
+      {
+        error: "Sözlü sınav servisi hatası",
+        detail: errorMessage(error),
+      },
+      502,
+      origin,
+    );
   }
 });
 
 async function startSession(admin: any, userId: string, body: JsonMap) {
-  const examFormat = stringValue(body.exam_format) === "panel" ? "panel" : "solo";
+  const examFormat = stringValue(body.exam_format) === "panel"
+    ? "panel"
+    : "solo";
   const personaId = stringValue(body.persona_id) || "stern_professor";
   const branchId = stringValue(body.branch_id) || "dahiliye";
   const scenarioId = stringValue(body.scenario_id);
-  const durationSeconds = Math.min(1800, Math.max(300, numberValue(body.duration_seconds) ?? 900));
+  const durationSeconds = Math.min(
+    1800,
+    Math.max(300, numberValue(body.duration_seconds) ?? 900),
+  );
 
   let persona: any = null;
   let panelPersonas: any[] = [];
@@ -117,11 +146,14 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
       .from("oral_exam_personas")
       .select("id,title,difficulty,system_prompt,patience_level,panel_role")
       .order("sort_order");
-    panelPersonas = all ?? [];
-    if (panelPersonas.length < 2) {
-      return { error: "Komite modu için yeterli hoca tanımlı değil." };
+    const available = all ?? [];
+    panelPersonas = ["lead", "second", "observer"]
+      .map((role) => available.find((p: any) => p.panel_role === role))
+      .filter(Boolean);
+    if (panelPersonas.length !== 3) {
+      return { error: "Komite modu için üç hoca rolü tanımlı değil." };
     }
-    persona = panelPersonas.find((p: any) => p.panel_role === "lead") ?? panelPersonas[0];
+    persona = panelPersonas[0];
   } else {
     const { data } = await admin
       .schema("praticase")
@@ -146,7 +178,9 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
     const { data } = await admin
       .schema("praticase")
       .from("oral_exam_scenarios")
-      .select("id,title,case_brief,opening_complaint,learning_objectives,expected_differentials,red_flags,ideal_management")
+      .select(
+        "id,title,case_brief,opening_complaint,learning_objectives,expected_differentials,red_flags,ideal_management",
+      )
       .eq("id", scenarioId)
       .eq("branch_id", branch.id)
       .maybeSingle();
@@ -173,7 +207,9 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
           text: `BRANŞ: ${branch.title}\nVAKA BAŞLIK: ${scenario.title}\n\n` +
             `VAKA BRİFİ:\n${scenario.case_brief}\n\n` +
             `HASTANIN AÇILIŞ CÜMLESİ: ${scenario.opening_complaint}\n\n` +
-            `Öğrenme hedefleri (rehber): ${JSON.stringify(scenario.learning_objectives)}\n` +
+            `Öğrenme hedefleri (rehber): ${
+              JSON.stringify(scenario.learning_objectives)
+            }\n` +
             `Sınav süresi: ${Math.round(durationSeconds / 60)} dakika.`,
         }],
       }],
@@ -182,10 +218,15 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
       responseMimeType: "application/json",
     });
     const parsed = safeParse(opening.text);
-    mentorMessage = stringValue(parsed.mentor_message) || caseBrief;
+    mentorMessage = stringValue(parsed.mentor_message) ||
+      stringValue(opening.text) ||
+      caseBrief;
     await chargeAiCoins({
-      admin, userId, feature: "praticase-oral-exam-start",
-      model: opening.model, usageMetadata: opening.usageMetadata,
+      admin,
+      userId,
+      feature: "praticase-oral-exam-start",
+      model: opening.model,
+      usageMetadata: opening.usageMetadata,
     }).catch(() => {});
   } else {
     // Senaryo seçilmedi → AI rastgele üretir
@@ -199,7 +240,8 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
       contents: [{
         role: "user",
         parts: [{
-          text: `Branş bilgisi: ${branch.case_seed}\nZorluk: ${persona.difficulty}\nHoca tipi: ${persona.title}\n` +
+          text:
+            `Branş bilgisi: ${branch.case_seed}\nZorluk: ${persona.difficulty}\nHoca tipi: ${persona.title}\n` +
             `Sınav süresi: ${Math.round(durationSeconds / 60)} dakika.\n` +
             `Vaka klinik olarak gerçekçi, ayırt edilebilir, tartışılabilir olsun.`,
         }],
@@ -210,10 +252,16 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
     });
     const parsed = safeParse(opening.text);
     caseBrief = stringValue(parsed.case_brief);
-    mentorMessage = stringValue(parsed.mentor_message) || caseBrief;
+    mentorMessage = stringValue(parsed.mentor_message) ||
+      stringValue(opening.text) ||
+      caseBrief;
+    if (!caseBrief && mentorMessage) caseBrief = mentorMessage;
     await chargeAiCoins({
-      admin, userId, feature: "praticase-oral-exam-start",
-      model: opening.model, usageMetadata: opening.usageMetadata,
+      admin,
+      userId,
+      feature: "praticase-oral-exam-start",
+      model: opening.model,
+      usageMetadata: opening.usageMetadata,
     }).catch(() => {});
   }
 
@@ -234,9 +282,13 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
       exam_format: examFormat,
       panel_persona_ids: panelPersonaIds,
     })
-    .select("id,duration_seconds,case_brief,started_at,exam_format,panel_persona_ids")
+    .select(
+      "id,duration_seconds,case_brief,started_at,exam_format,panel_persona_ids",
+    )
     .single();
-  if (error || !session) return { error: error?.message ?? "Sözlü sınav başlatılamadı." };
+  if (error || !session) {
+    return { error: error?.message ?? "Sözlü sınav başlatılamadı." };
+  }
 
   await admin.schema("praticase").from("oral_exam_turns").insert({
     session_id: session.id,
@@ -253,16 +305,20 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
     case_brief: session.case_brief,
     started_at: session.started_at,
     mentor_message: mentorMessage,
-    persona: { id: persona.id, title: persona.title, difficulty: persona.difficulty },
+    persona: {
+      id: persona.id,
+      title: persona.title,
+      difficulty: persona.difficulty,
+    },
     branch: { id: branch.id, title: branch.title },
     exam_format: examFormat,
     panel: examFormat === "panel"
       ? panelPersonas.map((p: any) => ({
-          id: p.id,
-          title: p.title,
-          difficulty: p.difficulty,
-          panel_role: p.panel_role,
-        }))
+        id: p.id,
+        title: p.title,
+        difficulty: p.difficulty,
+        panel_role: p.panel_role,
+      }))
       : [],
     active_persona_id: persona.id,
   };
@@ -276,37 +332,31 @@ async function takeTurn(admin: any, userId: string, body: JsonMap) {
   }
   const session = await loadSession(admin, sessionId, userId);
   if (!session) return { error: "Sözlü sınav oturumu bulunamadı." };
-  if (session.status !== "active") return { error: "Sözlü sınav oturumu kapatılmış." };
+  if (session.status !== "active") {
+    return { error: "Sözlü sınav oturumu kapatılmış." };
+  }
 
   const branch = await loadBranch(admin, session.branch_id);
   if (!branch) return { error: "Sözlü sınav yapılandırması eksik." };
 
-  // Panel modunda hangi hoca konuşacak? Rotasyon + dramatik kurallar:
-  // - Lead default ve takip sorularını sorar
-  // - Adayın cevabı kısa/eksik göründüğünde 2. hoca araya girer ("Hocam izninizle..." gibi)
-  // - 3-4 turn'de bir observer kontra-soru atar
   const turns = await loadTurns(admin, sessionId);
   const panel = await loadPanelPersonas(admin, session);
-  const panelMap = new Map(panel.map((p: any) => [p.id, p]));
+  const panelMap = new Map<string, any>(
+    panel.map((p: any) => [p.id, p] as [string, any]),
+  );
   const lead = panel.find((p: any) => p.panel_role === "lead") ?? panel[0];
   const second = panel.find((p: any) => p.panel_role === "second");
   const observer = panel.find((p: any) => p.panel_role === "observer");
-  const mentorTurns = turns.filter((t: any) => t.speaker === "mentor");
 
   let activePersona: any;
-  if (session.exam_format === "panel" && panel.length >= 2) {
-    const lastSpeakerId = mentorTurns.at(-1)?.speaker_persona_id;
-    const shortAnswer = candidateMessage.trim().split(/\s+/).length < 6;
-    const everyFourth = mentorTurns.length > 0 && mentorTurns.length % 4 === 3;
-    if (everyFourth && observer && lastSpeakerId !== observer.id) {
-      activePersona = observer;
-    } else if (shortAnswer && second && lastSpeakerId !== second.id) {
-      activePersona = second;
-    } else if (lastSpeakerId === lead.id && second) {
-      activePersona = second;
-    } else {
-      activePersona = lead;
-    }
+  if (session.exam_format === "panel" && panel.length === 3) {
+    // Açılış sorusunu lead sorar; her cevap sonrası soru sırası diğer
+    // komisyon üyelerine geçer. Üçü değerlendirse de yalnız biri soru sorar.
+    const questionRotation = [second, observer, lead].filter(Boolean);
+    const answerCount = turns.filter((t: any) =>
+      t.speaker === "candidate"
+    ).length;
+    activePersona = questionRotation[answerCount % questionRotation.length];
   } else {
     activePersona = panelMap.get(session.persona_id) ?? lead;
   }
@@ -325,7 +375,10 @@ async function takeTurn(admin: any, userId: string, body: JsonMap) {
     0,
     Math.round((Date.now() - new Date(session.started_at).getTime()) / 1000),
   );
-  const remainingSeconds = Math.max(0, session.duration_seconds - elapsedSeconds);
+  const remainingSeconds = Math.max(
+    0,
+    session.duration_seconds - elapsedSeconds,
+  );
 
   const transcript = [...turns, {
     sequence: nextSequence,
@@ -333,34 +386,47 @@ async function takeTurn(admin: any, userId: string, body: JsonMap) {
     message: candidateMessage,
   }];
 
-  const panelContext = session.exam_format === "panel"
+  const isPanelTurn = session.exam_format === "panel" && panel.length === 3;
+  const panelContext = isPanelTurn
     ? `\n\nKOMİTE MODU. Sınav masasında 3 hoca var:\n` +
       panel.map((p: any) =>
-        `- ${p.title} (${p.panel_role === "lead" ? "ana sorgulayıcı" : p.panel_role === "second" ? "yardımcı sorgulayıcı" : "gözlemci"}): ${p.difficulty}`
+        `- ${p.title} (${
+          p.panel_role === "lead"
+            ? "ana sorgulayıcı"
+            : p.panel_role === "second"
+            ? "yardımcı sorgulayıcı"
+            : "gözlemci"
+        }): ${p.difficulty}`
       ).join("\n") +
-      `\n\nBu turn'de SADECE "${activePersona.title}" konuşur. ` +
-      `Diğer hocalar sessizce dinler. Cevabına kısa bir referans yapabilirsin: ` +
-      `örn. "Hocam izninizle bir şey ekleyeyim" (yardımcı), ` +
-      `"İlginç bir nokta..." (gözlemci), ` +
-      `"Hayır, bu kadar yeterli değil" (lead). Tonu ${activePersona.title} ile uyumlu olsun.`
+      `\n\nAdayın bu yanıtını üç hoca da aynı turda değerlendirir. ` +
+      `Her hoca kendi tonuyla en fazla bir kısa cümle konuşsun. ` +
+      `Yalnız "${activePersona.title}" konuşmasının sonunda TEK takip sorusu sorsun; ` +
+      `diğer iki hoca kesinlikle soru sormasın.`
     : "";
 
   const response = await generateVertexContent({
     model: historyModel(),
-    systemInstruction:
-      `${activePersona.system_prompt}\n` +
+    systemInstruction: `${activePersona.system_prompt}\n` +
       `Sen ${activePersona.title}'sin. Şu anda sözlü sınavda aday seninle konuşuyor.${panelContext}\n\n` +
       `Klinik vaka: ${session.case_brief}\n` +
       `Branş: ${branch.title}. Zorluk: ${activePersona.difficulty}.\n` +
-      `Sınavda kalan süre: ${Math.round(remainingSeconds / 60)} dakika ${remainingSeconds % 60} saniye.\n` +
+      `Sınavda kalan süre: ${Math.round(remainingSeconds / 60)} dakika ${
+        remainingSeconds % 60
+      } saniye.\n` +
       `Kalan süre <2dk ise hoca sınavı kapatmaya hazır olabilir.\n\n` +
       `Görevin:\n` +
       `1) Adayın son cevabını klinik olarak değerlendir (eksik mi, hatalı mı, doğru mu).\n` +
-      `2) Türkçe TEK paragraf hoca yanıtı yaz. ASLA aynı anda iki soru sorma. ` +
+      `2) Türkçe kısa hoca yanıtı yaz. ASLA aynı anda iki soru sorma. ` +
       `Yanıtın değerlendirme + bir takip sorusu olsun. ` +
       `Eğer aday "öğretilmedi" derse profesyonelce uyar. ` +
       `Eğer süre <2dk kaldıysa "Şimdi sınavı bitirelim, son bir şey sorayım..." gibi kapatmaya yönel.\n` +
-      `3) JSON döndür: {"mentor_message":"...","is_followup":bool,"turn_evaluation":` +
+      (isPanelTurn
+        ? `3) JSON döndür: {"mentor_message":"${activePersona.title} tarafından sorulan tek takip sorusu",` +
+          `"committee_messages":[{"persona_id":"...","message":"...","asks_question":false},` +
+          `{"persona_id":"...","message":"...","asks_question":false},` +
+          `{"persona_id":"${activePersona.id}","message":"değerlendirme ve tek soru","asks_question":true}],`
+        : `3) JSON döndür: {"mentor_message":"...",`) +
+      `"is_followup":bool,"turn_evaluation":` +
       `{"score_delta":-10..15,"is_correct":bool,"reasoning":"kısa not"},"should_end":bool}`,
     contents: [{
       role: "user",
@@ -377,32 +443,58 @@ async function takeTurn(admin: any, userId: string, body: JsonMap) {
       }],
     }],
     temperature: 0.55,
-    maxOutputTokens: 480,
+    maxOutputTokens: 900,
     responseMimeType: "application/json",
   });
   const parsed = safeParse(response.text);
-  const mentorMessage = stringValue(parsed.mentor_message);
+  let mentorMessage = stringValue(parsed.mentor_message);
+  if (!mentorMessage) {
+    const rawFallback = stringValue(response.text)
+      .replace(/^```json\s*/i, "")
+      .replace(/^```\s*/i, "")
+      .replace(/```$/i, "")
+      .trim();
+    mentorMessage = rawFallback ||
+      `${activePersona.title}: Devam edelim, lütfen son cevabını biraz daha açar mısın?`;
+  }
   const isFollowup = parsed.is_followup === true;
   const shouldEnd = parsed.should_end === true || remainingSeconds <= 0;
   const turnEval = (parsed.turn_evaluation as JsonMap | undefined) ?? {};
+  const mentorReplies = isPanelTurn
+    ? committeeReplies(parsed, panel, activePersona, mentorMessage)
+    : [{
+      persona_id: activePersona.id,
+      persona_title: activePersona.title,
+      message: mentorMessage,
+      asks_question: isFollowup,
+    }];
+  const questionMessage =
+    mentorReplies.find((reply) => reply.asks_question)?.message ??
+      mentorMessage;
 
   await chargeAiCoins({
-    admin, userId, feature: "praticase-oral-exam-turn",
-    model: response.model, usageMetadata: response.usageMetadata,
+    admin,
+    userId,
+    feature: "praticase-oral-exam-turn",
+    model: response.model,
+    usageMetadata: response.usageMetadata,
   }).catch(() => {});
 
-  await admin.schema("praticase").from("oral_exam_turns").insert({
-    session_id: sessionId,
-    sequence: nextSequence + 1,
-    speaker: "mentor",
-    speaker_persona_id: activePersona.id,
-    message: mentorMessage,
-    is_followup: isFollowup,
-    evaluation: turnEval,
-  });
+  await admin.schema("praticase").from("oral_exam_turns").insert(
+    mentorReplies.map((reply, index) => ({
+      session_id: sessionId,
+      sequence: nextSequence + index + 1,
+      speaker: "mentor",
+      speaker_persona_id: reply.persona_id,
+      message: reply.message,
+      is_followup: reply.asks_question,
+      evaluation: reply.persona_id === activePersona.id ? turnEval : {},
+    })),
+  );
 
   return {
-    mentor_message: mentorMessage,
+    mentor_message: questionMessage,
+    committee_messages: mentorReplies,
     is_followup: isFollowup,
     should_end: shouldEnd,
     remaining_seconds: remainingSeconds,
@@ -424,9 +516,13 @@ async function skipQuestion(admin: any, userId: string, body: JsonMap) {
   const panel = await loadPanelPersonas(admin, session);
   const lead = panel.find((p: any) => p.panel_role === "lead") ?? panel[0];
   const second = panel.find((p: any) => p.panel_role === "second");
-  // Pas geçildiğinde lead ya da second hoca devralır; lead pas için en sert tepkiyi verir
-  const activePersona = session.exam_format === "panel" && second
-    ? (Math.random() < 0.65 ? lead : second)
+  const observer = panel.find((p: any) => p.panel_role === "observer");
+  const isPanelTurn = session.exam_format === "panel" && panel.length === 3;
+  const questionRotation = [second, observer, lead].filter(Boolean);
+  const answerCount =
+    turns.filter((t: any) => t.speaker === "candidate").length;
+  const activePersona = isPanelTurn
+    ? questionRotation[answerCount % questionRotation.length]
     : (panel.find((p: any) => p.id === session.persona_id) ?? lead);
 
   const nextSequence = (turns.at(-1)?.sequence ?? 0) + 1;
@@ -443,12 +539,17 @@ async function skipQuestion(admin: any, userId: string, body: JsonMap) {
 
   const response = await generateVertexContent({
     model: historyModel(),
-    systemInstruction:
-      `${activePersona?.system_prompt ?? ""}\n` +
+    systemInstruction: `${activePersona?.system_prompt ?? ""}\n` +
       `Sen ${activePersona?.title}'sin. Aday bir soruyu pas geçti. ` +
       `Tonuna uygun (Sabırlı: anlayışlı, Sokratik: ipucuyla yeniden çerçevele, Sert: sert uyarı) ` +
-      `Türkçe TEK paragraf hoca yanıtı ver. Yeni bir soruya geç. JSON: ` +
-      `{"mentor_message":"..."}`,
+      `Türkçe kısa hoca yanıtı ver. Yeni bir soruya geç. ` +
+      (isPanelTurn
+        ? `Komisyondaki üç hoca da aynı turda birer kısa tepki versin; yalnız ${activePersona.title} ` +
+          `tek yeni soru sorsun. JSON: {"mentor_message":"soruyu soran hoca mesajı",` +
+          `"committee_messages":[{"persona_id":"...","message":"...","asks_question":false},` +
+          `{"persona_id":"...","message":"...","asks_question":false},` +
+          `{"persona_id":"${activePersona.id}","message":"... tek soru","asks_question":true}]}`
+        : `JSON: {"mentor_message":"..."}`),
     contents: [{
       role: "user",
       parts: [{
@@ -457,28 +558,48 @@ async function skipQuestion(admin: any, userId: string, body: JsonMap) {
       }],
     }],
     temperature: 0.55,
-    maxOutputTokens: 240,
+    maxOutputTokens: 360,
     responseMimeType: "application/json",
   });
   const parsed = safeParse(response.text);
-  const mentorMessage = stringValue(parsed.mentor_message);
+  let mentorMessage = stringValue(parsed.mentor_message);
+  if (!mentorMessage) {
+    mentorMessage = stringValue(response.text) ||
+      `${
+        activePersona?.title ?? "Hoca"
+      }: Geç o zaman, bir sonraki soruya geçelim.`;
+  }
+  const mentorReplies = isPanelTurn
+    ? committeeReplies(parsed, panel, activePersona, mentorMessage)
+    : [{
+      persona_id: activePersona.id,
+      persona_title: activePersona.title,
+      message: mentorMessage,
+      asks_question: false,
+    }];
 
   await chargeAiCoins({
-    admin, userId, feature: "praticase-oral-exam-skip",
-    model: response.model, usageMetadata: response.usageMetadata,
+    admin,
+    userId,
+    feature: "praticase-oral-exam-skip",
+    model: response.model,
+    usageMetadata: response.usageMetadata,
   }).catch(() => {});
 
-  await admin.schema("praticase").from("oral_exam_turns").insert({
-    session_id: sessionId,
-    sequence: nextSequence + 1,
-    speaker: "mentor",
-    speaker_persona_id: activePersona.id,
-    message: mentorMessage,
-    is_followup: false,
-  });
+  await admin.schema("praticase").from("oral_exam_turns").insert(
+    mentorReplies.map((reply, index) => ({
+      session_id: sessionId,
+      sequence: nextSequence + index + 1,
+      speaker: "mentor",
+      speaker_persona_id: reply.persona_id,
+      message: reply.message,
+      is_followup: reply.asks_question,
+    })),
+  );
 
   return {
     mentor_message: mentorMessage,
+    committee_messages: mentorReplies,
     skipped: true,
     active_persona_id: activePersona.id,
     active_persona_title: activePersona.title,
@@ -494,7 +615,9 @@ async function finalize(admin: any, userId: string, body: JsonMap) {
   const branch = await loadBranch(admin, session.branch_id);
   const turns = await loadTurns(admin, sessionId);
   const panel = await loadPanelPersonas(admin, session);
-  const panelMap = new Map(panel.map((p: any) => [p.id, p]));
+  const panelMap = new Map<string, any>(
+    panel.map((p: any) => [p.id, p] as [string, any]),
+  );
 
   if (turns.length === 0) {
     await admin.schema("praticase")
@@ -539,7 +662,8 @@ async function finalize(admin: any, userId: string, body: JsonMap) {
     contents: [{
       role: "user",
       parts: [{
-        text: `Format: ${session.exam_format}\nBranş: ${branch?.title}\nVaka: ${session.case_brief}\n\n` +
+        text:
+          `Format: ${session.exam_format}\nBranş: ${branch?.title}\nVaka: ${session.case_brief}\n\n` +
           `TRANSCRIPT:\n${transcriptText}`,
       }],
     }],
@@ -550,19 +674,36 @@ async function finalize(admin: any, userId: string, body: JsonMap) {
   const parsed = safeParse(evaluation.text);
 
   await chargeAiCoins({
-    admin, userId, feature: "praticase-oral-exam-finalize",
-    model: evaluation.model, usageMetadata: evaluation.usageMetadata,
+    admin,
+    userId,
+    feature: "praticase-oral-exam-finalize",
+    model: evaluation.model,
+    usageMetadata: evaluation.usageMetadata,
   }).catch(() => {});
 
   const reasoning = clamp(numberValue(parsed.reasoning_score) ?? 0, 0, 40);
   const knowledge = clamp(numberValue(parsed.knowledge_score) ?? 0, 0, 30);
-  const communication = clamp(numberValue(parsed.communication_score) ?? 0, 0, 15);
+  const communication = clamp(
+    numberValue(parsed.communication_score) ?? 0,
+    0,
+    15,
+  );
   const pace = clamp(numberValue(parsed.pace_score) ?? 0, 0, 10);
-  const professionalism = clamp(numberValue(parsed.professionalism_score) ?? 0, 0, 5);
-  const total = clamp(numberValue(parsed.total_score) ?? (reasoning + knowledge + communication + pace + professionalism), 0, 100);
-  const panelSummaries = (parsed.panel_summaries && typeof parsed.panel_summaries === "object")
-    ? parsed.panel_summaries as JsonMap
-    : {};
+  const professionalism = clamp(
+    numberValue(parsed.professionalism_score) ?? 0,
+    0,
+    5,
+  );
+  const total = clamp(
+    numberValue(parsed.total_score) ??
+      (reasoning + knowledge + communication + pace + professionalism),
+    0,
+    100,
+  );
+  const panelSummaries =
+    (parsed.panel_summaries && typeof parsed.panel_summaries === "object")
+      ? parsed.panel_summaries as JsonMap
+      : {};
 
   const update = await admin
     .schema("praticase")
@@ -578,9 +719,15 @@ async function finalize(admin: any, userId: string, body: JsonMap) {
       pace_score: pace,
       professionalism_score: professionalism,
       mentor_summary: stringValue(parsed.mentor_summary),
-      strong_points: Array.isArray(parsed.strong_points) ? parsed.strong_points : [],
-      improvement_points: Array.isArray(parsed.improvement_points) ? parsed.improvement_points : [],
-      missed_points: Array.isArray(parsed.missed_points) ? parsed.missed_points : [],
+      strong_points: Array.isArray(parsed.strong_points)
+        ? parsed.strong_points
+        : [],
+      improvement_points: Array.isArray(parsed.improvement_points)
+        ? parsed.improvement_points
+        : [],
+      missed_points: Array.isArray(parsed.missed_points)
+        ? parsed.missed_points
+        : [],
       panel_summaries: panelSummaries,
       updated_at: new Date().toISOString(),
     })
@@ -678,7 +825,9 @@ async function loadTurns(admin: any, sessionId: string) {
   const { data } = await admin
     .schema("praticase")
     .from("oral_exam_turns")
-    .select("sequence,speaker,message,is_followup,was_skipped,evaluation")
+    .select(
+      "sequence,speaker,speaker_persona_id,message,is_followup,was_skipped,evaluation",
+    )
     .eq("session_id", sessionId)
     .order("sequence");
   return data ?? [];
@@ -687,6 +836,43 @@ async function loadTurns(admin: any, sessionId: string) {
 function withOrigin(payload: JsonMap, origin: string | null) {
   const status = payload.error ? 400 : 200;
   return jsonResponse(payload, status, origin);
+}
+
+function committeeReplies(
+  parsed: JsonMap,
+  panel: any[],
+  activePersona: any,
+  fallbackMessage: string,
+) {
+  const rawMessages = Array.isArray(parsed.committee_messages)
+    ? parsed.committee_messages.filter((message) =>
+      message && typeof message === "object"
+    ) as JsonMap[]
+    : [];
+
+  const messageFor = (personaId: string) => {
+    const raw = rawMessages.find((message) =>
+      stringValue(message.persona_id) === personaId
+    );
+    return stringValue(raw?.message);
+  };
+
+  const comments = panel
+    .filter((persona: any) => persona.id !== activePersona.id)
+    .map((persona: any) => ({
+      persona_id: persona.id,
+      persona_title: persona.title,
+      message: messageFor(persona.id) ||
+        "Yanıtınızı komisyon değerlendirmesine aldım.",
+      asks_question: false,
+    }));
+  comments.push({
+    persona_id: activePersona.id,
+    persona_title: activePersona.title,
+    message: messageFor(activePersona.id) || fallbackMessage,
+    asks_question: true,
+  });
+  return comments;
 }
 
 function safeParse(raw: string): JsonMap {
@@ -698,7 +884,19 @@ function safeParse(raw: string): JsonMap {
   try {
     return JSON.parse(cleaned) as JsonMap;
   } catch {
-    return {};
+    // JSON parse failed — try to salvage the first {...} block, otherwise
+    // expose the raw text so the user still sees a mentor response instead
+    // of an empty bubble.
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+      try {
+        return JSON.parse(cleaned.slice(start, end + 1)) as JsonMap;
+      } catch {
+        // fall through to raw fallback
+      }
+    }
+    return cleaned ? { mentor_message: cleaned } : {};
   }
 }
 
@@ -712,7 +910,11 @@ function numberValue(value: unknown) {
 }
 
 function stringValue(value: unknown) {
-  return typeof value === "string" ? value.trim() : value == null ? "" : String(value).trim();
+  return typeof value === "string"
+    ? value.trim()
+    : value == null
+    ? ""
+    : String(value).trim();
 }
 
 function errorMessage(error: unknown) {

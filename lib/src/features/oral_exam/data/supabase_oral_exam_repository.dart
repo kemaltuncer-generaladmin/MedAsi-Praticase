@@ -5,7 +5,7 @@ import 'oral_exam_repository.dart';
 
 class SupabaseOralExamRepository implements OralExamRepository {
   const SupabaseOralExamRepository({required SupabaseClient client})
-      : _client = client;
+    : _client = client;
 
   final SupabaseClient _client;
 
@@ -33,7 +33,9 @@ class SupabaseOralExamRepository implements OralExamRepository {
             .order('sort_order');
         for (final row in scenarioRows) {
           final branchId = _string(row, 'branch_id');
-          scenariosByBranch.putIfAbsent(branchId, () => []).add(
+          scenariosByBranch
+              .putIfAbsent(branchId, () => [])
+              .add(
                 OralExamScenario(
                   id: _string(row, 'id'),
                   branchId: branchId,
@@ -118,7 +120,8 @@ class SupabaseOralExamRepository implements OralExamRepository {
       id: _stringFrom(response, 'session_id'),
       durationSeconds: _intFrom(response, 'duration_seconds'),
       caseBrief: _stringFrom(response, 'case_brief'),
-      startedAt: DateTime.tryParse(_stringFrom(response, 'started_at')) ??
+      startedAt:
+          DateTime.tryParse(_stringFrom(response, 'started_at')) ??
           DateTime.now(),
       personaId: _stringFrom(persona, 'id'),
       personaTitle: _stringFrom(persona, 'title'),
@@ -145,8 +148,10 @@ class SupabaseOralExamRepository implements OralExamRepository {
       'message': message,
     });
     final eval = (response['turn_evaluation'] as Map?) ?? const {};
+    final mentorMessages = _mentorMessagesFrom(response);
     return OralExamTurnResult(
       mentorMessage: _stringFrom(response, 'mentor_message'),
+      mentorMessages: mentorMessages,
       isFollowup: response['is_followup'] == true,
       shouldEnd: response['should_end'] == true,
       remainingSeconds: _intFrom(response, 'remaining_seconds'),
@@ -159,12 +164,9 @@ class SupabaseOralExamRepository implements OralExamRepository {
   }
 
   @override
-  Future<String> skipQuestion(String sessionId) async {
-    final response = await _invoke({
-      'action': 'skip',
-      'session_id': sessionId,
-    });
-    return _stringFrom(response, 'mentor_message');
+  Future<List<OralExamMessage>> skipQuestion(String sessionId) async {
+    final response = await _invoke({'action': 'skip', 'session_id': sessionId});
+    return _mentorMessagesFrom(response);
   }
 
   @override
@@ -300,5 +302,35 @@ class SupabaseOralExamRepository implements OralExamRepository {
       ];
     }
     return const <String>[];
+  }
+
+  List<OralExamMessage> _mentorMessagesFrom(Map<String, dynamic> response) {
+    final rawMessages = response['committee_messages'];
+    if (rawMessages is List) {
+      final messages = <OralExamMessage>[
+        for (final raw in rawMessages)
+          if (raw is Map && _stringFrom(raw, 'message').isNotEmpty)
+            OralExamMessage(
+              speaker: 'mentor',
+              message: _stringFrom(raw, 'message'),
+              personaId: _stringFrom(raw, 'persona_id'),
+              personaTitle: _stringFrom(raw, 'persona_title'),
+              isFollowup: raw['asks_question'] == true,
+            ),
+      ];
+      if (messages.isNotEmpty) return messages;
+    }
+
+    final message = _stringFrom(response, 'mentor_message');
+    if (message.isEmpty) return const <OralExamMessage>[];
+    return [
+      OralExamMessage(
+        speaker: 'mentor',
+        message: message,
+        personaId: _stringFrom(response, 'active_persona_id'),
+        personaTitle: _stringFrom(response, 'active_persona_title'),
+        isFollowup: response['is_followup'] == true,
+      ),
+    ];
   }
 }

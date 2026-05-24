@@ -12,7 +12,6 @@ import '../../cases/presentation/cases_screen.dart';
 import '../../home/data/home_repository.dart';
 import '../../home/presentation/home_screen.dart';
 import '../../oral_exam/data/oral_exam_repository.dart';
-import '../../oral_exam/domain/oral_exam_models.dart';
 import '../../oral_exam/presentation/oral_exam_screens.dart';
 import '../../progress/data/progress_repository.dart';
 import '../../progress/domain/progress_models.dart';
@@ -119,14 +118,6 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
           MaterialPageRoute<void>(
             builder: (_) => OralExamSetupScreen(
               repository: widget.oralExamRepository,
-            ),
-          ),
-        ),
-        onOpenOralExamCommittee: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => OralExamSetupScreen(
-              repository: widget.oralExamRepository,
-              initialFormat: OralExamFormat.panel,
             ),
           ),
         ),
@@ -581,21 +572,12 @@ class _ExamsScreenState extends State<_ExamsScreen> {
         return;
       case 'oral_exam':
       case 'sozlu_sinav':
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => OralExamSetupScreen(
-              repository: widget.oralExamRepository,
-            ),
-          ),
-        );
-        return;
       case 'oral_exam_committee':
       case 'komite_sinav':
         Navigator.of(context).push(
           MaterialPageRoute<void>(
             builder: (_) => OralExamSetupScreen(
               repository: widget.oralExamRepository,
-              initialFormat: OralExamFormat.panel,
             ),
           ),
         );

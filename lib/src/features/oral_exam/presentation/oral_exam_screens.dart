@@ -211,9 +211,7 @@ class _OralExamSetupScreenState extends State<OralExamSetupScreen> {
                         setState(() => _durationMinutes = value),
                   ),
                   const SizedBox(height: 20),
-                  FadeSlideIn(
-                    child: _BranchDetailCard(branch: _branch),
-                  ),
+                  FadeSlideIn(child: _BranchDetailCard(branch: _branch)),
                 ],
               ),
               Positioned(
@@ -223,7 +221,8 @@ class _OralExamSetupScreenState extends State<OralExamSetupScreen> {
                 child: SafeArea(
                   top: false,
                   child: FilledButton.icon(
-                    onPressed: _branch == null ||
+                    onPressed:
+                        _branch == null ||
                             _starting ||
                             (_format == OralExamFormat.solo && _persona == null)
                         ? null
@@ -245,11 +244,11 @@ class _OralExamSetupScreenState extends State<OralExamSetupScreen> {
                     label: Text(
                       _starting
                           ? (_format == OralExamFormat.panel
-                              ? 'Komite hazırlanıyor...'
-                              : 'Hoca hazırlanıyor...')
+                                ? 'Komite hazırlanıyor...'
+                                : 'Hoca hazırlanıyor...')
                           : (_format == OralExamFormat.panel
-                              ? 'Komiteye Çık'
-                              : 'Sözlü Sınavı Başlat'),
+                                ? 'Komiteye Çık'
+                                : 'Sözlü Sınavı Başlat'),
                     ),
                     style: FilledButton.styleFrom(
                       minimumSize: const Size.fromHeight(54),
@@ -317,12 +316,12 @@ class _IntroCard extends StatelessWidget {
           Text(
             isPanel
                 ? 'Üç hoca karşında. Biri sorarken diğeri atlar, '
-                    'biri ipucu verirken diğeri yetersiz der. '
-                    'Türk tıp fakültesi sözlü sınav baskısının birebir simülasyonu. '
-                    'Karne sonunda her hocadan ayrı yorum alırsın.'
+                      'biri ipucu verirken diğeri yetersiz der. '
+                      'Türk tıp fakültesi sözlü sınav baskısının birebir simülasyonu. '
+                      'Karne sonunda her hocadan ayrı yorum alırsın.'
                 : 'Hoca vakayı sunar, sokratik takip soruları sorar. Klinik akıl yürütme, '
-                    'bilgi, iletişim, hız ve profesyonellik 100 puan üzerinden değerlendirilir. '
-                    'Mikrofona izin verirsen cevaplarını sesli verebilirsin.',
+                      'bilgi, iletişim, hız ve profesyonellik 100 puan üzerinden değerlendirilir. '
+                      'Mikrofona izin verirsen cevaplarını sesli verebilirsin.',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 13,
@@ -350,7 +349,8 @@ class _FormatPicker extends StatelessWidget {
             selected: value == OralExamFormat.solo,
             icon: Icons.record_voice_over_rounded,
             title: 'Tek Hoca',
-            subtitle: 'Eğitim modu — sabırlı, sokratik veya sert hocalardan biri.',
+            subtitle:
+                'Eğitim modu — sabırlı, sokratik veya sert hocalardan biri.',
             onTap: () => onChanged(OralExamFormat.solo),
           ),
         ),
@@ -360,7 +360,8 @@ class _FormatPicker extends StatelessWidget {
             selected: value == OralExamFormat.panel,
             icon: Icons.groups_2_rounded,
             title: 'Komite (3 Hoca)',
-            subtitle: 'Sınav modu — üç hoca karşında, biri sorarken diğeri atlar.',
+            subtitle:
+                'Sınav modu — üç hoca karşında, biri sorarken diğeri atlar.',
             badge: 'YENİ',
             onTap: () => onChanged(OralExamFormat.panel),
           ),
@@ -477,10 +478,11 @@ class _CommitteePreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ordered = [...personas]..sort((a, b) {
-      const order = {'lead': 0, 'second': 1, 'observer': 2};
-      return (order[a.panelRole] ?? 9).compareTo(order[b.panelRole] ?? 9);
-    });
+    final ordered = [...personas]
+      ..sort((a, b) {
+        const order = {'lead': 0, 'second': 1, 'observer': 2};
+        return (order[a.panelRole] ?? 9).compareTo(order[b.panelRole] ?? 9);
+      });
     return ClinicalCard(
       color: PratiCaseColors.navy,
       borderColor: Colors.transparent,
@@ -507,8 +509,9 @@ class _CommitteePreview extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 16,
-                  backgroundColor:
-                      PratiCaseColors.tealBright.withValues(alpha: 0.20),
+                  backgroundColor: PratiCaseColors.tealBright.withValues(
+                    alpha: 0.20,
+                  ),
                   child: const Icon(
                     Icons.person_rounded,
                     color: PratiCaseColors.tealBright,
@@ -522,12 +525,16 @@ class _CommitteePreview extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Text(
-                            ordered[i].title,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 13,
+                          Expanded(
+                            child: Text(
+                              ordered[i].title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 13,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 6),
@@ -682,8 +689,8 @@ class _PersonaTile extends StatelessWidget {
                 persona.difficulty == 'Zor'
                     ? Icons.gavel_rounded
                     : persona.difficulty == 'Orta'
-                        ? Icons.psychology_rounded
-                        : Icons.medical_information_rounded,
+                    ? Icons.psychology_rounded
+                    : Icons.medical_information_rounded,
                 color: _accent,
               ),
             ),
@@ -808,8 +815,10 @@ class _ScenarioRandomTile extends StatelessWidget {
               ),
             ),
             if (selected)
-              const Icon(Icons.check_circle_rounded,
-                  color: PratiCaseColors.teal),
+              const Icon(
+                Icons.check_circle_rounded,
+                color: PratiCaseColors.teal,
+              ),
           ],
         ),
       ),
@@ -1179,25 +1188,28 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
         message: text,
       );
       if (!mounted) return;
+      final mentorMessages = response.mentorMessages.isEmpty
+          ? [
+              OralExamMessage(
+                speaker: 'mentor',
+                message: response.mentorMessage,
+                isFollowup: response.isFollowup,
+                personaId: response.activePersonaId,
+                personaTitle: response.activePersonaTitle,
+              ),
+            ]
+          : response.mentorMessages;
       setState(() {
         _activePersonaId = response.activePersonaId.isNotEmpty
             ? response.activePersonaId
             : _activePersonaId;
-        _messages.add(
-          OralExamMessage(
-            speaker: 'mentor',
-            message: response.mentorMessage,
-            isFollowup: response.isFollowup,
-            personaId: response.activePersonaId,
-            personaTitle: response.activePersonaTitle,
-          ),
-        );
+        _messages.addAll(mentorMessages);
         if (response.remainingSeconds > 0) {
           _remainingSeconds = response.remainingSeconds;
         }
       });
       unawaited(PratiCaseHaptics.selection());
-      unawaited(_speakLatestMentor());
+      unawaited(_speakMentorMessages(mentorMessages));
       unawaited(_scrollToBottom());
       if (response.shouldEnd) {
         await _finalize();
@@ -1226,16 +1238,15 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
     });
     unawaited(_scrollToBottom());
     try {
-      final mentor = await widget.repository.skipQuestion(widget.session.id);
+      final mentors = await widget.repository.skipQuestion(widget.session.id);
       if (!mounted) return;
       setState(() {
-        _messages.add(OralExamMessage(
-          speaker: 'mentor',
-          message: mentor,
-          personaId: _activePersonaId,
-        ));
+        _messages.addAll(mentors);
+        if (mentors.isNotEmpty && mentors.last.personaId.isNotEmpty) {
+          _activePersonaId = mentors.last.personaId;
+        }
       });
-      unawaited(_speakLatestMentor());
+      unawaited(_speakMentorMessages(mentors));
       unawaited(_scrollToBottom());
     } on OralExamUnavailable catch (error) {
       if (!mounted) return;
@@ -1256,10 +1267,8 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
       unawaited(_voiceAdapter.stopSpeaking());
       await Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
-          builder: (_) => OralExamResultScreen(
-            result: result,
-            session: widget.session,
-          ),
+          builder: (_) =>
+              OralExamResultScreen(result: result, session: widget.session),
         ),
       );
     } on OralExamUnavailable catch (error) {
@@ -1319,6 +1328,19 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
     );
     if (mentor.message.isEmpty) return;
     await _voiceAdapter.speak(mentor.message);
+  }
+
+  Future<void> _speakMentorMessages(List<OralExamMessage> messages) async {
+    if (!_voiceMode || _voiceState.muted || messages.isEmpty) return;
+    final transcript = messages
+        .where((message) => message.message.isNotEmpty)
+        .map(
+          (message) => message.personaTitle.isEmpty
+              ? message.message
+              : '${message.personaTitle}: ${message.message}',
+        )
+        .join(' ');
+    if (transcript.isNotEmpty) await _voiceAdapter.speak(transcript);
   }
 
   String _formatTime(int seconds) {
@@ -1387,11 +1409,7 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(
-                        Icons.timer_outlined,
-                        size: 16,
-                        color: _timerColor,
-                      ),
+                      Icon(Icons.timer_outlined, size: 16, color: _timerColor),
                       const SizedBox(width: 4),
                       Text(
                         _formatTime(_remainingSeconds),
@@ -1476,10 +1494,11 @@ class _PanelBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ordered = [...panel]..sort((a, b) {
-      const order = {'lead': 0, 'second': 1, 'observer': 2};
-      return (order[a.panelRole] ?? 9).compareTo(order[b.panelRole] ?? 9);
-    });
+    final ordered = [...panel]
+      ..sort((a, b) {
+        const order = {'lead': 0, 'second': 1, 'observer': 2};
+        return (order[a.panelRole] ?? 9).compareTo(order[b.panelRole] ?? 9);
+      });
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(12, 10, 8, 12),
@@ -1490,10 +1509,7 @@ class _PanelBanner extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 3,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: PratiCaseColors.tealBright.withValues(alpha: 0.18),
                   borderRadius: BorderRadius.circular(5),
@@ -1512,7 +1528,9 @@ class _PanelBanner extends StatelessWidget {
               IconButton(
                 onPressed: onToggleVoice,
                 icon: Icon(
-                  voiceMode ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+                  voiceMode
+                      ? Icons.volume_up_rounded
+                      : Icons.volume_off_rounded,
                   color: voiceMode
                       ? PratiCaseColors.tealBright
                       : Colors.white.withValues(alpha: 0.7),
@@ -1520,6 +1538,15 @@ class _PanelBanner extends StatelessWidget {
                 tooltip: voiceMode ? 'Sesli mod açık' : 'Sesli mod kapalı',
               ),
             ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Komisyon birlikte değerlendirir; yalnızca soru soran hocaya cevap ver.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.72),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 6),
           Row(
@@ -1637,7 +1664,9 @@ class _PanelistAvatar extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: active ? Colors.white : Colors.white.withValues(alpha: 0.7),
+              color: active
+                  ? Colors.white
+                  : Colors.white.withValues(alpha: 0.7),
               fontSize: 10.5,
               fontWeight: active ? FontWeight.w900 : FontWeight.w600,
             ),
@@ -1645,10 +1674,10 @@ class _PanelistAvatar extends StatelessWidget {
           if (active) ...[
             const SizedBox(height: 2),
             const Text(
-              'KONUŞUYOR',
+              'SORU SORUYOR',
               style: TextStyle(
                 color: PratiCaseColors.tealBright,
-                fontSize: 7.5,
+                fontSize: 7,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 0.6,
               ),
@@ -1680,9 +1709,7 @@ class _MentorBanner extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 12, 12, 14),
-      decoration: const BoxDecoration(
-        color: PratiCaseColors.navy,
-      ),
+      decoration: const BoxDecoration(color: PratiCaseColors.navy),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1723,7 +1750,9 @@ class _MentorBanner extends StatelessWidget {
               IconButton(
                 onPressed: onToggleVoice,
                 icon: Icon(
-                  voiceMode ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+                  voiceMode
+                      ? Icons.volume_up_rounded
+                      : Icons.volume_off_rounded,
                   color: voiceMode
                       ? PratiCaseColors.tealBright
                       : Colors.white.withValues(alpha: 0.7),
@@ -1767,8 +1796,9 @@ class _ExamBubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
-        mainAxisAlignment:
-            mentor ? MainAxisAlignment.start : MainAxisAlignment.end,
+        mainAxisAlignment: mentor
+            ? MainAxisAlignment.start
+            : MainAxisAlignment.end,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (mentor) ...[
@@ -1800,9 +1830,7 @@ class _ExamBubble extends StatelessWidget {
                     bottomRight: const Radius.circular(16),
                   ),
                   border: Border.all(
-                    color: mentor
-                        ? PratiCaseColors.border
-                        : Colors.transparent,
+                    color: mentor ? PratiCaseColors.border : Colors.transparent,
                   ),
                   boxShadow: mentor ? PratiCaseShadows.card : null,
                 ),
@@ -1832,8 +1860,9 @@ class _ExamBubble extends StatelessWidget {
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: PratiCaseColors.gold
-                                      .withValues(alpha: 0.18),
+                                  color: PratiCaseColors.gold.withValues(
+                                    alpha: 0.18,
+                                  ),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: const Text(
@@ -1943,11 +1972,7 @@ class _MentorTypingBubble extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: PratiCaseColors.border),
             ),
-            child: const SizedBox(
-              width: 24,
-              height: 8,
-              child: _TypingDots(),
-            ),
+            child: const SizedBox(width: 24, height: 8, child: _TypingDots()),
           ),
         ],
       ),
@@ -2038,9 +2063,7 @@ class _ComposerBar extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
         decoration: const BoxDecoration(
           color: PratiCaseColors.white,
-          border: Border(
-            top: BorderSide(color: PratiCaseColors.border),
-          ),
+          border: Border(top: BorderSide(color: PratiCaseColors.border)),
         ),
         child: Column(
           children: [
@@ -2059,9 +2082,7 @@ class _ComposerBar extends StatelessWidget {
                         borderRadius: BorderRadius.circular(22),
                       ),
                       child: Icon(
-                        listening
-                            ? Icons.mic_rounded
-                            : Icons.mic_none_rounded,
+                        listening ? Icons.mic_rounded : Icons.mic_none_rounded,
                         color: listening ? Colors.white : PratiCaseColors.teal,
                       ),
                     ),
@@ -2090,20 +2111,25 @@ class _ComposerBar extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                PressableScale(
-                  onTap: disabled || controller.text.trim().isEmpty
-                      ? null
-                      : () => onSend(),
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: PratiCaseColors.teal,
-                      borderRadius: BorderRadius.circular(22),
-                    ),
-                    child: const Icon(
-                      Icons.send_rounded,
-                      color: Colors.white,
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: controller,
+                  builder: (context, value, _) => PressableScale(
+                    onTap: disabled || value.text.trim().isEmpty
+                        ? null
+                        : () => onSend(),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: value.text.trim().isEmpty
+                            ? PratiCaseColors.teal.withValues(alpha: 0.45)
+                            : PratiCaseColors.teal,
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                      child: const Icon(
+                        Icons.send_rounded,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
@@ -2178,8 +2204,8 @@ class _OralExamResultScreenState extends State<OralExamResultScreen> {
     final scoreColor = r.percentage >= 80
         ? PratiCaseColors.successGreen
         : r.percentage >= 60
-            ? PratiCaseColors.gold
-            : PratiCaseColors.errorRed;
+        ? PratiCaseColors.gold
+        : PratiCaseColors.errorRed;
 
     return Scaffold(
       backgroundColor: PratiCaseColors.softSurface,
@@ -2223,8 +2249,9 @@ class _OralExamResultScreenState extends State<OralExamResultScreen> {
                               child: CircularProgressIndicator(
                                 value: value,
                                 strokeWidth: 8,
-                                backgroundColor:
-                                    Colors.white.withValues(alpha: 0.18),
+                                backgroundColor: Colors.white.withValues(
+                                  alpha: 0.18,
+                                ),
                                 color: scoreColor,
                                 strokeCap: StrokeCap.round,
                               ),
@@ -2301,8 +2328,10 @@ class _OralExamResultScreenState extends State<OralExamResultScreen> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.format_quote_rounded,
-                            color: PratiCaseColors.teal),
+                        const Icon(
+                          Icons.format_quote_rounded,
+                          color: PratiCaseColors.teal,
+                        ),
                         const SizedBox(width: 6),
                         Text(
                           r.format == OralExamFormat.panel
@@ -2449,8 +2478,9 @@ class _PanelVerdictsCard extends StatelessWidget {
                     children: [
                       CircleAvatar(
                         radius: 14,
-                        backgroundColor:
-                            PratiCaseColors.teal.withValues(alpha: 0.16),
+                        backgroundColor: PratiCaseColors.teal.withValues(
+                          alpha: 0.16,
+                        ),
                         child: const Icon(
                           Icons.person_rounded,
                           color: PratiCaseColors.teal,
@@ -2483,8 +2513,9 @@ class _PanelVerdictsCard extends StatelessWidget {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: _verdictColor(verdicts[i].verdict)
-                              .withValues(alpha: 0.18),
+                          color: _verdictColor(
+                            verdicts[i].verdict,
+                          ).withValues(alpha: 0.18),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -2572,8 +2603,8 @@ class _RubricRow extends StatelessWidget {
     final color = ratio >= 0.8
         ? PratiCaseColors.successGreen
         : ratio >= 0.5
-            ? PratiCaseColors.gold
-            : PratiCaseColors.errorRed;
+        ? PratiCaseColors.gold
+        : PratiCaseColors.errorRed;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

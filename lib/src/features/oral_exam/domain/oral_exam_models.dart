@@ -121,6 +121,7 @@ class OralExamSession {
 class OralExamTurnResult {
   const OralExamTurnResult({
     required this.mentorMessage,
+    required this.mentorMessages,
     required this.isFollowup,
     required this.shouldEnd,
     required this.remainingSeconds,
@@ -132,6 +133,7 @@ class OralExamTurnResult {
   });
 
   final String mentorMessage;
+  final List<OralExamMessage> mentorMessages;
   final bool isFollowup;
   final bool shouldEnd;
   final int remainingSeconds;
