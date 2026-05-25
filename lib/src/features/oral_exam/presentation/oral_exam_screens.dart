@@ -302,7 +302,7 @@ class _IntroCard extends StatelessWidget {
                 child: Text(
                   isPanel
                       ? 'Komite Önünde Sözlü Sınav'
-                      : 'Sanal Hoca ile Sözlü Sınav',
+                      : 'Sözlü Sınav Moderatörü',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -318,8 +318,8 @@ class _IntroCard extends StatelessWidget {
             isPanel
                 ? 'Üç hoca karşında; cevapların klinik gerekçe, bilgi, tempo ve profesyonellik açısından ayrı ayrı değerlendirilir. '
                       'Karne sonunda her hocadan kısa ve resmi yorum alırsın.'
-                : 'Hoca vakayı sunar ve kısa takip soruları sorar. Klinik akıl yürütme, '
-                      'bilgi, iletişim, hız ve profesyonellik 100 puan üzerinden değerlendirilir. '
+                : 'Moderatör vakayı sunar; cevabını gizli vaka hedefleriyle değerlendirip kısa takip sorusu sorar. '
+                      'Klinik akıl yürütme, bilgi, iletişim, hız ve profesyonellik 100 puan üzerinden değerlendirilir. '
                       'Mikrofona izin verirsen cevaplarını sesli verebilirsin.',
             style: const TextStyle(
               color: Colors.white,
@@ -347,9 +347,9 @@ class _FormatPicker extends StatelessWidget {
           child: _FormatOption(
             selected: value == OralExamFormat.solo,
             icon: Icons.record_voice_over_rounded,
-            title: 'Tek Hoca',
+            title: 'Tek Moderatör',
             subtitle:
-                'Tek hoca sınavı — kısa takip soruları ve resmi değerlendirme.',
+                'Tek moderatör sınavı — kısa takip soruları ve resmi değerlendirme.',
             onTap: () => onChanged(OralExamFormat.solo),
           ),
         ),
@@ -802,7 +802,7 @@ class _ScenarioRandomTile extends StatelessWidget {
                   ),
                   SizedBox(height: 4),
                   Text(
-                    'Hoca branş bilgisiyle her seferinde özgün bir vaka üretir.',
+                    'Moderatör branş bilgisiyle her seferinde özgün bir vaka üretir.',
                     style: TextStyle(
                       color: PratiCaseColors.muted,
                       fontSize: 12,
@@ -954,7 +954,10 @@ String _examSafePersonaDescription(OralExamPersona persona) {
     default:
       return persona.description
           .replaceAll('ipucu verir', 'resmi takip soruları sorar')
-          .replaceAll('Yanlış cevap = sert takip.', 'Yanlış cevap karneye yansır.')
+          .replaceAll(
+            'Yanlış cevap = sert takip.',
+            'Yanlış cevap karneye yansır.',
+          )
           .replaceAll('Sokratik', 'Gerekçe odaklı');
   }
 }
@@ -1204,6 +1207,7 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
   Future<void> _send() async {
     final text = _messageController.text.trim();
     if (text.isEmpty || _sending || _finalizing) return;
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
       _sending = true;
       _messages.add(OralExamMessage(speaker: 'candidate', message: text));
@@ -2425,7 +2429,7 @@ class _OralExamResultScreenState extends State<OralExamResultScreen> {
                         Text(
                           r.format == OralExamFormat.panel
                               ? 'Komite Kararı'
-                              : 'Hoca Yorumu',
+                              : 'Moderatör Yorumu',
                           style: const TextStyle(
                             color: PratiCaseColors.navy,
                             fontWeight: FontWeight.w900,

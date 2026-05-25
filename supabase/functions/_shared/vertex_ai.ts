@@ -24,6 +24,8 @@ type ServiceAccount = {
 
 type VertexCandidate = {
   content?: { parts?: Array<{ text?: string }> };
+  finishReason?: string;
+  finishMessage?: string;
 };
 
 export type JsonMap = Record<string, unknown>;
@@ -32,6 +34,8 @@ export type VertexGeneration = {
   text: string;
   usageMetadata: JsonMap;
   model: string;
+  finishReason?: string;
+  finishMessage?: string;
 };
 
 type VertexResponse = {
@@ -110,7 +114,8 @@ export async function generateVertexContent(
   }
 
   const payload = await response.json() as VertexResponse;
-  const text = payload.candidates?.[0]?.content?.parts
+  const candidate = payload.candidates?.[0];
+  const text = candidate?.content?.parts
     ?.map((part) => part.text ?? "")
     .join("")
     .trim();
@@ -121,6 +126,8 @@ export async function generateVertexContent(
     text,
     usageMetadata: payload.usageMetadata ?? {},
     model,
+    finishReason: candidate?.finishReason,
+    finishMessage: candidate?.finishMessage,
   };
 }
 
@@ -177,7 +184,9 @@ async function accessToken(account: ServiceAccount): Promise<string> {
   );
 
   if (!response.ok) {
-    throw new Error(`Google OAuth token request failed with ${response.status}`);
+    throw new Error(
+      `Google OAuth token request failed with ${response.status}`,
+    );
   }
 
   const payload = await response.json() as {
@@ -192,7 +201,10 @@ async function accessToken(account: ServiceAccount): Promise<string> {
   return accessTokenCache.token;
 }
 
-async function signedJwt(account: ServiceAccount, now: number): Promise<string> {
+async function signedJwt(
+  account: ServiceAccount,
+  now: number,
+): Promise<string> {
   const header = base64UrlJson({ alg: "RS256", typ: "JWT" });
   const claim = base64UrlJson({
     iss: account.client_email,

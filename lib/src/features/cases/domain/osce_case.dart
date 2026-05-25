@@ -265,6 +265,7 @@ class ExamResultSummary {
     required this.improvementPoints,
     required this.criticalMistakes,
     required this.unnecessaryTests,
+    required this.missedTests,
     required this.missedHistory,
     required this.missedPhysicalExam,
     required this.idealApproach,
@@ -280,6 +281,7 @@ class ExamResultSummary {
   final List<String> improvementPoints;
   final List<String> criticalMistakes;
   final List<String> unnecessaryTests;
+  final List<String> missedTests;
   final List<String> missedHistory;
   final List<String> missedPhysicalExam;
   final String idealApproach;

@@ -136,6 +136,7 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
         unreadNotificationCount: _unreadNotificationCount ?? 0,
         onOpenNotifications: _openNotifications,
         onOpenProfile: _openProfile,
+        onOpenHome: () => setState(() => _selectedIndex = 0),
       ),
       _ExamsScreen(
         progressRepository: widget.progressRepository,
@@ -527,10 +528,7 @@ class _ExamsScreenState extends State<_ExamsScreen> {
               ),
               const SizedBox(height: 26),
               if (snapshot.connectionState != ConnectionState.done)
-                const PratiCaseInlineSkeleton(
-                  heroHeight: 160,
-                  cardCount: 3,
-                )
+                const PratiCaseInlineSkeleton(heroHeight: 160, cardCount: 3)
               else if (snapshot.hasError)
                 _ShellStateCard(
                   icon: Icons.cloud_off_rounded,
@@ -637,10 +635,7 @@ class _ProgressSummaryScreenState extends State<_ProgressSummaryScreen> {
               const _ProgressTitleBar(),
               const SizedBox(height: 18),
               if (snapshot.connectionState != ConnectionState.done)
-                const PratiCaseInlineSkeleton(
-                  heroHeight: 182,
-                  cardCount: 3,
-                )
+                const PratiCaseInlineSkeleton(heroHeight: 182, cardCount: 3)
               else if (snapshot.hasError)
                 const _ShellStateCard(
                   icon: Icons.cloud_off_rounded,
@@ -791,10 +786,8 @@ class _ExamFocusHero extends StatelessWidget {
             tween: Tween<double>(begin: 0.92, end: 1),
             duration: PratiCaseDurations.showcase,
             curve: PratiCaseCurves.overshoot,
-            builder: (context, scale, child) => Transform.scale(
-              scale: scale,
-              child: child,
-            ),
+            builder: (context, scale, child) =>
+                Transform.scale(scale: scale, child: child),
             child: Container(
               width: 78,
               height: 78,
@@ -1189,12 +1182,20 @@ class _ExamModeCard extends StatelessWidget {
 }
 
 class _ProgressHero extends StatelessWidget {
-  const _ProgressHero({required this.profile});
+  const _ProgressHero({required this.profile, required this.summary});
 
   final ProfileCard profile;
+  final ClinicalProgressSummary summary;
 
   @override
   Widget build(BuildContext context) {
+    final liveAverage = summary.recentResults.isEmpty
+        ? profile.successRatePercent
+        : (summary.recentResults
+                      .map((item) => item.score)
+                      .reduce((a, b) => a + b) /
+                  summary.recentResults.length)
+              .round();
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 22, 20, 22),
       decoration: BoxDecoration(
@@ -1218,7 +1219,7 @@ class _ProgressHero extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '%${profile.successRatePercent}',
+                  '%$liveAverage',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 56,
@@ -1272,11 +1273,17 @@ class _SkillBars extends StatelessWidget {
     final values = [
       ('Anamnez', summary.percentFor('history'), PratiCaseColors.teal),
       (
-        'Fizik Muayene',
-        summary.percentFor('physical'),
+        'İletişim',
+        summary.percentFor('communication'),
         PratiCaseColors.tealBright,
       ),
+      ('Fizik Muayene', summary.percentFor('physical'), PratiCaseColors.teal),
       ('Tetkik İnceleme', summary.percentFor('tests'), PratiCaseColors.teal),
+      (
+        'Ayırıcı Tanı',
+        summary.percentFor('diagnosis'),
+        PratiCaseColors.tealBright,
+      ),
       (
         'Yönetim & Tedavi',
         summary.percentFor('management'),
@@ -1699,7 +1706,7 @@ class _ProgressSummaryLayout extends StatelessWidget {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _ProgressHero(profile: profile),
+              _ProgressHero(profile: profile, summary: summary),
               const SizedBox(height: 16),
               _SkillBars(summary: summary),
               if (summary.recentResults.isNotEmpty) ...[
@@ -1724,7 +1731,7 @@ class _ProgressSummaryLayout extends StatelessWidget {
               flex: 6,
               child: Column(
                 children: [
-                  _ProgressHero(profile: profile),
+                  _ProgressHero(profile: profile, summary: summary),
                   const SizedBox(height: 16),
                   _SkillBars(summary: summary),
                   const SizedBox(height: 16),

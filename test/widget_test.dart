@@ -508,7 +508,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repository.requested, contains('hemogram'));
-    expect(find.text('Sonuç'), findsOneWidget);
+    expect(find.text('Tetkik Sonucu'), findsOneWidget);
     expect(
       find.text('Lökosit yüksek, nötrofil hakimiyeti var.'),
       findsOneWidget,
@@ -707,7 +707,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Tek Hoca'), findsOneWidget);
+    expect(find.text('Tek Moderatör'), findsOneWidget);
     expect(find.text('Komite (3 Hoca)'), findsOneWidget);
     expect(find.text('Sözlü Sınavı Başlat'), findsOneWidget);
 
@@ -840,9 +840,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Gelişmiş ders ve konu seçimi'));
-    await tester.pumpAndSettle();
-
     await tester.tap(find.text('Dahiliye'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Kardiyoloji'));
@@ -884,9 +881,6 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(home: TheoreticalExamSetupScreen(repository: repository)),
     );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Gelişmiş ders ve konu seçimi'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Dahiliye'));

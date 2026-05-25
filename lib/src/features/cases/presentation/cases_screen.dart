@@ -22,6 +22,7 @@ class CasesScreen extends StatefulWidget {
     required this.repository,
     this.onOpenNotifications,
     this.onOpenProfile,
+    this.onOpenHome,
     this.unreadNotificationCount = 0,
     super.key,
   });
@@ -29,6 +30,7 @@ class CasesScreen extends StatefulWidget {
   final CasesRepository repository;
   final VoidCallback? onOpenNotifications;
   final VoidCallback? onOpenProfile;
+  final VoidCallback? onOpenHome;
   final int unreadNotificationCount;
 
   @override
@@ -106,10 +108,7 @@ class _CasesScreenState extends State<CasesScreen> {
               if (snapshot.connectionState != ConnectionState.done)
                 const Padding(
                   padding: EdgeInsets.only(top: 22),
-                  child: PratiCaseInlineSkeleton(
-                    heroHeight: 132,
-                    cardCount: 3,
-                  ),
+                  child: PratiCaseInlineSkeleton(heroHeight: 132, cardCount: 3),
                 )
               else if (snapshot.hasError)
                 Padding(
@@ -247,8 +246,11 @@ class _CasesScreenState extends State<CasesScreen> {
   void _openDetail(BuildContext context, String caseId) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) =>
-            CaseDetailScreen(repository: widget.repository, caseId: caseId),
+        builder: (_) => CaseDetailScreen(
+          repository: widget.repository,
+          caseId: caseId,
+          onOpenHome: widget.onOpenHome,
+        ),
       ),
     );
   }
@@ -398,11 +400,13 @@ class CaseDetailScreen extends StatefulWidget {
   const CaseDetailScreen({
     required this.repository,
     required this.caseId,
+    this.onOpenHome,
     super.key,
   });
 
   final CasesRepository repository;
   final String caseId;
+  final VoidCallback? onOpenHome;
 
   @override
   State<CaseDetailScreen> createState() => _CaseDetailScreenState();
@@ -429,6 +433,7 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
           builder: (_) => PatientChatScreen(
             repository: widget.repository,
             sessionId: session.id,
+            onOpenHome: widget.onOpenHome,
           ),
         ),
       );
@@ -534,12 +539,14 @@ class PatientChatScreen extends StatefulWidget {
     required this.repository,
     required this.sessionId,
     this.voiceAdapter,
+    this.onOpenHome,
     super.key,
   });
 
   final CasesRepository repository;
   final String sessionId;
   final VoiceExamAdapter? voiceAdapter;
+  final VoidCallback? onOpenHome;
 
   @override
   State<PatientChatScreen> createState() => _PatientChatScreenState();
@@ -592,6 +599,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
   Future<void> _send() async {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
       _sending = true;
       _pendingCandidateMessage = text;
@@ -657,6 +665,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
             repository: widget.repository,
             sessionId: widget.sessionId,
             caseId: session.caseId,
+            onOpenHome: widget.onOpenHome,
           ),
         ),
       );
@@ -779,6 +788,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
                 phase: 'Anamnez',
                 repository: widget.repository,
                 sessionId: widget.sessionId,
+                onOpenHome: widget.onOpenHome,
               ),
               Expanded(
                 child: _AnamnesisWorkspace(
@@ -845,12 +855,14 @@ class PhysicalExamScreen extends StatefulWidget {
     required this.repository,
     required this.sessionId,
     required this.caseId,
+    this.onOpenHome,
     super.key,
   });
 
   final CasesRepository repository;
   final String sessionId;
   final String caseId;
+  final VoidCallback? onOpenHome;
 
   @override
   State<PhysicalExamScreen> createState() => _PhysicalExamScreenState();
@@ -916,6 +928,7 @@ class _PhysicalExamScreenState extends State<PhysicalExamScreen> {
             repository: widget.repository,
             sessionId: widget.sessionId,
             caseId: widget.caseId,
+            onOpenHome: widget.onOpenHome,
           ),
         ),
       );
@@ -969,6 +982,7 @@ class _PhysicalExamScreenState extends State<PhysicalExamScreen> {
                 phase: 'Fizik Muayene',
                 repository: widget.repository,
                 sessionId: widget.sessionId,
+                onOpenHome: widget.onOpenHome,
               ),
               Expanded(
                 child: ListView(
@@ -999,13 +1013,16 @@ class _PhysicalExamScreenState extends State<PhysicalExamScreen> {
                         groups: bundle.groups,
                         options: bundle.options,
                         onSelected: (groupId) {
-                          setState(() => _selectedGroupId = groupId);
+                          setState(() {
+                            _selectedGroupId = groupId;
+                          });
                         },
                       )
                     else ...[
                       OutlinedButton.icon(
-                        onPressed: () =>
-                            setState(() => _selectedGroupId = null),
+                        onPressed: () => setState(() {
+                          _selectedGroupId = null;
+                        }),
                         icon: const Icon(Icons.arrow_back_rounded),
                         label: const Text('Sistem Değiştir'),
                       ),
@@ -1036,12 +1053,14 @@ class TestsScreen extends StatefulWidget {
     required this.repository,
     required this.sessionId,
     required this.caseId,
+    this.onOpenHome,
     super.key,
   });
 
   final CasesRepository repository;
   final String sessionId;
   final String caseId;
+  final VoidCallback? onOpenHome;
 
   @override
   State<TestsScreen> createState() => _TestsScreenState();
@@ -1050,6 +1069,7 @@ class TestsScreen extends StatefulWidget {
 class _TestsScreenState extends State<TestsScreen> {
   late Future<_TestsBundle> _bundleFuture;
   String? _selectedGroupId;
+  TestOption? _activeResult;
   var _phaseReady = false;
   var _requesting = false;
   var _navigating = false;
@@ -1085,10 +1105,9 @@ class _TestsScreenState extends State<TestsScreen> {
         optionId: optionId,
       );
       setState(() {
+        _activeResult = option;
         _bundleFuture = _load();
       });
-      if (!mounted) return;
-      _openTestDetail(option);
     } on CasesDataUnavailable catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -1114,6 +1133,7 @@ class _TestsScreenState extends State<TestsScreen> {
             repository: widget.repository,
             sessionId: widget.sessionId,
             caseId: widget.caseId,
+            onOpenHome: widget.onOpenHome,
           ),
         ),
       );
@@ -1167,6 +1187,7 @@ class _TestsScreenState extends State<TestsScreen> {
                 phase: 'Tetkikler',
                 repository: widget.repository,
                 sessionId: widget.sessionId,
+                onOpenHome: widget.onOpenHome,
               ),
               Expanded(
                 child: ListView(
@@ -1193,13 +1214,18 @@ class _TestsScreenState extends State<TestsScreen> {
                         groups: bundle.groups,
                         options: bundle.options,
                         onSelected: (groupId) {
-                          setState(() => _selectedGroupId = groupId);
+                          setState(() {
+                            _selectedGroupId = groupId;
+                            _activeResult = null;
+                          });
                         },
                       )
                     else ...[
                       OutlinedButton.icon(
-                        onPressed: () =>
-                            setState(() => _selectedGroupId = null),
+                        onPressed: () => setState(() {
+                          _selectedGroupId = null;
+                          _activeResult = null;
+                        }),
                         icon: const Icon(Icons.arrow_back_rounded),
                         label: const Text('Tetkik Grubu Değiştir'),
                       ),
@@ -1208,8 +1234,13 @@ class _TestsScreenState extends State<TestsScreen> {
                         title: '${selectedGroup.title} Tetkikleri',
                         options: visible,
                         onRequest: _request,
-                        onOpenDetail: _openTestDetail,
+                        onOpenDetail: (option) =>
+                            setState(() => _activeResult = option),
                       ),
+                      if (_activeResult != null) ...[
+                        const SizedBox(height: 14),
+                        _InlineTestResultCard(option: _activeResult!),
+                      ],
                     ],
                   ],
                 ),
@@ -1224,37 +1255,6 @@ class _TestsScreenState extends State<TestsScreen> {
       ),
     );
   }
-
-  void _openTestDetail(TestOption item) {
-    final lower = item.title.toLowerCase();
-    if (lower.contains('usg') ||
-        lower.contains('bt') ||
-        lower.contains('mr') ||
-        lower.contains('röntgen') ||
-        lower.contains('grafi')) {
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => ImagingResultScreen(
-            repository: widget.repository,
-            testOptionId: item.id,
-            fallbackTitle: item.title,
-            fallbackResult: item.result,
-          ),
-        ),
-      );
-      return;
-    }
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => LabResultScreen(
-          repository: widget.repository,
-          testOptionId: item.id,
-          fallbackTitle: item.title,
-          fallbackResult: item.result,
-        ),
-      ),
-    );
-  }
 }
 
 class DiagnosisScreen extends StatefulWidget {
@@ -1262,12 +1262,14 @@ class DiagnosisScreen extends StatefulWidget {
     required this.repository,
     required this.sessionId,
     required this.caseId,
+    this.onOpenHome,
     super.key,
   });
 
   final CasesRepository repository;
   final String sessionId;
   final String caseId;
+  final VoidCallback? onOpenHome;
 
   @override
   State<DiagnosisScreen> createState() => _DiagnosisScreenState();
@@ -1348,6 +1350,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
             repository: widget.repository,
             sessionId: widget.sessionId,
             caseId: widget.caseId,
+            onOpenHome: widget.onOpenHome,
           ),
         ),
       );
@@ -1388,6 +1391,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
           builder: (_) => ResultScreen(
             repository: widget.repository,
             sessionId: widget.sessionId,
+            onOpenHome: widget.onOpenHome,
           ),
         ),
       );
@@ -1453,6 +1457,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
                 phase: 'Tanı ve Yönetim',
                 repository: widget.repository,
                 sessionId: widget.sessionId,
+                onOpenHome: widget.onOpenHome,
                 onFinish: _finishWithCurrentAnswer,
               ),
               Expanded(
@@ -1506,12 +1511,14 @@ class ManagementPlanScreen extends StatefulWidget {
     required this.repository,
     required this.sessionId,
     required this.caseId,
+    this.onOpenHome,
     super.key,
   });
 
   final CasesRepository repository;
   final String sessionId;
   final String caseId;
+  final VoidCallback? onOpenHome;
 
   @override
   State<ManagementPlanScreen> createState() => _ManagementPlanScreenState();
@@ -1604,6 +1611,7 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
           builder: (_) => ResultScreen(
             repository: widget.repository,
             sessionId: widget.sessionId,
+            onOpenHome: widget.onOpenHome,
           ),
         ),
       );
@@ -1675,6 +1683,7 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
                 phase: 'Tanı ve Yönetim',
                 repository: widget.repository,
                 sessionId: widget.sessionId,
+                onOpenHome: widget.onOpenHome,
                 onFinish: () => _save(allowIncomplete: true),
               ),
               Expanded(
@@ -1791,11 +1800,13 @@ class ResultScreen extends StatefulWidget {
   const ResultScreen({
     required this.repository,
     required this.sessionId,
+    this.onOpenHome,
     super.key,
   });
 
   final CasesRepository repository;
   final String sessionId;
+  final VoidCallback? onOpenHome;
 
   @override
   State<ResultScreen> createState() => _ResultScreenState();
@@ -1817,6 +1828,12 @@ class _ResultScreenState extends State<ResultScreen> {
     setState(() {
       _resultFuture = widget.repository.loadResult(widget.sessionId);
     });
+  }
+
+  void _goHome() {
+    final openHome = widget.onOpenHome;
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    openHome?.call();
   }
 
   @override
@@ -1859,6 +1876,7 @@ class _ResultScreenState extends State<ResultScreen> {
           builder: (_) => PatientChatScreen(
             repository: widget.repository,
             sessionId: session.id,
+            onOpenHome: widget.onOpenHome,
           ),
         ),
       );
@@ -1958,6 +1976,16 @@ class _ResultScreenState extends State<ResultScreen> {
               FadeSlideIn(
                 delay: const Duration(milliseconds: 400),
                 child: _FeedbackCard(
+                  title: 'İstemen Gereken Tetkikler',
+                  icon: Icons.playlist_add_check_rounded,
+                  color: PratiCaseColors.teal,
+                  items: result.missedTests,
+                ),
+              ),
+              const SizedBox(height: 14),
+              FadeSlideIn(
+                delay: const Duration(milliseconds: 440),
+                child: _FeedbackCard(
                   title: 'Eksik Anamnez',
                   icon: Icons.chat_bubble_outline_rounded,
                   color: PratiCaseColors.slateBlue,
@@ -1966,7 +1994,7 @@ class _ResultScreenState extends State<ResultScreen> {
               ),
               const SizedBox(height: 14),
               FadeSlideIn(
-                delay: const Duration(milliseconds: 440),
+                delay: const Duration(milliseconds: 480),
                 child: _FeedbackCard(
                   title: 'Kaçırılan Muayeneler',
                   icon: Icons.health_and_safety_outlined,
@@ -1976,12 +2004,12 @@ class _ResultScreenState extends State<ResultScreen> {
               ),
               const SizedBox(height: 14),
               FadeSlideIn(
-                delay: const Duration(milliseconds: 480),
+                delay: const Duration(milliseconds: 520),
                 child: _IdealApproachCard(text: result.idealApproach),
               ),
               const SizedBox(height: 18),
               FadeSlideIn(
-                delay: const Duration(milliseconds: 520),
+                delay: const Duration(milliseconds: 560),
                 child: _ResultActions(
                   onRetry: _startingAgain ? null : _startAgain,
                   retryLabel: _startingAgain ? 'Başlatılıyor...' : 'Tekrar Çöz',
@@ -1992,6 +2020,7 @@ class _ResultScreenState extends State<ResultScreen> {
                       ),
                     );
                   },
+                  onHome: _goHome,
                 ),
               ),
             ],
@@ -2063,6 +2092,13 @@ class CaseReportScreen extends StatelessWidget {
             icon: Icons.science_outlined,
             color: PratiCaseColors.slateBlue,
             items: result.unnecessaryTests,
+          ),
+          const SizedBox(height: 14),
+          _FeedbackCard(
+            title: 'İstemen Gereken Tetkikler',
+            icon: Icons.playlist_add_check_rounded,
+            color: PratiCaseColors.teal,
+            items: result.missedTests,
           ),
           const SizedBox(height: 14),
           _FeedbackCard(
@@ -3153,6 +3189,7 @@ class _ExamTopBar extends StatelessWidget {
     required this.phase,
     required this.repository,
     required this.sessionId,
+    this.onOpenHome,
     this.onFinish,
   });
 
@@ -3160,6 +3197,7 @@ class _ExamTopBar extends StatelessWidget {
   final String phase;
   final CasesRepository repository;
   final String sessionId;
+  final VoidCallback? onOpenHome;
   final Future<void> Function()? onFinish;
 
   Future<void> _finish(BuildContext context) async {
@@ -3174,8 +3212,11 @@ class _ExamTopBar extends StatelessWidget {
     if (!context.mounted) return;
     await Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
-        builder: (_) =>
-            ResultScreen(repository: repository, sessionId: sessionId),
+        builder: (_) => ResultScreen(
+          repository: repository,
+          sessionId: sessionId,
+          onOpenHome: onOpenHome,
+        ),
       ),
     );
   }
@@ -4613,10 +4654,10 @@ class _TestOptionTile extends StatelessWidget {
               fontWeight: FontWeight.w800,
             ),
           ),
-          subtitle: item.isSelected && item.result.isNotEmpty
-              ? Text(item.result, maxLines: 3, overflow: TextOverflow.ellipsis)
+          subtitle: item.isSelected
+              ? const Text('Sonuç alttaki kutuda gösteriliyor.')
               : null,
-          isThreeLine: item.isSelected && item.result.isNotEmpty,
+          isThreeLine: false,
           trailing: Icon(
             item.isSelected
                 ? Icons.visibility_outlined
@@ -4624,6 +4665,75 @@ class _TestOptionTile extends StatelessWidget {
             color: PratiCaseColors.teal,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _InlineTestResultCard extends StatelessWidget {
+  const _InlineTestResultCard({required this.option});
+
+  final TestOption option;
+
+  bool get _isImaging {
+    final lower = option.title.toLowerCase();
+    return lower.contains('usg') ||
+        lower.contains('bt') ||
+        lower.contains('mr') ||
+        lower.contains('röntgen') ||
+        lower.contains('grafi');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _SectionCard(
+      title: 'Tetkik Sonucu',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _SoftIcon(
+                icon: _isImaging
+                    ? Icons.monitor_heart_outlined
+                    : Icons.biotech_outlined,
+                color: PratiCaseColors.teal,
+                size: 42,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  option.title,
+                  style: const TextStyle(
+                    color: PratiCaseColors.navy,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: PratiCaseColors.softSurface,
+              borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+              border: Border.all(color: PratiCaseColors.border),
+            ),
+            child: Text(
+              option.result.trim().isEmpty
+                  ? 'Bu tetkik için yapılandırılmış sonuç tanımlı değil.'
+                  : option.result,
+              style: const TextStyle(
+                color: PratiCaseColors.ink,
+                height: 1.45,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -5287,10 +5397,7 @@ class _CaseDetailSkeleton extends StatelessWidget {
           ],
         ),
         SizedBox(height: 18),
-        PratiCaseSkeletonBlock(
-          height: 240,
-          radius: PratiCaseRadius.xxl,
-        ),
+        PratiCaseSkeletonBlock(height: 240, radius: PratiCaseRadius.xxl),
         SizedBox(height: 18),
         PratiCaseSkeletonCard(lines: 2, leading: false),
         SizedBox(height: 14),

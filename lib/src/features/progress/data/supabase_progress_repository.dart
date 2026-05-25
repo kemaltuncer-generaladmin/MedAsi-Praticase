@@ -236,15 +236,26 @@ class SupabaseProgressRepository implements ProgressRepository {
   @override
   Future<ClinicalProgressSummary> loadClinicalProgressSummary() async {
     try {
-      final rows = await _client
+      final osceRows = await _client
           .schema('praticase')
           .from('session_result_cards')
           .select(
             'case_title,case_branch,ended_at,total_score,percentage,'
             'category_scores,improvement_points,critical_mistakes,'
-            'unnecessary_tests,missed_history,missed_physical_exam',
+            'unnecessary_tests,missed_history,missed_physical_exam,missed_tests',
           )
           .order('ended_at', ascending: false);
+      final rows =
+          <Map<String, dynamic>>[
+            for (final row in osceRows) Map<String, dynamic>.from(row),
+            ...await _loadOralProgressRows(),
+          ]..sort((a, b) {
+            final left =
+                DateTime.tryParse(_string(a, 'ended_at')) ?? DateTime(1970);
+            final right =
+                DateTime.tryParse(_string(b, 'ended_at')) ?? DateTime(1970);
+            return right.compareTo(left);
+          });
       final totals = <String, (int, int)>{
         'communication': (0, 0),
         'history': (0, 0),
@@ -282,6 +293,65 @@ class SupabaseProgressRepository implements ProgressRepository {
     } on PostgrestException catch (error) {
       throw ProgressDataUnavailable(_message(error));
     }
+  }
+
+  Future<List<Map<String, dynamic>>> _loadOralProgressRows() async {
+    try {
+      final rows = await _client
+          .schema('praticase')
+          .from('oral_exam_sessions')
+          .select(
+            'id,branch_id,ended_at,total_score,max_score,reasoning_score,'
+            'knowledge_score,communication_score,pace_score,professionalism_score,'
+            'mentor_summary,improvement_points,missed_points,case_brief,'
+            'oral_exam_branches(title)',
+          )
+          .eq('status', 'completed')
+          .order('ended_at', ascending: false);
+      return [
+        for (final row in rows)
+          _oralProgressRow(Map<String, dynamic>.from(row)),
+      ];
+    } on PostgrestException catch (error) {
+      if (_isMissingSource(error)) return const [];
+      rethrow;
+    }
+  }
+
+  Map<String, dynamic> _oralProgressRow(Map<String, dynamic> row) {
+    final maxScore = _int(row, 'max_score') <= 0 ? 100 : _int(row, 'max_score');
+    final total = _int(row, 'total_score').clamp(0, maxScore).toInt();
+    final branch = _oralBranchTitle(row['oral_exam_branches']);
+    return {
+      'case_title': _oralCaseTitle(_string(row, 'case_brief')),
+      'case_branch': branch.isEmpty ? 'Sözlü Sınav' : 'Sözlü - $branch',
+      'ended_at': _string(row, 'ended_at'),
+      'total_score': total,
+      'percentage': ((total / maxScore) * 100).round().clamp(0, 100).toInt(),
+      'category_scores': [
+        {
+          'title': 'İletişim',
+          'score': _int(row, 'communication_score'),
+          'maxScore': 15,
+        },
+        {
+          'title': 'Ayırıcı Tanı',
+          'score': _int(row, 'reasoning_score'),
+          'maxScore': 40,
+        },
+        {
+          'title': 'Yönetim & Tedavi',
+          'score': _int(row, 'knowledge_score'),
+          'maxScore': 30,
+        },
+      ],
+      'improvement_points': _stringList(row['improvement_points']),
+      'critical_mistakes': const <String>[],
+      'unnecessary_tests': const <String>[],
+      'missed_history': _stringList(row['missed_points']),
+      'missed_physical_exam': const <String>[],
+      'missed_tests': const <String>[],
+    };
   }
 
   @override
@@ -698,6 +768,7 @@ class SupabaseProgressRepository implements ProgressRepository {
   ) {
     final critical = _topItems(rows, 'critical_mistakes');
     final unnecessary = _topItems(rows, 'unnecessary_tests');
+    final missedTests = _topItems(rows, 'missed_tests');
     final missedHistory = _topItems(rows, 'missed_history');
     final missedExam = _topItems(rows, 'missed_physical_exam');
     final improvement = _topItems(rows, 'improvement_points');
@@ -713,6 +784,11 @@ class SupabaseProgressRepository implements ProgressRepository {
         ProgressFeedbackInsight(
           title: 'Kaçırılan Muayeneler',
           items: missedExam,
+        ),
+      if (missedTests.isNotEmpty)
+        ProgressFeedbackInsight(
+          title: 'Eksik Gerekli Tetkikler',
+          items: missedTests,
         ),
       if (unnecessary.isNotEmpty)
         ProgressFeedbackInsight(
@@ -754,6 +830,25 @@ class SupabaseProgressRepository implements ProgressRepository {
     final row = value is Map<String, dynamic> ? value : null;
     final title = row == null ? '' : _string(row, 'title');
     return title.isEmpty ? null : title;
+  }
+
+  String _oralBranchTitle(Object? value) {
+    final row = value is Map<String, dynamic>
+        ? value
+        : value is List && value.isNotEmpty && value.first is Map
+        ? Map<String, dynamic>.from(value.first as Map)
+        : null;
+    return row == null ? '' : _string(row, 'title');
+  }
+
+  String _oralCaseTitle(String caseBrief) {
+    final trimmed = caseBrief.trim();
+    if (trimmed.isEmpty) return 'Sözlü Sınav';
+    final sentenceEnd = trimmed.indexOf('.');
+    final title = sentenceEnd > 24
+        ? trimmed.substring(0, sentenceEnd)
+        : trimmed;
+    return title.length > 72 ? '${title.substring(0, 69).trim()}...' : title;
   }
 
   String _string(Map<String, dynamic> row, String key) {

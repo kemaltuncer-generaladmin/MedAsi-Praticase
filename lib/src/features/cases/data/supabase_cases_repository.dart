@@ -684,7 +684,7 @@ class SupabaseCasesRepository implements CasesRepository {
           'session_id,case_title,total_score,max_score,percentage,'
           'category_scores,strong_points,improvement_points,'
           'critical_mistakes,unnecessary_tests,missed_history,'
-          'missed_physical_exam,ideal_approach',
+          'missed_physical_exam,missed_tests,ideal_approach',
         )
         .eq('session_id', sessionId)
         .maybeSingle();
@@ -700,6 +700,7 @@ class SupabaseCasesRepository implements CasesRepository {
       improvementPoints: _stringList(row['improvement_points']),
       criticalMistakes: _stringList(row['critical_mistakes']),
       unnecessaryTests: _stringList(row['unnecessary_tests']),
+      missedTests: _stringList(row['missed_tests']),
       missedHistory: _stringList(row['missed_history']),
       missedPhysicalExam: _stringList(row['missed_physical_exam']),
       idealApproach: _string(row, 'ideal_approach'),
@@ -761,6 +762,7 @@ class SupabaseCasesRepository implements CasesRepository {
       improvementPoints: result.improvementPoints,
       criticalMistakes: result.criticalMistakes,
       unnecessaryTests: result.unnecessaryTests,
+      missedTests: result.missedTests,
       missedHistory: result.missedHistory,
       missedPhysicalExam: result.missedPhysicalExam,
       idealApproach:
@@ -806,6 +808,7 @@ class SupabaseCasesRepository implements CasesRepository {
         'unnecessaryTests',
         deterministic.unnecessaryTests,
       ),
+      missedTests: preferAi('missedTests', deterministic.missedTests),
       missedHistory: preferAi('missedHistory', deterministic.missedHistory),
       missedPhysicalExam: preferAi(
         'missedPhysicalExam',
