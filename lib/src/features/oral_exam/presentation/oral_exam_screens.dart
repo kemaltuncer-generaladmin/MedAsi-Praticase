@@ -316,11 +316,9 @@ class _IntroCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             isPanel
-                ? 'Üç hoca karşında. Biri sorarken diğeri atlar, '
-                      'biri ipucu verirken diğeri yetersiz der. '
-                      'Türk tıp fakültesi sözlü sınav baskısının birebir simülasyonu. '
-                      'Karne sonunda her hocadan ayrı yorum alırsın.'
-                : 'Hoca vakayı sunar, sokratik takip soruları sorar. Klinik akıl yürütme, '
+                ? 'Üç hoca karşında; cevapların klinik gerekçe, bilgi, tempo ve profesyonellik açısından ayrı ayrı değerlendirilir. '
+                      'Karne sonunda her hocadan kısa ve resmi yorum alırsın.'
+                : 'Hoca vakayı sunar ve kısa takip soruları sorar. Klinik akıl yürütme, '
                       'bilgi, iletişim, hız ve profesyonellik 100 puan üzerinden değerlendirilir. '
                       'Mikrofona izin verirsen cevaplarını sesli verebilirsin.',
             style: const TextStyle(
@@ -351,7 +349,7 @@ class _FormatPicker extends StatelessWidget {
             icon: Icons.record_voice_over_rounded,
             title: 'Tek Hoca',
             subtitle:
-                'Eğitim modu — sabırlı, sokratik veya sert hocalardan biri.',
+                'Tek hoca sınavı — kısa takip soruları ve resmi değerlendirme.',
             onTap: () => onChanged(OralExamFormat.solo),
           ),
         ),
@@ -362,7 +360,7 @@ class _FormatPicker extends StatelessWidget {
             icon: Icons.groups_2_rounded,
             title: 'Komite (3 Hoca)',
             subtitle:
-                'Sınav modu — üç hoca karşında, biri sorarken diğeri atlar.',
+                'Komite sınavı — üç hocadan kısa soru ve ayrı karne yorumu.',
             badge: 'YENİ',
             onTap: () => onChanged(OralExamFormat.panel),
           ),
@@ -734,7 +732,7 @@ class _PersonaTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    persona.description,
+                    _examSafePersonaDescription(persona),
                     style: const TextStyle(
                       color: PratiCaseColors.muted,
                       fontSize: 12,
@@ -928,8 +926,8 @@ class _ScenarioTile extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              scenario.caseBrief,
-              maxLines: 3,
+              'Vaka brifi sınav başladığında açılır. Bu ekranda yalnız konu ve zorluk seçilir.',
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: PratiCaseColors.slateBlue,
@@ -942,6 +940,22 @@ class _ScenarioTile extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+String _examSafePersonaDescription(OralExamPersona persona) {
+  switch (persona.id) {
+    case 'patient_assistant':
+      return 'Sakin sınav dili; kısa takip soruları ve resmi değerlendirme.';
+    case 'socratic_associate':
+      return 'Gerekçeni sınayan kısa sorular; ideal cevabı açıklamadan ilerler.';
+    case 'stern_professor':
+      return 'Daha zor tempo; kısa, doğrudan ve resmi sınav soruları.';
+    default:
+      return persona.description
+          .replaceAll('ipucu verir', 'resmi takip soruları sorar')
+          .replaceAll('Yanlış cevap = sert takip.', 'Yanlış cevap karneye yansır.')
+          .replaceAll('Sokratik', 'Gerekçe odaklı');
   }
 }
 
@@ -1277,8 +1291,11 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
       unawaited(_voiceAdapter.stopSpeaking());
       await Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
-          builder: (_) =>
-              OralExamResultScreen(result: result, session: widget.session),
+          builder: (_) => OralExamResultScreen(
+            repository: widget.repository,
+            result: result,
+            session: widget.session,
+          ),
         ),
       );
     } on OralExamUnavailable catch (error) {
@@ -2180,7 +2197,7 @@ class _ComposerBar extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: disabled ? null : () => onSkip(),
                     icon: const Icon(Icons.skip_next_rounded, size: 18),
-                    label: const Text('Pas Geç (-5)'),
+                    label: const Text('Pas Geç'),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -2211,11 +2228,13 @@ class _ComposerBar extends StatelessWidget {
 /// Sözlü sınav sonuç karnesi.
 class OralExamResultScreen extends StatefulWidget {
   const OralExamResultScreen({
+    required this.repository,
     required this.result,
     required this.session,
     super.key,
   });
 
+  final OralExamRepository repository;
   final OralExamResult result;
   final OralExamSession session;
 
@@ -2225,6 +2244,7 @@ class OralExamResultScreen extends StatefulWidget {
 
 class _OralExamResultScreenState extends State<OralExamResultScreen> {
   bool _animated = false;
+  bool _retrying = false;
 
   @override
   void initState() {
@@ -2234,6 +2254,37 @@ class _OralExamResultScreenState extends State<OralExamResultScreen> {
       setState(() => _animated = true);
       PratiCaseHaptics.success();
     });
+  }
+
+  Future<void> _restartExam() async {
+    if (_retrying) return;
+    setState(() => _retrying = true);
+    try {
+      final session = await widget.repository.startSession(
+        personaId: widget.session.personaId.isNotEmpty
+            ? widget.session.personaId
+            : 'stern_professor',
+        branchId: widget.session.branchId,
+        durationSeconds: widget.session.durationSeconds,
+        format: widget.session.format,
+      );
+      if (!mounted) return;
+      await Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => OralExamRoomScreen(
+            repository: widget.repository,
+            session: session,
+          ),
+        ),
+      );
+    } on OralExamUnavailable catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(PratiCaseUserMessage.oralExam(error.message))),
+      );
+    } finally {
+      if (mounted) setState(() => _retrying = false);
+    }
   }
 
   @override
@@ -2437,12 +2488,28 @@ class _OralExamResultScreenState extends State<OralExamResultScreen> {
           ],
           const SizedBox(height: 18),
           FilledButton.icon(
-            onPressed: () =>
-                Navigator.of(context).popUntil((route) => route.isFirst),
-            icon: const Icon(Icons.replay_rounded),
-            label: const Text('Ana Sayfaya Dön'),
+            onPressed: _retrying ? null : _restartExam,
+            icon: _retrying
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.replay_rounded),
+            label: const Text('Tekrar Sözlü'),
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(52),
+            ),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: _retrying
+                ? null
+                : () =>
+                      Navigator.of(context).popUntil((route) => route.isFirst),
+            icon: const Icon(Icons.home_rounded),
+            label: const Text('Ana Sayfaya Dön'),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(50),
             ),
           ),
         ],

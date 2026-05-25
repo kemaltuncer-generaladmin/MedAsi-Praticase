@@ -30,7 +30,7 @@ class SupabaseOralExamRepository implements OralExamRepository {
         final scenarioRows = await _client
             .schema('praticase')
             .from('oral_exam_scenarios')
-            .select('id,branch_id,title,case_brief,difficulty_floor,sort_order')
+            .select('id,branch_id,title,difficulty_floor,sort_order')
             .order('sort_order');
         for (final row in scenarioRows) {
           final branchId = _string(row, 'branch_id');
@@ -41,7 +41,7 @@ class SupabaseOralExamRepository implements OralExamRepository {
                   id: _string(row, 'id'),
                   branchId: branchId,
                   title: _string(row, 'title'),
-                  caseBrief: _string(row, 'case_brief'),
+                  caseBrief: '',
                   difficultyFloor: _string(row, 'difficulty_floor'),
                   sortOrder: _int(row, 'sort_order'),
                 ),
@@ -267,13 +267,23 @@ class SupabaseOralExamRepository implements OralExamRepository {
       }
       if (data is Map) return Map<String, dynamic>.from(data);
       throw OralExamUnavailable(fallback);
-    } on FunctionException {
-      throw OralExamUnavailable(fallback);
+    } on FunctionException catch (error) {
+      throw OralExamUnavailable(_functionMessage(error.details, fallback));
     } on OralExamUnavailable {
       rethrow;
     } on Object {
       throw OralExamUnavailable(fallback);
     }
+  }
+
+  String _functionMessage(Object? data, String fallback) {
+    if (data is Map) {
+      final error = data['error']?.toString().trim();
+      if (error != null && error.isNotEmpty) {
+        return PratiCaseUserMessage.safe(error, fallback: fallback);
+      }
+    }
+    return fallback;
   }
 
   String _friendly(PostgrestException error) {

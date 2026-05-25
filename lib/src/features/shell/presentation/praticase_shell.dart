@@ -527,10 +527,9 @@ class _ExamsScreenState extends State<_ExamsScreen> {
               ),
               const SizedBox(height: 26),
               if (snapshot.connectionState != ConnectionState.done)
-                const _ShellStateCard(
-                  icon: Icons.assignment_outlined,
-                  title: 'Sınavlar yükleniyor',
-                  body: 'Sınav modları hazırlanıyor.',
+                const PratiCaseInlineSkeleton(
+                  heroHeight: 160,
+                  cardCount: 3,
                 )
               else if (snapshot.hasError)
                 _ShellStateCard(
@@ -544,11 +543,14 @@ class _ExamsScreenState extends State<_ExamsScreen> {
                   title: 'Sınav modu bulunamadı',
                   body: 'Sınav seçenekleri hazır olduğunda burada görünecek.',
                 )
-              else
+              else ...[
+                _ExamFocusHero(totalModes: modes.length),
+                const SizedBox(height: 16),
                 _ExamModeGrid(
                   modes: modes,
                   onOpenMode: (mode) => _openExamMode(context, mode.actionKey),
                 ),
+              ],
             ],
           );
         },
@@ -635,10 +637,9 @@ class _ProgressSummaryScreenState extends State<_ProgressSummaryScreen> {
               const _ProgressTitleBar(),
               const SizedBox(height: 18),
               if (snapshot.connectionState != ConnectionState.done)
-                const _ShellStateCard(
-                  icon: Icons.insights_outlined,
-                  title: 'Gelişim yükleniyor',
-                  body: 'Profil ve performans verilerin hazırlanıyor.',
+                const PratiCaseInlineSkeleton(
+                  heroHeight: 182,
+                  cardCount: 3,
                 )
               else if (snapshot.hasError)
                 const _ShellStateCard(
@@ -679,32 +680,249 @@ class _ExamModeGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = PratiCaseResponsive.columnsForWidth(
-          constraints.maxWidth,
-          desktop: 2,
-        );
-        final spacing = columns == 1 ? 0.0 : 12.0;
-        final itemWidth =
-            (constraints.maxWidth - spacing * (columns - 1)) / columns;
-        return Wrap(
-          spacing: spacing,
-          runSpacing: 12,
-          children: [
-            for (final mode in modes)
-              SizedBox(
-                width: itemWidth,
-                child: _ExamModeCard(
-                  icon: _examModeIcon(mode.iconKey),
-                  title: mode.title,
-                  subtitle: mode.subtitle,
-                  onTap: () => onOpenMode(mode),
+    final osce = modes
+        .where(
+          (mode) => {
+            'single_station',
+            'mini_osce',
+            'branch_package',
+            'cases',
+          }.contains(mode.actionKey),
+        )
+        .toList();
+    final study = modes
+        .where(
+          (mode) => {
+            'oral_exam',
+            'sozlu_sinav',
+            'oral_exam_committee',
+            'komite_sinav',
+            'theoretical_exam',
+            'kuramsal_sinav',
+          }.contains(mode.actionKey),
+        )
+        .toList();
+    final repeat = modes
+        .where((mode) => mode.actionKey == 'weak_areas')
+        .toList();
+    final used = {...osce, ...study, ...repeat};
+    final other = modes.where((mode) => !used.contains(mode)).toList();
+    return FadeSlideInList(
+      stagger: const Duration(milliseconds: 70),
+      children: [
+        if (osce.isNotEmpty)
+          _ExamModeSection(
+            title: 'OSCE Pratiği',
+            subtitle: 'Süreli istasyon ve paket seçimi.',
+            icon: Icons.assignment_ind_rounded,
+            modes: osce,
+            onOpenMode: onOpenMode,
+          ),
+        if (study.isNotEmpty)
+          _ExamModeSection(
+            title: 'Sözlü ve Teori',
+            subtitle: 'Hoca karşısı prova ve Medasi soru havuzu.',
+            icon: Icons.school_rounded,
+            modes: study,
+            onOpenMode: onOpenMode,
+          ),
+        if (repeat.isNotEmpty)
+          _ExamModeSection(
+            title: 'Hedefli Tekrar',
+            subtitle: 'Zayıf başlıkları sınav planına dönüştür.',
+            icon: Icons.track_changes_rounded,
+            modes: repeat,
+            onOpenMode: onOpenMode,
+          ),
+        if (other.isNotEmpty)
+          _ExamModeSection(
+            title: 'Diğer Sınavlar',
+            modes: other,
+            onOpenMode: onOpenMode,
+          ),
+      ],
+    );
+  }
+}
+
+class _ExamFocusHero extends StatelessWidget {
+  const _ExamFocusHero({required this.totalModes});
+
+  final int totalModes;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: PratiCaseGradients.hero,
+        borderRadius: BorderRadius.circular(PratiCaseRadius.xxl),
+        boxShadow: PratiCaseShadows.floating,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Sınav Merkezi',
+                  style: TextStyle(
+                    color: PratiCaseColors.white,
+                    fontSize: 23,
+                    height: 1.08,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '$totalModes mod tek yerde; önce hedefi seç, sonra istasyona gir.',
+                  style: TextStyle(
+                    color: PratiCaseColors.white.withValues(alpha: 0.84),
+                    height: 1.35,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0.92, end: 1),
+            duration: PratiCaseDurations.showcase,
+            curve: PratiCaseCurves.overshoot,
+            builder: (context, scale, child) => Transform.scale(
+              scale: scale,
+              child: child,
+            ),
+            child: Container(
+              width: 78,
+              height: 78,
+              decoration: BoxDecoration(
+                color: PratiCaseColors.white.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
+                border: Border.all(
+                  color: PratiCaseColors.white.withValues(alpha: 0.18),
                 ),
               ),
+              child: const Icon(
+                Icons.fact_check_rounded,
+                color: PratiCaseColors.tealBright,
+                size: 42,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ExamModeSection extends StatelessWidget {
+  const _ExamModeSection({
+    required this.title,
+    required this.modes,
+    required this.onOpenMode,
+    this.subtitle,
+    this.icon,
+  });
+
+  final String title;
+  final String? subtitle;
+  final IconData? icon;
+  final List<ExamModeItem> modes;
+  final ValueChanged<ExamModeItem> onOpenMode;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: PratiCaseGroupedSection(
+        title: title,
+        subtitle: subtitle,
+        icon: icon,
+        children: [
+          for (final mode in modes)
+            _ExamModeCompactTile(
+              icon: _examModeIcon(mode.iconKey),
+              title: _examModeTitle(mode),
+              subtitle: _examModeSubtitle(mode),
+              onTap: () => onOpenMode(mode),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ExamModeCompactTile extends StatelessWidget {
+  const _ExamModeCompactTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 14, 12),
+        child: Row(
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: PratiCaseColors.teal.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+              ),
+              child: Icon(icon, color: PratiCaseColors.teal),
+            ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: PratiCaseColors.navy,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: PratiCaseColors.muted,
+                      fontSize: 12,
+                      height: 1.32,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(
+              Icons.arrow_forward_rounded,
+              color: PratiCaseColors.teal,
+            ),
           ],
-        );
-      },
+        ),
+      ),
     );
   }
 }
@@ -990,7 +1208,7 @@ class _ProgressHero extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Genel Ortalama',
+                  'Performans Özeti',
                   style: TextStyle(
                     color: PratiCaseColors.tealBright,
                     fontSize: 15,
@@ -1558,6 +1776,26 @@ IconData _examModeIcon(String key) {
     default:
       return Icons.assignment_outlined;
   }
+}
+
+String _examModeTitle(ExamModeItem mode) {
+  if (mode.actionKey == 'mini_osce') return 'Mini OSCE Planı';
+  return mode.title;
+}
+
+String _examModeSubtitle(ExamModeItem mode) {
+  if (mode.actionKey == 'mini_osce') {
+    return 'Çoklu istasyon paketi; seçimden sonra tek istasyonla başlar.';
+  }
+  if ({
+    'oral_exam',
+    'sozlu_sinav',
+    'oral_exam_committee',
+    'komite_sinav',
+  }.contains(mode.actionKey)) {
+    return 'Gerçek sınav tonu; kısa takip soruları ve rubrik karne.';
+  }
+  return mode.subtitle;
 }
 
 String _errorText(Object? error) {

@@ -175,6 +175,8 @@ class SupabaseCasesRepository implements CasesRepository {
       if (response.status >= 400) {
         throw CasesDataUnavailable(_functionMessage(response.data));
       }
+    } on FunctionException catch (error) {
+      throw CasesDataUnavailable(_functionMessage(error.details));
     } on CasesDataUnavailable {
       rethrow;
     } on Object {
@@ -637,7 +639,9 @@ class SupabaseCasesRepository implements CasesRepository {
   Future<ExamResultSummary> loadResult(String sessionId) async {
     try {
       final existing = await _loadResultCard(sessionId);
-      if (existing != null) return existing;
+      if (existing != null) {
+        return _withBackgroundAiFeedback(sessionId, existing);
+      }
 
       Object? lastFinalizeError;
       for (var finalizeAttempt = 0; finalizeAttempt < 3; finalizeAttempt++) {
@@ -652,12 +656,11 @@ class SupabaseCasesRepository implements CasesRepository {
           );
         }
       }
-      // AI enrichment best-effort, blocking değil
-      unawaited(_requestAiEnrichment(sessionId));
-
       for (var attempt = 0; attempt < 10; attempt++) {
         final result = await _loadResultCard(sessionId);
-        if (result != null) return result;
+        if (result != null) {
+          return _withBackgroundAiFeedback(sessionId, result);
+        }
         await Future<void>.delayed(Duration(milliseconds: 350 + attempt * 200));
       }
 
@@ -686,7 +689,7 @@ class SupabaseCasesRepository implements CasesRepository {
         .eq('session_id', sessionId)
         .maybeSingle();
     if (row == null) return null;
-    return ExamResultSummary(
+    final deterministic = ExamResultSummary(
       sessionId: _string(row, 'session_id'),
       caseTitle: _string(row, 'case_title'),
       totalScore: _int(row, 'total_score'),
@@ -701,6 +704,23 @@ class SupabaseCasesRepository implements CasesRepository {
       missedPhysicalExam: _stringList(row['missed_physical_exam']),
       idealApproach: _string(row, 'ideal_approach'),
     );
+    try {
+      final enrichment = await _client
+          .schema('praticase')
+          .from('session_ai_enrichments')
+          .select('status,feedback')
+          .eq('session_id', sessionId)
+          .maybeSingle();
+      if (enrichment == null || _string(enrichment, 'status') != 'completed') {
+        return deterministic;
+      }
+      final feedback = enrichment['feedback'];
+      if (feedback is! Map<String, dynamic>) return deterministic;
+      return _mergeAiFeedback(deterministic, feedback);
+    } on PostgrestException catch (error) {
+      if (_isMissingRelation(error)) return deterministic;
+      rethrow;
+    }
   }
 
   Future<void> _requestAiEnrichment(String sessionId) async {
@@ -712,6 +732,89 @@ class SupabaseCasesRepository implements CasesRepository {
     } on Object {
       // The deterministic result is already available; AI feedback is optional.
     }
+  }
+
+  ExamResultSummary _withBackgroundAiFeedback(
+    String sessionId,
+    ExamResultSummary deterministic,
+  ) {
+    if (!_needsAiFeedback(deterministic)) return deterministic;
+    unawaited(_requestAiEnrichment(sessionId));
+    return _withClinicalFallback(deterministic);
+  }
+
+  bool _needsAiFeedback(ExamResultSummary result) {
+    final text = result.idealApproach.trim().toLowerCase();
+    return text.isEmpty || text.contains('hazırlanamadı');
+  }
+
+  ExamResultSummary _withClinicalFallback(ExamResultSummary result) {
+    if (!_needsAiFeedback(result)) return result;
+    return ExamResultSummary(
+      sessionId: result.sessionId,
+      caseTitle: result.caseTitle,
+      totalScore: result.totalScore,
+      maxScore: result.maxScore,
+      percentage: result.percentage,
+      categoryScores: result.categoryScores,
+      strongPoints: result.strongPoints,
+      improvementPoints: result.improvementPoints,
+      criticalMistakes: result.criticalMistakes,
+      unnecessaryTests: result.unnecessaryTests,
+      missedHistory: result.missedHistory,
+      missedPhysicalExam: result.missedPhysicalExam,
+      idealApproach:
+          'İstasyonu yapılandırılmış anamnez ve hedefe yönelik muayeneyle '
+          'başlat; istediğin her tetkiki klinik gerekçeyle ilişkilendir. '
+          'Ön tanını güvenli ilk yaklaşım ve gerekli konsültasyon adımlarıyla '
+          'tamamla.',
+    );
+  }
+
+  ExamResultSummary _mergeAiFeedback(
+    ExamResultSummary deterministic,
+    Map<String, dynamic> feedback,
+  ) {
+    List<String> preferAi(String key, List<String> fallback) {
+      final values = _stringList(feedback[key]);
+      return values.isEmpty ? fallback : values;
+    }
+
+    List<String> mergeRequired(String key, List<String> required) {
+      final combined = [...required, ..._stringList(feedback[key])];
+      return combined.toSet().toList();
+    }
+
+    final idealApproach = _string(feedback, 'idealApproach').trim();
+    return ExamResultSummary(
+      sessionId: deterministic.sessionId,
+      caseTitle: deterministic.caseTitle,
+      totalScore: deterministic.totalScore,
+      maxScore: deterministic.maxScore,
+      percentage: deterministic.percentage,
+      categoryScores: deterministic.categoryScores,
+      strongPoints: preferAi('strongPoints', deterministic.strongPoints),
+      improvementPoints: preferAi(
+        'improvementPoints',
+        deterministic.improvementPoints,
+      ),
+      criticalMistakes: mergeRequired(
+        'criticalMistakes',
+        deterministic.criticalMistakes,
+      ),
+      unnecessaryTests: mergeRequired(
+        'unnecessaryTests',
+        deterministic.unnecessaryTests,
+      ),
+      missedHistory: preferAi('missedHistory', deterministic.missedHistory),
+      missedPhysicalExam: preferAi(
+        'missedPhysicalExam',
+        deterministic.missedPhysicalExam,
+      ),
+      idealApproach: idealApproach.isEmpty
+          ? deterministic.idealApproach
+          : idealApproach,
+    );
   }
 
   Future<void> _finalizeSessionWithRubric(String sessionId) async {

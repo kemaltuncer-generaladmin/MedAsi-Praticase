@@ -248,11 +248,13 @@ class _ScoreBar extends StatelessWidget {
 class _ResultActions extends StatelessWidget {
   const _ResultActions({
     required this.onRetry,
+    required this.retryLabel,
     required this.onReport,
     required this.onSuggestedCases,
   });
 
-  final VoidCallback onRetry;
+  final VoidCallback? onRetry;
+  final String retryLabel;
   final VoidCallback onReport;
   final VoidCallback onSuggestedCases;
 
@@ -266,7 +268,7 @@ class _ResultActions extends StatelessWidget {
           child: FilledButton.icon(
             onPressed: onRetry,
             icon: const Icon(Icons.restart_alt_rounded),
-            label: const Text('Tekrar Çöz'),
+            label: Text(retryLabel),
           ),
         ),
         const SizedBox(height: 10),

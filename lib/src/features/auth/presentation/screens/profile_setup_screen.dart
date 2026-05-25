@@ -27,7 +27,7 @@ class ProfileSetupScreen extends StatefulWidget {
 }
 
 class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
-  String _targetExam = 'TUS';
+  String _targetExam = 'OSCE';
   String _grade = '5. Sınıf';
   int _dailyGoal = 2;
   final _branches = <String>{};

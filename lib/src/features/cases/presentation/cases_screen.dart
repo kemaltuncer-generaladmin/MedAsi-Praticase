@@ -106,10 +106,9 @@ class _CasesScreenState extends State<CasesScreen> {
               if (snapshot.connectionState != ConnectionState.done)
                 const Padding(
                   padding: EdgeInsets.only(top: 22),
-                  child: _CenteredState(
-                    icon: Icons.hourglass_empty_rounded,
-                    title: 'Vakalar yükleniyor',
-                    body: 'Vaka istasyonların hazırlanıyor.',
+                  child: PratiCaseInlineSkeleton(
+                    heroHeight: 132,
+                    cardCount: 3,
                   ),
                 )
               else if (snapshot.hasError)
@@ -466,11 +465,7 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
         future: _detailFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const _CenteredState(
-              icon: Icons.hourglass_empty_rounded,
-              title: 'Vaka hazırlanıyor',
-              body: 'Vaka detayları yükleniyor.',
-            );
+            return const _CaseDetailSkeleton();
           }
           if (snapshot.hasError) {
             return _CenteredState(
@@ -515,9 +510,12 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
               const SizedBox(height: 22),
               _FlowCard(steps: detail.flowSteps),
               const SizedBox(height: 18),
-              _PatientInfoCard(patient: detail.patient),
+              _PatientInfoCard(
+                patient: detail.patient,
+                durationMinutes: detail.summary.durationMinutes,
+              ),
               const SizedBox(height: 18),
-              _GoalsCard(goals: detail.goals),
+              const _ExamModeNotice(),
             ],
           );
         },
@@ -763,11 +761,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
         future: _bundleFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const _CenteredState(
-              icon: Icons.chat_bubble_outline_rounded,
-              title: 'Görüşme açılıyor',
-              body: 'Hasta dosyası ve görüşme geçmişi açılıyor.',
-            );
+            return const _PhaseLoadingSkeleton(activeStep: 1);
           }
           if (snapshot.hasError) {
             return _CenteredState(
@@ -866,8 +860,6 @@ class _PhysicalExamScreenState extends State<PhysicalExamScreen> {
   late Future<_PhysicalBundle> _bundleFuture;
   String? _selectedGroupId;
   var _phaseReady = false;
-  var _hasSelectableExam = false;
-  var _selectedExamCount = 0;
   var _navigating = false;
 
   @override
@@ -886,8 +878,9 @@ class _PhysicalExamScreenState extends State<PhysicalExamScreen> {
       caseId: widget.caseId,
     );
     _phaseReady = true;
-    _hasSelectableExam = options.isNotEmpty;
-    _selectedExamCount = options.where((item) => item.isSelected).length;
+    scheduleMicrotask(() {
+      if (mounted) setState(() {});
+    });
     return _PhysicalBundle(session: session, groups: groups, options: options);
   }
 
@@ -910,7 +903,6 @@ class _PhysicalExamScreenState extends State<PhysicalExamScreen> {
 
   Future<void> _next() async {
     if (!_phaseReady || _navigating) return;
-    if (_hasSelectableExam && _selectedExamCount == 0) return;
     setState(() => _navigating = true);
     try {
       await widget.repository.advanceSession(
@@ -944,11 +936,7 @@ class _PhysicalExamScreenState extends State<PhysicalExamScreen> {
         future: _bundleFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const _CenteredState(
-              icon: Icons.health_and_safety_outlined,
-              title: 'Muayene seçenekleri yükleniyor',
-              body: 'Muayene bulguları hazırlanıyor.',
-            );
+            return const _PhaseLoadingSkeleton(activeStep: 2);
           }
           if (snapshot.hasError) {
             return _CenteredState(
@@ -1037,12 +1025,7 @@ class _PhysicalExamScreenState extends State<PhysicalExamScreen> {
       ),
       bottom: _BottomAction(
         label: _navigating ? 'Geçiliyor...' : 'Tetkiklere Geç',
-        onPressed:
-            !_phaseReady ||
-                _navigating ||
-                (_hasSelectableExam && _selectedExamCount == 0)
-            ? null
-            : _next,
+        onPressed: !_phaseReady || _navigating ? null : _next,
       ),
     );
   }
@@ -1068,8 +1051,6 @@ class _TestsScreenState extends State<TestsScreen> {
   late Future<_TestsBundle> _bundleFuture;
   String? _selectedGroupId;
   var _phaseReady = false;
-  var _hasSelectableTests = false;
-  var _selectedTestCount = 0;
   var _requesting = false;
   var _navigating = false;
 
@@ -1087,8 +1068,9 @@ class _TestsScreenState extends State<TestsScreen> {
       caseId: widget.caseId,
     );
     _phaseReady = true;
-    _hasSelectableTests = options.isNotEmpty;
-    _selectedTestCount = options.where((item) => item.isSelected).length;
+    scheduleMicrotask(() {
+      if (mounted) setState(() {});
+    });
     return _TestsBundle(session: session, groups: groups, options: options);
   }
 
@@ -1119,7 +1101,6 @@ class _TestsScreenState extends State<TestsScreen> {
 
   Future<void> _next() async {
     if (!_phaseReady || _navigating) return;
-    if (_hasSelectableTests && _selectedTestCount == 0) return;
     setState(() => _navigating = true);
     try {
       await widget.repository.advanceSession(
@@ -1153,11 +1134,7 @@ class _TestsScreenState extends State<TestsScreen> {
         future: _bundleFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const _CenteredState(
-              icon: Icons.science_outlined,
-              title: 'Tetkikler yükleniyor',
-              body: 'Tetkik seçenekleri hazırlanıyor.',
-            );
+            return const _PhaseLoadingSkeleton(activeStep: 3);
           }
           if (snapshot.hasError) {
             return _CenteredState(
@@ -1243,12 +1220,7 @@ class _TestsScreenState extends State<TestsScreen> {
       ),
       bottom: _BottomAction(
         label: _navigating ? 'Geçiliyor...' : 'Tanıya Geç',
-        onPressed:
-            !_phaseReady ||
-                _navigating ||
-                (_hasSelectableTests && _selectedTestCount == 0)
-            ? null
-            : _next,
+        onPressed: !_phaseReady || _navigating ? null : _next,
       ),
     );
   }
@@ -1303,6 +1275,7 @@ class DiagnosisScreen extends StatefulWidget {
 
 class _DiagnosisScreenState extends State<DiagnosisScreen> {
   final _primaryController = TextEditingController();
+  final _differentialsController = TextEditingController();
   final _reasoningController = TextEditingController();
   late Future<_DiagnosisBundle> _bundleFuture;
   final _selected = <String>{};
@@ -1314,11 +1287,14 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
     super.initState();
     _bundleFuture = _load();
     _primaryController.addListener(() => setState(() {}));
+    _differentialsController.addListener(() => setState(() {}));
+    _reasoningController.addListener(() => setState(() {}));
   }
 
   @override
   void dispose() {
     _primaryController.dispose();
+    _differentialsController.dispose();
     _reasoningController.dispose();
     super.dispose();
   }
@@ -1338,23 +1314,27 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
       ..clear()
       ..addAll(answer?.selectedOptionIds ?? const []);
     _diagnosisOptions = options;
+    if (_differentialsController.text.trim().isEmpty && _selected.isNotEmpty) {
+      final primary = _normalizeDiagnosisText(_primaryController.text);
+      final selectedTitles = [
+        for (final option in options)
+          if (_selected.contains(option.id) &&
+              _normalizeDiagnosisText(option.title) != primary)
+            option.title,
+      ];
+      _differentialsController.text = selectedTitles.join(', ');
+    }
     return _DiagnosisBundle(session: session, options: options);
   }
 
   Future<void> _save() async {
     if (!_canAdvanceDiagnosis) return;
-    if (_diagnosisOptions.isNotEmpty && _selected.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ayırıcı tanılardan en az birini seç.')),
-      );
-      return;
-    }
     setState(() => _saving = true);
     try {
       await widget.repository.saveDiagnosisAnswer(
         sessionId: widget.sessionId,
         primaryDiagnosis: _primaryController.text.trim(),
-        selectedOptionIds: _selected.toList(),
+        selectedOptionIds: _matchedDiagnosisOptionIds(),
         reasoning: _reasoningController.text.trim(),
       );
       await widget.repository.advanceSession(
@@ -1381,10 +1361,71 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
     }
   }
 
+  Future<void> _finishWithCurrentAnswer() async {
+    if (_saving) return;
+    final shouldFinish = await _confirmIncompleteFinish(context);
+    if (!shouldFinish) return;
+    if (!mounted) return;
+    setState(() => _saving = true);
+    try {
+      if (_primaryController.text.trim().isNotEmpty ||
+          _reasoningController.text.trim().isNotEmpty ||
+          _selected.isNotEmpty) {
+        await widget.repository.saveDiagnosisAnswer(
+          sessionId: widget.sessionId,
+          primaryDiagnosis: _primaryController.text.trim(),
+          selectedOptionIds: _matchedDiagnosisOptionIds(),
+          reasoning: _reasoningController.text.trim(),
+        );
+      }
+      await widget.repository.advanceSession(
+        sessionId: widget.sessionId,
+        step: 'completed',
+      );
+      if (!mounted) return;
+      await Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => ResultScreen(
+            repository: widget.repository,
+            sessionId: widget.sessionId,
+          ),
+        ),
+      );
+    } on CasesDataUnavailable catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   bool get _canAdvanceDiagnosis {
     if (_saving || _primaryController.text.trim().isEmpty) return false;
-    if (_diagnosisOptions.isNotEmpty && _selected.isEmpty) return false;
+    final differentials = _differentialsController.text
+        .split(RegExp(r'[,;\n]'))
+        .where((item) => item.trim().isNotEmpty)
+        .length;
+    if (differentials < 2) return false;
+    if (_reasoningController.text.trim().length < 12) return false;
     return true;
+  }
+
+  List<String> _matchedDiagnosisOptionIds() {
+    final answerText = _normalizeDiagnosisText(
+      '${_primaryController.text}\n${_differentialsController.text}',
+    );
+    final matched = <String>[];
+    for (final option in _diagnosisOptions) {
+      final title = _normalizeDiagnosisText(option.title);
+      if (title.isEmpty) continue;
+      if (_diagnosisTextMatches(answerText, title)) {
+        matched.add(option.id);
+      }
+    }
+    if (matched.isEmpty && _selected.isNotEmpty) return _selected.toList();
+    return matched;
   }
 
   @override
@@ -1395,11 +1436,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
         future: _bundleFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const _CenteredState(
-              icon: Icons.fact_check_outlined,
-              title: 'Tanı ekranı yükleniyor',
-              body: 'Tanı seçenekleri yükleniyor.',
-            );
+            return const _PhaseLoadingSkeleton(activeStep: 4);
           }
           if (snapshot.hasError) {
             return _CenteredState(
@@ -1416,6 +1453,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
                 phase: 'Tanı ve Yönetim',
                 repository: widget.repository,
                 sessionId: widget.sessionId,
+                onFinish: _finishWithCurrentAnswer,
               ),
               Expanded(
                 child: ListView(
@@ -1433,31 +1471,13 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
                       semanticsIdentifier: 'input.primary-diagnosis',
                     ),
                     const SizedBox(height: 16),
-                    const _FormLabel('Ayırıcı Tanılar'),
-                    const SizedBox(height: 8),
-                    for (final option in bundle.options) ...[
-                      _DiagnosisTile(
-                        title: option.title,
-                        selected: _selected.contains(option.id),
-                        onChanged: (value) {
-                          setState(() {
-                            if (value) {
-                              _selected.add(option.id);
-                            } else {
-                              _selected.remove(option.id);
-                            }
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                    if (bundle.options.isEmpty)
-                      const _CenteredState(
-                        icon: Icons.fact_check_outlined,
-                        title: 'Tanı seçeneği yok',
-                        body:
-                            'Ayırıcı tanı seçenekleri yayınlandığında görünür.',
-                      ),
+                    _InputBlock(
+                      label: 'Ayırıcı Tanılar',
+                      controller: _differentialsController,
+                      hint: 'Ayırıcı tanılarınızı virgülle ayırarak yazın.',
+                      maxLines: 4,
+                      semanticsIdentifier: 'input.differential-diagnoses',
+                    ),
                     const SizedBox(height: 14),
                     _InputBlock(
                       label: 'Tanı Gerekçesi',
@@ -1503,6 +1523,7 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
   final _consultationController = TextEditingController();
   late Future<_ManagementBundle> _bundleFuture;
   final _selected = <String>{};
+  String? _selectedManagementCategory;
   var _managementReady = false;
   var _saving = false;
 
@@ -1510,6 +1531,7 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
   void initState() {
     super.initState();
     _bundleFuture = _load();
+    _diagnosisController.addListener(_onManagementInputChanged);
     _noteController.addListener(_onManagementInputChanged);
     _consultationController.addListener(_onConsultationChanged);
   }
@@ -1543,12 +1565,26 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
     _selected
       ..clear()
       ..addAll(answer?.selectedOptionIds ?? const []);
+    if (_selectedManagementCategory == null && _selected.isNotEmpty) {
+      for (final option in options) {
+        if (_selected.contains(option.id)) {
+          _selectedManagementCategory = option.category;
+          break;
+        }
+      }
+    }
     _managementReady = true;
     return _ManagementBundle(session: session, options: options);
   }
 
-  Future<void> _save() async {
-    if (!_canFinalizeManagement) return;
+  Future<void> _save({bool allowIncomplete = false}) async {
+    if (!allowIncomplete && !_canFinalizeManagement) return;
+    if (_saving || !_managementReady) return;
+    if (allowIncomplete) {
+      final shouldFinish = await _confirmIncompleteFinish(context);
+      if (!shouldFinish) return;
+      if (!mounted) return;
+    }
     setState(() => _saving = true);
     try {
       await widget.repository.saveManagementPlan(
@@ -1591,8 +1627,7 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
   }
 
   bool get _hasManagementInput {
-    if (_visibleOptions.isNotEmpty) return _selected.isNotEmpty;
-    return _noteController.text.trim().isNotEmpty;
+    return _noteController.text.trim().length >= 12;
   }
 
   bool get _canFinalizeManagement {
@@ -1614,11 +1649,7 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
         future: _bundleFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const _CenteredState(
-              icon: Icons.assignment_turned_in_outlined,
-              title: 'Yönetim planı yükleniyor',
-              body: 'Tedavi seçenekleri yükleniyor.',
-            );
+            return const _PhaseLoadingSkeleton(activeStep: 5);
           }
           if (snapshot.hasError) {
             return _CenteredState(
@@ -1633,6 +1664,10 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
             grouped.putIfAbsent(option.category, () => []).add(option);
           }
           _visibleOptions = bundle.options;
+          final selectedCategory = _selectedManagementCategory;
+          final selectedCategoryOptions = selectedCategory == null
+              ? const <ManagementOption>[]
+              : grouped[selectedCategory] ?? const <ManagementOption>[];
           return Column(
             children: [
               _ExamTopBar(
@@ -1640,6 +1675,7 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
                 phase: 'Tanı ve Yönetim',
                 repository: widget.repository,
                 sessionId: widget.sessionId,
+                onFinish: () => _save(allowIncomplete: true),
               ),
               Expanded(
                 child: ListView(
@@ -1680,24 +1716,42 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
                         body:
                             'Yönetim planı seçenekleri yayınlandığında görünür.',
                       )
-                    else
+                    else if (selectedCategory == null)
                       for (final entry in grouped.entries) ...[
-                        _ManagementGroupCard(
+                        _ManagementCategoryTile(
                           title: _managementCategoryTitle(entry.key),
                           options: entry.value,
                           selected: _selected,
-                          onChanged: (optionId, selected) {
-                            setState(() {
-                              if (selected) {
-                                _selected.add(optionId);
-                              } else {
-                                _selected.remove(optionId);
-                              }
-                            });
-                          },
+                          onTap: () => setState(
+                            () => _selectedManagementCategory = entry.key,
+                          ),
                         ),
-                        const SizedBox(height: 14),
-                      ],
+                        const SizedBox(height: 10),
+                      ]
+                    else ...[
+                      OutlinedButton.icon(
+                        onPressed: () =>
+                            setState(() => _selectedManagementCategory = null),
+                        icon: const Icon(Icons.arrow_back_rounded),
+                        label: const Text('Yönetim Başlığı Değiştir'),
+                      ),
+                      const SizedBox(height: 12),
+                      _ManagementGroupCard(
+                        title: _managementCategoryTitle(selectedCategory),
+                        options: selectedCategoryOptions,
+                        selected: _selected,
+                        onChanged: (optionId, selected) {
+                          setState(() {
+                            if (selected) {
+                              _selected.add(optionId);
+                            } else {
+                              _selected.remove(optionId);
+                            }
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 14),
+                    ],
                     if (_requiresConsultationDestination) ...[
                       _InputBlock(
                         label: 'Konsültasyon Birimi',
@@ -1727,7 +1781,7 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
       bottom: _BottomAction(
         label: _saving ? 'Kaydediliyor...' : 'Sınavı Bitir ve Değerlendir',
         icon: Icons.check_circle_rounded,
-        onPressed: _canFinalizeManagement ? _save : null,
+        onPressed: _canFinalizeManagement ? () => _save() : null,
       ),
     );
   }
@@ -1749,6 +1803,9 @@ class ResultScreen extends StatefulWidget {
 
 class _ResultScreenState extends State<ResultScreen> {
   late Future<ExamResultSummary> _resultFuture;
+  bool _startingAgain = false;
+  bool _feedbackRefreshScheduled = false;
+  Timer? _feedbackRefreshTimer;
 
   @override
   void initState() {
@@ -1763,17 +1820,66 @@ class _ResultScreenState extends State<ResultScreen> {
   }
 
   @override
+  void dispose() {
+    _feedbackRefreshTimer?.cancel();
+    super.dispose();
+  }
+
+  void _scheduleFeedbackRefresh(ExamResultSummary result) {
+    if (_feedbackRefreshScheduled ||
+        !result.idealApproach.startsWith('İstasyonu yapılandırılmış')) {
+      return;
+    }
+    _feedbackRefreshScheduled = true;
+    _feedbackRefreshTimer = Timer(
+      const Duration(seconds: 8),
+      () => unawaited(_refreshFeedback()),
+    );
+  }
+
+  Future<void> _refreshFeedback() async {
+    try {
+      final refreshed = await widget.repository.loadResult(widget.sessionId);
+      if (!mounted) return;
+      setState(() => _resultFuture = Future.value(refreshed));
+    } on Object {
+      // The deterministic card remains visible when enrichment is unavailable.
+    }
+  }
+
+  Future<void> _startAgain() async {
+    if (_startingAgain) return;
+    setState(() => _startingAgain = true);
+    try {
+      final previous = await widget.repository.loadSession(widget.sessionId);
+      final session = await widget.repository.startSession(previous.caseId);
+      if (!mounted) return;
+      await Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => PatientChatScreen(
+            repository: widget.repository,
+            sessionId: session.id,
+          ),
+        ),
+      );
+    } on CasesDataUnavailable catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      if (mounted) setState(() => _startingAgain = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return _FlowScaffold(
       body: FutureBuilder<ExamResultSummary>(
         future: _resultFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const _CenteredState(
-              icon: Icons.emoji_events_outlined,
-              title: 'Sonuç karnesi hazırlanıyor',
-              body: 'Performans puanların hesaplanıyor.',
-            );
+            return const _PhaseLoadingSkeleton(activeStep: 5);
           }
           if (snapshot.hasError) {
             return ListView(
@@ -1796,6 +1902,7 @@ class _ResultScreenState extends State<ResultScreen> {
             );
           }
           final result = snapshot.requireData;
+          _scheduleFeedbackRefresh(result);
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 130),
             children: [
@@ -1876,8 +1983,8 @@ class _ResultScreenState extends State<ResultScreen> {
               FadeSlideIn(
                 delay: const Duration(milliseconds: 520),
                 child: _ResultActions(
-                  onRetry: () =>
-                      Navigator.of(context).popUntil((route) => route.isFirst),
+                  onRetry: _startingAgain ? null : _startAgain,
+                  retryLabel: _startingAgain ? 'Başlatılıyor...' : 'Tekrar Çöz',
                   onReport: () {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
@@ -2998,7 +3105,7 @@ class _CaseListCard extends StatelessWidget {
                   else if (progress != null)
                     _TinyPill(text: '%$progress devam')
                   else
-                    _TinyPill(text: '${item.points} puan'),
+                    _TinyPill(text: '${item.durationMinutes} dk'),
                 ],
               ),
             ],
@@ -3054,12 +3161,32 @@ class _ExamTopBar extends StatelessWidget {
     required this.phase,
     required this.repository,
     required this.sessionId,
+    this.onFinish,
   });
 
   final ExamSessionOverview session;
   final String phase;
   final CasesRepository repository;
   final String sessionId;
+  final Future<void> Function()? onFinish;
+
+  Future<void> _finish(BuildContext context) async {
+    final customFinish = onFinish;
+    if (customFinish != null) {
+      await customFinish();
+      return;
+    }
+    final shouldFinish = await _confirmIncompleteFinish(context);
+    if (!shouldFinish || !context.mounted) return;
+    await repository.advanceSession(sessionId: sessionId, step: 'completed');
+    if (!context.mounted) return;
+    await Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            ResultScreen(repository: repository, sessionId: sessionId),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -3126,13 +3253,18 @@ class _ExamTopBar extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              _FinishExamButton(repository: repository, sessionId: sessionId),
+              _FinishExamButton(onFinish: () => _finish(context)),
             ],
           ),
           const SizedBox(height: 10),
           Row(
             children: [
-              Expanded(child: _TimerBadge(session: session)),
+              Expanded(
+                child: _TimerBadge(
+                  session: session,
+                  onExpired: () => _finish(context),
+                ),
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: _ExamHeaderPill(
@@ -3195,9 +3327,10 @@ class _ExamHeaderPill extends StatelessWidget {
 }
 
 class _TimerBadge extends StatefulWidget {
-  const _TimerBadge({required this.session});
+  const _TimerBadge({required this.session, required this.onExpired});
 
   final ExamSessionOverview session;
+  final Future<void> Function() onExpired;
 
   @override
   State<_TimerBadge> createState() => _TimerBadgeState();
@@ -3207,6 +3340,7 @@ class _TimerBadgeState extends State<_TimerBadge>
     with SingleTickerProviderStateMixin {
   late Timer _timer;
   late final AnimationController _pulseController;
+  bool _didExpire = false;
 
   @override
   void initState() {
@@ -3215,9 +3349,16 @@ class _TimerBadgeState extends State<_TimerBadge>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     );
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
-    });
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _tick());
+  }
+
+  void _tick() {
+    if (!mounted) return;
+    setState(() {});
+    if (_remainingParts(widget.session) != '00:00' || _didExpire) return;
+    _didExpire = true;
+    unawaited(widget.onExpired());
   }
 
   @override
@@ -3670,9 +3811,13 @@ class _FlowStepIcon extends StatelessWidget {
 }
 
 class _PatientInfoCard extends StatelessWidget {
-  const _PatientInfoCard({required this.patient});
+  const _PatientInfoCard({
+    required this.patient,
+    required this.durationMinutes,
+  });
 
   final PatientProfile patient;
+  final int durationMinutes;
 
   @override
   Widget build(BuildContext context) {
@@ -3707,7 +3852,9 @@ class _PatientInfoCard extends StatelessWidget {
               _InfoCell(
                 icon: Icons.schedule_rounded,
                 title: 'Süre',
-                value: patient.complaintDuration,
+                value: patient.complaintDuration.trim().isNotEmpty
+                    ? patient.complaintDuration
+                    : '$durationMinutes dk',
               ),
             ],
           );
@@ -3717,33 +3864,28 @@ class _PatientInfoCard extends StatelessWidget {
   }
 }
 
-class _GoalsCard extends StatelessWidget {
-  const _GoalsCard({required this.goals});
-
-  final List<CaseGoal> goals;
+class _ExamModeNotice extends StatelessWidget {
+  const _ExamModeNotice();
 
   @override
   Widget build(BuildContext context) {
     return _SectionCard(
-      title: 'Vaka Hedefleri',
-      child: Column(
+      title: 'Sınav Modu',
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (goals.isEmpty)
-            const Text('Bu vaka için öğrenme hedefi tanımlanmadı.')
-          else
-            for (final goal in goals)
-              Material(
-                type: MaterialType.transparency,
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(
-                    Icons.check_box_rounded,
-                    color: PratiCaseColors.teal,
-                  ),
-                  title: Text(goal.title),
-                  trailing: Text('${goal.points} puan'),
-                ),
+          const Icon(Icons.lock_outline_rounded, color: PratiCaseColors.teal),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Hedefler, ideal yaklaşım ve puan kırılımları sınav bitince karnede açılır. Bu ekranda yalnız aday yönergesi ve istasyon bilgileri gösterilir.',
+              style: TextStyle(
+                color: PratiCaseColors.navy.withValues(alpha: 0.84),
+                height: 1.4,
+                fontWeight: FontWeight.w700,
               ),
+            ),
+          ),
         ],
       ),
     );
@@ -4495,54 +4637,6 @@ class _TestOptionTile extends StatelessWidget {
   }
 }
 
-class _DiagnosisTile extends StatelessWidget {
-  const _DiagnosisTile({
-    required this.title,
-    required this.selected,
-    required this.onChanged,
-  });
-
-  final String title;
-  final bool selected;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: selected
-            ? PratiCaseColors.teal.withValues(alpha: 0.06)
-            : PratiCaseColors.white,
-        borderRadius: BorderRadius.circular(PratiCaseRadius.sm),
-        border: Border.all(
-          color: selected ? PratiCaseColors.teal : PratiCaseColors.border,
-          width: selected ? 1.5 : 1,
-        ),
-      ),
-      child: Material(
-        type: MaterialType.transparency,
-        child: CheckboxListTile(
-          value: selected,
-          onChanged: (value) => onChanged(value ?? false),
-          activeColor: PratiCaseColors.teal,
-          checkColor: PratiCaseColors.white,
-          tileColor: Colors.transparent,
-          title: Text(
-            title,
-            style: TextStyle(
-              color: selected
-                  ? PratiCaseColors.navy
-                  : PratiCaseColors.slateBlue,
-              fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-            ),
-          ),
-          shape: const RoundedRectangleBorder(),
-        ),
-      ),
-    );
-  }
-}
-
 class _InputBlock extends StatelessWidget {
   const _InputBlock({
     required this.label,
@@ -4678,28 +4772,16 @@ class _BottomAction extends StatelessWidget {
 }
 
 class _FinishExamButton extends StatelessWidget {
-  const _FinishExamButton({required this.repository, required this.sessionId});
+  const _FinishExamButton({required this.onFinish});
 
-  final CasesRepository repository;
-  final String sessionId;
-
-  Future<void> _finish(BuildContext context) async {
-    await repository.advanceSession(sessionId: sessionId, step: 'completed');
-    if (!context.mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) =>
-            ResultScreen(repository: repository, sessionId: sessionId),
-      ),
-    );
-  }
+  final Future<void> Function() onFinish;
 
   @override
   Widget build(BuildContext context) {
     return Tooltip(
       message: 'Sınavı Bitir',
       child: IconButton.filled(
-        onPressed: () => _finish(context),
+        onPressed: onFinish,
         icon: const Icon(Icons.stop_circle_outlined, size: 21),
         style: IconButton.styleFrom(
           backgroundColor: PratiCaseColors.errorRed,
@@ -4712,6 +4794,29 @@ class _FinishExamButton extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<bool> _confirmIncompleteFinish(BuildContext context) async {
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Sınavı bitir?'),
+      content: const Text(
+        'Eksik anamnez, muayene, tetkik, tanı veya yönetim adımları sonuç karnesine yansır.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('Devam Et'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: const Text('Bitir'),
+        ),
+      ],
+    ),
+  );
+  return result ?? false;
 }
 
 class _SectionCard extends StatelessWidget {
@@ -5170,6 +5275,102 @@ class _ChatBundle {
   }
 }
 
+class _CaseDetailSkeleton extends StatelessWidget {
+  const _CaseDetailSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 110),
+      children: const [
+        _StepTopBar(title: 'Vaka Detay'),
+        SizedBox(height: 18),
+        Row(
+          children: [
+            PratiCaseSkeletonBlock(width: 80, height: 28),
+            SizedBox(width: 8),
+            PratiCaseSkeletonBlock(width: 92, height: 28),
+            SizedBox(width: 8),
+            PratiCaseSkeletonBlock(width: 116, height: 28),
+          ],
+        ),
+        SizedBox(height: 18),
+        PratiCaseSkeletonBlock(
+          height: 240,
+          radius: PratiCaseRadius.xxl,
+        ),
+        SizedBox(height: 18),
+        PratiCaseSkeletonCard(lines: 2, leading: false),
+        SizedBox(height: 14),
+        PratiCaseSkeletonCard(lines: 3),
+      ],
+    );
+  }
+}
+
+class _PhaseLoadingSkeleton extends StatelessWidget {
+  const _PhaseLoadingSkeleton({required this.activeStep});
+
+  final int activeStep;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+          decoration: const BoxDecoration(gradient: PratiCaseGradients.hero),
+          child: SafeArea(
+            bottom: false,
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: PratiCaseColors.white.withValues(alpha: 0.16),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      PratiCaseSkeletonBlock(width: 96, height: 12),
+                      SizedBox(height: 8),
+                      PratiCaseSkeletonBlock(width: 148, height: 20),
+                    ],
+                  ),
+                ),
+                const PratiCaseSkeletonBlock(
+                  width: 44,
+                  height: 44,
+                  radius: PratiCaseRadius.lg,
+                ),
+              ],
+            ),
+          ),
+        ),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
+            children: [
+              _PhaseTabs(activeStep: activeStep),
+              const SizedBox(height: 16),
+              const PratiCaseSkeletonCard(lines: 2),
+              const SizedBox(height: 14),
+              const PratiCaseSkeletonCard(lines: 3, leading: false),
+              const SizedBox(height: 14),
+              const PratiCaseSkeletonCard(lines: 2),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _PhysicalBundle {
   const _PhysicalBundle({
     required this.session,
@@ -5210,6 +5411,11 @@ class _ManagementBundle {
 
 String _managementCategoryTitle(String value) {
   final normalized = value.trim().toLowerCase();
+  if (normalized.contains('gereksiz') ||
+      normalized.contains('zararlı') ||
+      normalized.contains('harm')) {
+    return 'Diğer Yönetim Kararları';
+  }
   if (normalized.contains('kons') || normalized.contains('consult')) {
     return 'Konsültasyon İstemleri';
   }
@@ -5224,6 +5430,109 @@ String _managementCategoryTitle(String value) {
     return 'Tedavi Planı';
   }
   return value.trim().isEmpty ? 'Tedavi Planı' : value;
+}
+
+String _normalizeDiagnosisText(String value) {
+  final lower = value.toLowerCase();
+  final buffer = StringBuffer();
+  for (final codeUnit in lower.codeUnits) {
+    final char = String.fromCharCode(codeUnit);
+    final normalized = switch (char) {
+      'ç' => 'c',
+      'ğ' => 'g',
+      'ı' => 'i',
+      'ö' => 'o',
+      'ş' => 's',
+      'ü' => 'u',
+      _ => char,
+    };
+    buffer.write(RegExp(r'[a-z0-9]').hasMatch(normalized) ? normalized : ' ');
+  }
+  return buffer.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
+}
+
+bool _diagnosisTextMatches(String answerText, String optionTitle) {
+  if (answerText.isEmpty || optionTitle.isEmpty) return false;
+  if (answerText.contains(optionTitle)) return true;
+  final words = optionTitle
+      .split(' ')
+      .where((word) => word.length > 3)
+      .toList(growable: false);
+  if (words.isEmpty) return false;
+  final matched = words.where(answerText.contains).length;
+  return matched / words.length >= 0.65;
+}
+
+class _ManagementCategoryTile extends StatelessWidget {
+  const _ManagementCategoryTile({
+    required this.title,
+    required this.options,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String title;
+  final List<ManagementOption> options;
+  final Set<String> selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedCount = options
+        .where((option) => selected.contains(option.id))
+        .length;
+    return PressableScale(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: _cardDecoration(radius: 16),
+        child: Row(
+          children: [
+            _SoftIcon(
+              icon: Icons.assignment_turned_in_outlined,
+              color: selectedCount > 0
+                  ? PratiCaseColors.successGreen
+                  : PratiCaseColors.teal,
+              size: 44,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: PratiCaseColors.navy,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    selectedCount == 0
+                        ? '${options.length} yönetim seçeneği'
+                        : '$selectedCount/${options.length} seçildi',
+                    style: const TextStyle(
+                      color: PratiCaseColors.muted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: PratiCaseColors.teal,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _ManagementGroupCard extends StatelessWidget {

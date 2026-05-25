@@ -6,6 +6,7 @@ import '../../../app/theme/praticase_colors.dart';
 import '../../../app/theme/praticase_motion.dart';
 import '../../../app/theme/praticase_tokens.dart';
 import '../../../shared/data/user_facing_error.dart';
+import '../../../shared/ui/praticase_visuals.dart';
 import '../../../shared/ui/responsive.dart';
 import '../data/theoretical_exam_repository.dart';
 import '../domain/theoretical_exam_models.dart';
@@ -112,6 +113,38 @@ class _TheoreticalExamSetupScreenState
         selectedKeys.remove(topic.key);
       } else {
         selectedKeys.add(topic.key);
+      }
+    });
+  }
+
+  void _applyPreset(
+    TheoreticalExamFilters filters, {
+    required int courseCount,
+    required int totalQuestions,
+  }) {
+    final availableCount = filters.courses.length < courseCount
+        ? filters.courses.length
+        : courseCount;
+    if (availableCount == 0) {
+      _showMessage('Medasi soru havuzunda ders bulunamadı.');
+      return;
+    }
+    final normalizedTotal = totalQuestions.clamp(1, _maxTotalQuestionCount);
+    final baseCount = (normalizedTotal / availableCount).floor();
+    var remainder = normalizedTotal - baseCount * availableCount;
+    final courses = filters.courses.take(availableCount).toList();
+    setState(() {
+      _selectedCourses
+        ..clear()
+        ..addAll(courses);
+      _questionCountsByCourse.clear();
+      _selectedTopicKeysByCourse.clear();
+      for (final course in courses) {
+        final extra = remainder > 0 ? 1 : 0;
+        if (remainder > 0) remainder -= 1;
+        _questionCountsByCourse[course] = (baseCount + extra)
+            .clamp(1, 100)
+            .toInt();
       }
     });
   }
@@ -230,10 +263,10 @@ class _TheoreticalExamSetupScreenState
           future: _filtersFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
-              return const _StateView(
-                icon: Icons.assignment_outlined,
-                title: 'Soru havuzu yükleniyor',
-                body: 'Ders ve konu filtreleri hazırlanıyor.',
+              return const PratiCaseScreenSkeleton(
+                titleWidth: 180,
+                heroHeight: 150,
+                cardCount: 3,
               );
             }
             if (snapshot.hasError) {
@@ -264,22 +297,62 @@ class _TheoreticalExamSetupScreenState
                   total: filters.totalQuestionCount,
                 ),
                 const SizedBox(height: 12),
+                _PresetStrip(
+                  onQuick: () => _applyPreset(
+                    filters,
+                    courseCount: 1,
+                    totalQuestions: 10,
+                  ),
+                  onBalanced: () => _applyPreset(
+                    filters,
+                    courseCount: 3,
+                    totalQuestions: 20,
+                  ),
+                  onFull: () => _applyPreset(
+                    filters,
+                    courseCount: 5,
+                    totalQuestions: 40,
+                  ),
+                ),
+                const SizedBox(height: 12),
                 _SectionCard(
-                  title: 'Ders Seçimi',
-                  child: filters.courses.isEmpty
-                      ? const Text('Medasi soru havuzunda ders bulunamadı.')
-                      : Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            for (final course in filters.courses)
-                              FilterChip(
-                                label: Text(course),
-                                selected: _selectedCourses.contains(course),
-                                onSelected: (_) => _toggleCourse(course),
-                              ),
-                          ],
-                        ),
+                  title: 'Dersleri Elle Seç',
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: ExpansionTile(
+                      tilePadding: EdgeInsets.zero,
+                      childrenPadding: const EdgeInsets.only(top: 8),
+                      title: const Text(
+                        'Gelişmiş ders ve konu seçimi',
+                        style: TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                      subtitle: const Text(
+                        'Hızlı plan yetmezse dersleri tek tek düzenle.',
+                      ),
+                      children: [
+                        if (filters.courses.isEmpty)
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Medasi soru havuzunda ders bulunamadı.',
+                            ),
+                          )
+                        else
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              for (final course in filters.courses)
+                                FilterChip(
+                                  label: Text(course),
+                                  selected: _selectedCourses.contains(course),
+                                  onSelected: (_) => _toggleCourse(course),
+                                ),
+                            ],
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 _SectionCard(
@@ -319,7 +392,8 @@ class _TheoreticalExamSetupScreenState
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton.icon(
-                          onPressed: _loadingQuestions
+                          onPressed:
+                              _loadingQuestions || _selectedCourses.isEmpty
                               ? null
                               : () => _startGeneratedExam(filters),
                           icon: _loadingQuestions
@@ -596,6 +670,129 @@ class _IntroCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PresetStrip extends StatelessWidget {
+  const _PresetStrip({
+    required this.onQuick,
+    required this.onBalanced,
+    required this.onFull,
+  });
+
+  final VoidCallback onQuick;
+  final VoidCallback onBalanced;
+  final VoidCallback onFull;
+
+  @override
+  Widget build(BuildContext context) {
+    final presets = [
+      _PresetData(
+        icon: Icons.flash_on_rounded,
+        title: 'Hızlı 10',
+        subtitle: 'Tek ders',
+        onTap: onQuick,
+      ),
+      _PresetData(
+        icon: Icons.balance_rounded,
+        title: 'Dengeli 20',
+        subtitle: '3 ders',
+        onTap: onBalanced,
+      ),
+      _PresetData(
+        icon: Icons.fact_check_rounded,
+        title: 'Tam 40',
+        subtitle: '5 ders',
+        onTap: onFull,
+      ),
+    ];
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 720;
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            for (final preset in presets)
+              SizedBox(
+                width: wide
+                    ? (constraints.maxWidth - 20) / 3
+                    : constraints.maxWidth,
+                child: _PresetButton(preset: preset),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _PresetData {
+  const _PresetData({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+}
+
+class _PresetButton extends StatelessWidget {
+  const _PresetButton({required this.preset});
+
+  final _PresetData preset;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      onTap: preset.onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: _cardDecoration(),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: PratiCaseColors.teal.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+              ),
+              child: Icon(preset.icon, color: PratiCaseColors.teal),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    preset.title,
+                    style: const TextStyle(
+                      color: PratiCaseColors.navy,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    preset.subtitle,
+                    style: const TextStyle(
+                      color: PratiCaseColors.muted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_rounded, color: PratiCaseColors.teal),
+          ],
+        ),
       ),
     );
   }

@@ -84,6 +84,14 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 30),
           _Greeting(user: dashboard.user, onSearch: widget.onOpenCases),
           const SizedBox(height: 28),
+          const _SectionHeader(title: 'Bugünkü Çalışma', onViewAll: null),
+          const SizedBox(height: 14),
+          _QuickActions(
+            onSingleStation: widget.onOpenCases,
+            onMiniOsce: widget.onOpenExams,
+            onTheoreticalExam: widget.onOpenTheoreticalExam,
+          ),
+          const SizedBox(height: 28),
           if (dashboard.continuedCase != null) ...[
             _SectionHeader(
               title: 'Devam Edilen Vaka',
@@ -103,12 +111,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ] else ...[
-            _QuickActions(
-              onSingleStation: widget.onOpenCases,
-              onMiniOsce: widget.onOpenExams,
-              onTheoreticalExam: widget.onOpenTheoreticalExam,
-            ),
-            const SizedBox(height: 28),
             _SectionHeader(
               title: 'Genel Bakış',
               onViewAll: widget.onOpenProgress,
@@ -998,7 +1000,7 @@ class _QuickActions extends StatelessWidget {
                   child: _QuickActionCard(
                     icon: Icons.view_kanban_rounded,
                     title: 'Mini OSCE',
-                    subtitle: '3 istasyonlu deneme',
+                    subtitle: 'İstasyon paketleri',
                     onTap: onMiniOsce,
                   ),
                 ),
@@ -1032,7 +1034,7 @@ class _QuickActions extends StatelessWidget {
                   child: _QuickActionCard(
                     icon: Icons.view_kanban_rounded,
                     title: 'Mini OSCE',
-                    subtitle: '3 istasyonlu deneme',
+                    subtitle: 'İstasyon paketleri',
                     onTap: onMiniOsce,
                   ),
                 ),
@@ -1250,7 +1252,12 @@ class _HomeLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: PratiCaseSpinner());
+    return const PratiCaseScreenSkeleton(
+      titleWidth: 230,
+      heroHeight: 156,
+      cardCount: 3,
+      showSearch: true,
+    );
   }
 }
 
@@ -1299,15 +1306,16 @@ class _SectionHeader extends StatelessWidget {
             ),
           ),
         ),
-        TextButton.icon(
-          onPressed: onViewAll,
-          icon: const Icon(Icons.chevron_right_rounded),
-          label: const Text('Tümünü Gör'),
-          style: TextButton.styleFrom(
-            foregroundColor: PratiCaseColors.teal,
-            textStyle: const TextStyle(fontWeight: FontWeight.w900),
+        if (onViewAll != null)
+          TextButton.icon(
+            onPressed: onViewAll,
+            icon: const Icon(Icons.chevron_right_rounded),
+            label: const Text('Tümünü Gör'),
+            style: TextButton.styleFrom(
+              foregroundColor: PratiCaseColors.teal,
+              textStyle: const TextStyle(fontWeight: FontWeight.w900),
+            ),
           ),
-        ),
       ],
     );
   }

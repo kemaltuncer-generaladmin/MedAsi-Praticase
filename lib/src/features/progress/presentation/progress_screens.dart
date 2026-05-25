@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../../app/theme/praticase_colors.dart';
 import '../../../app/theme/praticase_tokens.dart';
 import '../../../shared/data/user_facing_error.dart';
+import '../../../shared/ui/praticase_visuals.dart';
 import '../../../shared/ui/responsive.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../store/data/store_controller.dart';
@@ -233,15 +234,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       future: _profileFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const _ProgressPage(
-            title: 'Profil',
-            children: [
-              _StateBlock(
-                icon: Icons.person_outline_rounded,
-                title: 'Profil yükleniyor',
-                body: 'Profil bilgilerin hazırlanıyor.',
-              ),
-            ],
+          return const PratiCaseScreenSkeleton(
+            titleWidth: 170,
+            heroHeight: 230,
+            cardCount: 2,
           );
         }
         if (snapshot.hasError) {
@@ -608,7 +604,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     onTap: () => _showInfo(
                       context,
                       'Hakkında',
-                      'PratiCase, Medasi ekosistemi için OSCE simülasyon uygulamasıdır.',
+                      'PratiCase, Medasi ekosistemi için eğitim amaçlı OSCE simülasyon uygulamasıdır. Klinik karar desteği, tanı veya tedavi önerisi yerine öğrencinin sınav performansını geliştirmeye odaklanır.',
                     ),
                   ),
                 ],
@@ -3465,124 +3461,182 @@ class _MenuPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      type: MaterialType.transparency,
-      child: Container(
-        decoration: _cardDecoration(),
-        child: Column(
-          children: [
-            for (var index = 0; index < items.length; index++) ...[
-              Semantics(
-                identifier: items[index].semanticsId ?? '',
-                child: Material(
-                  type: MaterialType.transparency,
-                  child: ListTile(
-                    leading: Icon(
-                      items[index].icon,
-                      color: PratiCaseColors.teal,
+    final byTitle = {for (final item in items) item.title: item};
+    final sections = [
+      (
+        'Çalışma Alanım',
+        'Vaka, favori, not ve günlük hedefler.',
+        Icons.school_outlined,
+        ['Vaka Geçmişim', 'Favori Vakalarım', 'Notlarım', 'Günlük Hedefler'],
+      ),
+      (
+        'Performans',
+        'Sıralama, rozet ve bildirim takibi.',
+        Icons.insights_outlined,
+        ['Liderlik Tablosu', 'Başarılarım', 'Bildirimler'],
+      ),
+      (
+        'Hesap ve Mağaza',
+        'Abonelik, mağaza, ayarlar ve çevrimdışı hazırlık.',
+        Icons.manage_accounts_outlined,
+        ['Mağaza', 'Premium Abonelik', 'Ayarlar', 'İndirmelerim'],
+      ),
+    ];
+    return Column(
+      children: [
+        for (final section in sections) ...[
+          PratiCaseGroupedSection(
+            title: section.$1,
+            subtitle: section.$2,
+            icon: section.$3,
+            children: [
+              for (final title in section.$4)
+                if (byTitle[title] != null)
+                  _ProfileMenuTile(
+                    item: byTitle[title]!,
+                    onTap: () => _openMenu(context, byTitle[title]!.title),
+                  ),
+            ],
+          ),
+          if (section != sections.last) const SizedBox(height: 14),
+        ],
+      ],
+    );
+  }
+
+  void _openMenu(BuildContext context, String title) {
+    if (title == 'Vaka Geçmişim') {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => CaseHistoryScreen(repository: repository),
+        ),
+      );
+      return;
+    }
+    if (title == 'Favori Vakalarım') {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => FavoriteCasesScreen(repository: repository),
+        ),
+      );
+      return;
+    }
+    if (title == 'Notlarım') {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => NotesScreen(repository: repository),
+        ),
+      );
+      return;
+    }
+    if (title == 'Günlük Hedefler') {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => DailyGoalsScreen(repository: repository),
+        ),
+      );
+      return;
+    }
+    if (title == 'Liderlik Tablosu') {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => LeaderboardScreen(repository: repository),
+        ),
+      );
+      return;
+    }
+    if (title == 'Bildirimler') {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => NotificationsScreen(repository: repository),
+        ),
+      );
+      return;
+    }
+    if (title == 'Başarılarım') {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => BadgesScreen(repository: repository),
+        ),
+      );
+      return;
+    }
+    if (title == 'Mağaza') {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => StoreScreen(repository: repository),
+        ),
+      );
+      return;
+    }
+    if (title == 'Premium Abonelik') {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => SubscriptionStatusScreen(controller: StoreController()),
+        ),
+      );
+      return;
+    }
+    if (title == 'Ayarlar') {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => SettingsScreen(
+            authRepository: authRepository,
+            repository: repository,
+            onSignOut: onSignOut,
+          ),
+        ),
+      );
+      return;
+    }
+    if (title == 'İndirmelerim') {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => DownloadsScreen(repository: repository),
+        ),
+      );
+      return;
+    }
+  }
+}
+
+class _ProfileMenuTile extends StatelessWidget {
+  const _ProfileMenuTile({required this.item, required this.onTap});
+
+  final _MenuItem item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      identifier: item.semanticsId ?? '',
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 13, 14, 13),
+            child: Row(
+              children: [
+                Icon(item.icon, color: PratiCaseColors.teal, size: 24),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    item.title,
+                    style: const TextStyle(
+                      color: PratiCaseColors.ink,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
                     ),
-                    title: Text(items[index].title),
-                    trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () {
-                      final title = items[index].title;
-                      if (title == 'Vaka Geçmişim') {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) =>
-                                CaseHistoryScreen(repository: repository),
-                          ),
-                        );
-                      }
-                      if (title == 'Favori Vakalarım') {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) =>
-                                FavoriteCasesScreen(repository: repository),
-                          ),
-                        );
-                      }
-                      if (title == 'Notlarım') {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => NotesScreen(repository: repository),
-                          ),
-                        );
-                      }
-                      if (title == 'Günlük Hedefler') {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) =>
-                                DailyGoalsScreen(repository: repository),
-                          ),
-                        );
-                      }
-                      if (title == 'Liderlik Tablosu') {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) =>
-                                LeaderboardScreen(repository: repository),
-                          ),
-                        );
-                      }
-                      if (title == 'Bildirimler') {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) =>
-                                NotificationsScreen(repository: repository),
-                          ),
-                        );
-                      }
-                      if (title == 'Başarılarım') {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) =>
-                                BadgesScreen(repository: repository),
-                          ),
-                        );
-                      }
-                      if (title == 'Mağaza') {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => StoreScreen(repository: repository),
-                          ),
-                        );
-                      }
-                      if (title == 'Premium Abonelik') {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => SubscriptionStatusScreen(
-                              controller: StoreController(),
-                            ),
-                          ),
-                        );
-                      }
-                      if (title == 'Ayarlar') {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => SettingsScreen(
-                              authRepository: authRepository,
-                              repository: repository,
-                              onSignOut: onSignOut,
-                            ),
-                          ),
-                        );
-                      }
-                      if (title == 'İndirmelerim') {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) =>
-                                DownloadsScreen(repository: repository),
-                          ),
-                        );
-                      }
-                    },
                   ),
                 ),
-              ),
-              if (index != items.length - 1)
-                const Divider(height: 1, indent: 56, endIndent: 16),
-            ],
-          ],
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: PratiCaseColors.muted,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

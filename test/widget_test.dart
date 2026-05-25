@@ -447,7 +447,7 @@ void main() {
             find.widgetWithText(FilledButton, 'Tetkiklere Geç'),
           )
           .onPressed,
-      isNull,
+      isNotNull,
     );
 
     await tester.tap(find.text('Batın'));
@@ -494,7 +494,7 @@ void main() {
       tester
           .widget<FilledButton>(find.widgetWithText(FilledButton, 'Tanıya Geç'))
           .onPressed,
-      isNull,
+      isNotNull,
     );
 
     await tester.tap(find.text('Laboratuvar'));
@@ -578,7 +578,25 @@ void main() {
       isNull,
     );
 
+    await tester.tap(find.text('İlk Yaklaşım'));
+    await tester.pumpAndSettle();
+
     await tester.tap(find.text('Sıvı resüsitasyonu'));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, 'Sınavı Bitir ve Değerlendir'),
+          )
+          .onPressed,
+      isNull,
+    );
+
+    await tester.enterText(
+      find.byType(TextField).last,
+      'Acil stabilizasyon, sıvı tedavisi ve cerrahi değerlendirme planlandı.',
+    );
     await tester.pumpAndSettle();
 
     expect(
@@ -822,14 +840,19 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.tap(find.text('Gelişmiş ders ve konu seçimi'));
+    await tester.pumpAndSettle();
+
     await tester.tap(find.text('Dahiliye'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Kardiyoloji'));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Sepsis'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Sepsis'));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Kalp yetmezliği'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Kalp yetmezliği'));
     await tester.pumpAndSettle();
     final startButton = find.widgetWithText(FilledButton, 'Denemeyi Başlat');
@@ -863,6 +886,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.tap(find.text('Gelişmiş ders ve konu seçimi'));
+    await tester.pumpAndSettle();
+
     await tester.tap(find.text('Dahiliye'));
     await tester.pumpAndSettle();
 
@@ -870,11 +896,13 @@ void main() {
       10,
     )) {
       await tester.ensureVisible(find.text(label));
+      await tester.pumpAndSettle();
       await tester.tap(find.text(label));
       await tester.pumpAndSettle();
     }
 
     await tester.ensureVisible(find.text('Konu 11'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Konu 11'));
     await tester.pumpAndSettle();
 

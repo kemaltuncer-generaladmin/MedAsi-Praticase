@@ -51,6 +51,14 @@ class HomeUser {
     if (name != null && name.isNotEmpty) {
       return name.split(RegExp(r'\s+')).first;
     }
+    final localPart = email.split('@').first.trim();
+    final inferred = localPart
+        .split(RegExp(r'[._-]+'))
+        .where((part) => part.isNotEmpty)
+        .firstOrNull;
+    if (inferred != null) {
+      return '${inferred[0].toUpperCase()}${inferred.substring(1)}';
+    }
     return 'Öğrenci';
   }
 
