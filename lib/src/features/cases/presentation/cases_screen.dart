@@ -1992,14 +1992,6 @@ class _ResultScreenState extends State<ResultScreen> {
                       ),
                     );
                   },
-                  onSuggestedCases: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) =>
-                            CasesScreen(repository: widget.repository),
-                      ),
-                    );
-                  },
                 ),
               ),
             ],

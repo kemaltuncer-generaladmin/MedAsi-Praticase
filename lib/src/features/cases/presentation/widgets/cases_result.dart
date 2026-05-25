@@ -250,13 +250,11 @@ class _ResultActions extends StatelessWidget {
     required this.onRetry,
     required this.retryLabel,
     required this.onReport,
-    required this.onSuggestedCases,
   });
 
   final VoidCallback? onRetry;
   final String retryLabel;
   final VoidCallback onReport;
-  final VoidCallback onSuggestedCases;
 
   @override
   Widget build(BuildContext context) {
@@ -279,16 +277,6 @@ class _ResultActions extends StatelessWidget {
             onPressed: onReport,
             icon: const Icon(Icons.description_outlined),
             label: const Text('Detaylı Rapor'),
-          ),
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: OutlinedButton.icon(
-            onPressed: onSuggestedCases,
-            icon: const Icon(Icons.library_books_outlined),
-            label: const Text('Benzer Vaka Önerileri'),
           ),
         ),
       ],
