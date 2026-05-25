@@ -265,6 +265,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 24),
             _ProfileHero(profile: profile),
             const SizedBox(height: 16),
+            _ProfilePlanPanel(profile: profile),
+            const SizedBox(height: 16),
             _StatsPanel(profile: profile),
             const SizedBox(height: 16),
             _MenuPanel(
@@ -1450,7 +1452,9 @@ class _ContactScreenState extends State<ContactScreen> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Mesajınız alındı. En kısa sürede dönüş yapacağız.')),
+        const SnackBar(
+          content: Text('Mesajınız alındı. En kısa sürede dönüş yapacağız.'),
+        ),
       );
       Navigator.maybePop(context);
     } on ProgressDataUnavailable catch (error) {
@@ -3297,60 +3301,85 @@ class _ProfileHero extends StatelessWidget {
     final avatarTitle = profile.displayName.trim().isNotEmpty
         ? profile.displayName.trim()
         : 'PratiCase Öğrencisi';
-    final title = avatarTitle;
+    final subtitle = [
+      profile.target,
+      profile.classLevel,
+    ].where((e) => e.trim().isNotEmpty).join(' • ');
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 26, 20, 24),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           colors: [PratiCaseColors.gradientStart, PratiCaseColors.gradientEnd],
         ),
         borderRadius: BorderRadius.circular(PratiCaseRadius.xxl),
+        boxShadow: [
+          BoxShadow(
+            color: PratiCaseColors.navy.withValues(alpha: 0.12),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 46,
-            backgroundColor: PratiCaseColors.white,
-            child: Text(
-              _initial(avatarTitle),
-              style: const TextStyle(
-                color: PratiCaseColors.teal,
-                fontSize: 28,
-                fontWeight: FontWeight.w900,
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 36,
+                backgroundColor: PratiCaseColors.white,
+                child: Text(
+                  _initial(avatarTitle),
+                  style: const TextStyle(
+                    color: PratiCaseColors.teal,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: PratiCaseColors.white,
-              fontSize: 19,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            [
-              profile.target,
-              profile.classLevel,
-            ].where((e) => e.isNotEmpty).join(' • '),
-            style: TextStyle(
-              color: PratiCaseColors.white.withValues(alpha: 0.7),
-              fontWeight: FontWeight.w700,
-            ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      avatarTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: PratiCaseColors.white,
+                        fontSize: 21,
+                        height: 1.15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    if (subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 5),
+                      Text(
+                        subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: PratiCaseColors.white.withValues(alpha: 0.74),
+                          fontSize: 13,
+                          height: 1.3,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 14),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
             decoration: BoxDecoration(
               color: PratiCaseColors.white.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
               border: Border.all(
-                color: PratiCaseColors.white.withValues(alpha: 0.2),
+                color: PratiCaseColors.white.withValues(alpha: 0.18),
               ),
             ),
             child: const Row(
@@ -3358,14 +3387,197 @@ class _ProfileHero extends StatelessWidget {
               children: [
                 Icon(
                   Icons.verified_user_outlined,
-                  color: PratiCaseColors.white,
-                  size: 18,
+                  color: PratiCaseColors.tealBright,
+                  size: 17,
                 ),
-                SizedBox(width: 8),
+                SizedBox(width: 7),
                 Text(
                   'PratiCase Üyesi',
                   style: TextStyle(
                     color: PratiCaseColors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _ProfileHeroMetric(
+                  label: 'Ortalama',
+                  value: '%${profile.successRatePercent}',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _ProfileHeroMetric(
+                  label: 'Seri',
+                  value: '${profile.dailyStreak} gün',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _ProfileHeroMetric(
+                  label: 'Puan',
+                  value: '${profile.totalPoints}',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfileHeroMetric extends StatelessWidget {
+  const _ProfileHeroMetric({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 60,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.white.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+        border: Border.all(
+          color: PratiCaseColors.white.withValues(alpha: 0.16),
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: const TextStyle(
+                color: PratiCaseColors.white,
+                fontSize: 17,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: PratiCaseColors.white.withValues(alpha: 0.68),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfilePlanPanel extends StatelessWidget {
+  const _ProfilePlanPanel({required this.profile});
+
+  final ProfileCard profile;
+
+  @override
+  Widget build(BuildContext context) {
+    final branches = profile.targetBranches
+        .where((branch) => branch.trim().isNotEmpty)
+        .take(3)
+        .join(', ');
+    final targetBranches = branches.isNotEmpty
+        ? branches
+        : (profile.target.isEmpty ? '-' : profile.target);
+    return PratiCaseGroupedSection(
+      title: 'Hedef Planı',
+      subtitle: 'Profil kurulumu ve günlük çalışma ayarlarının özeti.',
+      icon: Icons.flag_outlined,
+      children: [
+        _ProfilePlanTile(
+          icon: Icons.local_hospital_outlined,
+          title: 'Hedef Branşlar',
+          value: targetBranches,
+          accent: PratiCaseColors.teal,
+        ),
+        _ProfilePlanTile(
+          icon: Icons.local_fire_department_outlined,
+          title: 'Günlük Hedef',
+          value: '${profile.dailyGoal} istasyon',
+          accent: PratiCaseColors.gold,
+        ),
+        _ProfilePlanTile(
+          icon: Icons.event_note_outlined,
+          title: 'OSCE Sınav Tarihi',
+          value: profile.osceExamDate == null
+              ? 'Belirlenmedi'
+              : _shortDate(profile.osceExamDate!),
+          accent: PratiCaseColors.slateBlue,
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfilePlanTile extends StatelessWidget {
+  const _ProfilePlanTile({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.accent,
+  });
+
+  final IconData icon;
+  final String title;
+  final String value;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 14, 12),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+            ),
+            child: Icon(icon, color: accent, size: 21),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: PratiCaseColors.muted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  value,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: PratiCaseColors.navy,
+                    fontSize: 15,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -3401,9 +3613,12 @@ class _StatsPanel extends StatelessWidget {
           const SizedBox(height: 14),
           LayoutBuilder(
             builder: (context, constraints) {
-              final width = (constraints.maxWidth - 16) / 3;
+              final columns = constraints.maxWidth < 360 ? 2 : 3;
+              final spacing = 8.0;
+              final width =
+                  (constraints.maxWidth - spacing * (columns - 1)) / columns;
               return Wrap(
-                spacing: 8,
+                spacing: spacing,
                 runSpacing: 10,
                 children: [
                   _MiniMetric(
@@ -3572,7 +3787,8 @@ class _MenuPanel extends StatelessWidget {
     if (title == 'Premium Abonelik') {
       Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => SubscriptionStatusScreen(controller: StoreController()),
+          builder: (_) =>
+              SubscriptionStatusScreen(controller: StoreController()),
         ),
       );
       return;

@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../shared/data/user_facing_error.dart';
 import '../domain/store_product.dart';
 import '../domain/subscription_state.dart';
+import '../domain/wallet_transaction.dart';
 
 /// StoreKit / wallet entegrasyonu icin repository.
 ///
@@ -40,6 +41,31 @@ class StoreKitRepository {
       fallback: 'Abonelik bilgisi şu anda yüklenemedi. Tekrar deneyebilirsin.',
     );
     return SubscriptionState.fromVerificationResponse(data);
+  }
+
+  /// Cüzdan işlem geçmişini yükler. Edge fonksiyonu deploy edilmemişse
+  /// veya kullanıcı oturumu yoksa boş liste döner — UI bunu sade empty state
+  /// ile gösterir.
+  Future<List<WalletTransaction>> loadWalletTransactions() async {
+    final user = _client.auth.currentUser;
+    if (user == null) return const <WalletTransaction>[];
+    try {
+      final data = await _invoke(
+        const {'action': 'wallet_transactions'},
+        fallback: 'İşlem geçmişi şu anda yüklenemedi.',
+      );
+      final rows = data['transactions'];
+      if (rows is! List) return const <WalletTransaction>[];
+      return [
+        for (final row in rows)
+          if (row is Map)
+            WalletTransaction.fromMap(Map<String, dynamic>.from(row)),
+      ];
+    } on StorePurchaseException {
+      // Edge fonksiyonu eski sürümde olabilir veya henüz yayında olmayabilir;
+      // bu durumda sade empty state göstermek doğrudur.
+      return const <WalletTransaction>[];
+    }
   }
 
   /// `praticase-storekit-verify` fonksiyonuna istek atar.

@@ -10,6 +10,9 @@
 .history
 .svn/
 .swiftpm/
+.claude/
+artifacts/
+WEB_QA_REPORT.json
 migrate_working_dir/
 AGENTS.md
 .env.praticase

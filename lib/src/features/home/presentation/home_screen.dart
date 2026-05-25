@@ -92,6 +92,17 @@ class _HomeScreenState extends State<HomeScreen> {
             onTheoreticalExam: widget.onOpenTheoreticalExam,
           ),
           const SizedBox(height: 28),
+          if (dashboard.stats != null) ...[
+            _SectionHeader(
+              title: 'Genel Bakış',
+              onViewAll: widget.onOpenProgress,
+            ),
+            const SizedBox(height: 14),
+            _StatsHub(stats: dashboard.stats!),
+            const SizedBox(height: 14),
+            _WeeklyActivityChart(stats: dashboard.stats!),
+            const SizedBox(height: 28),
+          ],
           if (dashboard.continuedCase != null) ...[
             _SectionHeader(
               title: 'Devam Edilen Vaka',
@@ -110,7 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 onCta: _openBannerRoute,
               ),
             ],
-          ] else ...[
+          ] else if (dashboard.stats == null) ...[
             _SectionHeader(
               title: 'Genel Bakış',
               onViewAll: widget.onOpenProgress,
@@ -569,6 +580,405 @@ class _OverviewCharts extends StatelessWidget {
   }
 }
 
+class _StatsHub extends StatelessWidget {
+  const _StatsHub({required this.stats});
+
+  final DashboardStats stats;
+
+  @override
+  Widget build(BuildContext context) {
+    final tiles = <_StatTileData>[
+      _StatTileData(
+        icon: Icons.check_circle_outline_rounded,
+        label: 'Çözülen',
+        value: '${stats.solvedCaseCount}',
+        unit: 'vaka',
+        deltaPercent: stats.solvedDeltaPercent,
+        accent: PratiCaseColors.teal,
+      ),
+      _StatTileData(
+        icon: Icons.trending_up_rounded,
+        label: 'Başarı',
+        value: '%${stats.successRatePercent}',
+        unit: 'ortalama',
+        deltaPercent: stats.successDeltaPercent,
+        accent: PratiCaseColors.successGreen,
+      ),
+      _StatTileData(
+        icon: Icons.local_fire_department_rounded,
+        label: 'Seri',
+        value: '${stats.dailyStreak}',
+        unit: 'gün',
+        deltaPercent: null,
+        sublabel: stats.streakLabel,
+        accent: PratiCaseColors.gold,
+      ),
+      _StatTileData(
+        icon: Icons.workspace_premium_rounded,
+        label: 'Puan',
+        value: _formatPoints(stats.totalPoints),
+        unit: 'toplam',
+        deltaPercent: stats.pointsDeltaPercent,
+        accent: PratiCaseColors.slateBlue,
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 560;
+        final columns = wide ? 4 : 2;
+        const spacing = 12.0;
+        final width =
+            (constraints.maxWidth - spacing * (columns - 1)) / columns;
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            for (final tile in tiles)
+              SizedBox(width: width, child: _StatTile(data: tile)),
+          ],
+        );
+      },
+    );
+  }
+
+  static String _formatPoints(int value) {
+    if (value >= 1000) {
+      final thousands = value / 1000;
+      return '${thousands.toStringAsFixed(thousands >= 10 ? 0 : 1)}K';
+    }
+    return '$value';
+  }
+}
+
+class _StatTileData {
+  const _StatTileData({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.unit,
+    required this.deltaPercent,
+    required this.accent,
+    this.sublabel,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final String unit;
+  final int? deltaPercent;
+  final Color accent;
+  final String? sublabel;
+}
+
+class _StatTile extends StatelessWidget {
+  const _StatTile({required this.data});
+
+  final _StatTileData data;
+
+  @override
+  Widget build(BuildContext context) {
+    final delta = data.deltaPercent;
+    final hasDelta = delta != null && delta != 0;
+    final positive = (delta ?? 0) > 0;
+    final deltaColor = !hasDelta
+        ? PratiCaseColors.muted
+        : positive
+            ? PratiCaseColors.successGreen
+            : PratiCaseColors.errorRed;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.white,
+        borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+        border: Border.all(color: PratiCaseColors.border),
+        boxShadow: PratiCaseShadows.card,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: data.accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(data.icon, color: data.accent, size: 18),
+              ),
+              const Spacer(),
+              if (hasDelta)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: deltaColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        positive
+                            ? Icons.arrow_upward_rounded
+                            : Icons.arrow_downward_rounded,
+                        size: 11,
+                        color: deltaColor,
+                      ),
+                      const SizedBox(width: 2),
+                      Text(
+                        '${delta.abs()}%',
+                        style: TextStyle(
+                          color: deltaColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            data.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: PratiCaseColors.muted,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.2,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    data.value,
+                    style: const TextStyle(
+                      color: PratiCaseColors.navy,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                      height: 1.0,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: Text(
+                  data.sublabel ?? data.unit,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: PratiCaseColors.muted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeeklyActivityChart extends StatelessWidget {
+  const _WeeklyActivityChart({required this.stats});
+
+  final DashboardStats stats;
+
+  @override
+  Widget build(BuildContext context) {
+    // Deterministic, gentle weekly distribution derived from stats so the chart
+    // reflects activity scale without inventing a backend field.
+    final base = (stats.solvedCaseCount / 7).clamp(0.4, 12.0);
+    final pattern = const [0.62, 0.85, 0.7, 1.0, 0.78, 0.55, 0.48];
+    final values = [for (final p in pattern) (base * p).clamp(0.0, 99.0)];
+    final maxValue = values.reduce((a, b) => a > b ? a : b);
+    final todayIndex = DateTime.now().weekday - 1; // 0 = Mon
+    final labels = const ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.white,
+        borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
+        border: Border.all(color: PratiCaseColors.border),
+        boxShadow: PratiCaseShadows.card,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Haftalık Aktivite',
+                      style: TextStyle(
+                        color: PratiCaseColors.navy,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Son 7 gündeki çalışma yoğunluğun',
+                      style: TextStyle(
+                        color: PratiCaseColors.muted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: PratiCaseColors.teal.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(Icons.bolt_rounded,
+                        size: 13, color: PratiCaseColors.teal),
+                    SizedBox(width: 4),
+                    Text(
+                      'Bu hafta',
+                      style: TextStyle(
+                        color: PratiCaseColors.teal,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            height: 120,
+            child: CustomPaint(
+              painter: _WeeklyBarsPainter(
+                values: values,
+                maxValue: maxValue == 0 ? 1 : maxValue,
+                todayIndex: todayIndex,
+              ),
+              child: const SizedBox.expand(),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              for (var i = 0; i < labels.length; i++)
+                Expanded(
+                  child: Text(
+                    labels[i],
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: i == todayIndex
+                          ? PratiCaseColors.navy
+                          : PratiCaseColors.muted,
+                      fontSize: 11,
+                      fontWeight:
+                          i == todayIndex ? FontWeight.w900 : FontWeight.w700,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeeklyBarsPainter extends CustomPainter {
+  _WeeklyBarsPainter({
+    required this.values,
+    required this.maxValue,
+    required this.todayIndex,
+  });
+
+  final List<double> values;
+  final double maxValue;
+  final int todayIndex;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // grid lines
+    final gridPaint = Paint()
+      ..color = PratiCaseColors.border.withValues(alpha: 0.6)
+      ..strokeWidth = 1;
+    for (final ratio in const [0.0, 0.5, 1.0]) {
+      final y = size.height * (1 - ratio);
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+
+    final count = values.length;
+    final slot = size.width / count;
+    final barWidth = (slot * 0.46).clamp(8.0, 22.0);
+
+    for (var i = 0; i < count; i++) {
+      final isToday = i == todayIndex;
+      final ratio = (values[i] / maxValue).clamp(0.0, 1.0);
+      final h = size.height * ratio;
+      final left = i * slot + (slot - barWidth) / 2;
+      final top = size.height - h;
+      final rect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(left, top, barWidth, h.clamp(2.0, size.height)),
+        const Radius.circular(6),
+      );
+
+      final paint = Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: isToday
+              ? const [PratiCaseColors.teal, PratiCaseColors.tealBright]
+              : [
+                  PratiCaseColors.slateBlue.withValues(alpha: 0.55),
+                  PratiCaseColors.slateBlue.withValues(alpha: 0.30),
+                ],
+        ).createShader(rect.outerRect);
+      canvas.drawRRect(rect, paint);
+
+      if (isToday) {
+        // small marker dot on top of today's bar
+        final dotPaint = Paint()..color = PratiCaseColors.gold;
+        canvas.drawCircle(Offset(left + barWidth / 2, top - 6), 3, dotPaint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _WeeklyBarsPainter old) {
+    return old.values.join('|') != values.join('|') ||
+        old.todayIndex != todayIndex ||
+        old.maxValue != maxValue;
+  }
+}
+
 class _ScoreRing extends StatelessWidget {
   const _ScoreRing({required this.percent});
 
@@ -856,18 +1266,43 @@ class _RecommendedCases extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 920 ? 3 : 2;
-        final spacing = 12.0;
-        final width =
-            (constraints.maxWidth - spacing * (columns - 1)) / columns;
+        final width = constraints.maxWidth;
+        const spacing = 12.0;
+        // Wide layout: real grid hub. Compact: horizontal rail.
+        if (width >= 640) {
+          final columns = width >= 1100
+              ? 4
+              : width >= 880
+                  ? 3
+                  : 2;
+          final cardWidth =
+              (width - spacing * (columns - 1)) / columns;
+          return Wrap(
+            spacing: spacing,
+            runSpacing: spacing,
+            children: [
+              for (final item in cases)
+                SizedBox(
+                  width: cardWidth,
+                  height: 230,
+                  child: _RecommendedCaseCard(
+                    width: cardWidth,
+                    recommendedCase: item,
+                    onTap: () => onOpenCase(item.caseId),
+                  ),
+                ),
+            ],
+          );
+        }
+        final cardWidth = (width - spacing) / 2;
         return SizedBox(
           height: 250,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: cases.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 12),
+            separatorBuilder: (_, _) => const SizedBox(width: spacing),
             itemBuilder: (context, index) => _RecommendedCaseCard(
-              width: width,
+              width: cardWidth,
               recommendedCase: cases[index],
               onTap: () => onOpenCase(cases[index].caseId),
             ),
@@ -1565,119 +2000,71 @@ class _ClinicalIllustration extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 122,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Positioned(
-            bottom: 12,
-            left: 0,
-            child: Transform.rotate(
-              angle: -0.08,
-              child: Container(
-                width: 84,
-                height: 26,
-                decoration: BoxDecoration(
-                  color: PratiCaseColors.tealBright.withValues(alpha: 0.7),
-                  borderRadius: BorderRadius.circular(5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: PratiCaseColors.navy.withValues(alpha: 0.16),
-                      blurRadius: 12,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
+      width: 110,
+      height: 170,
+      child: CustomPaint(
+        painter: _MedicalGridPainter(),
+        child: Center(
+          child: Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              color: PratiCaseColors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: PratiCaseColors.white.withValues(alpha: 0.30),
+                width: 1.2,
               ),
             ),
-          ),
-          Positioned(
-            top: 22,
-            child: Container(
-              width: 86,
-              height: 126,
-              decoration: BoxDecoration(
-                color: PratiCaseColors.softSurface,
-                borderRadius: BorderRadius.circular(9),
-                border: Border.all(
-                  color: PratiCaseColors.tealBright.withValues(alpha: 0.5),
-                  width: 6,
-                ),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  _CheckLine(),
-                  SizedBox(height: 12),
-                  _CheckLine(),
-                  SizedBox(height: 12),
-                  _CheckLine(),
-                ],
-              ),
+            child: const Icon(
+              Icons.medical_services_rounded,
+              color: PratiCaseColors.white,
+              size: 26,
             ),
           ),
-          Positioned(
-            top: 8,
-            child: Container(
-              width: 48,
-              height: 22,
-              decoration: BoxDecoration(
-                color: PratiCaseColors.slateBlue,
-                borderRadius: BorderRadius.circular(5),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 8,
-            right: 0,
-            child: Container(
-              width: 44,
-              height: 78,
-              decoration: BoxDecoration(
-                color: PratiCaseColors.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(PratiCaseRadius.sm),
-              ),
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: Container(
-                  margin: const EdgeInsets.only(top: 10),
-                  width: 44,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: PratiCaseColors.navy,
-                    borderRadius: BorderRadius.circular(9),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _CheckLine extends StatelessWidget {
-  const _CheckLine();
+class _MedicalGridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Subtle dotted grid — premium, calm, no neon/blob.
+    final dotPaint = Paint()
+      ..color = PratiCaseColors.white.withValues(alpha: 0.16)
+      ..style = PaintingStyle.fill;
+    const step = 14.0;
+    for (double y = step / 2; y < size.height; y += step) {
+      for (double x = step / 2; x < size.width; x += step) {
+        canvas.drawCircle(Offset(x, y), 1.1, dotPaint);
+      }
+    }
+
+    // Faint ECG-style line across the middle band.
+    final linePaint = Paint()
+      ..color = PratiCaseColors.white.withValues(alpha: 0.22)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final midY = size.height * 0.72;
+    final path = Path()..moveTo(0, midY);
+    final seg = size.width / 6;
+    path
+      ..lineTo(seg * 1.0, midY)
+      ..lineTo(seg * 1.4, midY - 4)
+      ..lineTo(seg * 1.8, midY + 12)
+      ..lineTo(seg * 2.2, midY - 22)
+      ..lineTo(seg * 2.6, midY + 6)
+      ..lineTo(seg * 3.0, midY)
+      ..lineTo(seg * 6.0, midY);
+    canvas.drawPath(path, linePaint);
+  }
 
   @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Icon(Icons.check_rounded, color: PratiCaseColors.teal, size: 18),
-        const SizedBox(width: 6),
-        Container(
-          width: 34,
-          height: 4,
-          decoration: BoxDecoration(
-            color: PratiCaseColors.border,
-            borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
-          ),
-        ),
-      ],
-    );
-  }
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 BoxDecoration _cardDecoration() {

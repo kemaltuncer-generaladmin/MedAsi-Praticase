@@ -83,6 +83,11 @@ Deno.serve(async (request) => {
     return jsonResponse(payload, payload.error ? 503 : 200, origin);
   }
 
+  if (action === "wallet_transactions") {
+    const payload = await loadWalletTransactionsPayload(admin, userId);
+    return jsonResponse(payload, payload.error ? 503 : 200, origin);
+  }
+
   const productCode = stringValue(body.product_code);
   const storeProductId = stringValue(body.store_product_id);
   const provider = stringValue(body.provider) || "app_store";
@@ -317,6 +322,71 @@ async function loadMappedProduct(
     .eq("is_active", true)
     .maybeSingle();
   return error || !product ? null : product as JsonMap;
+}
+
+async function loadWalletTransactionsPayload(
+  // deno-lint-ignore no-explicit-any
+  admin: any,
+  userId: string,
+): Promise<JsonMap> {
+  // Read all entitlements for the user (subscriptions + one-time purchases)
+  // and map each row to a transaction-style event. This avoids requiring a
+  // dedicated wallet_transactions table while still surfacing real purchases.
+  const { data: rows, error } = await admin
+    .from("wallet_entitlements")
+    .select(
+      "product_code,entitlement_type,status,coin_amount,question_amount,remaining_coin_amount,remaining_question_amount,period_started_at,expires_at,created_at",
+    )
+    .eq("user_id", userId)
+    .order("period_started_at", { ascending: false })
+    .limit(50);
+  if (error) {
+    return { error: "İşlem geçmişi şu anda yüklenemedi." };
+  }
+  const entries = (rows ?? []) as JsonMap[];
+  if (entries.length === 0) {
+    return { transactions: [] };
+  }
+  const productCodes = Array.from(
+    new Set(entries.map((row) => stringValue(row.product_code)).filter(Boolean)),
+  );
+  const nameMap = new Map<string, string>();
+  if (productCodes.length > 0) {
+    const { data: products } = await admin
+      .from("store_products")
+      .select("code,name")
+      .in("code", productCodes);
+    for (const product of (products ?? []) as JsonMap[]) {
+      nameMap.set(stringValue(product.code), stringValue(product.name));
+    }
+  }
+  const transactions = entries.map((row) => {
+    const code = stringValue(row.product_code);
+    const productName = nameMap.get(code) || code || "PratiCase paketi";
+    const coin = numberValue(row.coin_amount) ?? 0;
+    const question = numberValue(row.question_amount) ?? 0;
+    const status = stringValue(row.status) || "active";
+    const expiresIso = stringValue(row.expires_at);
+    const expired = expiresIso
+      ? new Date(expiresIso).getTime() < Date.now()
+      : false;
+    return {
+      id: `${code}-${stringValue(row.period_started_at) || stringValue(row.created_at)}`,
+      kind: stringValue(row.entitlement_type) || "purchase",
+      product_code: code,
+      product_name: productName,
+      coin_amount: coin,
+      question_amount: question,
+      remaining_coin_amount: numberValue(row.remaining_coin_amount) ?? 0,
+      remaining_question_amount: numberValue(row.remaining_question_amount) ?? 0,
+      status,
+      expired,
+      occurred_at: stringValue(row.period_started_at) ||
+        stringValue(row.created_at),
+      expires_at: expiresIso,
+    };
+  });
+  return { transactions };
 }
 
 async function loadSubscriptionPayload(

@@ -6,6 +6,7 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 import '../../../shared/data/user_facing_error.dart';
 import '../domain/store_product.dart';
 import '../domain/subscription_state.dart';
+import '../domain/wallet_transaction.dart';
 import 'storekit_repository.dart';
 import 'storekit_service.dart';
 
@@ -16,16 +17,19 @@ import 'storekit_service.dart';
 /// kullanıcıya geri bildirim verir.
 class StoreController extends ChangeNotifier {
   StoreController({StoreKitRepository? repository, StoreKitService? service})
-    : _repository = repository ?? StoreKitRepository(),
+    : _repository = repository,
       _service = service ?? StoreKitService();
 
-  final StoreKitRepository _repository;
+  StoreKitRepository? _repository;
   final StoreKitService _service;
+
+  StoreKitRepository get _repo => _repository ??= StoreKitRepository();
 
   StreamSubscription<PurchaseDetails>? _subscription;
 
   List<PratiCaseStoreProduct> _products = const [];
   SubscriptionState _subscriptionState = SubscriptionState.empty;
+  List<WalletTransaction> _transactions = const [];
   bool _busy = false;
   String? _statusMessage;
   String? _errorMessage;
@@ -33,6 +37,7 @@ class StoreController extends ChangeNotifier {
 
   List<PratiCaseStoreProduct> get products => List.unmodifiable(_products);
   SubscriptionState get subscriptionState => _subscriptionState;
+  List<WalletTransaction> get transactions => List.unmodifiable(_transactions);
   bool get busy => _busy;
   String? get statusMessage => _statusMessage;
   String? get errorMessage => _errorMessage;
@@ -50,9 +55,15 @@ class StoreController extends ChangeNotifier {
     _setBusy(true);
     _errorMessage = null;
     try {
-      final catalog = await _repository.loadCatalog();
+      final catalog = await _repo.loadCatalog();
       _products = await _service.attachStoreKitMetadata(catalog);
-      _subscriptionState = await _repository.loadSubscriptionState();
+      _subscriptionState = await _repo.loadSubscriptionState();
+      // Transactions are best-effort; failure shouldn't break the wallet view.
+      try {
+        _transactions = await _repo.loadWalletTransactions();
+      } on Object {
+        _transactions = const [];
+      }
     } on StorePurchaseException catch (error) {
       _errorMessage = PratiCaseUserMessage.store(error.message);
     } on Object {
@@ -133,7 +144,7 @@ class StoreController extends ChangeNotifier {
     _statusMessage = 'Apple makbuzu doğrulanıyor.';
     notifyListeners();
     try {
-      final state = await _repository.verifyPurchase(
+      final state = await _repo.verifyPurchase(
         productCode: product.code,
         appStoreProductId: product.appStoreProductId,
         purchaseId: purchase.purchaseID ?? '',
@@ -149,7 +160,7 @@ class StoreController extends ChangeNotifier {
       await _service.completePurchase(purchase);
       // Katalog görünümünü güncelle.
       _products = await _service.attachStoreKitMetadata(
-        await _repository.loadCatalog(),
+        await _repo.loadCatalog(),
       );
     } on StorePurchaseException catch (error) {
       _errorMessage = PratiCaseUserMessage.purchase(error.message);

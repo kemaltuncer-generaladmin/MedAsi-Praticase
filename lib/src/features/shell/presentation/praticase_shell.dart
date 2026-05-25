@@ -147,7 +147,12 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
         onOpenNotifications: _openNotifications,
         onOpenProfile: _openProfile,
       ),
-      _ProgressSummaryScreen(repository: widget.progressRepository),
+      _ProgressSummaryScreen(
+        repository: widget.progressRepository,
+        unreadNotificationCount: _unreadNotificationCount ?? 0,
+        onOpenNotifications: _openNotifications,
+        onOpenProfile: _openProfile,
+      ),
       ProfileScreen(
         authRepository: widget.authRepository,
         repository: widget.progressRepository,
@@ -542,8 +547,13 @@ class _ExamsScreenState extends State<_ExamsScreen> {
                   body: 'Sınav seçenekleri hazır olduğunda burada görünecek.',
                 )
               else ...[
-                _ExamFocusHero(totalModes: modes.length),
-                const SizedBox(height: 16),
+                _ExamFocusHero(modes: modes),
+                const SizedBox(height: 18),
+                _ExamQuickStart(
+                  modes: modes,
+                  onOpenMode: (mode) => _openExamMode(context, mode.actionKey),
+                ),
+                const SizedBox(height: 22),
                 _ExamModeGrid(
                   modes: modes,
                   onOpenMode: (mode) => _openExamMode(context, mode.actionKey),
@@ -599,9 +609,17 @@ class _ExamsScreenState extends State<_ExamsScreen> {
 }
 
 class _ProgressSummaryScreen extends StatefulWidget {
-  const _ProgressSummaryScreen({required this.repository});
+  const _ProgressSummaryScreen({
+    required this.repository,
+    required this.onOpenNotifications,
+    required this.onOpenProfile,
+    required this.unreadNotificationCount,
+  });
 
   final ProgressRepository repository;
+  final VoidCallback onOpenNotifications;
+  final VoidCallback onOpenProfile;
+  final int unreadNotificationCount;
 
   @override
   State<_ProgressSummaryScreen> createState() => _ProgressSummaryScreenState();
@@ -632,8 +650,18 @@ class _ProgressSummaryScreenState extends State<_ProgressSummaryScreen> {
           return PratiCaseResponsiveListView(
             padding: PratiCaseResponsive.pagePadding(context),
             children: [
-              const _ProgressTitleBar(),
-              const SizedBox(height: 18),
+              _ShellBrandHeader(
+                onOpenNotifications: widget.onOpenNotifications,
+                onOpenProfile: widget.onOpenProfile,
+                unreadNotificationCount: widget.unreadNotificationCount,
+              ),
+              const SizedBox(height: 34),
+              const _ShellTitle(
+                title: 'Gelişim',
+                subtitle:
+                    'OSCE performansını, zayıf alanlarını ve son karnelerini tek yerde izle.',
+              ),
+              const SizedBox(height: 24),
               if (snapshot.connectionState != ConnectionState.done)
                 const PratiCaseInlineSkeleton(heroHeight: 182, cardCount: 3)
               else if (snapshot.hasError)
@@ -710,6 +738,7 @@ class _ExamModeGrid extends StatelessWidget {
             title: 'OSCE Pratiği',
             subtitle: 'Süreli istasyon ve paket seçimi.',
             icon: Icons.assignment_ind_rounded,
+            accent: PratiCaseColors.teal,
             modes: osce,
             onOpenMode: onOpenMode,
           ),
@@ -718,6 +747,7 @@ class _ExamModeGrid extends StatelessWidget {
             title: 'Sözlü ve Teori',
             subtitle: 'Hoca karşısı prova ve Medasi soru havuzu.',
             icon: Icons.school_rounded,
+            accent: PratiCaseColors.slateBlue,
             modes: study,
             onOpenMode: onOpenMode,
           ),
@@ -726,12 +756,14 @@ class _ExamModeGrid extends StatelessWidget {
             title: 'Hedefli Tekrar',
             subtitle: 'Zayıf başlıkları sınav planına dönüştür.',
             icon: Icons.track_changes_rounded,
+            accent: PratiCaseColors.gold,
             modes: repeat,
             onOpenMode: onOpenMode,
           ),
         if (other.isNotEmpty)
           _ExamModeSection(
             title: 'Diğer Sınavlar',
+            accent: PratiCaseColors.slateBlue,
             modes: other,
             onOpenMode: onOpenMode,
           ),
@@ -741,71 +773,441 @@ class _ExamModeGrid extends StatelessWidget {
 }
 
 class _ExamFocusHero extends StatelessWidget {
-  const _ExamFocusHero({required this.totalModes});
+  const _ExamFocusHero({required this.modes});
 
-  final int totalModes;
+  final List<ExamModeItem> modes;
+
+  int _count(Set<String> keys) =>
+      modes.where((m) => keys.contains(m.actionKey)).length;
 
   @override
   Widget build(BuildContext context) {
+    final osceCount = _count(const {
+      'single_station',
+      'mini_osce',
+      'branch_package',
+      'cases',
+    });
+    final oralCount = _count(const {
+      'oral_exam',
+      'sozlu_sinav',
+      'oral_exam_committee',
+      'komite_sinav',
+    });
+    final theoreticalCount = _count(const {
+      'theoretical_exam',
+      'kuramsal_sinav',
+    });
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
       decoration: BoxDecoration(
         gradient: PratiCaseGradients.hero,
         borderRadius: BorderRadius.circular(PratiCaseRadius.xxl),
         boxShadow: PratiCaseShadows.floating,
       ),
-      child: Row(
+      child: Stack(
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Sınav Merkezi',
-                  style: TextStyle(
-                    color: PratiCaseColors.white,
-                    fontSize: 23,
-                    height: 1.08,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '$totalModes mod tek yerde; önce hedefi seç, sonra istasyona gir.',
-                  style: TextStyle(
-                    color: PratiCaseColors.white.withValues(alpha: 0.84),
-                    height: 1.35,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(PratiCaseRadius.xxl),
+              child: CustomPaint(painter: _ExamHeroPatternPainter()),
             ),
           ),
-          const SizedBox(width: 14),
-          TweenAnimationBuilder<double>(
-            tween: Tween<double>(begin: 0.92, end: 1),
-            duration: PratiCaseDurations.showcase,
-            curve: PratiCaseCurves.overshoot,
-            builder: (context, scale, child) =>
-                Transform.scale(scale: scale, child: child),
-            child: Container(
-              width: 78,
-              height: 78,
-              decoration: BoxDecoration(
-                color: PratiCaseColors.white.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
-                border: Border.all(
-                  color: PratiCaseColors.white.withValues(alpha: 0.18),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: PratiCaseColors.white.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+                      border: Border.all(
+                        color: PratiCaseColors.white.withValues(alpha: 0.22),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(
+                          Icons.fact_check_rounded,
+                          size: 13,
+                          color: PratiCaseColors.tealBright,
+                        ),
+                        SizedBox(width: 5),
+                        Text(
+                          'Sınav Merkezi',
+                          style: TextStyle(
+                            color: PratiCaseColors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: PratiCaseColors.white.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+                      border: Border.all(
+                        color: PratiCaseColors.white.withValues(alpha: 0.20),
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.fact_check_rounded,
+                      color: PratiCaseColors.tealBright,
+                      size: 22,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Bugün hangi sınav modunda pratik?',
+                maxLines: 2,
+                style: TextStyle(
+                  color: PratiCaseColors.white,
+                  fontSize: 22,
+                  height: 1.18,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
-              child: const Icon(
-                Icons.fact_check_rounded,
-                color: PratiCaseColors.tealBright,
-                size: 42,
+              const SizedBox(height: 6),
+              Text(
+                'Önce hedefini seç, sonra istasyona ya da soru havuzuna gir.',
+                style: TextStyle(
+                  color: PratiCaseColors.white.withValues(alpha: 0.78),
+                  fontSize: 13,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _ExamHeroChip(
+                    icon: Icons.assignment_ind_rounded,
+                    label: 'OSCE',
+                    count: osceCount,
+                  ),
+                  _ExamHeroChip(
+                    icon: Icons.record_voice_over_rounded,
+                    label: 'Sözlü',
+                    count: oralCount,
+                  ),
+                  _ExamHeroChip(
+                    icon: Icons.school_rounded,
+                    label: 'Teorik',
+                    count: theoreticalCount,
+                  ),
+                ],
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ExamHeroChip extends StatelessWidget {
+  const _ExamHeroChip({
+    required this.icon,
+    required this.label,
+    required this.count,
+  });
+
+  final IconData icon;
+  final String label;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.white.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+        border: Border.all(
+          color: PratiCaseColors.white.withValues(alpha: 0.16),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 13,
+            color: PratiCaseColors.white.withValues(alpha: 0.95),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: PratiCaseColors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          if (count > 0) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: PratiCaseColors.white.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+              ),
+              child: Text(
+                '$count',
+                style: const TextStyle(
+                  color: PratiCaseColors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ExamHeroPatternPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final dotPaint = Paint()
+      ..color = PratiCaseColors.white.withValues(alpha: 0.06)
+      ..style = PaintingStyle.fill;
+    const step = 16.0;
+    for (double y = step / 2; y < size.height; y += step) {
+      for (double x = step / 2; x < size.width; x += step) {
+        canvas.drawCircle(Offset(x, y), 1.0, dotPaint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _ExamQuickStart extends StatelessWidget {
+  const _ExamQuickStart({required this.modes, required this.onOpenMode});
+
+  final List<ExamModeItem> modes;
+  final ValueChanged<ExamModeItem> onOpenMode;
+
+  ExamModeItem? _byKey(Set<String> keys) {
+    for (final mode in modes) {
+      if (keys.contains(mode.actionKey)) return mode;
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final items = <_QuickStartItem>[];
+    final single = _byKey(const {'single_station'});
+    final miniOsce = _byKey(const {'mini_osce'});
+    final theoretical = _byKey(const {'theoretical_exam', 'kuramsal_sinav'});
+    final oral = _byKey(const {
+      'oral_exam',
+      'sozlu_sinav',
+      'oral_exam_committee',
+    });
+
+    if (single != null) {
+      items.add(
+        _QuickStartItem(
+          mode: single,
+          label: 'Tek İstasyon',
+          helper: 'Tek senaryo, hızlı başla',
+          icon: Icons.timer_rounded,
+          accent: PratiCaseColors.teal,
+        ),
+      );
+    }
+    if (miniOsce != null) {
+      items.add(
+        _QuickStartItem(
+          mode: miniOsce,
+          label: 'Mini OSCE',
+          helper: 'Çoklu istasyon paketi',
+          icon: Icons.view_week_rounded,
+          accent: PratiCaseColors.slateBlue,
+        ),
+      );
+    }
+    if (theoretical != null) {
+      items.add(
+        _QuickStartItem(
+          mode: theoretical,
+          label: 'Teorik Sınav',
+          helper: 'Soru havuzundan dene',
+          icon: Icons.school_rounded,
+          accent: PratiCaseColors.gold,
+        ),
+      );
+    } else if (oral != null) {
+      items.add(
+        _QuickStartItem(
+          mode: oral,
+          label: 'Sözlü Sınav',
+          helper: 'Hoca karşısı prova',
+          icon: Icons.record_voice_over_rounded,
+          accent: PratiCaseColors.gold,
+        ),
+      );
+    }
+
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(left: 2, bottom: 10),
+          child: Text(
+            'Hızlı Başla',
+            style: TextStyle(
+              color: PratiCaseColors.navy,
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.1,
+            ),
+          ),
+        ),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final wide = constraints.maxWidth >= 560;
+            const spacing = 10.0;
+            final columns = wide ? items.length.clamp(1, 3) : 1;
+            if (columns <= 1) {
+              return Column(
+                children: [
+                  for (var i = 0; i < items.length; i++) ...[
+                    _QuickStartCard(
+                      item: items[i],
+                      onTap: () => onOpenMode(items[i].mode),
+                    ),
+                    if (i != items.length - 1) const SizedBox(height: 10),
+                  ],
+                ],
+              );
+            }
+            final width =
+                (constraints.maxWidth - spacing * (columns - 1)) / columns;
+            return Wrap(
+              spacing: spacing,
+              runSpacing: spacing,
+              children: [
+                for (final it in items)
+                  SizedBox(
+                    width: width,
+                    child: _QuickStartCard(
+                      item: it,
+                      onTap: () => onOpenMode(it.mode),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickStartItem {
+  const _QuickStartItem({
+    required this.mode,
+    required this.label,
+    required this.helper,
+    required this.icon,
+    required this.accent,
+  });
+
+  final ExamModeItem mode;
+  final String label;
+  final String helper;
+  final IconData icon;
+  final Color accent;
+}
+
+class _QuickStartCard extends StatelessWidget {
+  const _QuickStartCard({required this.item, required this.onTap});
+
+  final _QuickStartItem item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: PratiCaseColors.white,
+          borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+          border: Border.all(color: item.accent.withValues(alpha: 0.22)),
+          boxShadow: PratiCaseShadows.card,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: item.accent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(item.icon, color: item.accent, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    item.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: PratiCaseColors.navy,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    item.helper,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: PratiCaseColors.muted,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_rounded, color: item.accent, size: 20),
+          ],
+        ),
       ),
     );
   }
@@ -816,6 +1218,7 @@ class _ExamModeSection extends StatelessWidget {
     required this.title,
     required this.modes,
     required this.onOpenMode,
+    required this.accent,
     this.subtitle,
     this.icon,
   });
@@ -823,6 +1226,7 @@ class _ExamModeSection extends StatelessWidget {
   final String title;
   final String? subtitle;
   final IconData? icon;
+  final Color accent;
   final List<ExamModeItem> modes;
   final ValueChanged<ExamModeItem> onOpenMode;
 
@@ -840,6 +1244,7 @@ class _ExamModeSection extends StatelessWidget {
               icon: _examModeIcon(mode.iconKey),
               title: _examModeTitle(mode),
               subtitle: _examModeSubtitle(mode),
+              accent: accent,
               onTap: () => onOpenMode(mode),
             ),
         ],
@@ -853,12 +1258,14 @@ class _ExamModeCompactTile extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
+    required this.accent,
     required this.onTap,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
+  final Color accent;
   final VoidCallback onTap;
 
   @override
@@ -873,10 +1280,10 @@ class _ExamModeCompactTile extends StatelessWidget {
               width: 50,
               height: 50,
               decoration: BoxDecoration(
-                color: PratiCaseColors.teal.withValues(alpha: 0.08),
+                color: accent.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
               ),
-              child: Icon(icon, color: PratiCaseColors.teal),
+              child: Icon(icon, color: accent),
             ),
             const SizedBox(width: 13),
             Expanded(
@@ -909,10 +1316,7 @@ class _ExamModeCompactTile extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            const Icon(
-              Icons.arrow_forward_rounded,
-              color: PratiCaseColors.teal,
-            ),
+            Icon(Icons.arrow_forward_rounded, color: accent),
           ],
         ),
       ),
@@ -1086,38 +1490,6 @@ class _ShellTitle extends StatelessWidget {
   }
 }
 
-class _ProgressTitleBar extends StatelessWidget {
-  const _ProgressTitleBar();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.only(bottom: 14),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: PratiCaseColors.border)),
-      ),
-      child: const Row(
-        children: [
-          Icon(
-            Icons.trending_up_rounded,
-            color: PratiCaseColors.teal,
-            size: 27,
-          ),
-          SizedBox(width: 12),
-          Text(
-            'Gelişim',
-            style: TextStyle(
-              color: PratiCaseColors.navy,
-              fontSize: 30,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _ExamModeCard extends StatelessWidget {
   const _ExamModeCard({
     required this.icon,
@@ -1196,66 +1568,148 @@ class _ProgressHero extends StatelessWidget {
                       .reduce((a, b) => a + b) /
                   summary.recentResults.length)
               .round();
+    final weakestScores = [...summary.categoryScores]
+      ..sort((a, b) => a.percent.compareTo(b.percent));
+    final weakest = weakestScores.isEmpty ? null : weakestScores.first;
     return Container(
-      padding: const EdgeInsets.fromLTRB(22, 22, 20, 22),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
       decoration: BoxDecoration(
         gradient: PratiCaseGradients.hero,
         borderRadius: BorderRadius.circular(PratiCaseRadius.xxl),
+        boxShadow: PratiCaseShadows.floating,
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
                   'Performans Özeti',
                   style: TextStyle(
-                    color: PratiCaseColors.tealBright,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    height: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '%$liveAverage',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 56,
-                    height: 1,
+                    color: PratiCaseColors.white,
+                    fontSize: 22,
+                    height: 1.14,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                const SizedBox(height: 18),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
-                    border: Border.all(
-                      color: PratiCaseColors.tealBright,
-                      width: 1.4,
-                    ),
-                  ),
-                  child: const Text(
-                    'Klinik beceri takibi',
-                    style: TextStyle(
-                      color: PratiCaseColors.tealBright,
-                      fontWeight: FontWeight.w900,
-                    ),
+              ),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: PratiCaseColors.white.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+                  border: Border.all(
+                    color: PratiCaseColors.white.withValues(alpha: 0.2),
                   ),
                 ),
-              ],
+                child: const Icon(
+                  Icons.track_changes_rounded,
+                  color: PratiCaseColors.tealBright,
+                  size: 24,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            '%$liveAverage',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 58,
+              height: 0.96,
+              fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(width: 12),
-          Icon(
-            Icons.track_changes_rounded,
-            color: PratiCaseColors.tealBright,
-            size: 72,
+          const SizedBox(height: 8),
+          Text(
+            summary.sessionCount == 0
+                ? 'Tamamlanan sınav karnesi oluştuğunda trendin burada görünür.'
+                : '${summary.sessionCount} oturumdan gelen klinik beceri ortalaması.',
+            style: TextStyle(
+              color: PratiCaseColors.white.withValues(alpha: 0.76),
+              fontSize: 13,
+              height: 1.4,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: _ProgressHeroMetric(
+                  label: 'Hedef',
+                  value: profile.target.isEmpty
+                      ? 'Belirlenmedi'
+                      : profile.target,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _ProgressHeroMetric(
+                  label: 'Seri',
+                  value: '${profile.dailyStreak} gün',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _ProgressHeroMetric(
+                  label: 'Odak',
+                  value: weakest?.label ?? '-',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProgressHeroMetric extends StatelessWidget {
+  const _ProgressHeroMetric({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.white.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+        border: Border.all(
+          color: PratiCaseColors.white.withValues(alpha: 0.16),
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: const TextStyle(
+                color: PratiCaseColors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: PratiCaseColors.white.withValues(alpha: 0.68),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ],
       ),
