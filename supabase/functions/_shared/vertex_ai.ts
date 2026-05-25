@@ -13,6 +13,7 @@ type GenerateContentOptions = {
   temperature?: number;
   maxOutputTokens?: number;
   responseMimeType?: "application/json" | "text/plain";
+  responseSchema?: JsonMap;
 };
 
 type ServiceAccount = {
@@ -101,6 +102,9 @@ export async function generateVertexContent(
         maxOutputTokens: options.maxOutputTokens ?? 1024,
         ...(options.responseMimeType
           ? { responseMimeType: options.responseMimeType }
+          : {}),
+        ...(options.responseSchema
+          ? { responseSchema: options.responseSchema }
           : {}),
       },
     }),
