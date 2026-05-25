@@ -173,6 +173,9 @@ class OralExamResult {
     required this.caseBrief,
     required this.format,
     required this.panelVerdicts,
+    this.idealApproach = '',
+    this.nextAttemptPlan = const [],
+    this.criticalErrors = const [],
   });
 
   final String sessionId;
@@ -190,9 +193,23 @@ class OralExamResult {
   final String caseBrief;
   final OralExamFormat format;
   final List<OralExamPanelVerdict> panelVerdicts;
+  // §6/§7 karne uzantıları
+  final String idealApproach;
+  final List<String> nextAttemptPlan;
+  final List<String> criticalErrors;
 
   int get percentage =>
       maxScore == 0 ? 0 : ((totalScore / maxScore) * 100).round().clamp(0, 100);
+
+  /// §B5 — Puan seviye etiketi
+  String get scoreLevelLabel {
+    final p = percentage;
+    if (p < 40) return 'Yetersiz';
+    if (p < 60) return 'Geliştirilmeli';
+    if (p < 75) return 'Orta';
+    if (p < 90) return 'Başarılı';
+    return 'Çok Başarılı';
+  }
 }
 
 class OralExamMessage {

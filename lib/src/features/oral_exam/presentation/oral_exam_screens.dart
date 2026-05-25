@@ -2385,7 +2385,9 @@ class _OralExamResultScreenState extends State<OralExamResultScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    widget.session.personaTitle,
+                    widget.session.format.isPanel
+                        ? 'KOMİSYON KURULU'
+                        : widget.session.personaTitle.toUpperCase(),
                     style: const TextStyle(
                       color: PratiCaseColors.tealBright,
                       fontSize: 11,
@@ -2402,6 +2404,29 @@ class _OralExamResultScreenState extends State<OralExamResultScreen> {
                       fontWeight: FontWeight.w800,
                     ),
                   ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: scoreColor.withValues(alpha: 0.22),
+                      borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+                      border: Border.all(
+                        color: scoreColor.withValues(alpha: 0.55),
+                      ),
+                    ),
+                    child: Text(
+                      r.scoreLevelLabel,
+                      style: TextStyle(
+                        color: scoreColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -2409,7 +2434,11 @@ class _OralExamResultScreenState extends State<OralExamResultScreen> {
           const SizedBox(height: 16),
           FadeSlideIn(
             delay: const Duration(milliseconds: 80),
-            child: _RubricGrid(result: r),
+            child: _RubricGrid(
+              result: r,
+              personaTitle: widget.session.personaTitle,
+              isPanel: widget.session.format.isPanel,
+            ),
           ),
           if (r.mentorSummary.isNotEmpty) ...[
             const SizedBox(height: 14),
@@ -2488,6 +2517,71 @@ class _OralExamResultScreenState extends State<OralExamResultScreen> {
               color: PratiCaseColors.errorRed,
               icon: Icons.error_outline_rounded,
               items: r.missedPoints,
+            ),
+          ],
+          if (r.criticalErrors.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            FadeSlideIn(
+              delay: const Duration(milliseconds: 220),
+              child: _FeedbackBlock(
+                title: 'Kritik Hatalar',
+                color: const Color(0xFFB91C1C),
+                icon: Icons.warning_amber_rounded,
+                items: r.criticalErrors,
+              ),
+            ),
+          ],
+          if (r.idealApproach.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            FadeSlideIn(
+              delay: const Duration(milliseconds: 260),
+              child: ClinicalCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(
+                          Icons.auto_awesome_rounded,
+                          color: PratiCaseColors.teal,
+                          size: 18,
+                        ),
+                        SizedBox(width: 6),
+                        Text(
+                          'İdeal Yaklaşım Özeti',
+                          style: TextStyle(
+                            color: PratiCaseColors.navy,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      r.idealApproach,
+                      style: const TextStyle(
+                        color: PratiCaseColors.slateBlue,
+                        fontSize: 14,
+                        height: 1.55,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          if (r.nextAttemptPlan.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            FadeSlideIn(
+              delay: const Duration(milliseconds: 300),
+              child: _FeedbackBlock(
+                title: 'Bir Sonraki Deneme Planı',
+                color: PratiCaseColors.teal,
+                icon: Icons.flag_rounded,
+                items: r.nextAttemptPlan,
+              ),
             ),
           ],
           const SizedBox(height: 18),
@@ -2663,8 +2757,29 @@ class _PanelVerdictsCard extends StatelessWidget {
 }
 
 class _RubricGrid extends StatelessWidget {
-  const _RubricGrid({required this.result});
+  const _RubricGrid({
+    required this.result,
+    required this.personaTitle,
+    required this.isPanel,
+  });
   final OralExamResult result;
+  final String personaTitle;
+  final bool isPanel;
+
+  String get _sectionHeader {
+    if (isPanel) return 'Komisyon Değerlendirme Puanları';
+    final t = personaTitle.toLowerCase();
+    if (t.contains('sert') || t.contains('stern')) {
+      return 'Kritik Performans Değerlendirmesi';
+    }
+    if (t.contains('sokratik') || t.contains('socratic')) {
+      return 'Akıl Yürütme Zinciri Analizi';
+    }
+    if (t.contains('sabırlı') || t.contains('patient')) {
+      return 'Cevap Yapılandırma Değerlendirmesi';
+    }
+    return 'Puan Dağılımı';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2677,7 +2792,18 @@ class _RubricGrid extends StatelessWidget {
     ];
     return ClinicalCard(
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(
+            _sectionHeader,
+            style: const TextStyle(
+              color: PratiCaseColors.navy,
+              fontWeight: FontWeight.w900,
+              fontSize: 13,
+              letterSpacing: 0.3,
+            ),
+          ),
+          const SizedBox(height: 12),
           for (var i = 0; i < items.length; i++) ...[
             _RubricRow(
               title: items[i].$1,

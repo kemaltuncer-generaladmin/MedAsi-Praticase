@@ -215,6 +215,9 @@ class SupabaseOralExamRepository implements OralExamRepository {
       caseBrief: _safeResultText(_stringFrom(data, 'case_brief')),
       format: OralExamFormat.fromApi(_stringFrom(data, 'exam_format')),
       panelVerdicts: verdicts,
+      idealApproach: _safeResultText(_stringFrom(data, 'ideal_approach')),
+      nextAttemptPlan: _safeStringList(data['next_attempt_plan']),
+      criticalErrors: _safeStringList(data['critical_errors']),
     );
   }
 

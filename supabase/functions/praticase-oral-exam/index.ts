@@ -392,13 +392,17 @@ async function takeTurn(admin: any, userId: string, body: JsonMap) {
 
   let activePersona: any;
   if (session.exam_format === "panel" && panel.length === 3) {
-    // Açılış sorusunu lead sorar; her cevap sonrası soru sırası diğer
-    // komisyon üyelerine geçer. Üçü değerlendirse de yalnız biri soru sorar.
-    const questionRotation = [second, observer, lead].filter(Boolean);
-    const answerCount = turns.filter((t: any) =>
-      t.speaker === "candidate"
-    ).length;
-    activePersona = questionRotation[answerCount % questionRotation.length];
+    // §5: Komisyon'da soru soran kişiyi önceki cevabın KALİTESİNE göre seç:
+    // - Kritik hata / güvenlik ihlali → Sert Profesör (lead)
+    // - Zayıf klinik gerekçe / eksik adımlar → Sokratik Doçent (second)
+    // - Dağınık/kısmi cevap → Sabırlı Asistan (observer)
+    // - İyi cevap → tekrar lead zorla
+    activePersona = qualityBasedPanelSpeaker(
+      turns,
+      lead ?? panel[0],
+      second,
+      observer,
+    );
   } else {
     activePersona = panelMap.get(session.persona_id) ?? lead;
   }
@@ -541,7 +545,7 @@ async function takeTurn(admin: any, userId: string, body: JsonMap) {
     console.error("praticase_oral_turn_vertex_failed", errorMessage(error));
   }
   const mentorMessage = safeOralMentorMessage(parsed.mentor_message) ||
-    `${activePersona.title}: Devam edelim, lütfen son cevabını klinik gerekçenle biraz daha açar mısın?`;
+    `Devam edelim, lütfen son cevabını klinik gerekçenle biraz daha açar mısın?`;
   const isFollowup = parsed.is_followup === true;
   const shouldEnd = parsed.should_end === true || remainingSeconds <= 0;
   const turnEval = (parsed.turn_evaluation as JsonMap | undefined) ?? {};
@@ -605,11 +609,8 @@ async function skipQuestion(admin: any, userId: string, body: JsonMap) {
   const second = panel.find((p: any) => p.panel_role === "second");
   const observer = panel.find((p: any) => p.panel_role === "observer");
   const isPanelTurn = session.exam_format === "panel" && panel.length === 3;
-  const questionRotation = [second, observer, lead].filter(Boolean);
-  const answerCount =
-    turns.filter((t: any) => t.speaker === "candidate").length;
   const activePersona = isPanelTurn
-    ? questionRotation[answerCount % questionRotation.length]
+    ? qualityBasedPanelSpeaker(turns, lead ?? panel[0], second, observer)
     : (panel.find((p: any) => p.id === session.persona_id) ?? lead);
 
   const nextSequence = (turns.at(-1)?.sequence ?? 0) + 1;
@@ -662,9 +663,7 @@ async function skipQuestion(admin: any, userId: string, body: JsonMap) {
     console.error("praticase_oral_skip_vertex_failed", errorMessage(error));
   }
   const mentorMessage = safeOralMentorMessage(parsed.mentor_message) ||
-    `${
-      activePersona?.title ?? "Hoca"
-    }: Bu soruyu atlıyoruz. Bu hastada ilk ayırıcı tanı yaklaşımını nasıl kurarsın?`;
+    `Bu soruyu atlıyoruz. Bu hastada ilk ayırıcı tanı yaklaşımını nasıl kurarsın?`;
   const mentorReplies = isPanelTurn
     ? committeeReplies(parsed, panel, activePersona, mentorMessage)
     : [{
@@ -763,8 +762,12 @@ async function finalize(admin: any, userId: string, body: JsonMap) {
         `- Klinik akıl yürütme: 40\n- Bilgi doğruluğu: 30\n- İletişim/özgüven: 15\n- Soru-cevap hızı: 10\n- Profesyonellik: 5\n\n` +
         `JSON döndür:\n{` +
         `"total_score":0,"reasoning_score":0,"knowledge_score":0,"communication_score":0,"pace_score":0,"professionalism_score":0,` +
-        `"mentor_summary":"...","strong_points":[],"improvement_points":[],"missed_points":[],"panel_summaries":{}` +
-        `}\nListeler en fazla 5 madde, her madde 1 cümle.${panelPromptSection}`,
+        `"mentor_summary":"...","strong_points":[],"improvement_points":[],"missed_points":[],` +
+        `"ideal_approach":"Bu vakada ideal klinik yaklaşımı 2-3 cümleyle özetle (tanı sürecinden yönetime)",` +
+        `"next_attempt_plan":["Bir sonraki denemede odaklanılacak 3-4 somut adım"]` +
+        `,"critical_errors":["Bu sınavdaki kritik hatalar (varsa, en fazla 3)"]` +
+        `,"panel_summaries":{}` +
+        `}\nListeler en fazla 5 madde, her madde 1 cümle. ideal_approach tek paragraf metin.${panelPromptSection}`,
       contents: [{
         role: "user",
         parts: [{
@@ -844,12 +847,15 @@ async function finalize(admin: any, userId: string, body: JsonMap) {
       strong_points: safeGeneratedList(parsed.strong_points),
       improvement_points: safeGeneratedList(parsed.improvement_points),
       missed_points: safeGeneratedList(parsed.missed_points),
+      ideal_approach: safeGeneratedMessage(parsed.ideal_approach) || "",
+      next_attempt_plan: safeGeneratedList(parsed.next_attempt_plan),
+      critical_errors: safeGeneratedList(parsed.critical_errors),
       panel_summaries: panelSummaries,
       updated_at: new Date().toISOString(),
     })
     .eq("id", sessionId)
     .select(
-      "id,total_score,max_score,reasoning_score,knowledge_score,communication_score,pace_score,professionalism_score,mentor_summary,strong_points,improvement_points,missed_points,case_brief,exam_format,panel_persona_ids,panel_summaries",
+      "id,total_score,max_score,reasoning_score,knowledge_score,communication_score,pace_score,professionalism_score,mentor_summary,strong_points,improvement_points,missed_points,ideal_approach,next_attempt_plan,critical_errors,case_brief,exam_format,panel_persona_ids,panel_summaries",
     )
     .single();
   if (update.error) {
@@ -1066,9 +1072,71 @@ function looksStructuredPayload(message: string) {
   );
 }
 
+/**
+ * §5 — Komisyon konuşmacısını önceki tur değerlendirmesine göre seç.
+ * İlk soru ve "iyi cevap" → lead (Sert Profesör zorla)
+ * Kritik hata / güvenlik ihlali → lead
+ * Zayıf gerekçe / eksik adımlar → second (Sokratik Doçent)
+ * Kısmi / dağınık cevap → observer (Sabırlı Asistan)
+ */
+function qualityBasedPanelSpeaker(
+  turns: any[],
+  lead: any,
+  second: any,
+  observer: any,
+): any {
+  const fallback = lead;
+  const candidateTurns = turns.filter((t: any) => t.speaker === "candidate");
+  // İlk soru — henüz aday cevabı yok, lead açar
+  if (candidateTurns.length === 0) return fallback;
+
+  // En son mentor değerlendirmesini bul
+  const mentorTurns = [...turns]
+    .reverse()
+    .filter((t: any) => t.speaker === "mentor" && t.evaluation &&
+      typeof t.evaluation === "object");
+  const lastEval: any = mentorTurns[0]?.evaluation ?? {};
+
+  const safetyFlags: unknown[] = Array.isArray(lastEval.safety_flags)
+    ? lastEval.safety_flags
+    : [];
+  const moderation: string = typeof lastEval.moderation === "string"
+    ? lastEval.moderation
+    : "accepted";
+  const scoreDelta: number = typeof lastEval.score_delta === "number"
+    ? lastEval.score_delta
+    : 0;
+  const missingPoints: unknown[] = Array.isArray(lastEval.missing_points)
+    ? lastEval.missing_points
+    : [];
+
+  // Kritik hata / güvenlik ihlali → Sert Profesör müdahale eder
+  if (safetyFlags.length > 0 || moderation === "unsafe") {
+    return lead;
+  }
+  // Zayıf klinik gerekçe / belirgin eksikler → Sokratik Doçent sorgular
+  if (
+    (scoreDelta < 0 || missingPoints.length >= 2) && moderation !== "unsafe"
+  ) {
+    return second ?? observer ?? lead;
+  }
+  // Kısmi / orta kaliteli cevap → Sabırlı Asistan yapılandırır
+  if (
+    moderation === "partial" ||
+    (scoreDelta >= 0 && scoreDelta < 8 && missingPoints.length > 0)
+  ) {
+    return observer ?? second ?? lead;
+  }
+  // İyi cevap → lead tekrar zorla (baskı koy)
+  return lead;
+}
+
 function looksUnsafeOralCoaching(message: string) {
   const normalized = message.toLocaleLowerCase("tr");
-  return /(ideal cevap|model cevap|rubrik|puan kırılım|sistem talimat|json|checklist|şimdi sana ipucu|doğru cevap şudur)/i
+  // Only block clearly unsafe coaching: ideal answer disclosure, score breakdowns,
+  // system instruction leakage, or direct hints. "checklist", "json", "rubrik" are
+  // legitimate medical Turkish words and must NOT be filtered.
+  return /(ideal cevap|model cevap|puan kırılım|sistem talimat|şimdi sana ipucu|doğru cevap şudur)/i
     .test(normalized);
 }
 
