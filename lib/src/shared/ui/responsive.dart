@@ -10,6 +10,14 @@ abstract final class PratiCaseBreakpoints {
   static const double sideNavigation = 900;
   static const double desktop = 1180;
 
+  /// iPad / tablet "shortest side" eşiği. iPad Mini portrait genişliği
+  /// 768'dir; shortestSide >= 600 koşulu tüm iPad'leri (Mini dahil)
+  /// telefon olarak değil tablet olarak işaretler. Telefon landscape'i
+  /// (örn. iPhone 16 Pro Max landscape 932×430) shortestSide 430 olduğu
+  /// için tablet sayılmaz; bu da yanlış side-navigation tetiklenmesini
+  /// engeller.
+  static const double tabletShortestSide = 600;
+
   static const double tabletContentMaxWidth = 760;
   static const double desktopContentMaxWidth = 1120;
   static const double flowContentMaxWidth = 960;
@@ -19,11 +27,27 @@ abstract final class PratiCaseResponsive {
   static bool isCompactPhone(BuildContext context) =>
       MediaQuery.sizeOf(context).width < PratiCaseBreakpoints.compactPhone;
 
-  static bool isTablet(BuildContext context) =>
-      MediaQuery.sizeOf(context).width >= PratiCaseBreakpoints.tablet;
+  /// Tablet sınıfı cihazlar (genişlik >= 600 veya kısa kenar >= 600).
+  /// Telefon landscape'i kısa kenarı küçük olduğu için tablet sayılmaz.
+  static bool isTablet(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    return size.width >= PratiCaseBreakpoints.tablet ||
+        size.shortestSide >= PratiCaseBreakpoints.tabletShortestSide;
+  }
 
-  static bool usesSideNavigation(BuildContext context) =>
-      MediaQuery.sizeOf(context).width >= PratiCaseBreakpoints.sideNavigation;
+  /// Side navigation: yatay genişlik >= 900 **veya** cihaz bir tablet
+  /// (kısa kenar >= 600) ve mevcut genişlik 720'nin üzerinde. Bu sayede
+  /// iPad portrait'te (768/810/834) artık side nav görünür; phone
+  /// landscape'inde ise bottom nav korunur.
+  static bool usesSideNavigation(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    if (size.width >= PratiCaseBreakpoints.sideNavigation) return true;
+    if (size.shortestSide >= PratiCaseBreakpoints.tabletShortestSide &&
+        size.width >= 720) {
+      return true;
+    }
+    return false;
+  }
 
   static bool isDesktop(BuildContext context) =>
       MediaQuery.sizeOf(context).width >= PratiCaseBreakpoints.desktop;
@@ -56,6 +80,12 @@ abstract final class PratiCaseResponsive {
   }) {
     if (width >= PratiCaseBreakpoints.desktop) {
       return desktopMaxWidth ?? PratiCaseBreakpoints.desktopContentMaxWidth;
+    }
+    // Geniş tablet katmanı: iPad Pro 12.9" portrait (1024) ve iPad Pro
+    // 11" landscape (1194 — desktop'a düşer) arası. 760 burada çok dar
+    // kalıyor; 920'ye genişletirsek breathing room sağlanır.
+    if (width >= 980) {
+      return 920;
     }
     if (width >= PratiCaseBreakpoints.tablet) {
       return tabletMaxWidth ?? PratiCaseBreakpoints.tabletContentMaxWidth;

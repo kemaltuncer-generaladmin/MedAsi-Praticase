@@ -81,41 +81,41 @@ class _HomeScreenState extends State<HomeScreen> {
             onOpenProfile: widget.onOpenProfile,
             unreadNotificationCount: widget.unreadNotificationCount,
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 24),
           _Greeting(user: dashboard.user, onSearch: widget.onOpenCases),
-          const SizedBox(height: 28),
+          const SizedBox(height: 22),
           const _SectionHeader(title: 'Bugünkü Çalışma', onViewAll: null),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           _QuickActions(
             onSingleStation: widget.onOpenCases,
             onMiniOsce: widget.onOpenExams,
             onTheoreticalExam: widget.onOpenTheoreticalExam,
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 22),
           if (dashboard.stats != null) ...[
             _SectionHeader(
               title: 'Genel Bakış',
               onViewAll: widget.onOpenProgress,
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
             _StatsHub(stats: dashboard.stats!),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
             _WeeklyActivityChart(stats: dashboard.stats!),
-            const SizedBox(height: 28),
+            const SizedBox(height: 22),
           ],
           if (dashboard.continuedCase != null) ...[
             _SectionHeader(
               title: 'Devam Edilen Vaka',
               onViewAll: widget.onOpenCases,
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
             _ContinuedCaseCard(
               continuedCase: dashboard.continuedCase,
               onOpenCase: () =>
                   _openCaseDetail(dashboard.continuedCase!.caseId),
             ),
             if (dashboard.banners.isNotEmpty) ...[
-              const SizedBox(height: 26),
+              const SizedBox(height: 22),
               _BannerCarousel(
                 banners: dashboard.banners,
                 onCta: _openBannerRoute,
@@ -126,24 +126,24 @@ class _HomeScreenState extends State<HomeScreen> {
               title: 'Genel Bakış',
               onViewAll: widget.onOpenProgress,
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
             _OverviewCharts(stats: dashboard.stats),
           ],
           if (dashboard.recommendedCases.isNotEmpty ||
               dashboard.continuedCase == null) ...[
-            const SizedBox(height: 28),
+            const SizedBox(height: 22),
             _SectionHeader(
               title: 'Önerilen Vakalar',
               onViewAll: widget.onOpenCases,
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
             _RecommendedCases(
               cases: dashboard.recommendedCases,
               onOpenCase: _openCaseDetail,
             ),
           ],
           if (dashboard.badgeSummary != null) ...[
-            const SizedBox(height: 28),
+            const SizedBox(height: 22),
             _BadgePanel(
               summary: dashboard.badgeSummary,
               onOpenBadges: widget.onOpenBadges,
@@ -151,7 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
           if (dashboard.continuedCase == null &&
               dashboard.banners.isNotEmpty) ...[
-            const SizedBox(height: 28),
+            const SizedBox(height: 22),
             _BannerCarousel(
               banners: dashboard.banners,
               onCta: _openBannerRoute,
@@ -165,7 +165,11 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               for (var index = 0; index < sections.length; index++)
                 FadeSlideIn(
-                  delay: Duration(milliseconds: 30 * index),
+                  // İlk 8 element progressive stagger; sonrası sabit gecikme
+                  // → uzun listelerde alt elementler aşırı geç kalmıyor.
+                  delay: Duration(
+                    milliseconds: 22 * (index < 8 ? index : 8),
+                  ),
                   child: sections[index],
                 ),
             ],
@@ -304,21 +308,22 @@ class _Greeting extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             color: PratiCaseColors.navy,
-            fontSize: 32,
+            fontSize: 28,
             fontWeight: FontWeight.w900,
-            height: 1.08,
+            height: 1.1,
+            letterSpacing: -0.3,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         const Text(
           'Bugün pratiğe ne dersin?',
           style: TextStyle(
             color: PratiCaseColors.muted,
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 18),
         _SearchPill(onTap: onSearch),
       ],
     );

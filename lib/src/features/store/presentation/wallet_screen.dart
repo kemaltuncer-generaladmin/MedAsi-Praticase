@@ -97,9 +97,9 @@ class _WalletScreenState extends State<WalletScreen> {
             onOpenProfile: widget.onOpenProfile,
             unreadNotificationCount: widget.unreadNotificationCount,
           ),
-          const SizedBox(height: 26),
-          const _WalletTitle(),
           const SizedBox(height: 20),
+          const _WalletTitle(),
+          const SizedBox(height: 16),
           if (loading) ...[
             const _WalletSkeleton(),
           ] else ...[
@@ -109,26 +109,26 @@ class _WalletScreenState extends State<WalletScreen> {
               onToggleHidden: () =>
                   setState(() => _balanceHidden = !_balanceHidden),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             _WalletStatsRow(state: state, hidden: _balanceHidden),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             _WalletConsumptionCard(transactions: controller.transactions),
-            const SizedBox(height: 22),
+            const SizedBox(height: 18),
             if (state.hasActiveSubscription) ...[
               _WalletSubscriptionCard(
                 state: state,
                 onManage: _openSubscriptionStatus,
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 18),
             ],
             _WalletCtaBar(onPrimary: _openPaywall, primaryLabel: 'MC Satın Al'),
-            const SizedBox(height: 26),
+            const SizedBox(height: 22),
             _WalletSectionHeader(
               title: 'Paketler',
               actionLabel: products.isEmpty ? null : 'Tümünü Gör',
               onAction: products.isEmpty ? null : _openPaywall,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             if (products.isEmpty)
               const _WalletEmptyPackages()
             else
@@ -137,16 +137,16 @@ class _WalletScreenState extends State<WalletScreen> {
                 onSelect: (_) => _openPaywall(),
               ),
             if (error != null) ...[
-              const SizedBox(height: 22),
+              const SizedBox(height: 18),
               _WalletInlineError(message: error, onRetry: _refresh),
             ],
-            const SizedBox(height: 26),
+            const SizedBox(height: 22),
             const _WalletSectionHeader(
               title: 'Cüzdan Hareketleri',
               actionLabel: null,
               onAction: null,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             if (controller.transactions.isEmpty)
               const _WalletTransactionsEmpty()
             else

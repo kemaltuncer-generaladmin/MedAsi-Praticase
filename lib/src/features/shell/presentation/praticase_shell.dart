@@ -607,13 +607,13 @@ class _ExamsScreenState extends State<_ExamsScreen> {
                 onOpenProfile: widget.onOpenProfile,
                 unreadNotificationCount: widget.unreadNotificationCount,
               ),
-              const SizedBox(height: 36),
+              const SizedBox(height: 24),
               const _ShellTitle(
                 title: 'Sınavlar',
                 subtitle:
                     'OSCE pratiğini tek istasyon veya mini sınav olarak başlat.',
               ),
-              const SizedBox(height: 26),
+              const SizedBox(height: 20),
               if (snapshot.connectionState != ConnectionState.done)
                 const PratiCaseInlineSkeleton(heroHeight: 160, cardCount: 3)
               else if (snapshot.hasError)
@@ -739,13 +739,13 @@ class _ProgressSummaryScreenState extends State<_ProgressSummaryScreen> {
                 onOpenProfile: widget.onOpenProfile,
                 unreadNotificationCount: widget.unreadNotificationCount,
               ),
-              const SizedBox(height: 34),
+              const SizedBox(height: 22),
               const _ShellTitle(
                 title: 'Gelişim',
                 subtitle:
                     'OSCE performansını, zayıf alanlarını ve son karnelerini tek yerde izle.',
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 18),
               if (snapshot.connectionState != ConnectionState.done)
                 const PratiCaseInlineSkeleton(heroHeight: 182, cardCount: 3)
               else if (snapshot.hasError)
@@ -1554,19 +1554,20 @@ class _ShellTitle extends StatelessWidget {
           title,
           style: const TextStyle(
             color: PratiCaseColors.navy,
-            fontSize: 34,
+            fontSize: 28,
             fontWeight: FontWeight.w900,
             height: 1.1,
+            letterSpacing: -0.3,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 6),
         Text(
           subtitle,
           style: const TextStyle(
             color: PratiCaseColors.muted,
-            fontSize: 15,
+            fontSize: 14,
             fontWeight: FontWeight.w500,
-            height: 1.5,
+            height: 1.45,
           ),
         ),
       ],

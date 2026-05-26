@@ -80,8 +80,9 @@ class PratiCasePageTransitions extends PageTransitionsBuilder {
       curve: PratiCaseCurves.emphasized,
       reverseCurve: PratiCaseCurves.exit,
     );
+    // Daha kısa Y kaymasıyla daha hızlı, daha premium bir geçiş.
     final slide = Tween<Offset>(
-      begin: const Offset(0, 0.04),
+      begin: const Offset(0, 0.025),
       end: Offset.zero,
     ).animate(fade);
     final secondaryFade = CurvedAnimation(
@@ -93,7 +94,8 @@ class PratiCasePageTransitions extends PageTransitionsBuilder {
       child: SlideTransition(
         position: slide,
         child: FadeTransition(
-          opacity: Tween<double>(begin: 1, end: 0.92).animate(secondaryFade),
+          // Çıkan ekran daha az soluyor → derinlik hissi artar.
+          opacity: Tween<double>(begin: 1, end: 0.96).animate(secondaryFade),
           child: child,
         ),
       ),
@@ -110,7 +112,7 @@ class FadeSlideIn extends StatefulWidget {
     required this.child,
     this.delay = Duration.zero,
     this.duration = PratiCaseDurations.standard,
-    this.offset = const Offset(0, 0.05),
+    this.offset = const Offset(0, 0.035),
     this.curve = PratiCaseCurves.standard,
     super.key,
   });
@@ -179,7 +181,7 @@ class _FadeSlideInState extends State<FadeSlideIn>
 class FadeSlideInList extends StatelessWidget {
   const FadeSlideInList({
     required this.children,
-    this.stagger = const Duration(milliseconds: 60),
+    this.stagger = const Duration(milliseconds: 50),
     this.initialDelay = Duration.zero,
     super.key,
   });
