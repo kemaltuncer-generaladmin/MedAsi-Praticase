@@ -253,6 +253,7 @@ async function loadCatalogPayload(
   admin: any,
   userId: string,
 ): Promise<JsonMap> {
+  await admin.rpc("sync_wallet_profile", { p_user_id: userId }).catch(() => {});
   const products = await loadMappedCatalog(admin);
   if (products == null) return { error: "Paketler şu anda yüklenemedi." };
 
@@ -261,7 +262,11 @@ async function loadCatalogPayload(
     .select("wallet_balance,question_quota")
     .eq("id", userId)
     .maybeSingle();
-  return { products: products ?? [], profile: profile ?? {} };
+  return {
+    products: products ?? [],
+    wallet_warnings: await walletExpiryWarnings(admin, userId),
+    profile: profile ?? {},
+  };
 }
 
 async function loadMappedCatalog(
@@ -273,11 +278,9 @@ async function loadMappedCatalog(
     .from("store_product_app_mappings")
     .select("product_code,app_store_product_id")
     .eq("is_active", true);
-  if (mappingError) return null;
-  if (!mappings?.length) return [];
 
   const mappedIds = new Map(
-    mappings.map((mapping: JsonMap) => [
+    (mappingError ? [] : mappings ?? []).map((mapping: JsonMap) => [
       stringValue(mapping.product_code),
       stringValue(mapping.app_store_product_id),
     ]),
@@ -287,7 +290,6 @@ async function loadMappedCatalog(
     .select(
       "id,code,name,description,price_cents,original_price_cents,currency,interval,features,is_featured,coin_amount,question_amount,badge,entitlement_kind,duration_days,sort_order",
     )
-    .in("code", [...mappedIds.keys()])
     .eq("is_active", true)
     .order("sort_order")
     .order("price_cents");
@@ -344,11 +346,10 @@ async function loadWalletTransactionsPayload(
     return { error: "İşlem geçmişi şu anda yüklenemedi." };
   }
   const entries = (rows ?? []) as JsonMap[];
-  if (entries.length === 0) {
-    return { transactions: [] };
-  }
   const productCodes = Array.from(
-    new Set(entries.map((row) => stringValue(row.product_code)).filter(Boolean)),
+    new Set(
+      entries.map((row) => stringValue(row.product_code)).filter(Boolean),
+    ),
   );
   const nameMap = new Map<string, string>();
   if (productCodes.length > 0) {
@@ -371,14 +372,17 @@ async function loadWalletTransactionsPayload(
       ? new Date(expiresIso).getTime() < Date.now()
       : false;
     return {
-      id: `${code}-${stringValue(row.period_started_at) || stringValue(row.created_at)}`,
+      id: `${code}-${
+        stringValue(row.period_started_at) || stringValue(row.created_at)
+      }`,
       kind: stringValue(row.entitlement_type) || "purchase",
       product_code: code,
       product_name: productName,
       coin_amount: coin,
       question_amount: question,
       remaining_coin_amount: numberValue(row.remaining_coin_amount) ?? 0,
-      remaining_question_amount: numberValue(row.remaining_question_amount) ?? 0,
+      remaining_question_amount: numberValue(row.remaining_question_amount) ??
+        0,
       status,
       expired,
       occurred_at: stringValue(row.period_started_at) ||
@@ -386,7 +390,41 @@ async function loadWalletTransactionsPayload(
       expires_at: expiresIso,
     };
   });
-  return { transactions };
+  const { data: usageRows, error: usageError } = await admin
+    .from("ai_usage_events")
+    .select("id,feature,charged_coin_amount,created_at")
+    .eq("user_id", userId)
+    .gt("charged_coin_amount", 0)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (usageError) {
+    recordEvent("wallet_usage_events_failed", { message: usageError.message });
+  }
+  const usageTransactions = ((usageRows ?? []) as JsonMap[]).map((row) => {
+    const feature = stringValue(row.feature);
+    const amount = numberValue(row.charged_coin_amount) ?? 0;
+    return {
+      id: stringValue(row.id) || `${feature}-${stringValue(row.created_at)}`,
+      kind: "usage",
+      product_code: feature,
+      product_name: aiUsageLabel(feature),
+      coin_amount: -amount,
+      question_amount: 0,
+      remaining_coin_amount: 0,
+      remaining_question_amount: 0,
+      status: "consumed",
+      expired: false,
+      occurred_at: stringValue(row.created_at),
+      expires_at: "",
+    };
+  });
+  return {
+    transactions: [...transactions, ...usageTransactions]
+      .sort((left, right) =>
+        transactionTime(right).localeCompare(transactionTime(left))
+      )
+      .slice(0, 50),
+  };
 }
 
 async function loadSubscriptionPayload(
@@ -447,8 +485,70 @@ async function loadSubscriptionPayload(
         remaining_question_amount: row.remaining_question_amount,
       }
       : { active: false },
+    warnings: await walletExpiryWarnings(admin, userId),
     profile: profile ?? {},
   };
+}
+
+async function walletExpiryWarnings(
+  // deno-lint-ignore no-explicit-any
+  admin: any,
+  userId: string,
+): Promise<string[]> {
+  const now = new Date();
+  const windowEnd = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+  const { data, error } = await admin
+    .from("wallet_entitlements")
+    .select("product_code,expires_at")
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .eq("entitlement_type", "subscription")
+    .gt("expires_at", now.toISOString())
+    .lte("expires_at", windowEnd.toISOString())
+    .order("expires_at", { ascending: true })
+    .limit(3);
+  if (error) return [];
+  return ((data ?? []) as JsonMap[]).map((row) => {
+    const expiresAt = Date.parse(stringValue(row.expires_at));
+    const days = Math.max(
+      1,
+      Math.ceil((expiresAt - now.getTime()) / (24 * 60 * 60 * 1000)),
+    );
+    const product = stringValue(row.product_code) === "weekly_subscription"
+      ? "Haftalık paket"
+      : "Aylık paket";
+    const deadline = days === 1 ? "24 saat içinde" : `${days} gün içinde`;
+    return `${product} süren ${deadline} doluyor.`;
+  });
+}
+
+function aiUsageLabel(feature: string): string {
+  switch (feature) {
+    case "praticase-patient-turn":
+      return "Sanal hasta görüşmesi";
+    case "praticase-complete-session":
+      return "AI sonuç karnesi";
+    case "praticase-oral-exam-start":
+      return "Sözlü sınav başlangıcı";
+    case "praticase-oral-exam-turn":
+      return "Sözlü sınav yanıtı";
+    case "praticase-oral-exam-skip":
+      return "Sözlü sınav geçişi";
+    case "praticase-oral-exam-finalize":
+      return "Sözlü sınav karnesi";
+    case "mentor-chat":
+      return "Qlinik Mentor AI";
+    case "question-solution":
+      return "Qlinik soru desteği";
+    case "mentor-plan":
+      return "Qlinik mentor planı";
+    default:
+      return "Medasi AI kullanımı";
+  }
+}
+
+function transactionTime(transaction: JsonMap): string {
+  return stringValue(transaction.occurred_at);
 }
 
 async function handleAppStoreNotification(

@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'
+    show AuthClientOptions, SupabaseClient;
 import 'package:praticase/src/app/praticase_app.dart';
 import 'package:praticase/src/features/auth/data/auth_repository.dart';
 import 'package:praticase/src/features/auth/domain/auth_user.dart';
@@ -22,6 +24,12 @@ import 'package:praticase/src/features/progress/domain/progress_models.dart';
 import 'package:praticase/src/features/progress/presentation/progress_screens.dart';
 import 'package:praticase/src/features/shell/presentation/praticase_shell.dart';
 import 'package:praticase/src/features/store/data/store_controller.dart';
+import 'package:praticase/src/features/store/data/storekit_repository.dart';
+import 'package:praticase/src/features/store/data/storekit_service.dart';
+import 'package:praticase/src/features/store/domain/store_product.dart';
+import 'package:praticase/src/features/store/domain/subscription_state.dart';
+import 'package:praticase/src/features/store/domain/wallet_transaction.dart';
+import 'package:praticase/src/features/store/presentation/wallet_screen.dart';
 import 'package:praticase/src/features/theoretical_exam/data/theoretical_exam_repository.dart';
 import 'package:praticase/src/features/theoretical_exam/domain/theoretical_exam_models.dart';
 import 'package:praticase/src/features/theoretical_exam/presentation/theoretical_exam_screen.dart';
@@ -49,6 +57,57 @@ void main() {
       PratiCaseUserMessage.safe('session_id zorunlu.'),
       PratiCaseUserMessage.generalFailure,
     );
+  });
+
+  test('wallet AI usage events are parsed as MC debit movements', () {
+    final transaction = WalletTransaction.fromMap({
+      'id': 'usage-1',
+      'kind': 'usage',
+      'product_code': 'praticase-patient-turn',
+      'product_name': 'Sanal hasta görüşmesi',
+      'coin_amount': -0.10,
+      'question_amount': 0,
+      'remaining_coin_amount': 0,
+      'remaining_question_amount': 0,
+      'status': 'consumed',
+      'expired': false,
+      'occurred_at': '2026-05-26T12:00:00Z',
+    });
+
+    expect(transaction.isUsage, isTrue);
+    expect(transaction.isCredit, isFalse);
+    expect(transaction.coinAmount, -0.10);
+  });
+
+  testWidgets('wallet surfaces shared balance and live MC consumption', (
+    tester,
+  ) async {
+    await _setViewport(tester, const Size(390, 1200));
+    final controller = StoreController(
+      repository: _WalletStoreRepository(),
+      service: _WalletStoreService(),
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: WalletScreen(
+            controller: controller,
+            unreadNotificationCount: 0,
+            onOpenNotifications: () {},
+            onOpenProfile: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('100,00'), findsWidgets);
+    expect(find.text('50'), findsWidgets);
+    expect(find.text('MC tüketimi canlı takip edilir'), findsOneWidget);
+    expect(find.textContaining('Sanal hasta görüşmesi'), findsOneWidget);
+    expect(find.textContaining('-0,10 MC'), findsOneWidget);
   });
 
   testWidgets('PratiCase auth onboarding renders', (tester) async {
@@ -982,6 +1041,81 @@ void main() {
 }
 
 class _FakeHomeRepository extends Fake implements HomeRepository {}
+
+class _WalletStoreRepository extends StoreKitRepository {
+  _WalletStoreRepository()
+    : super(
+        client: SupabaseClient(
+          'https://example.supabase.co',
+          'anon',
+          authOptions: const AuthClientOptions(autoRefreshToken: false),
+        ),
+      );
+
+  @override
+  Future<List<PratiCaseStoreProduct>> loadCatalog() async {
+    return const [
+      PratiCaseStoreProduct(
+        code: 'mc_10',
+        name: '10 MC',
+        description: 'AI işlemleri için Medasi Coin.',
+        priceCents: 4000,
+        currency: 'TRY',
+        appStoreProductId: 'com.medasi.praticase.mc.10',
+        entitlementKind: 'one_time',
+        interval: 'consumable',
+        durationDays: 365,
+        coinAmount: 10,
+      ),
+    ];
+  }
+
+  @override
+  Future<SubscriptionState> loadSubscriptionState() async {
+    return const SubscriptionState(
+      hasActiveSubscription: false,
+      productCode: '',
+      productName: '',
+      expiresAt: null,
+      periodStartedAt: null,
+      willAutoRenew: false,
+      environment: '',
+      transactionId: '',
+      originalTransactionId: '',
+      walletCoinBalance: 100,
+      questionQuota: 50,
+    );
+  }
+
+  @override
+  Future<List<WalletTransaction>> loadWalletTransactions() async {
+    return [
+      WalletTransaction.fromMap({
+        'id': 'usage-1',
+        'kind': 'usage',
+        'product_code': 'praticase-patient-turn',
+        'product_name': 'Sanal hasta görüşmesi',
+        'coin_amount': -0.10,
+        'question_amount': 0,
+        'remaining_coin_amount': 0,
+        'remaining_question_amount': 0,
+        'status': 'consumed',
+        'expired': false,
+        'occurred_at': '2026-05-26T12:00:00Z',
+      }),
+    ];
+  }
+}
+
+class _WalletStoreService extends StoreKitService {
+  @override
+  Future<bool> initialize() async => false;
+
+  @override
+  Future<List<PratiCaseStoreProduct>> attachStoreKitMetadata(
+    List<PratiCaseStoreProduct> products,
+  ) async => products;
+}
 
 class _FakeCasesRepository extends Fake implements CasesRepository {
   @override

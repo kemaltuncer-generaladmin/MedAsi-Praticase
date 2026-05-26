@@ -90,6 +90,9 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
       _selectedIndex = index;
       if (index == 1) _walletTabMounted = true;
     });
+    if (index == 1 && _storeController?.initialized == true) {
+      unawaited(_storeController!.refresh());
+    }
   }
 
   Future<void> _refreshUnreadNotificationCount() async {

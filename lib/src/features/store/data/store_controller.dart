@@ -158,10 +158,16 @@ class StoreController extends ChangeNotifier {
           ? 'Aboneliğiniz aktif edildi.'
           : 'Satın alma doğrulandı.';
       await _service.completePurchase(purchase);
-      // Katalog görünümünü güncelle.
+      // Katalog, bakiye ve hareket akışı ortak cüzdandan yeniden okunur.
       _products = await _service.attachStoreKitMetadata(
         await _repo.loadCatalog(),
       );
+      _subscriptionState = await _repo.loadSubscriptionState();
+      try {
+        _transactions = await _repo.loadWalletTransactions();
+      } on Object {
+        _transactions = const [];
+      }
     } on StorePurchaseException catch (error) {
       _errorMessage = PratiCaseUserMessage.purchase(error.message);
     } on Object {

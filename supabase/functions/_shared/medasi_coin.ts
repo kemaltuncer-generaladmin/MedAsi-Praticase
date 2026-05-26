@@ -7,7 +7,10 @@ type SupabaseAdmin = any;
 type QueryBuilder = any;
 
 export class InsufficientCoinBalanceError extends Error {
-  constructor(readonly walletBalance: number, readonly requiredBalance: number) {
+  constructor(
+    readonly walletBalance: number,
+    readonly requiredBalance: number,
+  ) {
     super("MedAsi Coin balance is insufficient");
   }
 }
@@ -107,8 +110,14 @@ export function vertexAiCostFromUsage(usageMetadata: JsonMap) {
     positiveInt(usageMetadata.cachedContentTokenCount),
   );
   const measuredThoughtsTokens = positiveInt(usageMetadata.thoughtsTokenCount);
-  const thoughtsTokens = measuredThoughtsTokens ||
-    Math.max(0, totalTokens - promptTokens - candidatesTokens);
+  const inferredThoughtsTokens = Math.max(
+    0,
+    totalTokens - promptTokens - candidatesTokens,
+  );
+  const thoughtsTokens = Math.max(
+    measuredThoughtsTokens,
+    inferredThoughtsTokens,
+  );
   const uncachedInputTokens = Math.max(0, promptTokens - cachedTokens);
   const billableOutputTokens = candidatesTokens + thoughtsTokens;
   const inputCostUsd = (
@@ -123,7 +132,7 @@ export function vertexAiCostFromUsage(usageMetadata: JsonMap) {
     candidatesTokens,
     thoughtsTokens,
     totalTokens: totalTokens || promptTokens + candidatesTokens +
-      thoughtsTokens,
+        thoughtsTokens,
     cachedTokens,
     inputCostUsd,
     outputCostUsd,

@@ -137,7 +137,7 @@ class _SubscriptionIntro extends StatelessWidget {
         ),
         SizedBox(height: 10),
         Text(
-          'Aboneliğinizi yönetin, planınızı ve faturalandırma bilgilerinizi görüntüleyin.',
+          'Dönemsel MC ve soru hakkı paketini, yenileme ve faturalandırma bilgilerini görüntüle.',
           style: TextStyle(
             color: PratiCaseColors.muted,
             fontSize: 15,
@@ -205,7 +205,7 @@ class _StatusCard extends StatelessWidget {
                     Text(
                       hasActive
                           ? state.productName
-                          : 'PratiCase Premium’u keşfet',
+                          : 'Aktif abonelik bulunmuyor',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -232,9 +232,7 @@ class _StatusCard extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        hasActive
-                            ? '✓ Premium Aktif'
-                            : 'Aktif abonelik bulunmuyor',
+                        hasActive ? 'Paket aktif' : 'Aktif abonelik bulunmuyor',
                         style: TextStyle(
                           color: hasActive
                               ? PratiCaseColors.white
@@ -255,7 +253,7 @@ class _StatusCard extends StatelessWidget {
                 ? remaining == null
                       ? 'Abonelik süresi okunamadı.'
                       : 'Mevcut dönem bitimine ${_formatDuration(remaining)} kaldı.'
-                : 'Sınırsız vakaya erişmek için bir paket seçerek başla.',
+                : 'Dönemsel MC ve soru hakkı paketlerini cüzdandan inceleyebilirsin.',
             style: TextStyle(
               color: hasActive
                   ? Colors.white.withValues(alpha: 0.88)

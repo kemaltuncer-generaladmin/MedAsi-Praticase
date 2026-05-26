@@ -3,6 +3,7 @@ import {
   chargeAiCoins,
   ensureAiCoinBalance,
   InsufficientCoinBalanceError,
+  vertexAiCostFromUsage,
 } from "./medasi_coin.ts";
 
 Deno.test("aiCreditCostFromUsage applies Qlinik minimum coin cost", () => {
@@ -13,6 +14,20 @@ Deno.test("aiCreditCostFromUsage applies Qlinik minimum coin cost", () => {
   });
   if (cost !== 0.1) {
     throw new Error(`Expected 0.1 coin minimum, got ${cost}`);
+  }
+});
+
+Deno.test("vertexAiCostFromUsage follows Qlinik inferred thinking tokens", () => {
+  const cost = vertexAiCostFromUsage({
+    promptTokenCount: 100,
+    candidatesTokenCount: 50,
+    thoughtsTokenCount: 25,
+    totalTokenCount: 300,
+  });
+  if (cost.thoughtsTokens !== 150) {
+    throw new Error(
+      `Expected 150 inferred thought tokens, got ${cost.thoughtsTokens}`,
+    );
   }
 });
 
@@ -42,10 +57,14 @@ Deno.test("chargeAiCoins consumes credits and logs usage event", async () => {
   });
 
   if (result.chargedCoinAmount !== 0.1) {
-    throw new Error(`Expected charged amount 0.1, got ${result.chargedCoinAmount}`);
+    throw new Error(
+      `Expected charged amount 0.1, got ${result.chargedCoinAmount}`,
+    );
   }
   if (result.walletBalance !== 4.9) {
-    throw new Error(`Expected remaining wallet 4.9, got ${result.walletBalance}`);
+    throw new Error(
+      `Expected remaining wallet 4.9, got ${result.walletBalance}`,
+    );
   }
   if (admin.events.length !== 1) {
     throw new Error("Expected one ai_usage_events insert");
@@ -70,7 +89,9 @@ Deno.test("chargeAiCoins allows no-charge fallback without service role", async 
   }
 });
 
-function fakeAdmin(options: { walletBalance: number; remainingBalance?: number }) {
+function fakeAdmin(
+  options: { walletBalance: number; remainingBalance?: number },
+) {
   return {
     events: [] as Record<string, unknown>[],
     from(table: string) {

@@ -68,6 +68,8 @@ class PratiCaseStoreProduct {
 
   bool get isSubscription => entitlementKind == 'subscription';
 
+  bool get canPurchaseInPratiCase => appStoreProductId.trim().isNotEmpty;
+
   bool get isLifetime =>
       interval.toLowerCase() == 'lifetime' || durationDays >= 365 * 50;
 

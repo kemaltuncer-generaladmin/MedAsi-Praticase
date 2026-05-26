@@ -77,9 +77,13 @@ class _PaywallScreenState extends State<PaywallScreen> {
   PratiCaseStoreProduct? _defaultProduct() {
     final products = widget.controller.products;
     if (products.isEmpty) return null;
-    final featured = products.where((product) => product.isFeatured).toList();
+    final available = products
+        .where((product) => product.canPurchaseInPratiCase)
+        .toList();
+    final selectable = available.isEmpty ? products : available;
+    final featured = selectable.where((product) => product.isFeatured).toList();
     if (featured.isNotEmpty) return featured.first;
-    return products.first;
+    return selectable.first;
   }
 
   Future<void> _openUrl(String url) async {
@@ -136,13 +140,11 @@ class _PaywallScreenState extends State<PaywallScreen> {
                   children: [
                     _Hero(
                       title:
-                          widget.titleOverride ??
-                          'PratiCase Premium ile OSCE’ye hazır ol',
+                          widget.titleOverride ?? 'Medasi Cüzdanına hak ekle',
                       subtitle:
                           widget.subtitleOverride ??
-                          'Sınırsız vaka, sanal hasta görüşmeleri ve detaylı '
-                              'rubrik karneleriyle klinik performansını '
-                              'gerçek sınava taşı.',
+                          'Qlinik ile ortak Medasi Coin ve soru haklarını '
+                              'App Store üzerinden güvenle yönet.',
                     ),
                     const SizedBox(height: 18),
                     const _BenefitList(),
@@ -275,7 +277,7 @@ class _PremiumBadge extends StatelessWidget {
           ),
           SizedBox(width: 6),
           Text(
-            'PratiCase Premium',
+            'Medasi Cüzdanı',
             style: TextStyle(
               color: PratiCaseColors.gold,
               fontWeight: FontWeight.w800,
@@ -293,24 +295,24 @@ class _BenefitList extends StatelessWidget {
 
   static const _items = <(IconData, String, String)>[
     (
-      Icons.medical_services_outlined,
-      'Sınırsız OSCE istasyonu',
-      'Tüm branşlardan vakalara sınırsız erişim.',
-    ),
-    (
-      Icons.record_voice_over_outlined,
-      'Sanal hasta görüşmesi',
-      'Gerçekçi anamnez diyalogları ve süreli sınav modu.',
-    ),
-    (
-      Icons.assessment_outlined,
-      'Detaylı rubrik karnesi',
-      'Anamnez, muayene, tetkik, tanı ve yönetim skorlarınız.',
-    ),
-    (
       Icons.savings_outlined,
-      'Aylık Medasi Coin paketi',
-      'Sözlü sınav ve teorik soru paketleri için ortak cüzdan.',
+      'Medasi Coin',
+      'Sanal hasta, AI karne ve sözlü sınav işlemlerinde kullanılır.',
+    ),
+    (
+      Icons.menu_book_outlined,
+      'Soru hakkı',
+      'Teorik sınavlarda ortak Medasi soru havuzu için kullanılır.',
+    ),
+    (
+      Icons.account_balance_wallet_outlined,
+      'Ortak cüzdan',
+      'Qlinik ve PratiCase aynı bakiye ve kota üzerinden çalışır.',
+    ),
+    (
+      Icons.verified_outlined,
+      'Canlı paket kataloğu',
+      'Paket fiyatı ve içeriği ortak Medasi kataloğundan alınır.',
     ),
   ];
 
@@ -547,9 +549,12 @@ class _PurchaseButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final disabled = product == null || busy;
+    final disabled =
+        product == null || busy || product!.canPurchaseInPratiCase == false;
     final label = product == null
         ? 'Bir paket seçin'
+        : !product!.canPurchaseInPratiCase
+        ? 'Satın alma bu uygulamada hazır değil'
         : product!.isSubscription
         ? 'Aboneliği başlat'
         : 'Satın al';
@@ -645,8 +650,7 @@ class _RenewalDisclosure extends StatelessWidget {
   static const _oneTimeText =
       'Tek seferlik satın alımdır. Otomatik yenileme yapılmaz. '
       'Ödeme Apple kimliğinize tanımlı yönteme yansır. '
-      'Yetkilendirilmiş cihazlardan PratiCase Premium içerikleri kullanmaya '
-      'devam edebilirsiniz.';
+      'Yüklenen MC veya soru hakkı Medasi Cüzdanınıza eklenir.';
 
   String _renewalText(PratiCaseStoreProduct product) {
     final price =
@@ -659,8 +663,8 @@ class _RenewalDisclosure extends StatelessWidget {
         'en az 24 saat öncesine kadar Apple Kimliği ayarlarından iptal '
         'edilmedikçe otomatik olarak yenilenir. Ödeme onayı sırasında Apple '
         'kimliğinizden tahsil edilir ve cari dönem sonunda ücret yenilenir. '
-        'Mevcut dönem içinde kullanılmayan PratiCase Premium içeriklerin '
-        'ücreti iade edilmez.';
+        'Paketteki MC ve soru haklarının geçerlilik dönemi paket detayında '
+        'belirtilir.';
   }
 }
 

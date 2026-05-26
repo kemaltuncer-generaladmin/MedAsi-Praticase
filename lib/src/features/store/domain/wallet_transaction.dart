@@ -1,8 +1,8 @@
 /// PratiCase cüzdan işlem geçmişinde gösterilen tek satır.
 ///
 /// `praticase-storekit-verify` edge fonksiyonunun `wallet_transactions`
-/// aksiyonundan gelir. Şu an her satır bir `wallet_entitlements` kaydına
-/// karşılık gelir (satın alma veya yenileme).
+/// aksiyonundan gelir. Satın alma/yenileme haklarını ve ortak
+/// `ai_usage_events` MC tüketimlerini tek kronolojik akışta taşır.
 class WalletTransaction {
   const WalletTransaction({
     required this.id,
@@ -50,7 +50,8 @@ class WalletTransaction {
   final DateTime? expiresAt;
 
   bool get isSubscription => kind == 'subscription';
-  bool get isCredit => coinAmount > 0 || questionAmount > 0;
+  bool get isUsage => kind == 'usage' || coinAmount < 0 || questionAmount < 0;
+  bool get isCredit => !isUsage && (coinAmount > 0 || questionAmount > 0);
   bool get isActive => status == 'active' && !expired;
 
   factory WalletTransaction.fromMap(Map<String, dynamic> row) {

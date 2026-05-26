@@ -111,6 +111,8 @@ class _WalletScreenState extends State<WalletScreen> {
             ),
             const SizedBox(height: 12),
             _WalletStatsRow(state: state, hidden: _balanceHidden),
+            const SizedBox(height: 12),
+            _WalletConsumptionCard(transactions: controller.transactions),
             const SizedBox(height: 22),
             if (state.hasActiveSubscription) ...[
               _WalletSubscriptionCard(
@@ -140,7 +142,7 @@ class _WalletScreenState extends State<WalletScreen> {
             ],
             const SizedBox(height: 26),
             const _WalletSectionHeader(
-              title: 'İşlem Geçmişi',
+              title: 'Cüzdan Hareketleri',
               actionLabel: null,
               onAction: null,
             ),
@@ -433,17 +435,14 @@ class _WalletBalanceCard extends StatelessWidget {
   }
 
   static String _formatMc(double value) {
-    if (value <= 0) return '0';
+    if (value <= 0) return '0,00';
     if (value >= 1000000) {
       return '${(value / 1000000).toStringAsFixed(1)}M';
     }
     if (value >= 10000) {
       return '${(value / 1000).toStringAsFixed(0)}K';
     }
-    if (value == value.roundToDouble()) {
-      return value.toStringAsFixed(0);
-    }
-    return value.toStringAsFixed(1);
+    return value.toStringAsFixed(2).replaceFirst('.', ',');
   }
 }
 
@@ -457,9 +456,6 @@ class _WalletStatsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final questionRemaining = state.remainingQuestionAmount > 0
-        ? state.remainingQuestionAmount
-        : state.questionQuota;
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 520;
@@ -468,19 +464,17 @@ class _WalletStatsRow extends StatelessWidget {
             icon: Icons.menu_book_outlined,
             accent: PratiCaseColors.teal,
             label: 'Soru hakkı',
-            value: hidden ? '••••' : '$questionRemaining',
+            value: hidden ? '••••' : '${state.questionQuota}',
             unit: 'kalan',
             sublabel: 'Teorik sınavda kullanılabilir',
           ),
           _WalletStatCard(
             icon: Icons.savings_outlined,
             accent: PratiCaseColors.slateBlue,
-            label: 'Kalan MC',
-            value: hidden
-                ? '••••'
-                : state.remainingCoinAmount.toStringAsFixed(0),
+            label: 'Kullanılabilir MC',
+            value: hidden ? '••••' : _formatMetricMc(state.walletCoinBalance),
             unit: 'MC',
-            sublabel: 'Bu dönem kullanılabilir',
+            sublabel: 'AI işlemlerinde ortak bakiye',
           ),
         ];
         if (wide) {
@@ -497,6 +491,10 @@ class _WalletStatsRow extends StatelessWidget {
         );
       },
     );
+  }
+
+  static String _formatMetricMc(double value) {
+    return value.toStringAsFixed(2).replaceFirst('.', ',');
   }
 }
 
@@ -683,6 +681,91 @@ class _WalletSubscriptionCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
             child: const Text('Yönet'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WalletConsumptionCard extends StatelessWidget {
+  const _WalletConsumptionCard({required this.transactions});
+
+  final List<WalletTransaction> transactions;
+
+  @override
+  Widget build(BuildContext context) {
+    WalletTransaction? latestUsage;
+    for (final transaction in transactions) {
+      if (transaction.isUsage) {
+        latestUsage = transaction;
+        break;
+      }
+    }
+    final recentText = latestUsage == null
+        ? 'Kullanımlar işlem gerçekleştikçe burada listelenir.'
+        : 'Son kullanım: ${latestUsage.productName} · '
+              '-${latestUsage.coinAmount.abs().toStringAsFixed(2).replaceFirst('.', ',')} MC';
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.teal.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+        border: Border.all(color: PratiCaseColors.teal.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: PratiCaseColors.teal.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: const Icon(
+              Icons.receipt_long_outlined,
+              color: PratiCaseColors.teal,
+              size: 21,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'MC tüketimi canlı takip edilir',
+                  style: TextStyle(
+                    color: PratiCaseColors.navy,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                const Text(
+                  'Sanal hasta, AI karne ve sözlü sınav işlemlerinde '
+                  'kullanım kadar MC düşer. En düşük AI tüketimi 0,10 MC.',
+                  style: TextStyle(
+                    color: PratiCaseColors.muted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  recentText,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: PratiCaseColors.teal,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -1168,7 +1251,9 @@ class _WalletTransactionTile extends StatelessWidget {
         : transaction.expired
         ? PratiCaseColors.muted
         : PratiCaseColors.slateBlue;
-    final icon = transaction.isSubscription
+    final icon = transaction.isUsage
+        ? Icons.remove_circle_outline_rounded
+        : transaction.isSubscription
         ? Icons.autorenew_rounded
         : Icons.add_card_outlined;
 
@@ -1255,6 +1340,9 @@ class _WalletTransactionTile extends StatelessWidget {
   String _formatAmount() {
     final coin = transaction.coinAmount;
     final question = transaction.questionAmount;
+    if (transaction.isUsage && coin < 0) {
+      return '-${_fmtDebit(coin.abs())} MC';
+    }
     if (coin > 0 && question > 0) {
       return '+${_fmtNum(coin)} MC · +$question soru';
     }
@@ -1270,6 +1358,9 @@ class _WalletTransactionTile extends StatelessWidget {
   String _subtitle() {
     final at = transaction.occurredAt;
     final base = at == null ? 'Tarih bilinmiyor' : _formatDate(at.toLocal());
+    if (transaction.isUsage) {
+      return '$base · MC tüketimi';
+    }
     if (transaction.isSubscription) {
       return '$base · Abonelik';
     }
@@ -1297,6 +1388,10 @@ class _WalletTransactionTile extends StatelessWidget {
       return value.toStringAsFixed(0);
     }
     return value.toStringAsFixed(1);
+  }
+
+  static String _fmtDebit(double value) {
+    return value.toStringAsFixed(2).replaceFirst('.', ',');
   }
 
   static String _formatDate(DateTime date) {
