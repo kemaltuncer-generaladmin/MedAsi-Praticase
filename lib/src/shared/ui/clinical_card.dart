@@ -29,7 +29,9 @@ class ClinicalCard extends StatelessWidget {
     final decoration = BoxDecoration(
       color: color ?? PratiCaseColors.white,
       borderRadius: BorderRadius.circular(radius),
-      border: Border.all(color: borderColor ?? PratiCaseColors.border),
+      border: Border.all(
+        color: borderColor ?? PratiCaseColors.border.withValues(alpha: 0.88),
+      ),
       boxShadow: elevated ? PratiCaseShadows.card : null,
     );
 
@@ -41,9 +43,6 @@ class ClinicalCard extends StatelessWidget {
 
     if (onTap == null) return inner;
 
-    return PressableScale(
-      onTap: onTap,
-      child: inner,
-    );
+    return PressableScale(onTap: onTap, child: inner);
   }
 }

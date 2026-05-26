@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart' show launchUrl, LaunchMode;
 
 import '../../../app/theme/praticase_colors.dart';
+import '../../../app/theme/praticase_tokens.dart';
 import '../data/store_controller.dart';
 import '../domain/subscription_state.dart';
 import 'paywall_screen.dart';
@@ -72,6 +73,7 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
         backgroundColor: PratiCaseColors.softSurface,
         foregroundColor: PratiCaseColors.navy,
         elevation: 0,
+        centerTitle: false,
       ),
       body: SafeArea(
         top: false,
@@ -80,6 +82,8 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
             children: [
+              const _SubscriptionIntro(),
+              const SizedBox(height: 20),
               _StatusCard(state: state),
               const SizedBox(height: 16),
               if (state.hasActiveSubscription) ...[
@@ -114,6 +118,38 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
   }
 }
 
+class _SubscriptionIntro extends StatelessWidget {
+  const _SubscriptionIntro();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: const [
+        Text(
+          'Abonelik Yönetimi',
+          style: TextStyle(
+            color: PratiCaseColors.navy,
+            fontSize: 32,
+            height: 1.08,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        SizedBox(height: 10),
+        Text(
+          'Aboneliğinizi yönetin, planınızı ve faturalandırma bilgilerinizi görüntüleyin.',
+          style: TextStyle(
+            color: PratiCaseColors.muted,
+            fontSize: 15,
+            height: 1.5,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _StatusCard extends StatelessWidget {
   const _StatusCard({required this.state});
 
@@ -124,56 +160,96 @@ class _StatusCard extends StatelessWidget {
     final hasActive = state.hasActiveSubscription;
     final remaining = state.remainingDuration;
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        gradient: hasActive
-            ? const LinearGradient(
-                colors: [
-                  PratiCaseColors.gradientStart,
-                  PratiCaseColors.gradientEnd,
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              )
-            : null,
+        gradient: hasActive ? PratiCaseGradients.hero : null,
         color: hasActive ? null : Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.xxl),
         border: hasActive ? null : Border.all(color: PratiCaseColors.border),
+        boxShadow: PratiCaseShadows.card,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(
-                hasActive
-                    ? Icons.workspace_premium_rounded
-                    : Icons.lock_outline_rounded,
-                color: hasActive ? PratiCaseColors.gold : PratiCaseColors.muted,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  hasActive ? 'Premium Aktif' : 'Aktif abonelik bulunmuyor',
-                  style: TextStyle(
-                    color: hasActive ? Colors.white : PratiCaseColors.navy,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: hasActive
+                      ? PratiCaseColors.gold.withValues(alpha: 0.18)
+                      : PratiCaseColors.teal.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+                  border: Border.all(
+                    color: hasActive
+                        ? PratiCaseColors.gold.withValues(alpha: 0.25)
+                        : PratiCaseColors.teal.withValues(alpha: 0.12),
                   ),
+                ),
+                child: Icon(
+                  hasActive
+                      ? Icons.workspace_premium_rounded
+                      : Icons.lock_outline_rounded,
+                  color: hasActive
+                      ? PratiCaseColors.gold
+                      : PratiCaseColors.teal,
+                  size: 30,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      hasActive
+                          ? state.productName
+                          : 'PratiCase Premium’u keşfet',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: hasActive ? Colors.white : PratiCaseColors.navy,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w900,
+                        height: 1.15,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color:
+                            (hasActive
+                                    ? PratiCaseColors.white
+                                    : PratiCaseColors.teal)
+                                .withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(
+                          PratiCaseRadius.pill,
+                        ),
+                      ),
+                      child: Text(
+                        hasActive
+                            ? '✓ Premium Aktif'
+                            : 'Aktif abonelik bulunmuyor',
+                        style: TextStyle(
+                          color: hasActive
+                              ? PratiCaseColors.white
+                              : PratiCaseColors.teal,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            hasActive ? state.productName : 'PratiCase Premium’u keşfet',
-            style: TextStyle(
-              color: hasActive ? Colors.white : PratiCaseColors.navy,
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 16),
           Text(
             hasActive
                 ? remaining == null
@@ -185,6 +261,7 @@ class _StatusCard extends StatelessWidget {
                   ? Colors.white.withValues(alpha: 0.88)
                   : PratiCaseColors.muted,
               height: 1.45,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -218,8 +295,9 @@ class _DetailsCard extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
         border: Border.all(color: PratiCaseColors.border),
+        boxShadow: PratiCaseShadows.card,
       ),
       child: Column(
         children: [
@@ -375,11 +453,12 @@ class _ActionsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
         border: Border.all(color: PratiCaseColors.border),
+        boxShadow: PratiCaseShadows.card,
       ),
       child: Column(
         children: [
@@ -514,8 +593,9 @@ class _FaqList extends StatelessWidget {
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
             border: Border.all(color: PratiCaseColors.border),
+            boxShadow: PratiCaseShadows.card,
           ),
           child: Column(
             children: [

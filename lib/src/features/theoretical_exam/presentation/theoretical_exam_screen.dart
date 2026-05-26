@@ -258,15 +258,15 @@ class _TheoreticalExamSetupScreenState
                 includeNavigationReserve: false,
               ),
               children: [
-                const _IntroCard(),
-                const SizedBox(height: 16),
                 _SharedQuotaCard(
                   remaining: filters.remainingQuestionCount,
                   total: filters.totalQuestionCount,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 18),
                 _SectionCard(
-                  title: 'Ders Seçimi',
+                  icon: Icons.menu_book_outlined,
+                  title: '1. Ders Seç',
+                  subtitle: 'Sınavda yer alacak dersi seç.',
                   child: filters.courses.isEmpty
                       ? const Align(
                           alignment: Alignment.centerLeft,
@@ -285,9 +285,12 @@ class _TheoreticalExamSetupScreenState
                           ],
                         ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 _SectionCard(
-                  title: 'Ders Planı',
+                  icon: Icons.layers_outlined,
+                  title: '2. Konu ve Soru Planı',
+                  subtitle:
+                      'Seçtiğin derslere ait konuları ve soru sayısını belirle.',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -322,23 +325,59 @@ class _TheoreticalExamSetupScreenState
                       const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
-                        child: FilledButton.icon(
-                          onPressed:
-                              _loadingQuestions || _selectedCourses.isEmpty
-                              ? null
-                              : () => _startGeneratedExam(filters),
-                          icon: _loadingQuestions
-                              ? const SizedBox.square(
-                                  dimension: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.play_arrow_rounded),
-                          label: Text(
-                            _loadingQuestions
-                                ? 'Sınav Hazırlanıyor'
-                                : 'Denemeyi Başlat',
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient:
+                                _loadingQuestions || _selectedCourses.isEmpty
+                                ? null
+                                : PratiCaseGradients.action,
+                            color: _loadingQuestions || _selectedCourses.isEmpty
+                                ? PratiCaseColors.border
+                                : null,
+                            borderRadius: BorderRadius.circular(
+                              PratiCaseRadius.pill,
+                            ),
+                            boxShadow:
+                                _loadingQuestions || _selectedCourses.isEmpty
+                                ? null
+                                : [
+                                    BoxShadow(
+                                      color: PratiCaseColors.teal.withValues(
+                                        alpha: 0.22,
+                                      ),
+                                      blurRadius: 22,
+                                      spreadRadius: -7,
+                                      offset: const Offset(0, 14),
+                                    ),
+                                  ],
+                          ),
+                          child: FilledButton.icon(
+                            onPressed:
+                                _loadingQuestions || _selectedCourses.isEmpty
+                                ? null
+                                : () => _startGeneratedExam(filters),
+                            icon: _loadingQuestions
+                                ? const SizedBox.square(
+                                    dimension: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: PratiCaseColors.white,
+                                    ),
+                                  )
+                                : const Icon(Icons.play_arrow_rounded),
+                            label: Text(
+                              _loadingQuestions
+                                  ? 'Sınav Hazırlanıyor'
+                                  : 'Denemeyi Başlat',
+                            ),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              disabledBackgroundColor: Colors.transparent,
+                              foregroundColor: PratiCaseColors.white,
+                              disabledForegroundColor: PratiCaseColors.muted,
+                              shadowColor: Colors.transparent,
+                              elevation: 0,
+                            ),
                           ),
                         ),
                       ),
@@ -562,73 +601,71 @@ class _TheoreticalExamSessionScreenState
   }
 }
 
-class _IntroCard extends StatelessWidget {
-  const _IntroCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
-      decoration: const BoxDecoration(
-        gradient: PratiCaseGradients.hero,
-        borderRadius: BorderRadius.all(Radius.circular(PratiCaseRadius.xxl)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(
-            Icons.school_rounded,
-            color: PratiCaseColors.gold,
-            size: 34,
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Medasi soru havuzundan komite denemesi',
-            style: TextStyle(
-              color: PratiCaseColors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-              height: 1.15,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Dersleri ve konuları seç, toplam soru sayısını belirle, deneme otomatik hazırlansın.',
-            style: TextStyle(
-              color: PratiCaseColors.white.withValues(alpha: 0.8),
-              height: 1.4,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _SectionCard extends StatelessWidget {
-  const _SectionCard({required this.title, required this.child});
+  const _SectionCard({
+    required this.title,
+    required this.child,
+    this.subtitle,
+    this.icon,
+  });
 
   final String title;
+  final String? subtitle;
+  final IconData? icon;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: PratiCaseColors.navy,
-              fontSize: 17,
-              fontWeight: FontWeight.w900,
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (icon != null) ...[
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: PratiCaseColors.teal.withValues(alpha: 0.09),
+                    borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+                  ),
+                  child: Icon(icon, color: PratiCaseColors.teal, size: 22),
+                ),
+                const SizedBox(width: 12),
+              ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: PratiCaseColors.navy,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle!,
+                        style: const TextStyle(
+                          color: PratiCaseColors.muted,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           child,
         ],
       ),
@@ -848,23 +885,73 @@ class _SharedQuotaCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final usable = total <= 0 ? 0 : remaining.clamp(0, total).toInt();
-    return _SectionCard(
-      title: 'Medasi Soru Hakkı',
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.teal.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
+        border: Border.all(color: PratiCaseColors.teal.withValues(alpha: 0.18)),
+        boxShadow: PratiCaseShadows.card,
+      ),
       child: Row(
         children: [
-          const Icon(
-            Icons.account_balance_wallet_outlined,
-            color: PratiCaseColors.teal,
+          Container(
+            width: 62,
+            height: 62,
+            decoration: BoxDecoration(
+              color: PratiCaseColors.teal.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
+            ),
+            child: const Icon(
+              Icons.monetization_on_outlined,
+              color: PratiCaseColors.teal,
+              size: 32,
+            ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 16),
           Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Kalan Soru Hakkın',
+                  style: TextStyle(
+                    color: PratiCaseColors.navy,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$usable',
+                  style: const TextStyle(
+                    color: PratiCaseColors.navy,
+                    fontSize: 34,
+                    height: 1.0,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Toplam $total hak',
+                  style: const TextStyle(
+                    color: PratiCaseColors.muted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
             child: Text(
-              '$usable/$total tekrar etmeyen soru kullanılabilir. '
-              'Yanıtladığın sorular desteklenen Medasi uygulamalarında tekrar gösterilmez.',
-              style: const TextStyle(
-                color: PratiCaseColors.navy,
+              'Bu sınavda Medasi soru kotanız kullanılacaktır.',
+              style: TextStyle(
+                color: PratiCaseColors.slateBlue,
+                fontSize: 13,
+                height: 1.45,
                 fontWeight: FontWeight.w700,
-                height: 1.35,
               ),
             ),
           ),

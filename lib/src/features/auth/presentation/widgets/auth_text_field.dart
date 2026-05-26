@@ -41,12 +41,13 @@ class _AuthTextFieldState extends State<AuthTextField> {
           widget.label,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
             color: PratiCaseColors.muted,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.2,
             height: 1.2,
           ),
         ),
-        const SizedBox(height: PratiCaseSpacing.sm),
+        const SizedBox(height: 7),
         TextFormField(
           controller: widget.controller,
           keyboardType: widget.keyboardType,
@@ -55,26 +56,26 @@ class _AuthTextFieldState extends State<AuthTextField> {
           obscureText: _obscured,
           style: const TextStyle(
             color: PratiCaseColors.ink,
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
             height: 1.5,
           ),
           decoration: InputDecoration(
             hintText: widget.hintText,
             hintStyle: const TextStyle(
               color: PratiCaseColors.muted,
-              fontSize: 15,
+              fontSize: 16,
               fontWeight: FontWeight.w500,
             ),
             filled: true,
             fillColor: PratiCaseColors.white,
             contentPadding: const EdgeInsets.symmetric(
-              horizontal: PratiCaseSpacing.lg,
-              vertical: PratiCaseSpacing.lg,
+              horizontal: PratiCaseSpacing.xl,
+              vertical: 18,
             ),
             prefixIcon: widget.icon == null
                 ? null
-                : Icon(widget.icon, color: PratiCaseColors.muted, size: 20),
+                : Icon(widget.icon, color: PratiCaseColors.slateBlue, size: 22),
             suffixIcon: widget.obscureText
                 ? IconButton(
                     onPressed: () => setState(() => _obscured = !_obscured),
@@ -88,26 +89,26 @@ class _AuthTextFieldState extends State<AuthTextField> {
                   )
                 : null,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+              borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
               borderSide: const BorderSide(color: PratiCaseColors.border),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+              borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
               borderSide: const BorderSide(color: PratiCaseColors.border),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+              borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
               borderSide: const BorderSide(
                 color: PratiCaseColors.teal,
                 width: 1.5,
               ),
             ),
             errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+              borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
               borderSide: const BorderSide(color: PratiCaseColors.errorRed),
             ),
             focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+              borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
               borderSide: const BorderSide(
                 color: PratiCaseColors.errorRed,
                 width: 1.5,

@@ -101,10 +101,22 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Center(
-            child: AuthHeroIllustration(type: AuthHeroType.envelope, size: 166),
+          const AuthWordmark(width: 224),
+          const SizedBox(height: 10),
+          const Text(
+            'OSCE • Sözlü • Teorik',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: PratiCaseColors.muted,
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+            ),
           ),
-          const SizedBox(height: 26),
+          const SizedBox(height: 30),
+          const Center(
+            child: AuthHeroIllustration(type: AuthHeroType.envelope, size: 124),
+          ),
+          const SizedBox(height: 24),
           Text(
             'E-postanı doğrula',
             textAlign: TextAlign.center,
@@ -115,35 +127,72 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          Text(
-            'Sana gönderdiğimiz 6 haneli kodu gir.',
+          Text.rich(
+            TextSpan(
+              children: [
+                const TextSpan(
+                  text: 'Güvenliğin için, 6 haneli doğrulama kodunu ',
+                ),
+                TextSpan(
+                  text: widget.email.isEmpty ? 'ornek@mail.com' : widget.email,
+                  style: const TextStyle(
+                    color: PratiCaseColors.teal,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const TextSpan(text: ' adresine gönderdik.'),
+              ],
+            ),
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
               color: const Color(0xFF465872),
               fontSize: 17,
+              height: 1.45,
             ),
           ),
           const SizedBox(height: 30),
-          AuthStatusCard(
-            title: 'Kod gönderilen e-posta',
-            message: widget.email.isEmpty ? 'ornek@mail.com' : widget.email,
-            tone: AuthStatusTone.info,
-          ),
-          const SizedBox(height: 24),
-          OtpInput(onChanged: (value) => _code = value),
-          const SizedBox(height: 34),
-          AuthPrimaryButton(
-            label: 'Doğrula',
-            loading: _loading,
-            onPressed: _verify,
-          ),
-          const SizedBox(height: 18),
-          Center(
-            child: AuthLinkButton(
-              label: _resendSeconds > 0
-                  ? 'Kodu tekrar gönder (00:${_resendSeconds.toString().padLeft(2, '0')})'
-                  : 'Kodu tekrar gönder',
-              onPressed: _resendSeconds > 0 ? null : _resend,
+          Container(
+            padding: const EdgeInsets.fromLTRB(18, 22, 18, 20),
+            decoration: BoxDecoration(
+              color: PratiCaseColors.white,
+              borderRadius: BorderRadius.circular(28),
+              boxShadow: [
+                BoxShadow(
+                  color: PratiCaseColors.navy.withValues(alpha: 0.07),
+                  blurRadius: 24,
+                  spreadRadius: -8,
+                  offset: const Offset(0, 16),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AuthStatusCard(
+                  title: 'Kod gönderilen e-posta',
+                  message: widget.email.isEmpty
+                      ? 'ornek@mail.com'
+                      : widget.email,
+                  tone: AuthStatusTone.info,
+                ),
+                const SizedBox(height: 24),
+                OtpInput(onChanged: (value) => _code = value),
+                const SizedBox(height: 28),
+                AuthPrimaryButton(
+                  label: 'Doğrulamayı Tamamla',
+                  loading: _loading,
+                  onPressed: _verify,
+                ),
+                const SizedBox(height: 18),
+                Center(
+                  child: AuthLinkButton(
+                    label: _resendSeconds > 0
+                        ? 'Kodu tekrar gönder (00:${_resendSeconds.toString().padLeft(2, '0')})'
+                        : 'Kodu tekrar gönder',
+                    onPressed: _resendSeconds > 0 ? null : _resend,
+                  ),
+                ),
+              ],
             ),
           ),
           if (_error != null) ...[

@@ -221,38 +221,80 @@ class _OralExamSetupScreenState extends State<OralExamSetupScreen> {
                 bottom: MediaQuery.paddingOf(context).bottom + 16,
                 child: SafeArea(
                   top: false,
-                  child: FilledButton.icon(
-                    onPressed:
-                        _branch == null ||
-                            _starting ||
-                            (_format == OralExamFormat.solo && _persona == null)
-                        ? null
-                        : _start,
-                    icon: _starting
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: PratiCaseSpinner(
-                              size: 18,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Icon(
-                            _format == OralExamFormat.panel
-                                ? Icons.groups_2_rounded
-                                : Icons.record_voice_over_rounded,
-                          ),
-                    label: Text(
-                      _starting
-                          ? (_format == OralExamFormat.panel
-                                ? 'Komite hazırlanıyor...'
-                                : 'Hoca hazırlanıyor...')
-                          : (_format == OralExamFormat.panel
-                                ? 'Komiteye Çık'
-                                : 'Sözlü Sınavı Başlat'),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient:
+                          _branch == null ||
+                              _starting ||
+                              (_format == OralExamFormat.solo &&
+                                  _persona == null)
+                          ? null
+                          : PratiCaseGradients.action,
+                      color:
+                          _branch == null ||
+                              _starting ||
+                              (_format == OralExamFormat.solo &&
+                                  _persona == null)
+                          ? PratiCaseColors.border
+                          : null,
+                      borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+                      boxShadow:
+                          _branch == null ||
+                              _starting ||
+                              (_format == OralExamFormat.solo &&
+                                  _persona == null)
+                          ? null
+                          : [
+                              BoxShadow(
+                                color: PratiCaseColors.teal.withValues(
+                                  alpha: 0.22,
+                                ),
+                                blurRadius: 22,
+                                spreadRadius: -7,
+                                offset: const Offset(0, 14),
+                              ),
+                            ],
                     ),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(54),
+                    child: FilledButton.icon(
+                      onPressed:
+                          _branch == null ||
+                              _starting ||
+                              (_format == OralExamFormat.solo &&
+                                  _persona == null)
+                          ? null
+                          : _start,
+                      icon: _starting
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: PratiCaseSpinner(
+                                size: 18,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Icon(
+                              _format == OralExamFormat.panel
+                                  ? Icons.groups_2_rounded
+                                  : Icons.record_voice_over_rounded,
+                            ),
+                      label: Text(
+                        _starting
+                            ? (_format == OralExamFormat.panel
+                                  ? 'Komite hazırlanıyor...'
+                                  : 'Hoca hazırlanıyor...')
+                            : (_format == OralExamFormat.panel
+                                  ? 'Komiteye Çık'
+                                  : 'Sözlü Sınavı Başlat'),
+                      ),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(54),
+                        backgroundColor: Colors.transparent,
+                        disabledBackgroundColor: Colors.transparent,
+                        foregroundColor: PratiCaseColors.white,
+                        disabledForegroundColor: PratiCaseColors.muted,
+                        shadowColor: Colors.transparent,
+                        elevation: 0,
+                      ),
                     ),
                   ),
                 ),
@@ -1425,19 +1467,25 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
       child: Scaffold(
         backgroundColor: PratiCaseColors.softSurface,
         appBar: AppBar(
-          title: Text(widget.session.branchTitle),
+          title: const Text('Sözlü Sınav Odası'),
+          centerTitle: true,
+          backgroundColor: PratiCaseColors.softSurface,
+          scrolledUnderElevation: 0,
           actions: [
             Padding(
               padding: const EdgeInsets.only(right: 14),
               child: Center(
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
+                    horizontal: 12,
+                    vertical: 8,
                   ),
                   decoration: BoxDecoration(
                     color: _timerColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: _timerColor.withValues(alpha: 0.14),
+                    ),
                   ),
                   child: Row(
                     children: [

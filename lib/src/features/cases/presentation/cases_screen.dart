@@ -94,9 +94,9 @@ class _CasesScreenState extends State<CasesScreen> {
               ),
               const SizedBox(height: 34),
               const _PageTitle(
-                title: 'Vaka Kütüphanesi',
+                title: 'OSCE İstasyonları',
                 subtitle:
-                    'Semptom, branş veya zorluk seçerek OSCE istasyonu başlat.',
+                    'Başlamak için bir istasyon seçin ve pratiğe hemen başlayın.',
               ),
               const SizedBox(height: 22),
               _SearchBox(
@@ -2813,7 +2813,7 @@ class _SearchBox extends StatelessWidget {
       onSubmitted: (_) => onSubmitted(),
       textInputAction: TextInputAction.search,
       decoration: InputDecoration(
-        hintText: 'Vaka ara...',
+        hintText: 'İstasyon ara...',
         prefixIcon: const Padding(
           padding: EdgeInsets.only(left: 8, right: 4),
           child: Icon(Icons.search_rounded, color: PratiCaseColors.navy),
@@ -2828,13 +2828,13 @@ class _SearchBox extends StatelessWidget {
         prefixIconConstraints: const BoxConstraints(minWidth: 50),
         filled: true,
         fillColor: PratiCaseColors.white,
-        contentPadding: const EdgeInsets.symmetric(vertical: 20),
+        contentPadding: const EdgeInsets.symmetric(vertical: 22),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+          borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
           borderSide: const BorderSide(color: PratiCaseColors.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+          borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
           borderSide: const BorderSide(color: PratiCaseColors.border),
         ),
       ),
@@ -2863,13 +2863,15 @@ class _CaseFilterOverview extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: PratiCaseColors.navy,
+        color: PratiCaseColors.teal.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
+        border: Border.all(color: PratiCaseColors.teal.withValues(alpha: 0.18)),
         boxShadow: [
           BoxShadow(
-            color: PratiCaseColors.navy.withValues(alpha: 0.12),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+            color: PratiCaseColors.navy.withValues(alpha: 0.05),
+            blurRadius: 22,
+            spreadRadius: -8,
+            offset: const Offset(0, 14),
           ),
         ],
       ),
@@ -2882,12 +2884,12 @@ class _CaseFilterOverview extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.12),
+                  color: PratiCaseColors.white.withValues(alpha: 0.78),
                   borderRadius: BorderRadius.circular(PratiCaseRadius.md),
                 ),
                 child: const Icon(
                   Icons.tune_rounded,
-                  color: PratiCaseColors.tealBright,
+                  color: PratiCaseColors.teal,
                 ),
               ),
               const SizedBox(width: 12),
@@ -2898,7 +2900,7 @@ class _CaseFilterOverview extends StatelessWidget {
                     const Text(
                       'Aktif Filtreler',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: PratiCaseColors.navy,
                         fontSize: 17,
                         fontWeight: FontWeight.w900,
                       ),
@@ -2909,7 +2911,7 @@ class _CaseFilterOverview extends StatelessWidget {
                           ? 'Tüm istasyonlar gösteriliyor.'
                           : '$activeCount filtre aktif.',
                       style: TextStyle(
-                        color: PratiCaseColors.white.withValues(alpha: 0.78),
+                        color: PratiCaseColors.muted,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -2929,9 +2931,9 @@ class _CaseFilterOverview extends StatelessWidget {
                     value: ratio,
                     minHeight: 8,
                     backgroundColor: PratiCaseColors.white.withValues(
-                      alpha: 0.24,
+                      alpha: 0.58,
                     ),
-                    color: PratiCaseColors.tealBright,
+                    color: PratiCaseColors.teal,
                   ),
                 ),
               ),
@@ -2939,7 +2941,7 @@ class _CaseFilterOverview extends StatelessWidget {
               Text(
                 '$visibleCount/$totalCount',
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: PratiCaseColors.teal,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -4851,19 +4853,42 @@ class _BottomAction extends StatelessWidget {
           child: SizedBox(
             height: 52,
             width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: onPressed,
-              label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-              icon: Icon(icon),
-              style: FilledButton.styleFrom(
-                backgroundColor: PratiCaseColors.teal,
-                foregroundColor: PratiCaseColors.white,
-                textStyle: const TextStyle(fontWeight: FontWeight.w900),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: onPressed == null ? null : PratiCaseGradients.action,
+                color: onPressed == null ? PratiCaseColors.border : null,
+                borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+                boxShadow: onPressed == null
+                    ? null
+                    : [
+                        BoxShadow(
+                          color: PratiCaseColors.teal.withValues(alpha: 0.22),
+                          blurRadius: 22,
+                          spreadRadius: -7,
+                          offset: const Offset(0, 14),
+                        ),
+                      ],
+              ),
+              child: FilledButton.icon(
+                onPressed: onPressed,
+                label: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                elevation: 2,
-                shadowColor: PratiCaseColors.teal.withValues(alpha: 0.4),
+                icon: Icon(icon),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  disabledBackgroundColor: Colors.transparent,
+                  foregroundColor: PratiCaseColors.white,
+                  disabledForegroundColor: PratiCaseColors.muted,
+                  textStyle: const TextStyle(fontWeight: FontWeight.w900),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+                  ),
+                  elevation: 0,
+                  shadowColor: Colors.transparent,
+                ),
               ),
             ),
           ),
@@ -5733,11 +5758,11 @@ class _ManagementOptionTile extends StatelessWidget {
   }
 }
 
-BoxDecoration _cardDecoration({double radius = 16}) {
+BoxDecoration _cardDecoration({double radius = PratiCaseRadius.xl}) {
   return BoxDecoration(
     color: PratiCaseColors.white,
     borderRadius: BorderRadius.circular(radius),
-    border: Border.all(color: PratiCaseColors.border),
+    border: Border.all(color: PratiCaseColors.border.withValues(alpha: 0.88)),
     boxShadow: PratiCaseShadows.card,
   );
 }

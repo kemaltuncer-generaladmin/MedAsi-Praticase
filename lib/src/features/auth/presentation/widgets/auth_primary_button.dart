@@ -24,25 +24,19 @@ class AuthPrimaryButton extends StatelessWidget {
     final activeVisual = onPressed != null || loading;
     final core = SizedBox(
       width: double.infinity,
-      height: 52,
+      height: 58,
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: activeVisual ? null : PratiCaseColors.border,
           borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
-          gradient: activeVisual
-              ? const LinearGradient(
-                  colors: [
-                    PratiCaseColors.gradientStart,
-                    PratiCaseColors.gradientEnd,
-                  ],
-                )
-              : null,
+          gradient: activeVisual ? PratiCaseGradients.action : null,
           boxShadow: activeVisual
               ? [
                   BoxShadow(
-                    color: PratiCaseColors.navy.withValues(alpha: 0.16),
-                    blurRadius: 14,
-                    offset: const Offset(0, 8),
+                    color: PratiCaseColors.teal.withValues(alpha: 0.22),
+                    blurRadius: 22,
+                    spreadRadius: -6,
+                    offset: const Offset(0, 14),
                   ),
                 ]
               : null,
@@ -81,7 +75,7 @@ class AuthPrimaryButton extends StatelessWidget {
                             maxLines: 1,
                             style: TextStyle(
                               fontSize: 16,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w900,
                               letterSpacing: 0.2,
                               color: activeVisual
                                   ? PratiCaseColors.white

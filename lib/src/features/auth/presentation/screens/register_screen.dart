@@ -146,170 +146,199 @@ class _RegisterScreenState extends State<RegisterScreen> {
               },
             ),
             const SizedBox(height: 24),
-            AuthTextField(
-              label: 'Ad',
-              hintText: 'Adınızı girin',
-              controller: _firstName,
-              icon: Icons.person_outline_rounded,
-              textInputAction: TextInputAction.next,
-              validator: (value) =>
-                  (value == null || value.trim().isEmpty) ? 'Adını gir.' : null,
-            ),
-            const SizedBox(height: PratiCaseSpacing.lg),
-            AuthTextField(
-              label: 'Soyad',
-              hintText: 'Soyadınızı girin',
-              controller: _lastName,
-              icon: Icons.person_outline_rounded,
-              textInputAction: TextInputAction.next,
-              validator: (value) => (value == null || value.trim().isEmpty)
-                  ? 'Soyadını gir.'
-                  : null,
-            ),
-            const SizedBox(height: PratiCaseSpacing.lg),
-            AuthTextField(
-              label: 'E-posta',
-              hintText: 'E-posta adresinizi girin',
-              controller: _email,
-              icon: Icons.mail_outline_rounded,
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-              validator: AuthValidators.email,
-            ),
-            const SizedBox(height: PratiCaseSpacing.lg),
-            AuthTextField(
-              label: 'Şifre',
-              hintText: 'Şifrenizi oluşturun',
-              controller: _password,
-              icon: Icons.lock_outline_rounded,
-              obscureText: true,
-              textInputAction: TextInputAction.next,
-              validator: AuthValidators.password,
-            ),
-            const SizedBox(height: PratiCaseSpacing.sm),
-            PasswordStrengthIndicator(password: _password.text),
-            const SizedBox(height: PratiCaseSpacing.lg),
-            AuthTextField(
-              label: 'Şifre (Tekrar)',
-              hintText: 'Şifrenizi tekrar girin',
-              controller: _repeatPassword,
-              icon: Icons.lock_outline_rounded,
-              obscureText: true,
-              validator: (value) {
-                if (value != _password.text) return 'Şifreler eşleşmiyor.';
-                return AuthValidators.password(value);
-              },
-            ),
-            const SizedBox(height: PratiCaseSpacing.xl),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                InkWell(
-                  onTap: () => setState(() => _acceptedTerms = !_acceptedTerms),
-                  borderRadius: BorderRadius.circular(PratiCaseRadius.sm),
-                  child: SizedBox(
-                    width: 44,
-                    height: 44,
-                    child: Center(
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 150),
-                        width: 22,
-                        height: 22,
-                        decoration: BoxDecoration(
-                          color: _acceptedTerms
-                              ? PratiCaseColors.teal
-                              : PratiCaseColors.white,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: PratiCaseColors.teal),
-                        ),
-                        child: _acceptedTerms
-                            ? const Icon(
-                                Icons.check_rounded,
-                                color: PratiCaseColors.white,
-                                size: 16,
-                              )
-                            : null,
-                      ),
-                    ),
+            Container(
+              padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+              decoration: BoxDecoration(
+                color: PratiCaseColors.white,
+                borderRadius: BorderRadius.circular(PratiCaseRadius.xxl),
+                boxShadow: PratiCaseShadows.card,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AuthTextField(
+                    label: 'Ad',
+                    hintText: 'Ad',
+                    controller: _firstName,
+                    icon: Icons.person_outline_rounded,
+                    textInputAction: TextInputAction.next,
+                    validator: (value) =>
+                        (value == null || value.trim().isEmpty)
+                        ? 'Adını gir.'
+                        : null,
                   ),
-                ),
-                const SizedBox(width: PratiCaseSpacing.sm),
-                Expanded(
-                  child: Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
+                  const SizedBox(height: PratiCaseSpacing.lg),
+                  AuthTextField(
+                    label: 'Soyad',
+                    hintText: 'Soyad',
+                    controller: _lastName,
+                    icon: Icons.person_outline_rounded,
+                    textInputAction: TextInputAction.next,
+                    validator: (value) =>
+                        (value == null || value.trim().isEmpty)
+                        ? 'Soyadını gir.'
+                        : null,
+                  ),
+                  const SizedBox(height: PratiCaseSpacing.lg),
+                  AuthTextField(
+                    label: 'E-posta',
+                    hintText: 'E-posta',
+                    controller: _email,
+                    icon: Icons.mail_outline_rounded,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                    validator: AuthValidators.email,
+                  ),
+                  const SizedBox(height: PratiCaseSpacing.lg),
+                  AuthTextField(
+                    label: 'Şifre',
+                    hintText: 'Şifre',
+                    controller: _password,
+                    icon: Icons.lock_outline_rounded,
+                    obscureText: true,
+                    textInputAction: TextInputAction.next,
+                    validator: AuthValidators.password,
+                  ),
+                  const SizedBox(height: PratiCaseSpacing.sm),
+                  PasswordStrengthIndicator(password: _password.text),
+                  const SizedBox(height: PratiCaseSpacing.lg),
+                  AuthTextField(
+                    label: 'Şifre (Tekrar)',
+                    hintText: 'Şifre Tekrar',
+                    controller: _repeatPassword,
+                    icon: Icons.lock_outline_rounded,
+                    obscureText: true,
+                    validator: (value) {
+                      if (value != _password.text) {
+                        return 'Şifreler eşleşmiyor.';
+                      }
+                      return AuthValidators.password(value);
+                    },
+                  ),
+                  const SizedBox(height: PratiCaseSpacing.xl),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Kullanım koşullarını ve ',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: PratiCaseColors.ink,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          height: 1.5,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: _openLegalNotice,
-                        child: Text(
-                          'gizlilik politikasını',
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
-                                color: PratiCaseColors.teal,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w800,
-                                height: 1.5,
-                                decoration: TextDecoration.underline,
-                                decorationColor: PratiCaseColors.teal,
+                      InkWell(
+                        onTap: () =>
+                            setState(() => _acceptedTerms = !_acceptedTerms),
+                        borderRadius: BorderRadius.circular(PratiCaseRadius.sm),
+                        child: SizedBox(
+                          width: 44,
+                          height: 44,
+                          child: Center(
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
+                                color: _acceptedTerms
+                                    ? PratiCaseColors.teal
+                                    : PratiCaseColors.white,
+                                borderRadius: BorderRadius.circular(7),
+                                border: Border.all(
+                                  color: _acceptedTerms
+                                      ? PratiCaseColors.teal
+                                      : PratiCaseColors.border,
+                                  width: 1.6,
+                                ),
                               ),
+                              child: _acceptedTerms
+                                  ? const Icon(
+                                      Icons.check_rounded,
+                                      color: PratiCaseColors.white,
+                                      size: 16,
+                                    )
+                                  : null,
+                            ),
+                          ),
                         ),
                       ),
-                      Text(
-                        ' okudum, kabul ediyorum.',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: PratiCaseColors.ink,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          height: 1.5,
+                      const SizedBox(width: PratiCaseSpacing.sm),
+                      Expanded(
+                        child: Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              'Kullanım koşullarını ve ',
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    color: PratiCaseColors.slateBlue,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.5,
+                                  ),
+                            ),
+                            GestureDetector(
+                              onTap: _openLegalNotice,
+                              child: Text(
+                                'gizlilik politikasını',
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(
+                                      color: PratiCaseColors.teal,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w900,
+                                      height: 1.5,
+                                    ),
+                              ),
+                            ),
+                            Text(
+                              ' okudum, kabul ediyorum.',
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    color: PratiCaseColors.slateBlue,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.5,
+                                  ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
-            AnimatedSize(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeInOut,
-              child: _error != null
-                  ? Padding(
-                      padding: const EdgeInsets.only(top: PratiCaseSpacing.lg),
-                      child: AuthStatusCard(
-                        message: _error!,
-                        tone: AuthStatusTone.error,
-                      ),
-                    )
-                  : const SizedBox.shrink(),
-            ),
-            const SizedBox(height: PratiCaseSpacing.xxl),
-            AuthPrimaryButton(
-              label: 'Hesap Oluştur',
-              loading: _loading,
-              onPressed: _submit,
-            ),
-            const SizedBox(height: PratiCaseSpacing.xxl),
-            Wrap(
-              alignment: WrapAlignment.center,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Text(
-                  'Zaten hesabın var mı?',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: PratiCaseColors.muted,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeInOut,
+                    child: _error != null
+                        ? Padding(
+                            padding: const EdgeInsets.only(
+                              top: PratiCaseSpacing.lg,
+                            ),
+                            child: AuthStatusCard(
+                              message: _error!,
+                              tone: AuthStatusTone.error,
+                            ),
+                          )
+                        : const SizedBox.shrink(),
                   ),
-                ),
-                AuthLinkButton(label: 'Giriş yap', onPressed: widget.onLogin),
-              ],
+                  const SizedBox(height: PratiCaseSpacing.xxl),
+                  AuthPrimaryButton(
+                    label: 'Hesap Oluştur',
+                    loading: _loading,
+                    onPressed: _submit,
+                  ),
+                  const SizedBox(height: PratiCaseSpacing.xxl),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        'Zaten hesabın var mı?',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: PratiCaseColors.muted,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      AuthLinkButton(
+                        label: 'Giriş yap',
+                        onPressed: widget.onLogin,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ],
         ),

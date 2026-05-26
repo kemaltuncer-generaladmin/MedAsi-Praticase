@@ -24,8 +24,9 @@ class SoftIconBadge extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(radius),
+        border: Border.all(color: color.withValues(alpha: 0.05)),
       ),
       child: Icon(icon, color: color, size: iconSize),
     );

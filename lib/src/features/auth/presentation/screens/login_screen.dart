@@ -81,8 +81,10 @@ class _LoginScreenState extends State<LoginScreen> {
               padding: const EdgeInsets.all(PratiCaseSpacing.xl),
               decoration: BoxDecoration(
                 color: PratiCaseColors.white,
-                borderRadius: BorderRadius.circular(PratiCaseRadius.md),
-                border: Border.all(color: PratiCaseColors.border),
+                borderRadius: BorderRadius.circular(PratiCaseRadius.xxl),
+                border: Border.all(
+                  color: PratiCaseColors.border.withValues(alpha: 0.86),
+                ),
                 boxShadow: PratiCaseShadows.card,
               ),
               child: Column(
@@ -168,32 +170,49 @@ class _LoginBrandHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Container(
-          width: 64,
-          height: 64,
-          decoration: BoxDecoration(
-            color: PratiCaseColors.white,
-            borderRadius: BorderRadius.circular(PratiCaseRadius.md),
-            border: Border.all(color: PratiCaseColors.border),
-            boxShadow: PratiCaseShadows.card,
-          ),
-          child: const Icon(
-            Icons.monitor_heart_rounded,
-            color: PratiCaseColors.teal,
-            size: 32,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+              child: Image.asset(
+                'assets/auth/praticase_icon.png',
+                width: 54,
+                height: 54,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(text: 'Prati'),
+                  TextSpan(
+                    text: 'Case',
+                    style: TextStyle(color: PratiCaseColors.teal),
+                  ),
+                ],
+              ),
+              style: TextStyle(
+                color: PratiCaseColors.navy,
+                fontSize: 31,
+                fontWeight: FontWeight.w900,
+                height: 1.05,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: PratiCaseSpacing.xl),
+        const SizedBox(height: 30),
         Text(
-          'Hoş Geldiniz',
+          'Hesabına Giriş Yap',
           style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-            color: PratiCaseColors.ink,
-            fontSize: 28,
-            fontWeight: FontWeight.w800,
-            height: 1.2,
+            color: PratiCaseColors.navy,
+            fontSize: 34,
+            fontWeight: FontWeight.w900,
+            height: 1.08,
           ),
         ),
-        const SizedBox(height: PratiCaseSpacing.xs),
+        const SizedBox(height: 10),
         Text(
           'PratiCase klinik simülasyonuna giriş yapın.',
           textAlign: TextAlign.center,

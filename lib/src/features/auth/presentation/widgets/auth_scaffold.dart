@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/theme/praticase_colors.dart';
+import '../../../../app/theme/praticase_tokens.dart';
 import 'auth_visuals.dart';
 
 class AuthScaffold extends StatelessWidget {
@@ -44,18 +45,27 @@ class AuthScaffold extends StatelessWidget {
                     child: Column(
                       children: [
                         SizedBox(
-                          height: onBack == null ? 8 : 52,
+                          height: onBack == null ? 8 : 58,
                           child: onBack == null
                               ? null
                               : Align(
                                   alignment: Alignment.centerLeft,
-                                  child: IconButton(
-                                    onPressed: onBack,
+                                  child: Padding(
                                     padding: const EdgeInsets.only(left: 18),
-                                    icon: const Icon(
-                                      Icons.arrow_back_ios_new_rounded,
-                                      color: PratiCaseColors.navy,
-                                      size: 28,
+                                    child: DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        color: PratiCaseColors.white,
+                                        borderRadius: BorderRadius.circular(16),
+                                        boxShadow: PratiCaseShadows.card,
+                                      ),
+                                      child: IconButton(
+                                        onPressed: onBack,
+                                        icon: const Icon(
+                                          Icons.arrow_back_rounded,
+                                          color: PratiCaseColors.navy,
+                                          size: 25,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),

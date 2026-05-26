@@ -17,6 +17,8 @@ import '../../oral_exam/presentation/oral_exam_screens.dart';
 import '../../progress/data/progress_repository.dart';
 import '../../progress/domain/progress_models.dart';
 import '../../progress/presentation/progress_screens.dart';
+import '../../store/data/store_controller.dart';
+import '../../store/presentation/wallet_screen.dart';
 import '../../theoretical_exam/data/theoretical_exam_repository.dart';
 import '../../theoretical_exam/presentation/theoretical_exam_screen.dart';
 
@@ -47,6 +49,8 @@ class PratiCaseShell extends StatefulWidget {
 class _PratiCaseShellState extends State<PratiCaseShell> {
   int _selectedIndex = 0;
   int? _unreadNotificationCount;
+  StoreController? _storeController;
+  var _walletTabMounted = false;
   StreamSubscription<int>? _notificationCountSubscription;
 
   @override
@@ -70,7 +74,22 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
   @override
   void dispose() {
     _notificationCountSubscription?.cancel();
+    final storeController = _storeController;
+    if (storeController != null) {
+      unawaited(storeController.dispose());
+    }
     super.dispose();
+  }
+
+  StoreController _storeControllerForWallet() {
+    return _storeController ??= StoreController();
+  }
+
+  void _selectTab(int index) {
+    setState(() {
+      _selectedIndex = index;
+      if (index == 1) _walletTabMounted = true;
+    });
   }
 
   Future<void> _refreshUnreadNotificationCount() async {
@@ -97,7 +116,26 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
     await _refreshUnreadNotificationCount();
   }
 
-  void _openProfile() => setState(() => _selectedIndex = 4);
+  void _openCases() {
+    unawaited(
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => CasesScreen(
+            repository: widget.casesRepository,
+            unreadNotificationCount: _unreadNotificationCount ?? 0,
+            onOpenNotifications: _openNotifications,
+            onOpenProfile: _openProfile,
+            onOpenHome: () {
+              Navigator.of(context).popUntil((route) => route.isFirst);
+              _selectTab(0);
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openProfile() => _selectTab(4);
 
   @override
   Widget build(BuildContext context) {
@@ -106,8 +144,8 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
       HomeScreen(
         repository: widget.homeRepository,
         casesRepository: widget.casesRepository,
-        onOpenCases: () => setState(() => _selectedIndex = 1),
-        onOpenExams: () => setState(() => _selectedIndex = 2),
+        onOpenCases: _openCases,
+        onOpenExams: () => _selectTab(2),
         onOpenTheoreticalExam: () => Navigator.of(context).push(
           MaterialPageRoute<void>(
             builder: (_) => TheoreticalExamSetupScreen(
@@ -121,7 +159,7 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
                 OralExamSetupScreen(repository: widget.oralExamRepository),
           ),
         ),
-        onOpenProgress: () => setState(() => _selectedIndex = 3),
+        onOpenProgress: () => _selectTab(3),
         unreadNotificationCount: _unreadNotificationCount,
         onOpenNotifications: _openNotifications,
         onOpenProfile: _openProfile,
@@ -131,18 +169,19 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
           ),
         ),
       ),
-      CasesScreen(
-        repository: widget.casesRepository,
-        unreadNotificationCount: _unreadNotificationCount ?? 0,
-        onOpenNotifications: _openNotifications,
-        onOpenProfile: _openProfile,
-        onOpenHome: () => setState(() => _selectedIndex = 0),
-      ),
+      _walletTabMounted
+          ? WalletScreen(
+              controller: _storeControllerForWallet(),
+              unreadNotificationCount: _unreadNotificationCount ?? 0,
+              onOpenNotifications: _openNotifications,
+              onOpenProfile: _openProfile,
+            )
+          : const _WalletDormantScreen(),
       _ExamsScreen(
         progressRepository: widget.progressRepository,
         theoreticalExamRepository: widget.theoreticalExamRepository,
         oralExamRepository: widget.oralExamRepository,
-        onOpenCases: () => setState(() => _selectedIndex = 1),
+        onOpenCases: _openCases,
         unreadNotificationCount: _unreadNotificationCount ?? 0,
         onOpenNotifications: _openNotifications,
         onOpenProfile: _openProfile,
@@ -159,6 +198,7 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
         unreadNotificationCount: _unreadNotificationCount ?? 0,
         onOpenNotifications: _openNotifications,
         onSignOut: widget.onSignOut,
+        storeControllerFactory: _storeControllerForWallet,
       ),
     ];
 
@@ -171,8 +211,7 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
                 children: [
                   _PratiCaseSideNavigation(
                     selectedIndex: _selectedIndex,
-                    onSelected: (index) =>
-                        setState(() => _selectedIndex = index),
+                    onSelected: _selectTab,
                   ),
                   const VerticalDivider(
                     width: 1,
@@ -190,9 +229,18 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
           ? null
           : _PratiCaseBottomNav(
               selectedIndex: _selectedIndex,
-              onSelected: (index) => setState(() => _selectedIndex = index),
+              onSelected: _selectTab,
             ),
     );
+  }
+}
+
+class _WalletDormantScreen extends StatelessWidget {
+  const _WalletDormantScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox.shrink();
   }
 }
 
@@ -241,9 +289,9 @@ class _PratiCaseSideNavigation extends StatelessWidget {
           label: Text('Ana Sayfa'),
         ),
         NavigationRailDestination(
-          icon: Icon(Icons.inventory_2_outlined),
-          selectedIcon: Icon(Icons.inventory_2_rounded),
-          label: Text('Vakalar'),
+          icon: Icon(Icons.account_balance_wallet_outlined),
+          selectedIcon: Icon(Icons.account_balance_wallet_rounded),
+          label: Text('Cüzdan'),
         ),
         NavigationRailDestination(
           icon: Icon(Icons.assignment_outlined),
@@ -325,12 +373,14 @@ class _PratiCaseBottomNav extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
         child: Container(
-          height: 76,
-          padding: const EdgeInsets.symmetric(horizontal: 6),
+          height: 82,
+          padding: const EdgeInsets.symmetric(horizontal: 7),
           decoration: BoxDecoration(
             color: PratiCaseColors.white,
             borderRadius: BorderRadius.circular(PratiCaseRadius.xxl),
-            border: Border.all(color: PratiCaseColors.border),
+            border: Border.all(
+              color: PratiCaseColors.white.withValues(alpha: 0.92),
+            ),
             boxShadow: PratiCaseShadows.floating,
           ),
           child: Row(
@@ -343,12 +393,12 @@ class _PratiCaseBottomNav extends StatelessWidget {
                 onTap: () => onSelected(0),
               ),
               _NavItem(
-                identifier: 'nav.cases',
+                identifier: 'nav.wallet',
                 selected: selectedIndex == 1,
                 icon: selectedIndex == 1
-                    ? Icons.inventory_2_rounded
-                    : Icons.inventory_2_outlined,
-                label: 'Vakalar',
+                    ? Icons.account_balance_wallet_rounded
+                    : Icons.account_balance_wallet_outlined,
+                label: 'Cüzdan',
                 onTap: () => onSelected(1),
               ),
               _NavItem(
@@ -419,9 +469,14 @@ class _NavItem extends StatelessWidget {
             margin: const EdgeInsets.symmetric(horizontal: 2),
             decoration: BoxDecoration(
               color: selected
-                  ? PratiCaseColors.teal.withValues(alpha: 0.1)
+                  ? PratiCaseColors.teal.withValues(alpha: 0.11)
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+              border: selected
+                  ? Border.all(
+                      color: PratiCaseColors.teal.withValues(alpha: 0.10),
+                    )
+                  : null,
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,

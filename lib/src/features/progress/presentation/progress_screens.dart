@@ -11,9 +11,9 @@ import '../../../shared/ui/responsive.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../store/data/store_controller.dart';
 import '../../store/presentation/subscription_status_screen.dart';
+import '../../store/presentation/wallet_screen.dart';
 import '../data/progress_repository.dart';
 import '../domain/progress_models.dart';
-import 'store_screen.dart';
 
 class BadgesScreen extends StatefulWidget {
   const BadgesScreen({required this.repository, super.key});
@@ -204,6 +204,7 @@ class ProfileScreen extends StatefulWidget {
     required this.authRepository,
     required this.repository,
     required this.onSignOut,
+    required this.storeControllerFactory,
     this.unreadNotificationCount = 0,
     this.onOpenNotifications,
     super.key,
@@ -212,6 +213,7 @@ class ProfileScreen extends StatefulWidget {
   final AuthRepository authRepository;
   final ProgressRepository repository;
   final Future<void> Function() onSignOut;
+  final StoreController Function() storeControllerFactory;
   final int unreadNotificationCount;
   final VoidCallback? onOpenNotifications;
 
@@ -272,6 +274,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _MenuPanel(
               authRepository: widget.authRepository,
               repository: widget.repository,
+              storeControllerFactory: widget.storeControllerFactory,
+              unreadNotificationCount: widget.unreadNotificationCount,
+              onOpenNotifications: widget.onOpenNotifications,
               items: const [
                 _MenuItem(
                   Icons.history_rounded,
@@ -3308,15 +3313,17 @@ class _ProfileHero extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [PratiCaseColors.gradientStart, PratiCaseColors.gradientEnd],
-        ),
+        color: PratiCaseColors.white,
         borderRadius: BorderRadius.circular(PratiCaseRadius.xxl),
+        border: Border.all(
+          color: PratiCaseColors.border.withValues(alpha: 0.8),
+        ),
         boxShadow: [
           BoxShadow(
-            color: PratiCaseColors.navy.withValues(alpha: 0.12),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+            color: PratiCaseColors.navy.withValues(alpha: 0.07),
+            blurRadius: 24,
+            spreadRadius: -8,
+            offset: const Offset(0, 16),
           ),
         ],
       ),
@@ -3327,7 +3334,7 @@ class _ProfileHero extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 36,
-                backgroundColor: PratiCaseColors.white,
+                backgroundColor: PratiCaseColors.teal.withValues(alpha: 0.10),
                 child: Text(
                   _initial(avatarTitle),
                   style: const TextStyle(
@@ -3347,7 +3354,7 @@ class _ProfileHero extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: PratiCaseColors.white,
+                        color: PratiCaseColors.navy,
                         fontSize: 21,
                         height: 1.15,
                         fontWeight: FontWeight.w900,
@@ -3360,7 +3367,7 @@ class _ProfileHero extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: PratiCaseColors.white.withValues(alpha: 0.74),
+                          color: PratiCaseColors.muted,
                           fontSize: 13,
                           height: 1.3,
                           fontWeight: FontWeight.w700,
@@ -3376,10 +3383,10 @@ class _ProfileHero extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
             decoration: BoxDecoration(
-              color: PratiCaseColors.white.withValues(alpha: 0.12),
+              color: PratiCaseColors.teal.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
               border: Border.all(
-                color: PratiCaseColors.white.withValues(alpha: 0.18),
+                color: PratiCaseColors.teal.withValues(alpha: 0.10),
               ),
             ),
             child: const Row(
@@ -3394,7 +3401,7 @@ class _ProfileHero extends StatelessWidget {
                 Text(
                   'PratiCase Üyesi',
                   style: TextStyle(
-                    color: PratiCaseColors.white,
+                    color: PratiCaseColors.teal,
                     fontSize: 12,
                     fontWeight: FontWeight.w900,
                   ),
@@ -3445,11 +3452,9 @@ class _ProfileHeroMetric extends StatelessWidget {
       height: 60,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
-        color: PratiCaseColors.white.withValues(alpha: 0.1),
+        color: PratiCaseColors.teal.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-        border: Border.all(
-          color: PratiCaseColors.white.withValues(alpha: 0.16),
-        ),
+        border: Border.all(color: PratiCaseColors.teal.withValues(alpha: 0.08)),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -3460,7 +3465,7 @@ class _ProfileHeroMetric extends StatelessWidget {
               value,
               maxLines: 1,
               style: const TextStyle(
-                color: PratiCaseColors.white,
+                color: PratiCaseColors.navy,
                 fontSize: 17,
                 fontWeight: FontWeight.w900,
               ),
@@ -3472,7 +3477,7 @@ class _ProfileHeroMetric extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: PratiCaseColors.white.withValues(alpha: 0.68),
+              color: PratiCaseColors.muted,
               fontSize: 11,
               fontWeight: FontWeight.w800,
             ),
@@ -3667,12 +3672,18 @@ class _MenuPanel extends StatelessWidget {
     required this.repository,
     required this.items,
     required this.onSignOut,
+    required this.storeControllerFactory,
+    required this.unreadNotificationCount,
+    this.onOpenNotifications,
   });
 
   final AuthRepository authRepository;
   final ProgressRepository repository;
   final List<_MenuItem> items;
   final Future<void> Function() onSignOut;
+  final StoreController Function() storeControllerFactory;
+  final int unreadNotificationCount;
+  final VoidCallback? onOpenNotifications;
 
   @override
   Widget build(BuildContext context) {
@@ -3777,18 +3788,24 @@ class _MenuPanel extends StatelessWidget {
       return;
     }
     if (title == 'Mağaza') {
+      final controller = storeControllerFactory();
       Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => StoreScreen(repository: repository),
+          builder: (_) => WalletScreen(
+            controller: controller,
+            unreadNotificationCount: unreadNotificationCount,
+            onOpenNotifications: onOpenNotifications ?? () {},
+            onOpenProfile: () => Navigator.of(context).maybePop(),
+          ),
         ),
       );
       return;
     }
     if (title == 'Premium Abonelik') {
+      final controller = storeControllerFactory();
       Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) =>
-              SubscriptionStatusScreen(controller: StoreController()),
+          builder: (_) => SubscriptionStatusScreen(controller: controller),
         ),
       );
       return;
@@ -3831,10 +3848,18 @@ class _ProfileMenuTile extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 13, 14, 13),
+            padding: const EdgeInsets.fromLTRB(16, 12, 14, 12),
             child: Row(
               children: [
-                Icon(item.icon, color: PratiCaseColors.teal, size: 24),
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: PratiCaseColors.teal.withValues(alpha: 0.09),
+                    borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+                  ),
+                  child: Icon(item.icon, color: PratiCaseColors.teal, size: 23),
+                ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Text(
@@ -4787,8 +4812,8 @@ class _MenuItem {
 BoxDecoration _cardDecoration() {
   return BoxDecoration(
     color: PratiCaseColors.white,
-    borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-    border: Border.all(color: PratiCaseColors.border),
+    borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
+    border: Border.all(color: PratiCaseColors.border.withValues(alpha: 0.88)),
     boxShadow: PratiCaseShadows.card,
   );
 }

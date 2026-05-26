@@ -78,10 +78,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           const _SetupProgressHeader(),
           const SizedBox(height: 24),
           Text(
-            'Profilini Özelleştir',
+            'Profilini Tamamla',
             style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
+              fontSize: 34,
+              fontWeight: FontWeight.w900,
               height: 1.2,
             ),
           ),
@@ -98,47 +98,36 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           const SizedBox(height: 24),
           _SetupSection(
             icon: Icons.track_changes_rounded,
-            title: 'Hedef Sınav',
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final exam in const ['TUS', 'OSCE', 'Komite', 'USMLE'])
-                  _ChoicePill(
-                    label: exam,
-                    selected: _targetExam == exam,
-                    onTap: () => setState(() => _targetExam = exam),
-                  ),
-              ],
+            title: 'Hedefin',
+            subtitle: 'En çok hangi alanda gelişmek istiyorsun?',
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth >= 330
+                    ? (constraints.maxWidth - 16) / 3
+                    : constraints.maxWidth;
+                return Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final exam in const ['OSCE', 'Sözlü', 'Teorik'])
+                      SizedBox(
+                        width: width,
+                        child: _ChoicePill(
+                          label: exam,
+                          selected: _targetExam == exam,
+                          onTap: () => setState(() => _targetExam = exam),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
           ),
           const SizedBox(height: 16),
           _SetupSection(
-            icon: Icons.school_rounded,
-            title: 'Klinik Seviye',
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final grade in const [
-                  '4. Sınıf',
-                  '5. Sınıf',
-                  '6. Sınıf',
-                  'Mezun',
-                ])
-                  _ChoicePill(
-                    label: grade,
-                    selected: _grade == grade,
-                    onTap: () => setState(() => _grade = grade),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          _SetupSection(
-            icon: Icons.favorite_rounded,
-            title: 'İlgi Alanları',
-            subtitle: 'Birden fazla seçebilirsiniz',
+            icon: Icons.favorite_border_rounded,
+            title: 'Branş İlgileri',
+            subtitle: 'İlgilendiğin branşları seçebilirsin.',
             child: LayoutBuilder(
               builder: (context, constraints) {
                 return Wrap(
@@ -168,18 +157,44 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           ),
           const SizedBox(height: 16),
           _SetupSection(
-            icon: Icons.flag_rounded,
-            title: 'Günlük Hedef',
+            icon: Icons.school_outlined,
+            title: 'Sınıf / Dönem',
+            subtitle: 'Eğitim dönemini seç.',
             child: Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                for (final goal in const [1, 2, 5])
+                for (final grade in const [
+                  '4. Sınıf',
+                  '5. Sınıf',
+                  '6. Sınıf',
+                  'Mezun',
+                ])
                   _ChoicePill(
-                    label: '$goal Vaka',
-                    selected: _dailyGoal == goal,
-                    onTap: () => setState(() => _dailyGoal = goal),
+                    label: grade,
+                    selected: _grade == grade,
+                    onTap: () => setState(() => _grade = grade),
                   ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _SetupSection(
+            icon: Icons.timer_outlined,
+            title: 'Günlük Hedefin',
+            subtitle: 'Günde kaç istasyon tamamlamak istersin?',
+            child: Row(
+              children: [
+                for (final goal in const [1, 2, 5]) ...[
+                  Expanded(
+                    child: _ChoicePill(
+                      label: '$goal Vaka',
+                      selected: _dailyGoal == goal,
+                      onTap: () => setState(() => _dailyGoal = goal),
+                    ),
+                  ),
+                  if (goal != 5) const SizedBox(width: 8),
+                ],
               ],
             ),
           ),
@@ -210,7 +225,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 ),
               ),
               style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(50),
+                minimumSize: const Size.fromHeight(54),
                 alignment: Alignment.centerLeft,
                 foregroundColor: PratiCaseColors.ink,
                 side: const BorderSide(color: PratiCaseColors.border),
@@ -256,34 +271,77 @@ class _SetupProgressHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Row(
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Text(
-              'ADIM 2 / 3',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: PratiCaseColors.teal,
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.2,
-                height: 1.2,
-              ),
+        const _SetupStepDot(done: true),
+        const Expanded(child: _SetupStepLine()),
+        const _SetupStepDot(done: true),
+        const Expanded(child: _SetupStepLine()),
+        const _SetupStepDot(label: '3'),
+        const Spacer(),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+          decoration: BoxDecoration(
+            color: PratiCaseColors.teal.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+          ),
+          child: const Text(
+            'Son Adım',
+            style: TextStyle(
+              color: PratiCaseColors.teal,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
             ),
-          ],
-        ),
-        const SizedBox(height: PratiCaseSpacing.md),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
-          child: const LinearProgressIndicator(
-            value: 0.66,
-            minHeight: 6,
-            backgroundColor: PratiCaseColors.surfaceContainerHighest,
-            color: PratiCaseColors.teal,
           ),
         ),
       ],
+    );
+  }
+}
+
+class _SetupStepDot extends StatelessWidget {
+  const _SetupStepDot({this.done = false, this.label});
+
+  final bool done;
+  final String? label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 26,
+      height: 26,
+      decoration: const BoxDecoration(
+        color: PratiCaseColors.teal,
+        shape: BoxShape.circle,
+      ),
+      alignment: Alignment.center,
+      child: done
+          ? const Icon(
+              Icons.check_rounded,
+              color: PratiCaseColors.white,
+              size: 16,
+            )
+          : Text(
+              label ?? '',
+              style: const TextStyle(
+                color: PratiCaseColors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+    );
+  }
+}
+
+class _SetupStepLine extends StatelessWidget {
+  const _SetupStepLine();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 1.4,
+      margin: const EdgeInsets.symmetric(horizontal: 6),
+      color: PratiCaseColors.teal.withValues(alpha: 0.55),
     );
   }
 }
@@ -307,7 +365,7 @@ class _SetupSection extends StatelessWidget {
       padding: const EdgeInsets.all(PratiCaseSpacing.xl),
       decoration: BoxDecoration(
         color: PratiCaseColors.white,
-        borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
         border: Border.all(color: PratiCaseColors.border),
         boxShadow: PratiCaseShadows.card,
       ),
@@ -315,9 +373,18 @@ class _SetupSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, color: PratiCaseColors.teal, size: 20),
-              const SizedBox(width: 8),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: PratiCaseColors.teal.withValues(alpha: 0.09),
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+                ),
+                child: Icon(icon, color: PratiCaseColors.teal, size: 22),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -370,23 +437,51 @@ class _ChoicePill extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
       child: Container(
-        height: 42,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 18),
         decoration: BoxDecoration(
-          color: selected ? PratiCaseColors.teal : Colors.transparent,
-          borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+          color: selected
+              ? PratiCaseColors.teal.withValues(alpha: 0.10)
+              : PratiCaseColors.white,
+          borderRadius: BorderRadius.circular(PratiCaseRadius.md),
           border: Border.all(
             color: selected ? PratiCaseColors.teal : PratiCaseColors.border,
           ),
         ),
         alignment: Alignment.center,
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected ? PratiCaseColors.white : PratiCaseColors.ink,
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-          ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: selected ? PratiCaseColors.teal : PratiCaseColors.ink,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            if (selected) ...[
+              const SizedBox(width: 8),
+              Container(
+                width: 20,
+                height: 20,
+                decoration: const BoxDecoration(
+                  color: PratiCaseColors.teal,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.check_rounded,
+                  color: PratiCaseColors.white,
+                  size: 13,
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -415,10 +510,12 @@ class _BranchChip extends StatelessWidget {
       borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
       child: Container(
         width: width.clamp(132, 190),
-        height: 42,
+        height: 44,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: selected ? PratiCaseColors.teal : Colors.transparent,
+          color: selected
+              ? PratiCaseColors.teal.withValues(alpha: 0.10)
+              : PratiCaseColors.white,
           borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
           border: Border.all(
             color: selected ? PratiCaseColors.teal : PratiCaseColors.border,
@@ -430,7 +527,7 @@ class _BranchChip extends StatelessWidget {
             if (selected) ...[
               const Icon(
                 Icons.check_rounded,
-                color: PratiCaseColors.white,
+                color: PratiCaseColors.teal,
                 size: 16,
               ),
               const SizedBox(width: 4),
@@ -445,8 +542,8 @@ class _BranchChip extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: selected ? PratiCaseColors.white : PratiCaseColors.ink,
-                  fontWeight: FontWeight.w600,
+                  color: selected ? PratiCaseColors.teal : PratiCaseColors.ink,
+                  fontWeight: FontWeight.w800,
                   fontSize: 14,
                 ),
               ),

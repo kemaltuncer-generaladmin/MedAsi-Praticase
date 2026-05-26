@@ -18,27 +18,29 @@ abstract final class PratiCaseSpacing {
 
 abstract final class PratiCaseRadius {
   static const double sm = 10;
-  static const double md = 14;
-  static const double lg = 18;
-  static const double xl = 22;
-  static const double xxl = 28;
+  static const double md = 16;
+  static const double lg = 20;
+  static const double xl = 24;
+  static const double xxl = 30;
   static const double pill = 999;
 }
 
 abstract final class PratiCaseShadows {
   static List<BoxShadow> get card => [
     BoxShadow(
-      color: PratiCaseColors.navy.withValues(alpha: 0.04),
-      blurRadius: 16,
-      offset: const Offset(0, 8),
+      color: PratiCaseColors.navy.withValues(alpha: 0.06),
+      blurRadius: 22,
+      spreadRadius: -8,
+      offset: const Offset(0, 14),
     ),
   ];
 
   static List<BoxShadow> get floating => [
     BoxShadow(
-      color: PratiCaseColors.navy.withValues(alpha: 0.12),
-      blurRadius: 24,
-      offset: const Offset(0, 10),
+      color: PratiCaseColors.navy.withValues(alpha: 0.14),
+      blurRadius: 28,
+      spreadRadius: -10,
+      offset: const Offset(0, 18),
     ),
   ];
 }
@@ -48,5 +50,11 @@ abstract final class PratiCaseGradients {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: [Color(0xFF073844), Color(0xFF006A72)],
+  );
+
+  static const LinearGradient action = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [Color(0xFF087D74), Color(0xFF00A090)],
   );
 }

@@ -48,7 +48,7 @@ abstract final class PratiCaseTheme {
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+          borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
           side: const BorderSide(color: PratiCaseColors.border),
         ),
       ),
@@ -69,7 +69,7 @@ abstract final class PratiCaseTheme {
         style: FilledButton.styleFrom(
           backgroundColor: PratiCaseColors.gradientEnd,
           foregroundColor: PratiCaseColors.white,
-          minimumSize: const Size.fromHeight(52),
+          minimumSize: const Size.fromHeight(56),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
           ),
@@ -83,10 +83,7 @@ abstract final class PratiCaseTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
           ),
-          textStyle: const TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 14,
-          ),
+          textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
@@ -107,38 +104,40 @@ abstract final class PratiCaseTheme {
         fillColor: PratiCaseColors.white,
         hintStyle: const TextStyle(
           color: PratiCaseColors.muted,
-          fontSize: 15,
+          fontSize: 16,
           fontWeight: FontWeight.w500,
         ),
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 15,
+          horizontal: 18,
+          vertical: 18,
         ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+          borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
           borderSide: const BorderSide(color: PratiCaseColors.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+          borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
           borderSide: const BorderSide(color: PratiCaseColors.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+          borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
           borderSide: const BorderSide(color: PratiCaseColors.teal, width: 1.4),
         ),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: PratiCaseColors.white,
-        selectedColor: PratiCaseColors.teal,
+        selectedColor: PratiCaseColors.teal.withValues(alpha: 0.12),
         disabledColor: PratiCaseColors.surfaceContainerHighest,
-        side: const BorderSide(color: PratiCaseColors.border),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(PratiCaseRadius.sm)),
+        side: BorderSide(color: PratiCaseColors.border.withValues(alpha: 0.9)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+        ),
         labelStyle: const TextStyle(
           color: PratiCaseColors.slateBlue,
           fontWeight: FontWeight.w800,
         ),
         secondaryLabelStyle: const TextStyle(
-          color: PratiCaseColors.white,
+          color: PratiCaseColors.teal,
           fontWeight: FontWeight.w900,
         ),
       ),

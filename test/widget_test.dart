@@ -21,6 +21,7 @@ import 'package:praticase/src/features/progress/data/progress_repository.dart';
 import 'package:praticase/src/features/progress/domain/progress_models.dart';
 import 'package:praticase/src/features/progress/presentation/progress_screens.dart';
 import 'package:praticase/src/features/shell/presentation/praticase_shell.dart';
+import 'package:praticase/src/features/store/data/store_controller.dart';
 import 'package:praticase/src/features/theoretical_exam/data/theoretical_exam_repository.dart';
 import 'package:praticase/src/features/theoretical_exam/domain/theoretical_exam_models.dart';
 import 'package:praticase/src/features/theoretical_exam/presentation/theoretical_exam_screen.dart';
@@ -252,6 +253,7 @@ void main() {
             authRepository: _TestAuthRepository(),
             repository: _LongEmailProgressRepository(),
             onSignOut: () async {},
+            storeControllerFactory: StoreController.new,
           ),
         ),
       ),
@@ -828,7 +830,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(NavigationRail), findsOneWidget);
-    expect(find.text('Vakalar'), findsOneWidget);
+    expect(find.text('Cüzdan'), findsOneWidget);
   });
 
   testWidgets('theoretical setup sends selected Medasi topics', (tester) async {
