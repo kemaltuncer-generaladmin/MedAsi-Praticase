@@ -36,9 +36,14 @@ class AuthScaffold extends StatelessWidget {
           SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final maxWidth = constraints.maxWidth >= 720
-                    ? 430.0
+                final maxWidth = constraints.maxWidth >= 900
+                    ? 520.0
+                    : constraints.maxWidth >= 720
+                    ? 460.0
                     : double.infinity;
+                final horizontalPadding = constraints.maxWidth < 380
+                    ? 16.0
+                    : 20.0;
                 return Center(
                   child: ConstrainedBox(
                     constraints: BoxConstraints(maxWidth: maxWidth),
@@ -75,9 +80,9 @@ class AuthScaffold extends StatelessWidget {
                             keyboardDismissBehavior:
                                 ScrollViewKeyboardDismissBehavior.onDrag,
                             padding: EdgeInsets.fromLTRB(
-                              20,
+                              horizontalPadding,
                               topPadding,
-                              20,
+                              horizontalPadding,
                               bottomPadding,
                             ),
                             child: Column(

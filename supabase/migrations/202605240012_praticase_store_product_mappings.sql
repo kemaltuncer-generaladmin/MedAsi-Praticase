@@ -1,15 +1,17 @@
--- PratiCase has its own App Store bundle while wallet entitlements remain in
--- the shared Medasi store catalog. Keep Qlinik product identifiers unchanged.
+-- PratiCase consumes the shared Medasi/Qlinik store catalog. This table is
+-- only an optional app-specific StoreKit override; if it is empty, the edge
+-- function falls back to the shared public.store_products product identifier.
 
 create table if not exists praticase.store_product_app_mappings (
   product_code text primary key references public.store_products(code) on delete cascade,
   app_store_product_id text not null unique,
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  constraint store_product_app_mappings_praticase_bundle_check
-    check (app_store_product_id like 'com.medasi.praticase.%')
+  updated_at timestamptz not null default now()
 );
+
+alter table if exists praticase.store_product_app_mappings
+  drop constraint if exists store_product_app_mappings_praticase_bundle_check;
 
 alter table praticase.store_product_app_mappings enable row level security;
 
@@ -18,7 +20,7 @@ grant select, insert, update, delete on table praticase.store_product_app_mappin
   to service_role;
 
 comment on table praticase.store_product_app_mappings is
-  'PratiCase App Store product identifiers mapped to shared Medasi wallet products.';
+  'Optional PratiCase StoreKit overrides for shared Medasi/Qlinik wallet products.';
 
 create table if not exists praticase.app_store_subscription_links (
   original_transaction_id text primary key,

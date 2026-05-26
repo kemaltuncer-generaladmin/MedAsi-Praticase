@@ -27,19 +27,31 @@ class OnboardingScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.monitor_heart_rounded,
-                color: PratiCaseColors.tealBright,
-                size: 32,
+              ClipRRect(
+                borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+                child: Image.asset(
+                  'assets/auth/praticase_icon.png',
+                  width: 46,
+                  height: 46,
+                  fit: BoxFit.cover,
+                ),
               ),
-              const SizedBox(width: PratiCaseSpacing.sm),
-              Text(
-                'PratiCase',
-                style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                  color: PratiCaseColors.gradientStart,
+              const SizedBox(width: 10),
+              const Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(text: 'Prati'),
+                    TextSpan(
+                      text: 'Case',
+                      style: TextStyle(color: PratiCaseColors.teal),
+                    ),
+                  ],
+                ),
+                style: TextStyle(
+                  color: PratiCaseColors.navy,
                   fontSize: 28,
                   fontWeight: FontWeight.w900,
-                  height: 1.2,
+                  height: 1.1,
                 ),
               ),
             ],
@@ -112,47 +124,56 @@ class _OnboardingIllustration extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 264,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Container(
-            width: double.infinity,
-            height: 264,
-            decoration: BoxDecoration(
-              gradient: PratiCaseGradients.hero,
-              borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
-            ),
-          ),
-          Container(
-            width: 200,
-            height: 200,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: PratiCaseColors.white.withValues(alpha: 0.06),
-            ),
-          ),
-          Container(
-            width: 240,
-            height: 210,
-            decoration: BoxDecoration(
-              color: PratiCaseColors.white,
-              borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-              boxShadow: PratiCaseShadows.floating,
-            ),
-            padding: const EdgeInsets.all(PratiCaseSpacing.sm),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(PratiCaseRadius.md),
-              child: Image.asset(
-                'assets/auth/onboarding_clinical_tablet.png',
-                fit: BoxFit.cover,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final height = (width * 0.62).clamp(210.0, 264.0).toDouble();
+        final cardWidth = (width * 0.62).clamp(206.0, 250.0).toDouble();
+        final cardHeight = (height * 0.80).clamp(168.0, 212.0).toDouble();
+        final haloSize = (height * 0.76).clamp(160.0, 204.0).toDouble();
+        return SizedBox(
+          width: double.infinity,
+          height: height,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: double.infinity,
+                height: height,
+                decoration: BoxDecoration(
+                  gradient: PratiCaseGradients.hero,
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
+                ),
               ),
-            ),
+              Container(
+                width: haloSize,
+                height: haloSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: PratiCaseColors.white.withValues(alpha: 0.06),
+                ),
+              ),
+              Container(
+                width: cardWidth,
+                height: cardHeight,
+                decoration: BoxDecoration(
+                  color: PratiCaseColors.white,
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+                  boxShadow: PratiCaseShadows.floating,
+                ),
+                padding: const EdgeInsets.all(PratiCaseSpacing.sm),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+                  child: Image.asset(
+                    'assets/auth/onboarding_clinical_tablet.png',
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

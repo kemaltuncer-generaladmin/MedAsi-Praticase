@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -135,12 +134,10 @@ class VoiceSpeechUnavailable implements Exception {
 class NativeVoiceExamAdapter implements VoiceExamAdapter {
   NativeVoiceExamAdapter({
     SpeechToText? speech,
-    FlutterTts? tts,
     AudioPlayer? audioPlayer,
     VoiceSpeechService? speechService,
     VoiceSpeechRole voiceRole = VoiceSpeechRole.patient,
   }) : _speech = speech ?? SpeechToText(),
-       _tts = tts ?? FlutterTts(),
        _audioPlayer = audioPlayer ?? AudioPlayer(),
        _speechService = speechService ?? _defaultSpeechService(),
        _voiceRole = voiceRole {
@@ -150,7 +147,6 @@ class NativeVoiceExamAdapter implements VoiceExamAdapter {
   }
 
   final SpeechToText _speech;
-  final FlutterTts _tts;
   final AudioPlayer _audioPlayer;
   final VoiceSpeechService? _speechService;
   final VoiceSpeechRole _voiceRole;
@@ -174,17 +170,6 @@ class NativeVoiceExamAdapter implements VoiceExamAdapter {
       onError: (error) => _emit(
         _state.copyWith(listening: false, errorMessage: error.errorMsg),
       ),
-    );
-    await _tts.setLanguage('tr-TR');
-    await _tts.setSpeechRate(0.48);
-    await _tts.setPitch(1);
-    await _tts.awaitSpeakCompletion(false);
-    _tts.setStartHandler(() => _emit(_state.copyWith(speaking: true)));
-    _tts.setCompletionHandler(() => _emit(_state.copyWith(speaking: false)));
-    _tts.setCancelHandler(() => _emit(_state.copyWith(speaking: false)));
-    _tts.setErrorHandler(
-      (message) =>
-          _emit(_state.copyWith(speaking: false, errorMessage: message)),
     );
     _emit(
       _state.copyWith(
@@ -238,18 +223,13 @@ class NativeVoiceExamAdapter implements VoiceExamAdapter {
     if (clean.isEmpty || _state.muted) return;
     await initialize();
     final generation = ++_speechGeneration;
-    await _tts.stop();
     await _audioPlayer.stop();
-    if (await _speakWithGemini(clean, generation)) return;
-    if (generation != _speechGeneration || _state.muted) return;
-    await _tts.stop();
-    await _tts.speak(clean);
+    await _speakWithGemini(clean, generation);
   }
 
   @override
   Future<void> stopSpeaking() async {
     _speechGeneration++;
-    await _tts.stop();
     await _audioPlayer.stop();
     _emit(_state.copyWith(speaking: false));
   }
@@ -263,31 +243,45 @@ class NativeVoiceExamAdapter implements VoiceExamAdapter {
   @override
   void dispose() {
     unawaited(_speech.cancel());
-    unawaited(_tts.stop());
     unawaited(_audioPlayer.stop());
     unawaited(_audioStateSubscription.cancel());
     unawaited(_audioPlayer.dispose());
     unawaited(_controller.close());
   }
 
-  Future<bool> _speakWithGemini(String text, int generation) async {
+  Future<void> _speakWithGemini(String text, int generation) async {
     final speechService = _speechService;
-    if (speechService == null) return false;
+    if (speechService == null) {
+      _emit(
+        _state.copyWith(
+          speaking: false,
+          errorMessage: 'Gemini ses motoru şu anda başlatılamadı.',
+        ),
+      );
+      return;
+    }
     try {
-      _emit(_state.copyWith(speaking: true, clearError: true));
       final audio = await _speechAudioFor(text, speechService);
       if (generation != _speechGeneration || _state.muted) {
         _emit(_state.copyWith(speaking: false));
-        return true;
+        return;
       }
+      _emit(_state.copyWith(speaking: true, clearError: true));
       await _audioPlayer.play(
         BytesSource(audio.bytes, mimeType: audio.mimeType),
       );
-      return true;
+      return;
+    } on VoiceSpeechUnavailable catch (error) {
+      await _audioPlayer.stop();
+      _emit(_state.copyWith(speaking: false, errorMessage: error.message));
     } on Object {
       await _audioPlayer.stop();
-      _emit(_state.copyWith(speaking: false));
-      return false;
+      _emit(
+        _state.copyWith(
+          speaking: false,
+          errorMessage: 'Gemini ses üretimi şu anda alınamadı.',
+        ),
+      );
     }
   }
 
@@ -312,7 +306,7 @@ class NativeVoiceExamAdapter implements VoiceExamAdapter {
   void _handleSpeechStatus(String status) {
     final listening = status == 'listening';
     if (!listening && _state.listening) {
-      _emit(_state.copyWith(listening: false));
+      _emit(_state.copyWith(listening: false, partialText: ''));
     }
   }
 

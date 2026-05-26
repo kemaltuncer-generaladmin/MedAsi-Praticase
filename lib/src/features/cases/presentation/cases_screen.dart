@@ -369,7 +369,7 @@ class _CaseSearchFilterScreenState extends State<CaseSearchFilterScreen> {
   Widget build(BuildContext context) {
     return _FlowScaffold(
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
+        padding: _flowListPadding(context),
         children: [
           const _StepTopBar(title: 'Arama & Filtreleme'),
           const SizedBox(height: 18),
@@ -512,7 +512,7 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
           }
           final detail = snapshot.requireData;
           return ListView(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 110),
+            padding: _flowListPadding(context, top: 14, bottom: 110),
             children: [
               _StepTopBar(
                 title: _topBarTitle,
@@ -1031,7 +1031,7 @@ class _PhysicalExamScreenState extends State<PhysicalExamScreen> {
               ),
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
+                  padding: _flowListPadding(context, top: 16),
                   children: [
                     const _PhaseTabs(activeStep: 2),
                     const SizedBox(height: 16),
@@ -1236,7 +1236,7 @@ class _TestsScreenState extends State<TestsScreen> {
               ),
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
+                  padding: _flowListPadding(context, top: 16),
                   children: [
                     const _PhaseTabs(activeStep: 3),
                     const SizedBox(height: 18),
@@ -1509,7 +1509,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
                 child: ListView(
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 130),
+                  padding: _flowListPadding(context, top: 16, bottom: 130),
                   children: [
                     const _PhaseTabs(activeStep: 4),
                     const SizedBox(height: 18),
@@ -1735,7 +1735,7 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
                 child: ListView(
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 130),
+                  padding: _flowListPadding(context, top: 16, bottom: 130),
                   children: [
                     const _PhaseTabs(activeStep: 5),
                     const SizedBox(height: 18),
@@ -1946,7 +1946,7 @@ class _ResultScreenState extends State<ResultScreen> {
           }
           if (snapshot.hasError) {
             return ListView(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
+              padding: _flowListPadding(context, top: 24),
               children: [
                 const _StepTopBar(title: 'Sonuç Karnesi'),
                 const SizedBox(height: 18),
@@ -1967,7 +1967,7 @@ class _ResultScreenState extends State<ResultScreen> {
           final result = snapshot.requireData;
           _scheduleFeedbackRefresh(result);
           return ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 130),
+            padding: _flowListPadding(context, bottom: 130),
             children: [
               const _StepTopBar(title: 'Sonuç Karnesi'),
               const SizedBox(height: 12),
@@ -2056,6 +2056,13 @@ class _ResultScreenState extends State<ResultScreen> {
               FadeSlideIn(
                 delay: const Duration(milliseconds: 560),
                 child: _ResultActions(
+                  onSupport: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => ResultAiSupportScreen(result: result),
+                      ),
+                    );
+                  },
                   onRetry: _startingAgain ? null : _startAgain,
                   retryLabel: _startingAgain ? 'Başlatılıyor...' : 'Tekrar Çöz',
                   onReport: () {
@@ -2076,6 +2083,282 @@ class _ResultScreenState extends State<ResultScreen> {
   }
 }
 
+class ResultAiSupportScreen extends StatelessWidget {
+  const ResultAiSupportScreen({required this.result, super.key});
+
+  final ExamResultSummary result;
+
+  @override
+  Widget build(BuildContext context) {
+    final priority = _priorityScore(result);
+    final supportTopics = _supportTopics(result);
+    final practicePlan = _practicePlan(result, priority);
+    return _FlowScaffold(
+      body: ListView(
+        padding: _flowListPadding(context, bottom: 40),
+        children: [
+          const _StepTopBar(title: 'AI Destek'),
+          const SizedBox(height: 18),
+          _AiSupportHero(result: result),
+          const SizedBox(height: 14),
+          _SectionCard(
+            title: 'Öncelikli Çalışma Alanı',
+            child: _PriorityFocus(priority: priority),
+          ),
+          const SizedBox(height: 14),
+          _FeedbackCard(
+            title: 'Hemen Çalışılacak Başlıklar',
+            icon: Icons.auto_awesome_rounded,
+            color: PratiCaseColors.teal,
+            items: supportTopics,
+          ),
+          const SizedBox(height: 14),
+          _FeedbackCard(
+            title: 'Bir Sonraki Deneme Planı',
+            icon: Icons.route_outlined,
+            color: PratiCaseColors.slateBlue,
+            items: practicePlan,
+          ),
+          const SizedBox(height: 14),
+          _IdealApproachCard(text: result.idealApproach),
+          const SizedBox(height: 18),
+          SizedBox(
+            height: 52,
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => CaseReportScreen(result: result),
+                ),
+              ),
+              icon: const Icon(Icons.description_outlined),
+              label: const Text('Detaylı Raporu Aç'),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 52,
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => Navigator.of(context).maybePop(),
+              icon: const Icon(Icons.arrow_back_rounded),
+              label: const Text('Karneye Dön'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AiSupportHero extends StatelessWidget {
+  const _AiSupportHero({required this.result});
+
+  final ExamResultSummary result;
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = result.percentage >= 80
+        ? PratiCaseColors.successGreen
+        : result.percentage >= 60
+        ? PratiCaseColors.gold
+        : PratiCaseColors.errorRed;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: PratiCaseGradients.hero,
+        borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
+        boxShadow: PratiCaseShadows.floating,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: PratiCaseColors.white.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+                  border: Border.all(
+                    color: PratiCaseColors.white.withValues(alpha: 0.18),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: PratiCaseColors.tealBright,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Kişisel çalışma desteği',
+                      style: TextStyle(
+                        color: PratiCaseColors.tealBright,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      result.caseTitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: PratiCaseColors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        height: 1.18,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  color: tone.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+                  border: Border.all(color: tone.withValues(alpha: 0.48)),
+                ),
+                child: Text(
+                  '%${result.percentage}',
+                  style: TextStyle(color: tone, fontWeight: FontWeight.w900),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Bu ekran, sonuç karnendeki eksikleri sıraya koyar ve bir sonraki denemeye odaklı girmen için kısa bir çalışma planı çıkarır.',
+            style: TextStyle(
+              color: PratiCaseColors.white.withValues(alpha: 0.82),
+              fontWeight: FontWeight.w700,
+              height: 1.45,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PriorityFocus extends StatelessWidget {
+  const _PriorityFocus({required this.priority});
+
+  final ResultCategoryScore? priority;
+
+  @override
+  Widget build(BuildContext context) {
+    if (priority == null) {
+      return const Text(
+        'Kategori puanları hazır olmadığında öncelik listesi gelişim başlıklarından oluşturulur.',
+        style: TextStyle(
+          color: PratiCaseColors.slateBlue,
+          fontWeight: FontWeight.w700,
+          height: 1.45,
+        ),
+      );
+    }
+    final percent = priority!.maxScore == 0
+        ? 0
+        : ((priority!.score / priority!.maxScore) * 100).round();
+    return Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: PratiCaseColors.teal.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+          ),
+          child: const Icon(
+            Icons.track_changes_rounded,
+            color: PratiCaseColors.teal,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                priority!.title,
+                style: const TextStyle(
+                  color: PratiCaseColors.navy,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '$percent% performans · önce bu başlığı toparla.',
+                style: const TextStyle(
+                  color: PratiCaseColors.muted,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+ResultCategoryScore? _priorityScore(ExamResultSummary result) {
+  if (result.categoryScores.isEmpty) return null;
+  final sorted = [...result.categoryScores]
+    ..sort((a, b) {
+      final aRatio = a.maxScore == 0 ? 1.0 : a.score / a.maxScore;
+      final bRatio = b.maxScore == 0 ? 1.0 : b.score / b.maxScore;
+      final ratioOrder = aRatio.compareTo(bRatio);
+      if (ratioOrder != 0) return ratioOrder;
+      return a.title.compareTo(b.title);
+    });
+  return sorted.first;
+}
+
+List<String> _supportTopics(ExamResultSummary result) {
+  final topics = <String>[
+    ...result.criticalMistakes,
+    ...result.improvementPoints,
+    ...result.missedHistory.map((item) => 'Anamnez: $item'),
+    ...result.missedPhysicalExam.map((item) => 'Muayene: $item'),
+    ...result.missedTests.map((item) => 'Tetkik: $item'),
+  ];
+  final compact = <String>[];
+  for (final topic in topics) {
+    final clean = topic.trim();
+    if (clean.isEmpty || compact.contains(clean)) continue;
+    compact.add(clean);
+    if (compact.length == 5) break;
+  }
+  if (compact.isNotEmpty) return compact;
+  return const [
+    'Bir sonraki denemede anamnez, muayene, tetkik ve yönetim adımlarını sırayla tamamla.',
+  ];
+}
+
+List<String> _practicePlan(
+  ExamResultSummary result,
+  ResultCategoryScore? priority,
+) {
+  final focus = priority?.title ?? 'en düşük puanlı klinik beceri';
+  return [
+    '$focus başlığı için 10 dakikalık hızlı tekrar yap.',
+    'Vaka yönergesini okuyup kritik anamnez, muayene ve tetkik kontrol listesini zihinden kur.',
+    '${result.caseTitle} istasyonunu tekrar çözmeden önce yönetim planını 3 net adımla yazmayı prova et.',
+  ];
+}
+
 class CaseReportScreen extends StatelessWidget {
   const CaseReportScreen({required this.result, super.key});
 
@@ -2085,7 +2368,7 @@ class CaseReportScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return _FlowScaffold(
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+        padding: _flowListPadding(context, bottom: 40),
         children: [
           const _StepTopBar(title: 'Vaka Raporu'),
           const SizedBox(height: 18),
@@ -2204,7 +2487,7 @@ class LabResultScreen extends StatelessWidget {
           final detail = snapshot.data;
           if (detail == null) {
             return ListView(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+              padding: _flowListPadding(context, bottom: 40),
               children: [
                 _StepTopBar(title: fallbackTitle ?? 'Laboratuvar Sonucu'),
                 const SizedBox(height: 18),
@@ -2230,7 +2513,7 @@ class LabResultScreen extends StatelessWidget {
             );
           }
           return ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+            padding: _flowListPadding(context, bottom: 40),
             children: [
               _StepTopBar(title: detail.title),
               const SizedBox(height: 18),
@@ -2299,7 +2582,7 @@ class ImagingResultScreen extends StatelessWidget {
           final detail = snapshot.data;
           if (detail == null) {
             return ListView(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+              padding: _flowListPadding(context, bottom: 40),
               children: [
                 _StepTopBar(title: fallbackTitle ?? 'Görüntüleme Sonucu'),
                 const SizedBox(height: 18),
@@ -2324,7 +2607,7 @@ class ImagingResultScreen extends StatelessWidget {
             );
           }
           return ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+            padding: _flowListPadding(context, bottom: 40),
             children: [
               _StepTopBar(title: detail.title),
               const SizedBox(height: 18),
@@ -2402,7 +2685,7 @@ class MedicationInfoScreen extends StatelessWidget {
           }
           final items = snapshot.requireData;
           return ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
+            padding: _flowListPadding(context, bottom: 40),
             children: [
               const _StepTopBar(title: 'İlaç Bilgisi'),
               const SizedBox(height: 18),
@@ -2503,7 +2786,7 @@ class _AddNoteScreenState extends State<AddNoteScreen> {
       resizeToAvoidBottomInset: true,
       body: ListView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 130),
+        padding: _flowListPadding(context, bottom: 130),
         children: [
           const _StepTopBar(title: 'Notlarım'),
           const SizedBox(height: 18),
@@ -2555,7 +2838,7 @@ class CaseProgressScreen extends StatelessWidget {
           }
           final progress = snapshot.requireData;
           return ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
+            padding: _flowListPadding(context),
             children: [
               const _StepTopBar(title: 'Vaka İlerlemesi'),
               const SizedBox(height: 18),
@@ -2651,6 +2934,17 @@ class _FlowScaffold extends StatelessWidget {
       ),
     );
   }
+}
+
+EdgeInsets _flowListPadding(
+  BuildContext context, {
+  double top = 12,
+  double bottom = 120,
+}) {
+  final horizontal = PratiCaseResponsive.horizontalPaddingForWidth(
+    MediaQuery.sizeOf(context).width,
+  );
+  return EdgeInsets.fromLTRB(horizontal, top, horizontal, bottom);
 }
 
 class _MobileHeader extends StatelessWidget {
@@ -4195,6 +4489,9 @@ class _ConversationPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final horizontalPadding = PratiCaseResponsive.horizontalPaddingForWidth(
+      MediaQuery.sizeOf(context).width,
+    );
     final pending = pendingCandidateMessage?.trim();
     final conversationCount =
         messages.length + (pending == null || pending.isEmpty ? 0 : 1) + 1;
@@ -4209,7 +4506,12 @@ class _ConversationPanel extends StatelessWidget {
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
+            padding: EdgeInsets.fromLTRB(
+              horizontalPadding,
+              10,
+              horizontalPadding,
+              8,
+            ),
             child: Row(
               children: [
                 const Icon(
@@ -4243,7 +4545,12 @@ class _ConversationPanel extends StatelessWidget {
             child: ListView(
               controller: scrollController,
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
+              padding: EdgeInsets.fromLTRB(
+                horizontalPadding,
+                12,
+                horizontalPadding,
+                18,
+              ),
               children: [
                 FadeSlideIn(
                   offset: const Offset(0, 0.04),
@@ -5453,7 +5760,7 @@ class _CaseDetailSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 110),
+      padding: _flowListPadding(context, top: 14, bottom: 110),
       children: const [
         _StepTopBar(title: 'Vaka Detay'),
         SizedBox(height: 18),
@@ -5487,7 +5794,16 @@ class _PhaseLoadingSkeleton extends StatelessWidget {
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+          padding: EdgeInsets.fromLTRB(
+            PratiCaseResponsive.horizontalPaddingForWidth(
+              MediaQuery.sizeOf(context).width,
+            ),
+            14,
+            PratiCaseResponsive.horizontalPaddingForWidth(
+              MediaQuery.sizeOf(context).width,
+            ),
+            14,
+          ),
           decoration: const BoxDecoration(gradient: PratiCaseGradients.hero),
           child: SafeArea(
             bottom: false,
@@ -5523,7 +5839,7 @@ class _PhaseLoadingSkeleton extends StatelessWidget {
         ),
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
+            padding: _flowListPadding(context, top: 16),
             children: [
               _PhaseTabs(activeStep: activeStep),
               const SizedBox(height: 16),

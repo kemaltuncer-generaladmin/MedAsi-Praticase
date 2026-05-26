@@ -36,6 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _loading = false;
+  bool _rememberMe = true;
   String? _error;
 
   @override
@@ -55,6 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final user = await widget.repository.signInWithEmail(
         email: _email.text,
         password: _password.text,
+        rememberMe: _rememberMe,
       );
       widget.onSignedIn(user);
     } on AuthFailure catch (failure) {
@@ -109,11 +111,48 @@ class _LoginScreenState extends State<LoginScreen> {
                     textInputAction: TextInputAction.done,
                     validator: AuthValidators.password,
                   ),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: AuthLinkButton(
-                      label: 'Şifremi Unuttum',
-                      onPressed: widget.onForgotPassword,
+                  const SizedBox(height: PratiCaseSpacing.sm),
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 42,
+                        height: 42,
+                        child: Checkbox(
+                          value: _rememberMe,
+                          onChanged: (value) =>
+                              setState(() => _rememberMe = value ?? true),
+                          activeColor: PratiCaseColors.teal,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          'Beni hatırla',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: PratiCaseColors.ink,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                      ),
+                      AuthLinkButton(
+                        label: 'Şifremi Unuttum',
+                        onPressed: widget.onForgotPassword,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: PratiCaseSpacing.sm),
+                  Text(
+                    _rememberMe
+                        ? 'Bu cihazda Medasi oturumun açık kalır.'
+                        : 'Uygulama kapanınca yeniden giriş istenir.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: PratiCaseColors.muted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   AnimatedSize(

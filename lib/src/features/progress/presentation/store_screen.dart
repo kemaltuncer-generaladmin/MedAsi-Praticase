@@ -7,6 +7,7 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 import '../../../app/theme/praticase_colors.dart';
 import '../../../app/theme/praticase_motion.dart';
 import '../../../shared/data/user_facing_error.dart';
+import '../../../shared/ui/responsive.dart';
 import '../data/progress_repository.dart';
 import '../domain/progress_models.dart';
 
@@ -182,73 +183,78 @@ class _StoreScreenState extends State<StoreScreen> {
             );
           }
           if (snapshot.hasError) {
-            return ListView(
-              padding: const EdgeInsets.all(20),
+            return PratiCaseResponsiveListView(
+              padding: PratiCaseResponsive.pagePadding(
+                context,
+                top: 16,
+                bottom: 28,
+                includeNavigationReserve: false,
+              ),
               children: [_StoreErrorCard(onRetry: _refresh)],
             );
           }
           final catalog = snapshot.requireData;
-          return SafeArea(
-            top: false,
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-              children: [
-                _WalletCard(catalog: catalog),
-                if (_status != null) ...[
-                  const SizedBox(height: 12),
-                  _StoreStatusBanner(
-                    message: PratiCaseUserMessage.safe(
-                      _status,
-                      fallback: PratiCaseUserMessage.purchaseFailure,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 20),
-                const Text(
-                  'Paketler',
-                  style: TextStyle(
-                    color: PratiCaseColors.navy,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
+          return PratiCaseResponsiveListView(
+            padding: PratiCaseResponsive.pagePadding(
+              context,
+              top: 16,
+              bottom: 28,
+              includeNavigationReserve: false,
+            ),
+            children: [
+              _WalletCard(catalog: catalog),
+              if (_status != null) ...[
                 const SizedBox(height: 12),
-                if (catalog.products.isEmpty)
-                  _StoreErrorCard(onRetry: _refresh)
-                else
-                  for (final product in catalog.products) ...[
-                    _StoreProductCard(
-                      product: product,
-                      price:
-                          _nativeProducts[product.appStoreProductId]?.price ??
-                          '${(product.priceCents / 100).toStringAsFixed(2)} ${product.currency}',
-                      enabled:
-                          !_busy &&
-                          _supportsStoreKit &&
-                          _nativeProducts.containsKey(
-                            product.appStoreProductId,
-                          ),
-                      onBuy: () => _buy(product),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                const SizedBox(height: 6),
-                OutlinedButton.icon(
-                  onPressed: _supportsStoreKit && !_busy ? _restore : null,
-                  icon: const Icon(Icons.restore_rounded),
-                  label: const Text('Satın Almaları Geri Yükle'),
-                ),
-                const SizedBox(height: 14),
-                const Text(
-                  'Medasi Cüzdanı, desteklenen Medasi uygulamalarında kullanılabilir. Satın alımlar App Store üzerinden güvenle yönetilir.',
-                  style: TextStyle(
-                    color: PratiCaseColors.muted,
-                    height: 1.45,
-                    fontWeight: FontWeight.w600,
+                _StoreStatusBanner(
+                  message: PratiCaseUserMessage.safe(
+                    _status,
+                    fallback: PratiCaseUserMessage.purchaseFailure,
                   ),
                 ),
               ],
-            ),
+              const SizedBox(height: 20),
+              const Text(
+                'Paketler',
+                style: TextStyle(
+                  color: PratiCaseColors.navy,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 12),
+              if (catalog.products.isEmpty)
+                _StoreErrorCard(onRetry: _refresh)
+              else
+                for (final product in catalog.products) ...[
+                  _StoreProductCard(
+                    product: product,
+                    price:
+                        _nativeProducts[product.appStoreProductId]?.price ??
+                        '${(product.priceCents / 100).toStringAsFixed(2)} ${product.currency}',
+                    enabled:
+                        !_busy &&
+                        _supportsStoreKit &&
+                        _nativeProducts.containsKey(product.appStoreProductId),
+                    onBuy: () => _buy(product),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+              const SizedBox(height: 6),
+              OutlinedButton.icon(
+                onPressed: _supportsStoreKit && !_busy ? _restore : null,
+                icon: const Icon(Icons.restore_rounded),
+                label: const Text('Satın Almaları Geri Yükle'),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Medasi Cüzdanı, desteklenen Medasi uygulamalarında kullanılabilir. Satın alımlar App Store üzerinden güvenle yönetilir.',
+                style: TextStyle(
+                  color: PratiCaseColors.muted,
+                  height: 1.45,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           );
         },
       ),

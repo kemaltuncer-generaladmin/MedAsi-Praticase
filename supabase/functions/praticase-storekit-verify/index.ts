@@ -273,34 +273,38 @@ async function loadMappedCatalog(
   // deno-lint-ignore no-explicit-any
   admin: any,
 ): Promise<JsonMap[] | null> {
-  const { data: mappings, error: mappingError } = await admin
-    .schema("praticase")
-    .from("store_product_app_mappings")
-    .select("product_code,app_store_product_id")
-    .eq("is_active", true);
-
-  const mappedIds = new Map(
-    (mappingError ? [] : mappings ?? []).map((mapping: JsonMap) => [
-      stringValue(mapping.product_code),
-      stringValue(mapping.app_store_product_id),
-    ]),
-  );
-  const { data: products, error } = await admin
-    .from("store_products")
-    .select(
-      "id,code,name,description,price_cents,original_price_cents,currency,interval,features,is_featured,coin_amount,question_amount,badge,entitlement_kind,duration_days,sort_order",
-    )
-    .eq("is_active", true)
-    .order("sort_order")
-    .order("price_cents");
-  if (error) return null;
+  const mappedIds = await loadAppStoreProductMappings(admin);
+  const products = await loadSharedStoreProducts(admin);
+  if (products == null) return null;
   return (products ?? []).map((product: JsonMap) => ({
     ...product,
-    app_store_product_id: mappedIds.get(stringValue(product.code)) ?? "",
+    app_store_product_id: mappedIds.get(stringValue(product.code)) ||
+      stringValue(product.app_store_product_id),
   }));
 }
 
 async function loadMappedProduct(
+  // deno-lint-ignore no-explicit-any
+  admin: any,
+  productCode: string,
+  storeProductId: string,
+): Promise<JsonMap | null> {
+  const mappedProduct = await loadMappedProductByOverride(
+    admin,
+    productCode,
+    storeProductId,
+  );
+  if (mappedProduct) return mappedProduct;
+
+  const products = await loadSharedStoreProducts(admin);
+  const product = (products ?? []).find((item) =>
+    stringValue(item.code) === productCode &&
+    stringValue(item.app_store_product_id) === storeProductId
+  );
+  return product ?? null;
+}
+
+async function loadMappedProductByOverride(
   // deno-lint-ignore no-explicit-any
   admin: any,
   productCode: string,
@@ -324,6 +328,59 @@ async function loadMappedProduct(
     .eq("is_active", true)
     .maybeSingle();
   return error || !product ? null : product as JsonMap;
+}
+
+async function loadAppStoreProductMappings(
+  // deno-lint-ignore no-explicit-any
+  admin: any,
+): Promise<Map<string, string>> {
+  const { data: mappings, error } = await admin
+    .schema("praticase")
+    .from("store_product_app_mappings")
+    .select("product_code,app_store_product_id")
+    .eq("is_active", true);
+  if (error) return new Map();
+  return new Map(
+    ((mappings ?? []) as JsonMap[])
+      .map((mapping) =>
+        [
+          stringValue(mapping.product_code),
+          stringValue(mapping.app_store_product_id),
+        ] as const
+      )
+      .filter(([code, storeId]) => code && storeId),
+  );
+}
+
+async function loadSharedStoreProducts(
+  // deno-lint-ignore no-explicit-any
+  admin: any,
+): Promise<JsonMap[] | null> {
+  const baseColumns =
+    "id,code,name,description,price_cents,original_price_cents,currency,interval,features,is_featured,coin_amount,question_amount,badge,entitlement_kind,duration_days,sort_order";
+  const withSharedStoreId = `${baseColumns},app_store_product_id`;
+  const withStoreId = await loadSharedStoreProductsWithColumns(
+    admin,
+    withSharedStoreId,
+  );
+  if (withStoreId.products != null) return withStoreId.products;
+  if (!isMissingStoreProductIdColumn(withStoreId.error)) return null;
+  const fallback = await loadSharedStoreProductsWithColumns(admin, baseColumns);
+  return fallback.products;
+}
+
+async function loadSharedStoreProductsWithColumns(
+  // deno-lint-ignore no-explicit-any
+  admin: any,
+  columns: string,
+): Promise<{ products: JsonMap[] | null; error: unknown }> {
+  const { data, error } = await admin
+    .from("store_products")
+    .select(columns)
+    .eq("is_active", true)
+    .order("sort_order")
+    .order("price_cents");
+  return { products: error ? null : ((data ?? []) as JsonMap[]), error };
 }
 
 async function loadWalletTransactionsPayload(
@@ -706,14 +763,20 @@ async function loadProductByStoreId(
     .eq("app_store_product_id", storeProductId)
     .eq("is_active", true)
     .maybeSingle();
-  if (error || !mapping) return null;
-  const { data: product } = await admin
-    .from("store_products")
-    .select("id,code")
-    .eq("code", stringValue(mapping.product_code))
-    .eq("is_active", true)
-    .maybeSingle();
-  return product as JsonMap | null;
+  if (!error && mapping) {
+    const { data: product } = await admin
+      .from("store_products")
+      .select("id,code")
+      .eq("code", stringValue(mapping.product_code))
+      .eq("is_active", true)
+      .maybeSingle();
+    if (product) return product as JsonMap;
+  }
+
+  const products = await loadSharedStoreProducts(admin);
+  return (products ?? []).find((item) =>
+    stringValue(item.app_store_product_id) === storeProductId
+  ) ?? null;
 }
 
 async function saveSubscriptionLink(
@@ -959,6 +1022,15 @@ function dateFromMilliseconds(value: unknown): Date | null {
 
 function recordEvent(event: string, context: JsonMap) {
   console.info("praticase_storekit_event", { event, ...context });
+}
+
+function isMissingStoreProductIdColumn(error: unknown) {
+  const message = errorMessage(error).toLowerCase();
+  return message.includes("app_store_product_id") &&
+    (message.includes("column") ||
+      message.includes("schema cache") ||
+      message.includes("does not exist") ||
+      message.includes("could not find"));
 }
 
 function stringValue(value: unknown) {

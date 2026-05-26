@@ -373,14 +373,25 @@ class _PratiCaseBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    final compact = PratiCaseResponsive.isCompactPhone(context);
+    final navHeight = PratiCaseResponsive.bottomNavigationHeightForWidth(width);
+    final horizontalInset = compact ? 10.0 : 16.0;
+    final bottomInset =
+        PratiCaseResponsive.bottomNavigationOuterPaddingForWidth(width);
     return SafeArea(
       top: false,
       minimum: const EdgeInsets.only(bottom: 6),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        padding: EdgeInsets.fromLTRB(
+          horizontalInset,
+          0,
+          horizontalInset,
+          bottomInset,
+        ),
         child: Container(
-          height: 82,
-          padding: const EdgeInsets.symmetric(horizontal: 7),
+          height: navHeight,
+          padding: EdgeInsets.symmetric(horizontal: compact ? 5 : 7),
           decoration: BoxDecoration(
             color: PratiCaseColors.white,
             borderRadius: BorderRadius.circular(PratiCaseRadius.xxl),
@@ -456,6 +467,14 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = selected ? PratiCaseColors.teal : PratiCaseColors.muted;
+    final compact = PratiCaseResponsive.isCompactPhone(context);
+    final itemHeight =
+        (PratiCaseResponsive.bottomNavigationHeightForWidth(
+                  MediaQuery.sizeOf(context).width,
+                ) -
+                20)
+            .clamp(54.0, 62.0)
+            .toDouble();
     return Expanded(
       child: Semantics(
         identifier: identifier,
@@ -471,8 +490,8 @@ class _NavItem extends StatelessWidget {
           child: AnimatedContainer(
             duration: PratiCaseDurations.fast,
             curve: PratiCaseCurves.standard,
-            height: 62,
-            margin: const EdgeInsets.symmetric(horizontal: 2),
+            height: itemHeight,
+            margin: EdgeInsets.symmetric(horizontal: compact ? 1 : 2),
             decoration: BoxDecoration(
               color: selected
                   ? PratiCaseColors.teal.withValues(alpha: 0.11)
@@ -507,17 +526,17 @@ class _NavItem extends StatelessWidget {
                     icon,
                     key: ValueKey(selected),
                     color: color,
-                    size: 24,
+                    size: compact ? 22 : 24,
                   ),
                 ),
-                const SizedBox(height: PratiCaseSpacing.xs),
+                SizedBox(height: compact ? 3 : PratiCaseSpacing.xs),
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Text(
                     label,
                     style: TextStyle(
                       color: color,
-                      fontSize: 11,
+                      fontSize: compact ? 10.5 : 11,
                       fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
                     ),
                   ),

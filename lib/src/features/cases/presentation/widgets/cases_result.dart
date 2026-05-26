@@ -247,12 +247,14 @@ class _ScoreBar extends StatelessWidget {
 
 class _ResultActions extends StatelessWidget {
   const _ResultActions({
+    required this.onSupport,
     required this.onRetry,
     required this.retryLabel,
     required this.onReport,
     required this.onHome,
   });
 
+  final VoidCallback onSupport;
   final VoidCallback? onRetry;
   final String retryLabel;
   final VoidCallback onReport;
@@ -266,6 +268,16 @@ class _ResultActions extends StatelessWidget {
           width: double.infinity,
           height: 52,
           child: FilledButton.icon(
+            onPressed: onSupport,
+            icon: const Icon(Icons.auto_awesome_rounded),
+            label: const Text('AI Destek Al'),
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: OutlinedButton.icon(
             onPressed: onRetry,
             icon: const Icon(Icons.restart_alt_rounded),
             label: Text(retryLabel),
@@ -328,12 +340,16 @@ class _FeedbackCard extends StatelessWidget {
               children: [
                 Icon(icon, color: color, size: 18),
                 const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 15,
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: color,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 15,
+                    ),
                   ),
                 ),
               ],

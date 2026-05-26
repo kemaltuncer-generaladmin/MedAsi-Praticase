@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../app/theme/praticase_tokens.dart';
 
 abstract final class PratiCaseBreakpoints {
+  static const double compactPhone = 380;
   static const double tablet = 600;
   static const double sideNavigation = 900;
   static const double desktop = 1180;
@@ -15,6 +16,9 @@ abstract final class PratiCaseBreakpoints {
 }
 
 abstract final class PratiCaseResponsive {
+  static bool isCompactPhone(BuildContext context) =>
+      MediaQuery.sizeOf(context).width < PratiCaseBreakpoints.compactPhone;
+
   static bool isTablet(BuildContext context) =>
       MediaQuery.sizeOf(context).width >= PratiCaseBreakpoints.tablet;
 
@@ -27,7 +31,22 @@ abstract final class PratiCaseResponsive {
   static double horizontalPaddingForWidth(double width) {
     if (width >= PratiCaseBreakpoints.desktop) return 32;
     if (width >= PratiCaseBreakpoints.tablet) return 28;
+    if (width < PratiCaseBreakpoints.compactPhone) return 16;
     return PratiCaseSpacing.pageHorizontal;
+  }
+
+  static double bottomNavigationHeightForWidth(double width) {
+    return width < PratiCaseBreakpoints.compactPhone ? 76 : 82;
+  }
+
+  static double bottomNavigationOuterPaddingForWidth(double width) {
+    return width < PratiCaseBreakpoints.compactPhone ? 10 : 12;
+  }
+
+  static double bottomNavigationReserveForWidth(double width) {
+    final navHeight = bottomNavigationHeightForWidth(width);
+    final outerPadding = bottomNavigationOuterPaddingForWidth(width);
+    return navHeight + outerPadding + 36;
   }
 
   static double maxContentWidthForWidth(
@@ -51,8 +70,13 @@ abstract final class PratiCaseResponsive {
     bool includeNavigationReserve = true,
   }) {
     final width = MediaQuery.sizeOf(context).width;
+    final defaultReserve = bottom == PratiCaseSpacing.bottomNavReserve
+        ? bottomNavigationReserveForWidth(width)
+        : bottom;
     final navigationReserve =
-        includeNavigationReserve && !usesSideNavigation(context) ? bottom : 24;
+        includeNavigationReserve && !usesSideNavigation(context)
+        ? defaultReserve
+        : 24;
     return EdgeInsets.fromLTRB(
       horizontalPaddingForWidth(width),
       top,
@@ -127,7 +151,7 @@ class PratiCaseResponsiveListView extends StatelessWidget {
     this.padding,
     this.maxWidth,
     this.controller,
-    this.keyboardDismissBehavior = ScrollViewKeyboardDismissBehavior.manual,
+    this.keyboardDismissBehavior = ScrollViewKeyboardDismissBehavior.onDrag,
     this.physics,
     super.key,
   });

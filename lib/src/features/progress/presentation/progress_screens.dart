@@ -1156,7 +1156,7 @@ class DailyGoalsScreen extends StatelessWidget {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text(
-                            'Günlük hedef için Vakalar sekmesinden tek istasyon başlat.',
+                            'Günlük hedef için Sınavlar ekranından tek istasyon başlat.',
                           ),
                         ),
                       );
@@ -3374,8 +3374,9 @@ class _ProfileHero extends StatelessWidget {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: PratiCaseColors.white
-                                  .withValues(alpha: 0.78),
+                              color: PratiCaseColors.white.withValues(
+                                alpha: 0.78,
+                              ),
                               fontSize: 13,
                               height: 1.3,
                               fontWeight: FontWeight.w700,
@@ -3390,11 +3391,12 @@ class _ProfileHero extends StatelessWidget {
               const SizedBox(height: 14),
               Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 11, vertical: 6),
+                  horizontal: 11,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: PratiCaseColors.white.withValues(alpha: 0.14),
-                  borderRadius:
-                      BorderRadius.circular(PratiCaseRadius.pill),
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
                   border: Border.all(
                     color: PratiCaseColors.white.withValues(alpha: 0.22),
                   ),
@@ -3420,33 +3422,33 @@ class _ProfileHero extends StatelessWidget {
                   ],
                 ),
               ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: _ProfileHeroMetric(
-                  label: 'Ortalama',
-                  value: '%${profile.successRatePercent}',
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _ProfileHeroMetric(
-                  label: 'Seri',
-                  value: '${profile.dailyStreak} gün',
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _ProfileHeroMetric(
-                  label: 'Puan',
-                  value: '${profile.totalPoints}',
-                ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: _ProfileHeroMetric(
+                      label: 'Ortalama',
+                      value: '%${profile.successRatePercent}',
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _ProfileHeroMetric(
+                      label: 'Seri',
+                      value: '${profile.dailyStreak} gün',
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _ProfileHeroMetric(
+                      label: 'Puan',
+                      value: '${profile.totalPoints}',
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
         ],
       ),
     );
@@ -3681,8 +3683,11 @@ class _StatsPanel extends StatelessWidget {
         children: [
           Row(
             children: const [
-              Icon(Icons.insights_rounded,
-                  color: PratiCaseColors.teal, size: 18),
+              Icon(
+                Icons.insights_rounded,
+                color: PratiCaseColors.teal,
+                size: 18,
+              ),
               SizedBox(width: 8),
               Text(
                 'İstatistiklerim',
@@ -3706,7 +3711,10 @@ class _StatsPanel extends StatelessWidget {
                 runSpacing: spacing,
                 children: [
                   for (final tile in tiles)
-                    SizedBox(width: width, child: _PremiumStatTile(data: tile)),
+                    SizedBox(
+                      width: width,
+                      child: _PremiumStatTile(data: tile),
+                    ),
                 ],
               );
             },
@@ -3751,9 +3759,7 @@ class _PremiumStatTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: PratiCaseColors.surfaceContainerLow,
         borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-        border: Border.all(
-          color: data.accent.withValues(alpha: 0.14),
-        ),
+        border: Border.all(color: data.accent.withValues(alpha: 0.14)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

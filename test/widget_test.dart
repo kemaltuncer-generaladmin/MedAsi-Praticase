@@ -8,6 +8,7 @@ import 'package:praticase/src/app/praticase_app.dart';
 import 'package:praticase/src/features/auth/data/auth_repository.dart';
 import 'package:praticase/src/features/auth/domain/auth_user.dart';
 import 'package:praticase/src/features/auth/domain/profile_setup.dart';
+import 'package:praticase/src/features/auth/presentation/screens/onboarding_screen.dart';
 import 'package:praticase/src/features/auth/presentation/screens/profile_setup_screen.dart';
 import 'package:praticase/src/features/auth/presentation/screens/login_screen.dart';
 import 'package:praticase/src/features/auth/presentation/screens/register_screen.dart';
@@ -77,6 +78,26 @@ void main() {
     expect(transaction.isUsage, isTrue);
     expect(transaction.isCredit, isFalse);
     expect(transaction.coinAmount, -0.10);
+  });
+
+  test('wallet accepts shared Qlinik package identifiers', () {
+    final product = PratiCaseStoreProduct.fromMap({
+      'code': 'monthly_subscription',
+      'name': 'Aylık Medasi Paketi',
+      'description': 'Qlinik ve PratiCase için ortak paket.',
+      'price_cents': 29900,
+      'currency': 'TRY',
+      'app_store_product_id': 'com.medasi.qlinik.monthly',
+      'entitlement_kind': 'subscription',
+      'interval': 'month',
+      'duration_days': 30,
+      'coin_amount': 250,
+      'question_amount': 500,
+    });
+
+    expect(product.appStoreProductId, 'com.medasi.qlinik.monthly');
+    expect(product.canPurchaseInPratiCase, isTrue);
+    expect(product.isSubscription, isTrue);
   });
 
   testWidgets('wallet surfaces shared balance and live MC consumption', (
@@ -670,6 +691,35 @@ void main() {
     );
   });
 
+  testWidgets('result AI support screen renders a focused study plan', (
+    tester,
+  ) async {
+    await _setIPhone14Viewport(tester);
+
+    await tester.pumpWidget(
+      MaterialApp(home: ResultAiSupportScreen(result: _supportResultSummary)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('AI Destek'), findsOneWidget);
+    expect(find.text('Kişisel çalışma desteği'), findsOneWidget);
+    expect(find.text('Öncelikli Çalışma Alanı'), findsOneWidget);
+    expect(find.text('Hemen Çalışılacak Başlıklar'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Bir Sonraki Deneme Planı'),
+      280,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Bir Sonraki Deneme Planı'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Detaylı Raporu Aç'),
+      280,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Detaylı Raporu Aç'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('tests screen opens imaging fallback result', (tester) async {
     await _setIPhone14Viewport(tester);
     final repository = _LabCasesRepository();
@@ -822,6 +872,47 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('solo oral voice mode does not speak persona prefix', (
+    tester,
+  ) async {
+    await _setViewport(tester, const Size(390, 1100));
+    final repository = _CommitteeOralExamRepository();
+    final voice = _FakeVoiceExamAdapter();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: OralExamRoomScreen(
+          repository: repository,
+          session: repository.soloSession,
+          voiceAdapter: voice,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.volume_off_rounded));
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(find.byType(TextField), findsNothing);
+    expect(find.text('Cevap Ver'), findsOneWidget);
+
+    await tester.tap(find.text('Cevap Ver'));
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(
+      voice.spokenTexts.any((text) => text.contains('Sert Profesör:')),
+      isFalse,
+    );
+    expect(
+      voice.spokenTexts.any(
+        (text) => text.contains('İlk isteyeceğiniz tetkik nedir?'),
+      ),
+      isTrue,
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('oral exam finalize hides provider errors and offers retry', (
     tester,
   ) async {
@@ -890,6 +981,110 @@ void main() {
 
     expect(find.byType(NavigationRail), findsOneWidget);
     expect(find.text('Cüzdan'), findsOneWidget);
+  });
+
+  testWidgets('shell fits the iPhone and iPad support matrix', (tester) async {
+    for (final entry in _supportedDeviceViewports.entries) {
+      await _setViewport(tester, entry.value);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PratiCaseShell(
+            authRepository: _TestAuthRepository(),
+            homeRepository: _EmptyLiveHomeRepository(),
+            casesRepository: _FakeCasesRepository(),
+            progressRepository: _FakeProgressRepository(),
+            theoreticalExamRepository: _FakeTheoreticalExamRepository(),
+            oralExamRepository: _FakeOralExamRepository(),
+            onSignOut: () async {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull, reason: entry.key);
+      expect(find.text('Ana Sayfa'), findsWidgets, reason: entry.key);
+      expect(
+        find.byType(NavigationRail),
+        entry.value.width >= 900 ? findsOneWidget : findsNothing,
+        reason: entry.key,
+      );
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+    }
+  });
+
+  testWidgets('auth entry and setup fit phone and tablet viewports', (
+    tester,
+  ) async {
+    for (final entry in _authDeviceViewports.entries) {
+      await _setViewport(tester, entry.value);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: OnboardingScreen(onCreateAccount: () {}, onLogin: () {}),
+        ),
+      );
+      await tester.pump();
+
+      expect(tester.takeException(), isNull, reason: '${entry.key} onboarding');
+      expect(find.text('Başla'), findsOneWidget, reason: entry.key);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ProfileSetupScreen(
+            repository: _TestAuthRepository(),
+            fullName: 'Ayse Yilmaz',
+            onBack: () {},
+            onCompleted: () {},
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(tester.takeException(), isNull, reason: '${entry.key} setup');
+      expect(find.text('PratiCase’e Başla'), findsOneWidget, reason: entry.key);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+    }
+  });
+
+  testWidgets('osce keyboard actions stay clear on supported viewports', (
+    tester,
+  ) async {
+    for (final entry in _keyboardSafeViewports.entries) {
+      final size = entry.value.$1;
+      final keyboardHeight = entry.value.$2;
+      await _setViewport(tester, size);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(
+              size: size,
+              viewInsets: EdgeInsets.only(bottom: keyboardHeight),
+            ),
+            child: DiagnosisScreen(
+              repository: _DiagnosisManagementCasesRepository(),
+              sessionId: 'session-1',
+              caseId: 'case-1',
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final button = find.widgetWithText(FilledButton, 'Yönetim Planına Geç');
+      expect(button, findsOneWidget, reason: entry.key);
+      expect(tester.takeException(), isNull, reason: entry.key);
+      expect(
+        tester.getBottomLeft(button).dy,
+        lessThan(size.height - keyboardHeight + 8),
+        reason: entry.key,
+      );
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+    }
   });
 
   testWidgets('single station opens a focused case picker', (tester) async {
@@ -994,6 +1189,40 @@ void main() {
     );
   });
 
+  testWidgets('theoretical setup confirms exhausted topic repeat', (
+    tester,
+  ) async {
+    await _setViewport(tester, const Size(430, 1200));
+    final repository = _ExhaustedTopicTheoreticalExamRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(home: TheoreticalExamSetupScreen(repository: repository)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Dahiliye'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sepsis'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Konu tamamlandı'), findsOneWidget);
+    expect(
+      find.text(
+        'Sepsis konusuyla ilgili tüm soruları çözdünüz. Tekrar çözmek ister misiniz?',
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Tekrar Çöz'));
+    await tester.pumpAndSettle();
+    final startButton = find.widgetWithText(FilledButton, 'Denemeyi Başlat');
+    await tester.ensureVisible(startButton);
+    await tester.tap(startButton);
+    await tester.pumpAndSettle();
+
+    expect(repository.lastPlans.first.topics.single.metadataValue, 'Sepsis');
+  });
+
   testWidgets('theoretical result syncs solved answers to progress', (
     tester,
   ) async {
@@ -1061,7 +1290,7 @@ class _WalletStoreRepository extends StoreKitRepository {
         description: 'AI işlemleri için Medasi Coin.',
         priceCents: 4000,
         currency: 'TRY',
-        appStoreProductId: 'com.medasi.praticase.mc.10',
+        appStoreProductId: 'com.medasi.qlinik.mc.10',
         entitlementKind: 'one_time',
         interval: 'consumable',
         durationDays: 365,
@@ -1238,6 +1467,22 @@ class _CommitteeOralExamRepository extends Fake implements OralExamRepository {
     activePersonaId: 'lead',
   );
 
+  OralExamSession get soloSession => OralExamSession(
+    id: 'solo-session',
+    durationSeconds: 900,
+    caseBrief: 'Göğüs ağrısı ile başvuran hasta.',
+    startedAt: DateTime.now(),
+    personaId: 'lead',
+    personaTitle: 'Sert Profesör',
+    difficulty: 'Zor',
+    branchId: 'dahiliye',
+    branchTitle: 'Dahiliye',
+    openingMessage: 'Bu hastada öncelikli tanınız nedir?',
+    format: OralExamFormat.solo,
+    panel: const [],
+    activePersonaId: 'lead',
+  );
+
   @override
   Future<OralExamCatalog> loadCatalog() async => const OralExamCatalog(
     personas: panel,
@@ -1393,6 +1638,29 @@ class _RecordingTheoreticalExamRepository extends Fake
   }
 }
 
+class _ExhaustedTopicTheoreticalExamRepository
+    extends _RecordingTheoreticalExamRepository {
+  @override
+  Future<TheoreticalExamFilters> loadFilters() async {
+    const sepsis = TheoreticalTopicOption(
+      course: 'Dahiliye',
+      topic: 'Enfeksiyon',
+      metadataValue: 'Sepsis',
+      totalCount: 20,
+      remainingCount: 0,
+    );
+    return const TheoreticalExamFilters(
+      courses: ['Dahiliye'],
+      topicsByCourse: {
+        'Dahiliye': ['Sepsis'],
+      },
+      topicOptionsByCourse: {
+        'Dahiliye': [sepsis],
+      },
+    );
+  }
+}
+
 class _ProfileProgressRepository extends Fake implements ProgressRepository {
   @override
   Future<ProfileCard> loadProfile() async {
@@ -1436,7 +1704,7 @@ class _StoreProgressRepository extends Fake implements ProgressRepository {
           currency: 'TRY',
           questionAmount: 2795,
           coinAmount: 1459.2,
-          appStoreProductId: 'com.medasi.praticase.intense',
+          appStoreProductId: 'com.medasi.qlinik.intense',
           isFeatured: true,
           interval: 'month',
         ),
@@ -2009,6 +2277,52 @@ class _EmptyLiveHomeRepository extends Fake implements HomeRepository {
   }
 }
 
+const _supportedDeviceViewports = <String, Size>{
+  'iPhone 11': Size(414, 896),
+  'iPhone 17 Pro': Size(402, 874),
+  'iPhone 17 Pro Max': Size(440, 956),
+  'iPad 5 / iPad mini 2 portrait': Size(768, 1024),
+  'latest iPad mini portrait': Size(744, 1133),
+  'iPad Pro 11 portrait': Size(834, 1194),
+  'iPad Pro landscape': Size(1366, 1024),
+};
+
+const _authDeviceViewports = <String, Size>{
+  'iPhone 11': Size(414, 896),
+  'iPhone 17 Pro': Size(402, 874),
+  'iPad 5 portrait': Size(768, 1024),
+  'iPad Pro landscape': Size(1366, 1024),
+};
+
+const _keyboardSafeViewports = <String, (Size, double)>{
+  'iPhone 11 keyboard': (Size(414, 896), 336),
+  'iPhone 17 Pro keyboard': (Size(402, 874), 336),
+  'iPad mini keyboard': (Size(744, 1133), 380),
+  'iPad Pro landscape keyboard': (Size(1366, 1024), 360),
+};
+
+const _supportResultSummary = ExamResultSummary(
+  sessionId: 'session-1',
+  caseTitle: 'Akut Apandisit',
+  totalScore: 62,
+  maxScore: 100,
+  percentage: 62,
+  categoryScores: [
+    ResultCategoryScore(title: 'Anamnez', score: 18, maxScore: 30),
+    ResultCategoryScore(title: 'Fizik Muayene', score: 8, maxScore: 20),
+    ResultCategoryScore(title: 'Tetkikler', score: 11, maxScore: 15),
+  ],
+  strongPoints: ['Ana şikayeti açtın.'],
+  improvementPoints: ['Ağrı karakterini daha net yapılandır.'],
+  criticalMistakes: ['Peritonit bulgularını geciktirme.'],
+  unnecessaryTests: ['Kontrastsız BT'],
+  missedTests: ['CRP'],
+  missedHistory: ['İştahsızlık'],
+  missedPhysicalExam: ['Rebound ve defans'],
+  idealApproach:
+      'Ağrı özellikleri, eşlik eden bulgular ve hedefe yönelik batın muayenesiyle ilerle.',
+);
+
 Finder _textFormFieldAt(int index) => find.byType(TextFormField).at(index);
 
 Future<void> _setIPhone14Viewport(WidgetTester tester) async {
@@ -2030,9 +2344,13 @@ class _TestAuthRepository implements AuthRepository {
   Future<AuthUser?> currentUser() async => null;
 
   @override
+  Stream<AuthUser?> authStateChanges() => const Stream<AuthUser?>.empty();
+
+  @override
   Future<AuthUser> signInWithEmail({
     required String email,
     required String password,
+    bool rememberMe = true,
   }) async {
     return AuthUser(id: 'test-user', email: email, emailVerified: true);
   }

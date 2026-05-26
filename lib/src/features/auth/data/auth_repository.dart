@@ -6,9 +6,12 @@ abstract interface class AuthRepository {
 
   Future<AuthUser?> currentUser();
 
+  Stream<AuthUser?> authStateChanges();
+
   Future<AuthUser> signInWithEmail({
     required String email,
     required String password,
+    bool rememberMe = true,
   });
 
   Future<AuthUser> registerWithEmail({

@@ -1,41 +1,7 @@
 begin;
 
-create table if not exists public.ai_usage_events (
-  id uuid primary key default extensions.gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  feature text not null,
-  provider text not null default 'vertex_ai',
-  model text not null,
-  prompt_token_count integer not null default 0,
-  candidates_token_count integer not null default 0,
-  thoughts_token_count integer not null default 0,
-  total_token_count integer not null default 0,
-  cached_content_token_count integer not null default 0,
-  input_cost_usd numeric(12, 6) not null default 0,
-  output_cost_usd numeric(12, 6) not null default 0,
-  total_cost_usd numeric(12, 6) not null default 0,
-  charged_coin_amount numeric(10, 4) not null default 0,
-  usage_metadata jsonb not null default '{}'::jsonb,
-  created_at timestamptz not null default now(),
-  constraint ai_usage_events_feature_check check (length(trim(feature)) > 0),
-  constraint ai_usage_events_model_check check (length(trim(model)) > 0),
-  constraint ai_usage_events_usage_metadata_check check (jsonb_typeof(usage_metadata) = 'object')
-);
-
-create index if not exists ai_usage_events_user_created_idx
-  on public.ai_usage_events(user_id, created_at desc);
-
-alter table public.ai_usage_events enable row level security;
-
-revoke all on public.ai_usage_events from public, anon, authenticated;
-grant all on public.ai_usage_events to service_role;
-
-drop policy if exists "ai usage events select own" on public.ai_usage_events;
-create policy "ai usage events select own"
-on public.ai_usage_events
-for select
-to authenticated
-using (auth.uid() = user_id);
+-- `public.ai_usage_events` is part of the live shared Medasi/Qlinik wallet
+-- contract. PratiCase only writes to it through shared service-role functions.
 
 insert into praticase.home_banners(
   title,

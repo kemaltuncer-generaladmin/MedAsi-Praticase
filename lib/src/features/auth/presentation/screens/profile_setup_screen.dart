@@ -307,12 +307,32 @@ class _SetupStepDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isCurrent = !done && label != null;
+    final fillColor = done
+        ? PratiCaseColors.teal
+        : isCurrent
+            ? PratiCaseColors.white
+            : PratiCaseColors.surfaceContainerLow;
+    final borderColor = done
+        ? PratiCaseColors.teal
+        : isCurrent
+            ? PratiCaseColors.teal
+            : PratiCaseColors.border;
+    final textColor = done
+        ? PratiCaseColors.white
+        : isCurrent
+            ? PratiCaseColors.teal
+            : PratiCaseColors.muted;
     return Container(
-      width: 26,
-      height: 26,
-      decoration: const BoxDecoration(
-        color: PratiCaseColors.teal,
+      width: 28,
+      height: 28,
+      decoration: BoxDecoration(
+        color: fillColor,
         shape: BoxShape.circle,
+        border: Border.all(
+          color: borderColor,
+          width: isCurrent ? 1.6 : 1,
+        ),
       ),
       alignment: Alignment.center,
       child: done
@@ -323,8 +343,8 @@ class _SetupStepDot extends StatelessWidget {
             )
           : Text(
               label ?? '',
-              style: const TextStyle(
-                color: PratiCaseColors.white,
+              style: TextStyle(
+                color: textColor,
                 fontSize: 12,
                 fontWeight: FontWeight.w900,
               ),
@@ -366,7 +386,9 @@ class _SetupSection extends StatelessWidget {
       decoration: BoxDecoration(
         color: PratiCaseColors.white,
         borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
-        border: Border.all(color: PratiCaseColors.border),
+        border: Border.all(
+          color: PratiCaseColors.border.withValues(alpha: 0.78),
+        ),
         boxShadow: PratiCaseShadows.card,
       ),
       child: Column(
@@ -379,10 +401,13 @@ class _SetupSection extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: PratiCaseColors.teal.withValues(alpha: 0.09),
+                  color: PratiCaseColors.teal.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+                  border: Border.all(
+                    color: PratiCaseColors.teal.withValues(alpha: 0.14),
+                  ),
                 ),
-                child: Icon(icon, color: PratiCaseColors.teal, size: 22),
+                child: Icon(icon, color: PratiCaseColors.teal, size: 21),
               ),
               const SizedBox(width: 12),
               Expanded(

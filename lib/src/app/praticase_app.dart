@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../features/auth/data/auth_repository.dart';
+import '../features/auth/domain/auth_user.dart';
 import '../features/auth/presentation/auth_flow.dart';
 import '../features/cases/data/cases_repository.dart';
 import '../features/home/data/home_repository.dart';
@@ -40,16 +43,55 @@ class _PratiCaseAppState extends State<PratiCaseApp> {
   bool _restoringSession = true;
   String _initialEmail = '';
   String _initialFullName = '';
+  StreamSubscription<AuthUser?>? _authSubscription;
 
   @override
   void initState() {
     super.initState();
+    _authSubscription = widget.authRepository.authStateChanges().listen(
+      _handleAuthStateChange,
+      onError: (_) => _handleAuthStateChange(null),
+    );
     _restoreSession();
   }
 
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
+  }
+
   Future<void> _restoreSession() async {
-    final user = await widget.authRepository.currentUser();
+    AuthUser? user;
+    try {
+      user = await widget.authRepository.currentUser();
+    } on Object {
+      user = null;
+    }
     if (!mounted) return;
+    _applySessionUser(user, restoringSession: false);
+  }
+
+  void _handleAuthStateChange(AuthUser? user) {
+    if (!mounted) return;
+    if (user == null) {
+      setState(() {
+        _initialEmail = '';
+        _initialFullName = '';
+        _gate = _SessionGate.loggedOut;
+        _restoringSession = false;
+      });
+      return;
+    }
+
+    if (!_restoringSession && _gate == _SessionGate.loggedOut) {
+      return;
+    }
+
+    _applySessionUser(user, restoringSession: false);
+  }
+
+  void _applySessionUser(AuthUser? user, {required bool restoringSession}) {
     setState(() {
       _initialEmail = user?.email ?? '';
       _initialFullName = user?.fullName ?? '';
@@ -58,7 +100,7 @@ class _PratiCaseAppState extends State<PratiCaseApp> {
           : user.profileCompleted
           ? _SessionGate.authenticated
           : _SessionGate.profilePending;
-      _restoringSession = false;
+      _restoringSession = restoringSession;
     });
   }
 
@@ -66,6 +108,32 @@ class _PratiCaseAppState extends State<PratiCaseApp> {
     await widget.authRepository.signOut();
     if (!mounted) return;
     setState(() => _gate = _SessionGate.loggedOut);
+  }
+
+  Future<void> _completeAuthentication() async {
+    AuthUser? user;
+    try {
+      user = await widget.authRepository.currentUser();
+    } on Object {
+      user = null;
+    }
+    if (!mounted) return;
+    if (user == null) {
+      _applySessionUser(null, restoringSession: false);
+      return;
+    }
+    _applySessionUser(
+      user.profileCompleted
+          ? user
+          : AuthUser(
+              id: user.id,
+              email: user.email,
+              fullName: user.fullName,
+              emailVerified: user.emailVerified,
+              profileCompleted: true,
+            ),
+      restoringSession: false,
+    );
   }
 
   @override
@@ -94,8 +162,7 @@ class _PratiCaseAppState extends State<PratiCaseApp> {
             : AuthStep.onboarding,
         initialEmail: _initialEmail,
         initialFullName: _initialFullName,
-        onAuthenticated: () =>
-            setState(() => _gate = _SessionGate.authenticated),
+        onAuthenticated: () => unawaited(_completeAuthentication()),
       );
       bodyKey = 'auth';
     }

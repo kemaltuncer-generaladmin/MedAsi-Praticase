@@ -1,36 +1,54 @@
+import 'dart:async';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../domain/auth_user.dart' as domain;
 import '../domain/profile_setup.dart';
 import 'auth_config.dart';
+import 'praticase_auth_storage.dart';
 import 'auth_repository.dart';
 
 class SupabaseAuthRepository implements AuthRepository {
   SupabaseAuthRepository({
     required SupabaseClient client,
     required AuthConfig config,
+    PratiCaseAuthStorage? authStorage,
   }) : _client = client,
-       _config = config;
+       _config = config,
+       _authStorage = authStorage;
 
   final SupabaseClient _client;
   final AuthConfig _config;
+  final PratiCaseAuthStorage? _authStorage;
 
   @override
   bool get isConfigured => true;
 
   @override
   Future<domain.AuthUser?> currentUser() async {
-    final user = _client.auth.currentUser;
+    final user = await _activeUser();
     if (user == null) return null;
     return user.toDomain(profileCompleted: await _profileCompleted(user));
+  }
+
+  @override
+  Stream<domain.AuthUser?> authStateChanges() {
+    return _client.auth.onAuthStateChange.asyncMap((state) async {
+      if (state.event == AuthChangeEvent.signedOut) return null;
+      final user = state.session?.user ?? _client.auth.currentUser;
+      if (user == null) return null;
+      return user.toDomain(profileCompleted: await _profileCompleted(user));
+    });
   }
 
   @override
   Future<domain.AuthUser> signInWithEmail({
     required String email,
     required String password,
+    bool rememberMe = true,
   }) async {
     try {
+      await _authStorage?.setRememberMe(rememberMe);
       final response = await _client.auth.signInWithPassword(
         email: email.trim(),
         password: password,
@@ -173,6 +191,19 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() => _client.auth.signOut();
+
+  Future<User?> _activeUser() async {
+    final session = _client.auth.currentSession;
+    if (session == null) return null;
+    if (!session.isExpired) return session.user;
+    try {
+      final response = await _client.auth.refreshSession();
+      return response.user ?? _client.auth.currentUser;
+    } on AuthException {
+      await _authStorage?.removePersistedSession();
+      return null;
+    }
+  }
 
   Future<void> _tryUpsertProfile({
     required User user,

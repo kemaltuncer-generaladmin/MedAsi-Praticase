@@ -43,7 +43,10 @@ class PratiCaseStoreProduct {
   /// Para birimi (varsayılan TRY).
   final String currency;
 
-  /// App Store Connect ürün kimliği (`com.medasi.praticase.monthly` vb.).
+  /// App Store Connect ürün kimliği.
+  ///
+  /// Öncelik ortak Medasi/Qlinik katalog alanındadır; PratiCase'e özel
+  /// StoreKit override tanımlandıysa edge function bu değeri onunla değiştirir.
   final String appStoreProductId;
 
   /// `one_time` veya `subscription`.

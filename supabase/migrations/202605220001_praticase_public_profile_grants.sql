@@ -1,8 +1,7 @@
 begin;
 
-grant usage on schema public to anon, authenticated;
-
-grant select on public.profiles to authenticated;
-grant insert, update on public.profiles to authenticated;
+-- `public.profiles` grants and policies are owned by the live shared
+-- Medasi/Qlinik auth schema. PratiCase consumes that contract and does not
+-- mutate the shared auth surface.
 
 commit;

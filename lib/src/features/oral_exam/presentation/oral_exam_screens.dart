@@ -28,6 +28,7 @@ class OralExamSetupScreen extends StatefulWidget {
 
 class _OralExamSetupScreenState extends State<OralExamSetupScreen> {
   late Future<OralExamCatalog> _catalogFuture;
+  OralExamCatalog? _catalog;
   OralExamPersona? _persona;
   OralExamBranch? _branch;
   OralExamScenario? _scenario;
@@ -51,31 +52,28 @@ class _OralExamSetupScreenState extends State<OralExamSetupScreen> {
   Future<void> _start() async {
     if (_branch == null || _starting) return;
     if (_format == OralExamFormat.solo && _persona == null) return;
+    final branch = _branch!;
+    final persona = _persona;
+    final scenario = _scenario;
+    final format = _format;
+    final panel = _catalog?.personas ?? const <OralExamPersona>[];
     setState(() => _starting = true);
     try {
-      final session = await widget.repository.startSession(
-        personaId: _persona?.id ?? 'stern_professor',
-        branchId: _branch!.id,
-        durationSeconds: _durationMinutes * 60,
-        scenarioId: _scenario?.id,
-        format: _format,
-      );
+      unawaited(PratiCaseHaptics.medium());
       if (!mounted) return;
-      await PratiCaseHaptics.medium();
-      if (!mounted) return;
-      await Navigator.of(context).pushReplacement(
+      await Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => OralExamRoomScreen(
+          builder: (_) => OralExamLaunchScreen(
             repository: widget.repository,
-            session: session,
+            persona: persona,
+            branch: branch,
+            scenario: scenario,
+            durationSeconds: _durationMinutes * 60,
+            format: format,
+            panel: panel,
           ),
         ),
       );
-    } on OralExamUnavailable catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
     } finally {
       if (mounted) setState(() => _starting = false);
     }
@@ -103,6 +101,7 @@ class _OralExamSetupScreenState extends State<OralExamSetupScreen> {
             );
           }
           final catalog = snapshot.requireData;
+          _catalog = catalog;
           _persona ??= catalog.personas.isEmpty ? null : catalog.personas.first;
           _branch ??= catalog.branches.isEmpty ? null : catalog.branches.first;
 
@@ -216,84 +215,97 @@ class _OralExamSetupScreenState extends State<OralExamSetupScreen> {
                 ],
               ),
               Positioned(
-                left: 16,
-                right: 16,
+                left: 0,
+                right: 0,
                 bottom: MediaQuery.paddingOf(context).bottom + 16,
                 child: SafeArea(
                   top: false,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient:
-                          _branch == null ||
-                              _starting ||
-                              (_format == OralExamFormat.solo &&
-                                  _persona == null)
-                          ? null
-                          : PratiCaseGradients.action,
-                      color:
-                          _branch == null ||
-                              _starting ||
-                              (_format == OralExamFormat.solo &&
-                                  _persona == null)
-                          ? PratiCaseColors.border
-                          : null,
-                      borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
-                      boxShadow:
-                          _branch == null ||
-                              _starting ||
-                              (_format == OralExamFormat.solo &&
-                                  _persona == null)
-                          ? null
-                          : [
-                              BoxShadow(
-                                color: PratiCaseColors.teal.withValues(
-                                  alpha: 0.22,
-                                ),
-                                blurRadius: 22,
-                                spreadRadius: -7,
-                                offset: const Offset(0, 14),
-                              ),
-                            ],
-                    ),
-                    child: FilledButton.icon(
-                      onPressed:
-                          _branch == null ||
-                              _starting ||
-                              (_format == OralExamFormat.solo &&
-                                  _persona == null)
-                          ? null
-                          : _start,
-                      icon: _starting
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: PratiCaseSpinner(
-                                size: 18,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Icon(
-                              _format == OralExamFormat.panel
-                                  ? Icons.groups_2_rounded
-                                  : Icons.record_voice_over_rounded,
+                  child: PratiCaseResponsiveFrame(
+                    maxWidth: PratiCaseBreakpoints.flowContentMaxWidth,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal:
+                            PratiCaseResponsive.horizontalPaddingForWidth(
+                              MediaQuery.sizeOf(context).width,
                             ),
-                      label: Text(
-                        _starting
-                            ? (_format == OralExamFormat.panel
-                                  ? 'Komite hazırlanıyor...'
-                                  : 'Hoca hazırlanıyor...')
-                            : (_format == OralExamFormat.panel
-                                  ? 'Komiteye Çık'
-                                  : 'Sözlü Sınavı Başlat'),
                       ),
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(54),
-                        backgroundColor: Colors.transparent,
-                        disabledBackgroundColor: Colors.transparent,
-                        foregroundColor: PratiCaseColors.white,
-                        disabledForegroundColor: PratiCaseColors.muted,
-                        shadowColor: Colors.transparent,
-                        elevation: 0,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient:
+                              _branch == null ||
+                                  _starting ||
+                                  (_format == OralExamFormat.solo &&
+                                      _persona == null)
+                              ? null
+                              : PratiCaseGradients.action,
+                          color:
+                              _branch == null ||
+                                  _starting ||
+                                  (_format == OralExamFormat.solo &&
+                                      _persona == null)
+                              ? PratiCaseColors.border
+                              : null,
+                          borderRadius: BorderRadius.circular(
+                            PratiCaseRadius.pill,
+                          ),
+                          boxShadow:
+                              _branch == null ||
+                                  _starting ||
+                                  (_format == OralExamFormat.solo &&
+                                      _persona == null)
+                              ? null
+                              : [
+                                  BoxShadow(
+                                    color: PratiCaseColors.teal.withValues(
+                                      alpha: 0.22,
+                                    ),
+                                    blurRadius: 22,
+                                    spreadRadius: -7,
+                                    offset: const Offset(0, 14),
+                                  ),
+                                ],
+                        ),
+                        child: FilledButton.icon(
+                          onPressed:
+                              _branch == null ||
+                                  _starting ||
+                                  (_format == OralExamFormat.solo &&
+                                      _persona == null)
+                              ? null
+                              : _start,
+                          icon: _starting
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: PratiCaseSpinner(
+                                    size: 18,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Icon(
+                                  _format == OralExamFormat.panel
+                                      ? Icons.groups_2_rounded
+                                      : Icons.record_voice_over_rounded,
+                                ),
+                          label: Text(
+                            _starting
+                                ? (_format == OralExamFormat.panel
+                                      ? 'Komite hazırlanıyor...'
+                                      : 'Hoca hazırlanıyor...')
+                                : (_format == OralExamFormat.panel
+                                      ? 'Komiteye Çık'
+                                      : 'Sözlü Sınavı Başlat'),
+                          ),
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size.fromHeight(54),
+                            backgroundColor: Colors.transparent,
+                            disabledBackgroundColor: Colors.transparent,
+                            foregroundColor: PratiCaseColors.white,
+                            disabledForegroundColor: PratiCaseColors.muted,
+                            shadowColor: Colors.transparent,
+                            elevation: 0,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -1004,6 +1016,9 @@ String _examSafePersonaDescription(OralExamPersona persona) {
   }
 }
 
+String _ifBlank(String value, String fallback) =>
+    value.trim().isEmpty ? fallback : value;
+
 class _BranchChip extends StatelessWidget {
   const _BranchChip({
     required this.branch,
@@ -1138,6 +1153,335 @@ class _DurationPicker extends StatelessWidget {
   }
 }
 
+class OralExamLaunchScreen extends StatefulWidget {
+  const OralExamLaunchScreen({
+    required this.repository,
+    required this.persona,
+    required this.branch,
+    required this.durationSeconds,
+    required this.format,
+    required this.panel,
+    this.scenario,
+    super.key,
+  });
+
+  final OralExamRepository repository;
+  final OralExamPersona? persona;
+  final OralExamBranch branch;
+  final OralExamScenario? scenario;
+  final int durationSeconds;
+  final OralExamFormat format;
+  final List<OralExamPersona> panel;
+
+  @override
+  State<OralExamLaunchScreen> createState() => _OralExamLaunchScreenState();
+}
+
+class _OralExamLaunchScreenState extends State<OralExamLaunchScreen> {
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _startSession();
+  }
+
+  Future<void> _startSession() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final session = await widget.repository.startSession(
+        personaId: widget.persona?.id ?? 'stern_professor',
+        branchId: widget.branch.id,
+        durationSeconds: widget.durationSeconds,
+        scenarioId: widget.scenario?.id,
+        format: widget.format,
+      );
+      if (!mounted) return;
+      await Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => OralExamRoomScreen(
+            repository: widget.repository,
+            session: session,
+          ),
+        ),
+      );
+    } on OralExamUnavailable catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = PratiCaseUserMessage.oralExam(error.message);
+      });
+    } on Object {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = PratiCaseUserMessage.oralExamFailure;
+      });
+    }
+  }
+
+  String get _title {
+    if (widget.format.isPanel) return 'Komiteye bağlanıyor';
+    return 'Hoca bağlanıyor';
+  }
+
+  String get _subtitle {
+    final scenario = widget.scenario?.title.trim();
+    if (scenario != null && scenario.isNotEmpty) {
+      return '${widget.branch.title} • $scenario';
+    }
+    return '${widget.branch.title} sözlü sınavı';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: PratiCaseColors.navy,
+      appBar: AppBar(
+        backgroundColor: PratiCaseColors.navy,
+        foregroundColor: PratiCaseColors.white,
+        title: const Text('Sözlü Sınav'),
+        leading: IconButton(
+          onPressed: _loading ? null : () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.close_rounded),
+        ),
+      ),
+      body: SafeArea(
+        child: PratiCaseResponsiveFrame(
+          maxWidth: PratiCaseBreakpoints.flowContentMaxWidth,
+          expandHeight: true,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(22, 22, 22, 28),
+            child: Column(
+              children: [
+                const Spacer(),
+                _LaunchVoiceVisual(
+                  persona: widget.persona,
+                  panel: widget.panel,
+                  format: widget.format,
+                  loading: _loading,
+                ),
+                const SizedBox(height: 28),
+                Text(
+                  _title,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: PratiCaseColors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _subtitle,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: PratiCaseColors.white.withValues(alpha: 0.72),
+                    fontSize: 13,
+                    height: 1.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 26),
+                if (_loading)
+                  const PratiCaseSpinner(
+                    color: PratiCaseColors.tealBright,
+                    size: 30,
+                  )
+                else ...[
+                  Text(
+                    _error ?? PratiCaseUserMessage.oralExamFailure,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: PratiCaseColors.white,
+                      fontSize: 14,
+                      height: 1.45,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  FilledButton.icon(
+                    onPressed: _startSession,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Tekrar Dene'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: PratiCaseColors.tealBright,
+                      foregroundColor: PratiCaseColors.navy,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Seçimi Değiştir'),
+                  ),
+                ],
+                const Spacer(),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LaunchVoiceVisual extends StatelessWidget {
+  const _LaunchVoiceVisual({
+    required this.persona,
+    required this.panel,
+    required this.format,
+    required this.loading,
+  });
+
+  final OralExamPersona? persona;
+  final List<OralExamPersona> panel;
+  final OralExamFormat format;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    if (format.isPanel) {
+      final ordered = [...panel]
+        ..sort((a, b) {
+          const order = {'lead': 0, 'second': 1, 'observer': 2};
+          return (order[a.panelRole] ?? 9).compareTo(order[b.panelRole] ?? 9);
+        });
+      return SizedBox(
+        height: 148,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            _LaunchHalo(active: loading),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                for (var i = 0; i < ordered.take(3).length; i++) ...[
+                  _LaunchAvatar(
+                    title: ordered[i].title,
+                    active: i == 0,
+                    size: i == 0 ? 74 : 58,
+                  ),
+                  if (i != ordered.take(3).length - 1)
+                    const SizedBox(width: 10),
+                ],
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+    return SizedBox(
+      height: 148,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          _LaunchHalo(active: loading),
+          _LaunchAvatar(title: persona?.title ?? 'Moderatör', active: true),
+        ],
+      ),
+    );
+  }
+}
+
+class _LaunchHalo extends StatefulWidget {
+  const _LaunchHalo({required this.active});
+  final bool active;
+
+  @override
+  State<_LaunchHalo> createState() => _LaunchHaloState();
+}
+
+class _LaunchHaloState extends State<_LaunchHalo>
+    with SingleTickerProviderStateMixin {
+  late final _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1300),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final value = widget.active ? _controller.value : 0.0;
+        return Container(
+          width: 128 + value * 20,
+          height: 128 + value * 20,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: PratiCaseColors.tealBright.withValues(
+              alpha: 0.10 + value * 0.08,
+            ),
+            border: Border.all(
+              color: PratiCaseColors.tealBright.withValues(alpha: 0.32),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _LaunchAvatar extends StatelessWidget {
+  const _LaunchAvatar({
+    required this.title,
+    required this.active,
+    this.size = 82,
+  });
+
+  final String title;
+  final bool active;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: title,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: active
+              ? PratiCaseColors.tealBright.withValues(alpha: 0.22)
+              : Colors.white.withValues(alpha: 0.10),
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: active
+                ? PratiCaseColors.tealBright
+                : Colors.white.withValues(alpha: 0.18),
+            width: active ? 2 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: PratiCaseColors.tealBright.withValues(alpha: 0.18),
+              blurRadius: 24,
+              spreadRadius: -8,
+              offset: const Offset(0, 14),
+            ),
+          ],
+        ),
+        child: Icon(
+          Icons.person_rounded,
+          color: active
+              ? PratiCaseColors.white
+              : Colors.white.withValues(alpha: 0.72),
+          size: size * 0.48,
+        ),
+      ),
+    );
+  }
+}
+
 /// Sözlü sınav odası — gerçek sınav UI'si.
 class OralExamRoomScreen extends StatefulWidget {
   const OralExamRoomScreen({
@@ -1168,6 +1512,9 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
   bool _voiceMode = false;
   bool _finalizing = false;
   late String _activePersonaId;
+  String _voiceTranscript = '';
+  String _activeVoiceCaption = '';
+  String _activeVoiceSpeaker = '';
 
   @override
   void initState() {
@@ -1182,7 +1529,24 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
     _voiceState = _voiceAdapter.state;
     _voiceSubscription = _voiceAdapter.states.listen((state) {
       if (!mounted) return;
-      setState(() => _voiceState = state);
+      final previous = _voiceState;
+      setState(() {
+        _voiceState = state;
+        if (previous.speaking && !state.speaking) {
+          _activeVoiceCaption = '';
+          _activeVoiceSpeaker = '';
+        }
+        if (previous.listening &&
+            !state.listening &&
+            state.partialText.trim().isEmpty &&
+            !_sending) {
+          _voiceTranscript = '';
+        }
+        if (state.errorMessage != null && !state.speaking) {
+          _activeVoiceCaption = '';
+          _activeVoiceSpeaker = '';
+        }
+      });
     });
     final opener = widget.session.personaById(_activePersonaId);
     _messages.add(
@@ -1248,14 +1612,25 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
     );
   }
 
-  Future<void> _send() async {
-    final text = _messageController.text.trim();
+  Future<void> _send() => _sendAnswer(
+    _messageController.text.trim(),
+    restoreToComposerOnFailure: true,
+  );
+
+  Future<void> _sendVoiceAnswer(String text) =>
+      _sendAnswer(text.trim(), restoreToComposerOnFailure: false);
+
+  Future<void> _sendAnswer(
+    String text, {
+    required bool restoreToComposerOnFailure,
+  }) async {
     if (text.isEmpty || _sending || _finalizing) return;
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
       _sending = true;
       _messages.add(OralExamMessage(speaker: 'candidate', message: text));
       _messageController.clear();
+      _voiceTranscript = '';
     });
     unawaited(_scrollToBottom());
     try {
@@ -1292,6 +1667,7 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
       }
     } on OralExamUnavailable catch (error) {
       if (!mounted) return;
+      if (restoreToComposerOnFailure) _restoreFailedAnswer(text);
       _showFailure(PratiCaseUserMessage.oralExam(error.message));
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -1358,7 +1734,14 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
 
   Future<void> _toggleVoiceMode() async {
     final next = !_voiceMode;
-    setState(() => _voiceMode = next);
+    setState(() {
+      _voiceMode = next;
+      _voiceTranscript = '';
+      if (!next) {
+        _activeVoiceCaption = '';
+        _activeVoiceSpeaker = '';
+      }
+    });
     if (next) {
       await _voiceAdapter.initialize();
       await _speakLatestMentor();
@@ -1371,27 +1754,29 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
   Future<void> _toggleListening() async {
     if (_voiceState.listening) {
       await _voiceAdapter.stopListening();
+      if (mounted) setState(() => _voiceTranscript = '');
       return;
+    }
+    if (_voiceState.speaking) {
+      await _voiceAdapter.stopSpeaking();
     }
     await _voiceAdapter.startListening(
       onPartialText: (text) {
         if (!mounted || text.trim().isEmpty) return;
-        setState(() {
-          _messageController.text = text.trim();
-          _messageController.selection = TextSelection.collapsed(
-            offset: _messageController.text.length,
-          );
-        });
+        if (_voiceMode) {
+          setState(() => _voiceTranscript = text.trim());
+        } else {
+          _setComposerText(text.trim());
+        }
       },
       onFinalText: (text) {
         if (!mounted || text.trim().isEmpty) return;
-        setState(() {
-          _messageController.text = text.trim();
-          _messageController.selection = TextSelection.collapsed(
-            offset: _messageController.text.length,
-          );
-        });
-        if (_voiceMode) unawaited(_send());
+        if (_voiceMode) {
+          setState(() => _voiceTranscript = text.trim());
+          unawaited(_sendVoiceAnswer(text));
+        } else {
+          _setComposerText(text.trim());
+        }
       },
     );
   }
@@ -1403,7 +1788,7 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
       orElse: () => const OralExamMessage(speaker: 'mentor', message: ''),
     );
     if (mentor.message.isEmpty) return;
-    await _voiceAdapter.speak(mentor.message);
+    await _speakMentorMessages([mentor]);
   }
 
   Future<void> _speakMentorMessages(List<OralExamMessage> messages) async {
@@ -1411,12 +1796,42 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
     final transcript = messages
         .where((message) => message.message.isNotEmpty)
         .map(
-          (message) => message.personaTitle.isEmpty
-              ? message.message
-              : '${message.personaTitle}: ${message.message}',
+          (message) =>
+              widget.session.format.isPanel && message.personaTitle.isNotEmpty
+              ? '${message.personaTitle}: ${message.message}'
+              : message.message,
         )
         .join(' ');
-    if (transcript.isNotEmpty) await _voiceAdapter.speak(transcript);
+    if (transcript.isEmpty) return;
+    final speaker = widget.session.format.isPanel
+        ? messages
+              .lastWhere(
+                (message) => message.personaTitle.isNotEmpty,
+                orElse: () =>
+                    const OralExamMessage(speaker: 'mentor', message: ''),
+              )
+              .personaTitle
+        : 'Hoca';
+    if (mounted) {
+      setState(() {
+        _activeVoiceCaption = transcript;
+        _activeVoiceSpeaker = speaker;
+      });
+    }
+    await _voiceAdapter.speak(transcript);
+  }
+
+  void _setComposerText(String text) {
+    setState(() {
+      _messageController.text = text;
+      _messageController.selection = TextSelection.collapsed(
+        offset: _messageController.text.length,
+      );
+    });
+  }
+
+  void _restoreFailedAnswer(String text) {
+    _setComposerText(text);
   }
 
   String _formatTime(int seconds) {
@@ -1508,59 +1923,98 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
             ),
           ],
         ),
-        body: Column(
-          children: [
-            widget.session.format == OralExamFormat.panel &&
-                    widget.session.panel.length >= 2
-                ? _PanelBanner(
-                    panel: widget.session.panel,
-                    activePersonaId: _activePersonaId,
-                    caseBrief: widget.session.caseBrief,
-                    voiceMode: _voiceMode,
-                    onToggleVoice: _toggleVoiceMode,
-                  )
-                : _MentorBanner(
-                    personaTitle: widget.session.personaTitle,
-                    difficulty: widget.session.difficulty,
-                    caseBrief: widget.session.caseBrief,
-                    voiceMode: _voiceMode,
-                    onToggleVoice: _toggleVoiceMode,
-                  ),
-            Expanded(
-              child: ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                itemCount: _messages.length + (_sending ? 1 : 0),
-                itemBuilder: (context, index) {
-                  if (_sending && index == _messages.length) {
-                    return const _MentorTypingBubble();
-                  }
-                  final msg = _messages[index];
-                  return FadeSlideIn(
-                    key: ValueKey('msg_$index'),
-                    offset: Offset(
-                      msg.speaker == 'candidate' ? 0.04 : -0.04,
-                      0,
+        body: PratiCaseResponsiveFrame(
+          maxWidth: PratiCaseBreakpoints.flowContentMaxWidth,
+          expandHeight: true,
+          child: Column(
+            children: [
+              widget.session.format == OralExamFormat.panel &&
+                      widget.session.panel.length >= 2
+                  ? _PanelBanner(
+                      panel: widget.session.panel,
+                      activePersonaId: _activePersonaId,
+                      caseBrief: widget.session.caseBrief,
+                      voiceMode: _voiceMode,
+                      onToggleVoice: _toggleVoiceMode,
+                    )
+                  : _MentorBanner(
+                      personaTitle: widget.session.personaTitle,
+                      difficulty: widget.session.difficulty,
+                      caseBrief: widget.session.caseBrief,
+                      voiceMode: _voiceMode,
+                      onToggleVoice: _toggleVoiceMode,
                     ),
-                    child: _ExamBubble(message: msg),
-                  );
-                },
+              Expanded(
+                child: _voiceMode
+                    ? _VoiceExamStage(
+                        session: widget.session,
+                        activePersonaId: _activePersonaId,
+                        voiceState: _voiceState,
+                        sending: _sending,
+                        finalizing: _finalizing,
+                        activeCaption: _activeVoiceCaption,
+                        activeSpeaker: _activeVoiceSpeaker,
+                        transcript: _voiceTranscript,
+                      )
+                    : ListView.builder(
+                        controller: _scrollController,
+                        padding: EdgeInsets.fromLTRB(
+                          PratiCaseResponsive.horizontalPaddingForWidth(
+                            MediaQuery.sizeOf(context).width,
+                          ),
+                          16,
+                          PratiCaseResponsive.horizontalPaddingForWidth(
+                            MediaQuery.sizeOf(context).width,
+                          ),
+                          24,
+                        ),
+                        itemCount: _messages.length + (_sending ? 1 : 0),
+                        itemBuilder: (context, index) {
+                          if (_sending && index == _messages.length) {
+                            return const _MentorTypingBubble();
+                          }
+                          final msg = _messages[index];
+                          return FadeSlideIn(
+                            key: ValueKey('msg_$index'),
+                            offset: Offset(
+                              msg.speaker == 'candidate' ? 0.04 : -0.04,
+                              0,
+                            ),
+                            child: _ExamBubble(
+                              message: msg,
+                              showPersonaTitle: widget.session.format.isPanel,
+                            ),
+                          );
+                        },
+                      ),
               ),
-            ),
-            _ComposerBar(
-              controller: _messageController,
-              sending: _sending,
-              finalizing: _finalizing,
-              voiceMode: _voiceMode,
-              listening: _voiceState.listening,
-              onSend: _send,
-              onSkip: _skip,
-              onToggleListening: _voiceMode ? _toggleListening : null,
-              onFinalize: () async {
-                await _confirmExit();
-              },
-            ),
-          ],
+              _voiceMode
+                  ? _VoiceControlBar(
+                      sending: _sending,
+                      finalizing: _finalizing,
+                      listening: _voiceState.listening,
+                      speaking: _voiceState.speaking,
+                      onToggleListening: _toggleListening,
+                      onSkip: _skip,
+                      onFinalize: () async {
+                        await _confirmExit();
+                      },
+                    )
+                  : _ComposerBar(
+                      controller: _messageController,
+                      sending: _sending,
+                      finalizing: _finalizing,
+                      voiceMode: _voiceMode,
+                      listening: _voiceState.listening,
+                      onSend: _send,
+                      onSkip: _skip,
+                      onToggleListening: null,
+                      onFinalize: () async {
+                        await _confirmExit();
+                      },
+                    ),
+            ],
+          ),
         ),
       ),
     );
@@ -1876,9 +2330,324 @@ class _MentorBanner extends StatelessWidget {
   }
 }
 
+class _VoiceExamStage extends StatelessWidget {
+  const _VoiceExamStage({
+    required this.session,
+    required this.activePersonaId,
+    required this.voiceState,
+    required this.sending,
+    required this.finalizing,
+    required this.activeCaption,
+    required this.activeSpeaker,
+    required this.transcript,
+  });
+
+  final OralExamSession session;
+  final String activePersonaId;
+  final VoiceExamState voiceState;
+  final bool sending;
+  final bool finalizing;
+  final String activeCaption;
+  final String activeSpeaker;
+  final String transcript;
+
+  String get _status {
+    if (finalizing) return 'Karne hazırlanıyor';
+    if (sending) return 'Yanıt değerlendiriliyor';
+    if (voiceState.speaking) return 'Hoca konuşuyor';
+    if (voiceState.listening) return 'Seni dinliyor';
+    if (voiceState.errorMessage != null) return 'Ses hazır değil';
+    return 'Yanıtını bekliyor';
+  }
+
+  String get _speaker {
+    if (session.format.isPanel) {
+      final active = session.personaById(activePersonaId);
+      return active?.title ?? _ifBlank(activeSpeaker, 'Komite');
+    }
+    return _ifBlank(activeSpeaker, 'Hoca');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final captionVisible =
+        voiceState.speaking && activeCaption.trim().isNotEmpty;
+    final transcriptVisible =
+        voiceState.listening && transcript.trim().isNotEmpty;
+    final busy = sending || finalizing || voiceState.speaking;
+    return Container(
+      width: double.infinity,
+      color: PratiCaseColors.softSurface,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+          PratiCaseResponsive.horizontalPaddingForWidth(
+            MediaQuery.sizeOf(context).width,
+          ),
+          22,
+          PratiCaseResponsive.horizontalPaddingForWidth(
+            MediaQuery.sizeOf(context).width,
+          ),
+          24,
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 10),
+            _VoiceStageAvatar(active: busy || voiceState.listening),
+            const SizedBox(height: 18),
+            Text(
+              _speaker,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: PratiCaseColors.navy,
+                fontSize: 19,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color:
+                    (voiceState.listening
+                            ? PratiCaseColors.errorRed
+                            : PratiCaseColors.teal)
+                        .withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+              ),
+              child: Text(
+                _status,
+                style: TextStyle(
+                  color: voiceState.listening
+                      ? PratiCaseColors.errorRed
+                      : PratiCaseColors.teal,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            AnimatedSwitcher(
+              duration: PratiCaseDurations.fast,
+              child: captionVisible
+                  ? _VoiceCaptionCard(
+                      key: const ValueKey('caption'),
+                      title: _ifBlank(activeSpeaker, _speaker),
+                      text: activeCaption,
+                    )
+                  : transcriptVisible
+                  ? _VoiceCaptionCard(
+                      key: const ValueKey('transcript'),
+                      title: 'Cevabın',
+                      text: transcript,
+                      listening: true,
+                    )
+                  : _VoiceIdleCard(
+                      key: const ValueKey('idle'),
+                      errorMessage: voiceState.errorMessage,
+                      sending: sending,
+                      finalizing: finalizing,
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _VoiceStageAvatar extends StatefulWidget {
+  const _VoiceStageAvatar({required this.active});
+  final bool active;
+
+  @override
+  State<_VoiceStageAvatar> createState() => _VoiceStageAvatarState();
+}
+
+class _VoiceStageAvatarState extends State<_VoiceStageAvatar>
+    with SingleTickerProviderStateMixin {
+  late final _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final value = widget.active ? _controller.value : 0.0;
+        return SizedBox(
+          width: 136,
+          height: 136,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: 106 + value * 24,
+                height: 106 + value * 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: PratiCaseColors.teal.withValues(
+                    alpha: 0.08 + value * 0.06,
+                  ),
+                ),
+              ),
+              Container(
+                width: 88,
+                height: 88,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: PratiCaseColors.navy,
+                  border: Border.all(
+                    color: PratiCaseColors.tealBright,
+                    width: 2,
+                  ),
+                  boxShadow: PratiCaseShadows.card,
+                ),
+                child: const Icon(
+                  Icons.person_rounded,
+                  color: PratiCaseColors.tealBright,
+                  size: 48,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _VoiceCaptionCard extends StatelessWidget {
+  const _VoiceCaptionCard({
+    required this.title,
+    required this.text,
+    this.listening = false,
+    super.key,
+  });
+
+  final String title;
+  final String text;
+  final bool listening;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = listening ? PratiCaseColors.errorRed : PratiCaseColors.teal;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.white,
+        borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
+        border: Border.all(color: color.withValues(alpha: 0.26)),
+        boxShadow: PratiCaseShadows.card,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                listening ? Icons.mic_rounded : Icons.volume_up_rounded,
+                color: color,
+                size: 18,
+              ),
+              const SizedBox(width: 7),
+              Text(
+                title,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            text,
+            style: const TextStyle(
+              color: PratiCaseColors.navy,
+              fontSize: 17,
+              height: 1.45,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VoiceIdleCard extends StatelessWidget {
+  const _VoiceIdleCard({
+    required this.errorMessage,
+    required this.sending,
+    required this.finalizing,
+    super.key,
+  });
+
+  final String? errorMessage;
+  final bool sending;
+  final bool finalizing;
+
+  @override
+  Widget build(BuildContext context) {
+    final message = errorMessage ?? '';
+    final busy = sending || finalizing;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.white,
+        borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
+        border: Border.all(color: PratiCaseColors.border),
+      ),
+      child: Column(
+        children: [
+          if (busy)
+            const PratiCaseSpinner(size: 24, color: PratiCaseColors.teal)
+          else
+            Icon(
+              message.isNotEmpty
+                  ? Icons.error_outline_rounded
+                  : Icons.graphic_eq_rounded,
+              color: message.isNotEmpty
+                  ? PratiCaseColors.errorRed
+                  : PratiCaseColors.teal,
+              size: 28,
+            ),
+          const SizedBox(height: 10),
+          Text(
+            message.isNotEmpty
+                ? message
+                : busy
+                ? 'Sınav akışı hazırlanıyor.'
+                : 'Sözlü ekran açık.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: PratiCaseColors.slateBlue,
+              fontSize: 13,
+              height: 1.45,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ExamBubble extends StatelessWidget {
-  const _ExamBubble({required this.message});
+  const _ExamBubble({required this.message, required this.showPersonaTitle});
   final OralExamMessage message;
+  final bool showPersonaTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -1927,7 +2696,9 @@ class _ExamBubble extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (mentor && message.personaTitle.isNotEmpty)
+                    if (mentor &&
+                        showPersonaTitle &&
+                        message.personaTitle.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 4),
                         child: Row(
@@ -2116,6 +2887,113 @@ class _TypingDotsState extends State<_TypingDots>
           }),
         );
       },
+    );
+  }
+}
+
+class _VoiceControlBar extends StatelessWidget {
+  const _VoiceControlBar({
+    required this.sending,
+    required this.finalizing,
+    required this.listening,
+    required this.speaking,
+    required this.onToggleListening,
+    required this.onSkip,
+    required this.onFinalize,
+  });
+
+  final bool sending;
+  final bool finalizing;
+  final bool listening;
+  final bool speaking;
+  final Future<void> Function() onToggleListening;
+  final Future<void> Function() onSkip;
+  final Future<void> Function() onFinalize;
+
+  @override
+  Widget build(BuildContext context) {
+    final disabled = sending || finalizing;
+    final micDisabled = disabled || speaking;
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.only(bottom: 6),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+        decoration: const BoxDecoration(
+          color: PratiCaseColors.white,
+          border: Border(top: BorderSide(color: PratiCaseColors.border)),
+        ),
+        child: Column(
+          children: [
+            PressableScale(
+              onTap: micDisabled ? null : () => onToggleListening(),
+              child: AnimatedContainer(
+                duration: PratiCaseDurations.fast,
+                width: double.infinity,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: listening
+                      ? PratiCaseColors.errorRed
+                      : micDisabled
+                      ? PratiCaseColors.teal.withValues(alpha: 0.34)
+                      : PratiCaseColors.teal,
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      listening ? Icons.stop_rounded : Icons.mic_rounded,
+                      color: PratiCaseColors.white,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      listening
+                          ? 'Dinlemeyi Bitir'
+                          : speaking
+                          ? 'Hoca Konuşuyor'
+                          : 'Cevap Ver',
+                      style: const TextStyle(
+                        color: PratiCaseColors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: disabled ? null : () => onSkip(),
+                    icon: const Icon(Icons.skip_next_rounded, size: 18),
+                    label: const Text('Pas Geç'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton.tonalIcon(
+                    onPressed: disabled ? null : () => onFinalize(),
+                    icon: finalizing
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: PratiCaseSpinner(size: 16),
+                          )
+                        : const Icon(Icons.check_circle_rounded, size: 18),
+                    label: Text(
+                      finalizing ? 'Karne hazırlanıyor...' : 'Sınavı Bitir',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

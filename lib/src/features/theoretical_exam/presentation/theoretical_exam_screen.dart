@@ -94,7 +94,7 @@ class _TheoreticalExamSetupScreenState
     setState(() => _questionCountsByCourse[course] = normalized);
   }
 
-  void _toggleTopic(String course, TheoreticalTopicOption topic) {
+  Future<void> _toggleTopic(String course, TheoreticalTopicOption topic) async {
     final selectedKeys = _selectedTopicKeysByCourse.putIfAbsent(
       course,
       () => <String>{},
@@ -108,6 +108,10 @@ class _TheoreticalExamSetupScreenState
       );
       return;
     }
+    if (!isSelected && topic.totalCount > 0 && topic.remainingCount <= 0) {
+      final shouldRepeat = await _confirmRepeatExhaustedTopic(topic);
+      if (!shouldRepeat || !mounted) return;
+    }
     setState(() {
       if (isSelected) {
         selectedKeys.remove(topic.key);
@@ -115,6 +119,31 @@ class _TheoreticalExamSetupScreenState
         selectedKeys.add(topic.key);
       }
     });
+  }
+
+  Future<bool> _confirmRepeatExhaustedTopic(
+    TheoreticalTopicOption topic,
+  ) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Konu tamamlandı'),
+        content: Text(
+          '${topic.title} konusuyla ilgili tüm soruları çözdünüz. Tekrar çözmek ister misiniz?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Vazgeç'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Tekrar Çöz'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
   }
 
   List<TheoreticalCoursePlan> _plansFor(TheoreticalExamFilters filters) {
@@ -312,7 +341,7 @@ class _TheoreticalExamSetupScreenState
                             onQuestionCountChanged: (count) =>
                                 _setCourseQuestionCount(course, count),
                             onTopicToggled: (topic) =>
-                                _toggleTopic(course, topic),
+                                unawaited(_toggleTopic(course, topic)),
                           ),
                           const SizedBox(height: 12),
                         ],
