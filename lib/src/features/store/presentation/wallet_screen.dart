@@ -800,24 +800,13 @@ class _WalletCtaBar extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: SizedBox(
+          child: GlowButton(
+            label: primaryLabel,
+            icon: Icons.add_rounded,
             height: 52,
-            child: FilledButton.icon(
-              onPressed: onPrimary,
-              icon: const Icon(Icons.add_rounded),
-              label: Text(primaryLabel),
-              style: FilledButton.styleFrom(
-                backgroundColor: PratiCaseColors.teal,
-                foregroundColor: PratiCaseColors.white,
-                textStyle: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-                ),
-              ),
-            ),
+            pulse: true,
+            onPressed: onPrimary,
+            semanticIdentifier: 'cta.wallet-primary',
           ),
         ),
         const SizedBox(width: 12),
