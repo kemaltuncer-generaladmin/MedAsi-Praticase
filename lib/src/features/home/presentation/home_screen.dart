@@ -1444,7 +1444,7 @@ class _QuickActions extends StatelessWidget {
         final wide = constraints.maxWidth >= 760;
         if (wide) {
           return SizedBox(
-            height: 156,
+            height: 166,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -1516,7 +1516,12 @@ class _QuickActions extends StatelessWidget {
   }
 }
 
-class _QuickActionCard extends StatelessWidget {
+/// Premium quick action tile:
+/// - Yumuşak diagonal yüzey gradient'i + ince teal-tinted border
+/// - Soft accent shadow → tıklanabilir hissi pekişir
+/// - PressableScale ile spring tap
+/// - Page entrance'da soldan sağa tek seferlik shimmer
+class _QuickActionCard extends StatefulWidget {
   const _QuickActionCard({
     required this.icon,
     required this.title,
@@ -1532,14 +1537,32 @@ class _QuickActionCard extends StatelessWidget {
   final bool horizontal;
 
   @override
+  State<_QuickActionCard> createState() => _QuickActionCardState();
+}
+
+class _QuickActionCardState extends State<_QuickActionCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _shimmer = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1400),
+  )..forward();
+
+  @override
+  void dispose() {
+    _shimmer.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final content = horizontal
+    final content = widget.horizontal
         ? Row(
             children: [
-              _SoftIcon(icon: icon, color: PratiCaseColors.teal, size: 50),
+              _SoftIcon(icon: widget.icon, color: PratiCaseColors.teal, size: 50),
               const SizedBox(width: 14),
               Expanded(
-                child: _QuickActionText(title: title, subtitle: subtitle),
+                child: _QuickActionText(
+                    title: widget.title, subtitle: widget.subtitle),
               ),
               const Icon(
                 Icons.arrow_forward_rounded,
@@ -1550,21 +1573,76 @@ class _QuickActionCard extends StatelessWidget {
         : Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _SoftIcon(icon: icon, color: PratiCaseColors.teal, size: 54),
+              _SoftIcon(icon: widget.icon, color: PratiCaseColors.teal, size: 54),
               const SizedBox(height: 14),
               _QuickActionText(
-                title: title,
-                subtitle: subtitle,
+                title: widget.title,
+                subtitle: widget.subtitle,
                 centered: true,
               ),
             ],
           );
+
     return PressableScale(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: _cardDecoration(),
-        child: content,
+      onTap: widget.onTap,
+      child: RepaintBoundary(
+        child: Stack(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    PratiCaseColors.white,
+                    Color(0xFFFBFCFD),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
+                border: Border.all(
+                  color: PratiCaseColors.teal.withValues(alpha: 0.10),
+                ),
+                boxShadow: PratiCaseShadows.card,
+              ),
+              child: content,
+            ),
+            // Tek seferlik shimmer overlay — entrance hissi
+            Positioned.fill(
+              child: IgnorePointer(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
+                  child: AnimatedBuilder(
+                    animation: _shimmer,
+                    builder: (context, _) {
+                      final t = _shimmer.value;
+                      if (t >= 1.0) return const SizedBox.shrink();
+                      final shift = -1.0 + t * 2.0;
+                      return Opacity(
+                        opacity: (1 - t) * 0.6,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment(-1 + shift, -0.4),
+                              end: Alignment(shift, 0.6),
+                              colors: [
+                                Colors.transparent,
+                                PratiCaseColors.tealBright
+                                    .withValues(alpha: 0.18),
+                                Colors.transparent,
+                              ],
+                              stops: const [0.35, 0.5, 0.65],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2050,33 +2128,49 @@ class _Tag extends StatelessWidget {
   }
 }
 
-class _ClinicalIllustration extends StatelessWidget {
+/// Hero banner içindeki canlı klinik illustrasyon:
+/// - Sürekli soldan sağa akan ECG çizgisi (path drawing animasyonu)
+/// - Yavaşça pulsing medical icon halkası
+/// - Drift eden dotted grid (algılanır algılanmaz titreşim)
+///
+/// Performans: tek [AnimationController] (3 saniye loop) + RepaintBoundary.
+/// ECG segment'i her tick'te re-paint olur ama izole katmandadır.
+class _ClinicalIllustration extends StatefulWidget {
   const _ClinicalIllustration();
 
   @override
+  State<_ClinicalIllustration> createState() => _ClinicalIllustrationState();
+}
+
+class _ClinicalIllustrationState extends State<_ClinicalIllustration>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 3200),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 110,
-      height: 170,
-      child: CustomPaint(
-        painter: _MedicalGridPainter(),
-        child: Center(
-          child: Container(
-            width: 58,
-            height: 58,
-            decoration: BoxDecoration(
-              color: PratiCaseColors.white.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: PratiCaseColors.white.withValues(alpha: 0.30),
-                width: 1.2,
-              ),
-            ),
-            child: const Icon(
-              Icons.medical_services_rounded,
-              color: PratiCaseColors.white,
-              size: 26,
-            ),
+    return RepaintBoundary(
+      child: SizedBox(
+        width: 110,
+        height: 170,
+        child: AnimatedBuilder(
+          animation: _ctrl,
+          builder: (context, child) {
+            return CustomPaint(
+              painter: _MedicalGridPainter(time: _ctrl.value),
+              child: child,
+            );
+          },
+          child: Center(
+            child: _PulsingIconBadge(controller: _ctrl),
           ),
         ),
       ),
@@ -2084,10 +2178,69 @@ class _ClinicalIllustration extends StatelessWidget {
   }
 }
 
+class _PulsingIconBadge extends StatelessWidget {
+  const _PulsingIconBadge({required this.controller});
+
+  final AnimationController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        // 0→1→0 triangle wave; subtle scale + halo alpha.
+        final pulse = 1 - (controller.value - 0.5).abs() * 2;
+        final scale = 1.0 + pulse * 0.04;
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            // Halo
+            Container(
+              width: 76 + pulse * 10,
+              height: 76 + pulse * 10,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: PratiCaseColors.white
+                    .withValues(alpha: 0.04 + pulse * 0.06),
+              ),
+            ),
+            // Icon container
+            Transform.scale(
+              scale: scale,
+              child: Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: PratiCaseColors.white.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: PratiCaseColors.white.withValues(alpha: 0.30),
+                    width: 1.2,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.medical_services_rounded,
+                  color: PratiCaseColors.white,
+                  size: 26,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
 class _MedicalGridPainter extends CustomPainter {
+  _MedicalGridPainter({required this.time});
+
+  /// 0.0 → 1.0 (sürekli döngü). ECG dalgasının ilerlemesini belirler.
+  final double time;
+
   @override
   void paint(Canvas canvas, Size size) {
-    // Subtle dotted grid — premium, calm, no neon/blob.
+    // 1. Dotted grid (statik).
     final dotPaint = Paint()
       ..color = PratiCaseColors.white.withValues(alpha: 0.16)
       ..style = PaintingStyle.fill;
@@ -2098,29 +2251,47 @@ class _MedicalGridPainter extends CustomPainter {
       }
     }
 
-    // Faint ECG-style line across the middle band.
-    final linePaint = Paint()
-      ..color = PratiCaseColors.white.withValues(alpha: 0.22)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
+    // 2. ECG dalgası — soldan sağa giderek belirir + sönen iz.
     final midY = size.height * 0.72;
-    final path = Path()..moveTo(0, midY);
     final seg = size.width / 6;
+    final path = Path()..moveTo(0, midY);
     path
       ..lineTo(seg * 1.0, midY)
       ..lineTo(seg * 1.4, midY - 4)
       ..lineTo(seg * 1.8, midY + 12)
-      ..lineTo(seg * 2.2, midY - 22)
+      ..lineTo(seg * 2.2, midY - 22) // R peak
       ..lineTo(seg * 2.6, midY + 6)
       ..lineTo(seg * 3.0, midY)
       ..lineTo(seg * 6.0, midY);
-    canvas.drawPath(path, linePaint);
+
+    // PathMetric ile time'a göre kısmi çiz.
+    final metric = path.computeMetrics().first;
+    final progress = time; // 0 → 1
+    // 0.0-0.85'te çizim, 0.85-1.0'da sönüm.
+    final drawEnd = (progress / 0.85).clamp(0.0, 1.0) * metric.length;
+    final extracted = metric.extractPath(0, drawEnd);
+
+    final linePaint = Paint()
+      ..color = PratiCaseColors.white.withValues(alpha: 0.32)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(extracted, linePaint);
+
+    // 3. R-peak parlaklığı — başın geldiği yerde küçük bir nokta.
+    if (drawEnd > 0) {
+      final tangent = metric.getTangentForOffset(drawEnd);
+      if (tangent != null) {
+        final headPaint = Paint()
+          ..color = PratiCaseColors.gold.withValues(alpha: 0.85);
+        canvas.drawCircle(tangent.position, 2.8, headPaint);
+      }
+    }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _MedicalGridPainter old) => old.time != time;
 }
 
 BoxDecoration _cardDecoration() {

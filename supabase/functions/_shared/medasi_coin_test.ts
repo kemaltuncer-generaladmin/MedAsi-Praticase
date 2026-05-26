@@ -3,6 +3,7 @@ import {
   chargeAiCoins,
   ensureAiCoinBalance,
   InsufficientCoinBalanceError,
+  recordAiUsage,
   vertexAiCostFromUsage,
 } from "./medasi_coin.ts";
 
@@ -69,6 +70,56 @@ Deno.test("chargeAiCoins consumes credits and logs usage event", async () => {
   if (admin.events.length !== 1) {
     throw new Error("Expected one ai_usage_events insert");
   }
+  const usageMetadata = admin.events[0].usage_metadata as Record<
+    string,
+    unknown
+  >;
+  if (usageMetadata.app_key !== "praticase") {
+    throw new Error("Expected PratiCase app attribution");
+  }
+  const attribution = usageMetadata.feature_attribution as Record<
+    string,
+    unknown
+  >;
+  if (
+    attribution.app_key !== "praticase" ||
+    attribution.feature !== "praticase-patient-turn"
+  ) {
+    throw new Error("Expected feature attribution on AI usage event");
+  }
+});
+
+Deno.test("chargeAiCoins includes caller feature attribution metadata", async () => {
+  const admin = fakeAdmin({ walletBalance: 5, remainingBalance: 4.9 });
+  await chargeAiCoins({
+    admin,
+    userId: "user-1",
+    feature: "praticase-oral-exam-turn",
+    model: "gemini-2.5-flash",
+    usageMetadata: {
+      promptTokenCount: 120,
+      candidatesTokenCount: 40,
+      totalTokenCount: 160,
+    },
+    attribution: {
+      exam_kind: "oral_exam",
+      session_id: "session-1",
+    },
+  });
+  const usageMetadata = admin.events[0].usage_metadata as Record<
+    string,
+    unknown
+  >;
+  const attribution = usageMetadata.feature_attribution as Record<
+    string,
+    unknown
+  >;
+  if (
+    attribution.exam_kind !== "oral_exam" ||
+    attribution.session_id !== "session-1"
+  ) {
+    throw new Error("Expected operation attribution to be preserved");
+  }
 });
 
 Deno.test("chargeAiCoins allows no-charge fallback without service role", async () => {
@@ -86,6 +137,39 @@ Deno.test("chargeAiCoins allows no-charge fallback without service role", async 
 
   if (result.chargedCoinAmount !== 0 || result.walletBalance !== null) {
     throw new Error("Expected no-charge fallback");
+  }
+});
+
+Deno.test("recordAiUsage attributes uncharged AI usage without wallet mutation", async () => {
+  const admin = fakeAdmin({ walletBalance: 0 });
+  await recordAiUsage({
+    admin,
+    userId: "user-1",
+    feature: "praticase-speech",
+    model: "gemini-2.5-flash-preview-tts",
+    usageMetadata: { promptTokenCount: 120 },
+    attribution: {
+      exam_kind: "osce",
+      operation: "text_to_speech",
+    },
+  });
+
+  if (admin.events.length !== 1 || admin.events[0].charged_coin_amount !== 0) {
+    throw new Error("Expected one uncharged AI usage event");
+  }
+  const usageMetadata = admin.events[0].usage_metadata as Record<
+    string,
+    unknown
+  >;
+  const attribution = usageMetadata.feature_attribution as Record<
+    string,
+    unknown
+  >;
+  if (
+    usageMetadata.app_key !== "praticase" ||
+    attribution.operation !== "text_to_speech"
+  ) {
+    throw new Error("Expected attributed TTS usage event");
   }
 });
 

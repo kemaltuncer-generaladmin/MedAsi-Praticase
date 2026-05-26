@@ -6,6 +6,8 @@ type SupabaseAdmin = any;
 // deno-lint-ignore no-explicit-any
 type QueryBuilder = any;
 
+export const praticaseAppKey = "praticase";
+
 export class InsufficientCoinBalanceError extends Error {
   constructor(
     readonly walletBalance: number,
@@ -56,6 +58,7 @@ export async function chargeAiCoins(options: {
   feature: string;
   model: string;
   usageMetadata: JsonMap;
+  attribution?: JsonMap;
 }): Promise<{ chargedCoinAmount: number; walletBalance: number | null }> {
   if (!options.admin) {
     return { chargedCoinAmount: 0, walletBalance: null };
@@ -81,6 +84,22 @@ export async function chargeAiCoins(options: {
     chargedCoinAmount,
     walletBalance: nullableNumberValue(data),
   };
+}
+
+export async function recordAiUsage(options: {
+  admin: SupabaseAdmin | null;
+  userId: string;
+  feature: string;
+  model: string;
+  usageMetadata: JsonMap;
+  attribution?: JsonMap;
+}): Promise<void> {
+  if (!options.admin) return;
+  await logAiUsageEvent({
+    ...options,
+    admin: options.admin,
+    chargedCoinAmount: 0,
+  });
 }
 
 export function aiCreditCostFromUsage(usageMetadata: JsonMap): number {
@@ -146,9 +165,19 @@ async function logAiUsageEvent(options: {
   feature: string;
   model: string;
   usageMetadata: JsonMap;
+  attribution?: JsonMap;
   chargedCoinAmount: number;
 }) {
   const cost = vertexAiCostFromUsage(options.usageMetadata);
+  const usageMetadata = {
+    ...options.usageMetadata,
+    app_key: praticaseAppKey,
+    feature_attribution: {
+      app_key: praticaseAppKey,
+      feature: options.feature,
+      ...(options.attribution ?? {}),
+    },
+  };
   const { error } = await query(options.admin.from("ai_usage_events")).insert({
     user_id: options.userId,
     feature: options.feature,
@@ -163,7 +192,7 @@ async function logAiUsageEvent(options: {
     output_cost_usd: Number(cost.outputCostUsd.toFixed(6)),
     total_cost_usd: Number(cost.totalCostUsd.toFixed(6)),
     charged_coin_amount: options.chargedCoinAmount,
-    usage_metadata: options.usageMetadata,
+    usage_metadata: usageMetadata,
   });
   if (error) {
     console.error("praticase_ai_usage_event_insert_failed", error.message);

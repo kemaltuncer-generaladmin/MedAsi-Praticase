@@ -176,6 +176,8 @@ Deno.serve(async (request) => {
       p_provider_transaction_id: appleResult.transactionId,
       p_raw_receipt: {
         app: "praticase",
+        app_key: "praticase",
+        feature_attribution: "storekit_purchase_grant",
         product_code: product.code,
         store_product_id: storeProductId,
         original_transaction_id: appleResult.originalTransactionId,
@@ -709,6 +711,8 @@ async function handleAppStoreNotification(
           p_provider_transaction_id: transactionId,
           p_raw_receipt: {
             app: "praticase",
+            app_key: "praticase",
+            feature_attribution: "storekit_subscription_notification",
             event: notificationType,
             notification_uuid: verified.notification.notificationUUID,
             store_product_id: storeProductId,

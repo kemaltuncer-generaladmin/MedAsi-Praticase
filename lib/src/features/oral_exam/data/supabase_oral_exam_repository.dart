@@ -19,6 +19,7 @@ class SupabaseOralExamRepository implements OralExamRepository {
           .select(
             'id,title,difficulty,description,patience_level,sort_order,panel_role',
           )
+          .eq('is_active', true)
           .order('sort_order');
       final branchRows = await _client
           .schema('praticase')
@@ -31,6 +32,7 @@ class SupabaseOralExamRepository implements OralExamRepository {
             .schema('praticase')
             .from('oral_exam_scenarios')
             .select('id,branch_id,title,difficulty_floor,sort_order')
+            .eq('is_active', true)
             .order('sort_order');
         for (final row in scenarioRows) {
           final branchId = _string(row, 'branch_id');

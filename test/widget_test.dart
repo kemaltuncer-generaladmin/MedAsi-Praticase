@@ -122,7 +122,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 1));
 
     expect(find.text('100,00'), findsWidgets);
     expect(find.text('50'), findsWidgets);
@@ -145,8 +145,8 @@ void main() {
     await tester.pump();
 
     expect(find.byType(Image), findsWidgets);
-    expect(find.text('Klinik Akıl Yürütme Becerini Geliştir'), findsOneWidget);
-    expect(find.text('Başla'), findsOneWidget);
+    expect(find.textContaining('Klinik Akıl Yürütmeni'), findsOneWidget);
+    expect(find.text('Devam'), findsOneWidget);
     expect(find.text('Giriş Yap'), findsOneWidget);
   });
 
@@ -939,7 +939,7 @@ void main() {
     expect(find.textContaining('502'), findsNothing);
   });
 
-  testWidgets('shell keeps bottom navigation on iPad portrait', (tester) async {
+  testWidgets('shell uses side navigation on iPad portrait', (tester) async {
     await _setViewport(tester, const Size(768, 1024));
 
     await tester.pumpWidget(
@@ -957,7 +957,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byType(NavigationRail), findsNothing);
+    expect(find.byType(NavigationRail), findsOneWidget);
     expect(find.text('Ana Sayfa'), findsWidgets);
   });
 
@@ -1005,7 +1005,10 @@ void main() {
       expect(find.text('Ana Sayfa'), findsWidgets, reason: entry.key);
       expect(
         find.byType(NavigationRail),
-        entry.value.width >= 900 ? findsOneWidget : findsNothing,
+        entry.value.width >= 900 ||
+                (entry.value.shortestSide >= 600 && entry.value.width >= 720)
+            ? findsOneWidget
+            : findsNothing,
         reason: entry.key,
       );
 
@@ -1027,7 +1030,7 @@ void main() {
       await tester.pump();
 
       expect(tester.takeException(), isNull, reason: '${entry.key} onboarding');
-      expect(find.text('Başla'), findsOneWidget, reason: entry.key);
+      expect(find.text('Devam'), findsOneWidget, reason: entry.key);
 
       await tester.pumpWidget(
         MaterialApp(

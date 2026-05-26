@@ -5,6 +5,7 @@ import {
   ttsModel,
   vertexConfigured,
 } from "../_shared/vertex_ai.ts";
+import { recordAiUsage } from "../_shared/medasi_coin.ts";
 
 type VoiceRole = "patient" | "mentor";
 
@@ -61,6 +62,7 @@ Deno.serve(async (request) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const authorization = request.headers.get("Authorization");
 
   if (!supabaseUrl || !supabaseAnonKey || !authorization) {
@@ -95,6 +97,11 @@ Deno.serve(async (request) => {
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     global: { headers: { Authorization: authorization } },
   });
+  const admin = supabaseServiceRoleKey
+    ? createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: { persistSession: false },
+    })
+    : null;
   const { data: userResult, error: userError } = await supabase.auth.getUser();
   if (userError || !userResult.user) {
     return jsonResponse(
@@ -120,6 +127,18 @@ Deno.serve(async (request) => {
       languageCode: "tr-TR",
       voiceName,
       temperature: role === "mentor" ? 1.0 : 1.25,
+    });
+    await recordAiUsage({
+      admin,
+      userId: userResult.user.id,
+      feature: "praticase-speech",
+      model: generated.model,
+      usageMetadata: generated.usageMetadata,
+      attribution: {
+        exam_kind: role === "mentor" ? "oral_exam" : "osce",
+        operation: "text_to_speech",
+        voice_role: role,
+      },
     });
     return jsonResponse(
       {

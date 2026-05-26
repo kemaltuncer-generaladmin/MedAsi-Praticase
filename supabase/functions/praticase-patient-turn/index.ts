@@ -256,6 +256,11 @@ Deno.serve(async (request) => {
       feature: "praticase-patient-turn",
       model,
       usageMetadata,
+      attribution: {
+        exam_kind: "osce",
+        operation: "patient_turn",
+        session_id: sessionId,
+      },
     });
     chargedCoinAmount = charge.chargedCoinAmount;
     walletBalance = charge.walletBalance;

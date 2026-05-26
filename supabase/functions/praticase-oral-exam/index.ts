@@ -233,6 +233,7 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
       .schema("praticase")
       .from("oral_exam_personas")
       .select("id,title,difficulty,system_prompt,patience_level,panel_role")
+      .eq("is_active", true)
       .order("sort_order");
     const available = all ?? [];
     panelPersonas = ["lead", "second", "observer"]
@@ -248,6 +249,7 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
       .from("oral_exam_personas")
       .select("id,title,difficulty,system_prompt,patience_level,panel_role")
       .eq("id", personaId)
+      .eq("is_active", true)
       .maybeSingle();
     persona = data;
   }
@@ -271,6 +273,7 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
       )
       .eq("id", scenarioId)
       .eq("branch_id", branch.id)
+      .eq("is_active", true)
       .maybeSingle();
     scenario = data;
   }
@@ -287,8 +290,7 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
     try {
       const opening = await generateVertexContentWithFallback({
         model: historyModel(),
-        systemInstruction:
-          `${persona.system_prompt}\n\n` +
+        systemInstruction: `${persona.system_prompt}\n\n` +
           `ROL VE KİMLİK: Sen PratiCase Sözlü Sınavı'nda Komite Başkanı Sert Profesör tonunda ` +
           `bir moderatörsün. Önceden hazırlanmış vakayı resmi ve kısa biçimde sunup, klinik akıl ` +
           `yürütmeyi başlatan TEK bir açılış sorusu soracaksın.\n\n` +
@@ -321,6 +323,12 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
         feature: "praticase-oral-exam-start",
         model: opening.model,
         usageMetadata: opening.usageMetadata,
+        attribution: {
+          exam_kind: "oral_exam",
+          operation: "start",
+          exam_format: examFormat,
+          scenario_id: scenarioId || null,
+        },
       }).catch(() => {});
     } catch (error) {
       console.error("praticase_oral_start_vertex_failed", errorMessage(error));
@@ -333,8 +341,7 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
     try {
       const opening = await generateVertexContentWithFallback({
         model: historyModel(),
-        systemInstruction:
-          `${persona.system_prompt}\n\n` +
+        systemInstruction: `${persona.system_prompt}\n\n` +
           `ROL VE KİMLİK: Sen PratiCase Sözlü Sınavı için Baş Senarist ve Klinik Vaka ` +
           `Tasarımcısısın. Görevin, ${branch.title} branşına uygun, medikal olarak ` +
           `kusursuz, uluslararası kılavuzlara (UpToDate, AHA, NICE) uyumlu gerçekçi bir ` +
@@ -384,6 +391,12 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
         feature: "praticase-oral-exam-start",
         model: opening.model,
         usageMetadata: opening.usageMetadata,
+        attribution: {
+          exam_kind: "oral_exam",
+          operation: "start",
+          exam_format: examFormat,
+          scenario_id: null,
+        },
       }).catch(() => {});
     } catch (error) {
       console.error("praticase_oral_start_vertex_failed", errorMessage(error));
@@ -662,6 +675,12 @@ async function takeTurn(admin: any, userId: string, body: JsonMap) {
       feature: "praticase-oral-exam-turn",
       model: response.model,
       usageMetadata: response.usageMetadata,
+      attribution: {
+        exam_kind: "oral_exam",
+        operation: "turn",
+        session_id: sessionId,
+        exam_format: session.exam_format,
+      },
     }).catch(() => {});
   }
 
@@ -784,6 +803,12 @@ async function skipQuestion(admin: any, userId: string, body: JsonMap) {
       feature: "praticase-oral-exam-skip",
       model: response.model,
       usageMetadata: response.usageMetadata,
+      attribution: {
+        exam_kind: "oral_exam",
+        operation: "skip",
+        session_id: sessionId,
+        exam_format: session.exam_format,
+      },
     }).catch(() => {});
   }
 
@@ -906,6 +931,12 @@ async function finalize(admin: any, userId: string, body: JsonMap) {
       feature: "praticase-oral-exam-finalize",
       model: evaluation.model,
       usageMetadata: evaluation.usageMetadata,
+      attribution: {
+        exam_kind: "oral_exam",
+        operation: "finalize",
+        session_id: sessionId,
+        exam_format: session.exam_format,
+      },
     }).catch(() => {});
   }
 
@@ -984,6 +1015,7 @@ async function listScenarios(admin: any, body: JsonMap) {
     .schema("praticase")
     .from("oral_exam_scenarios")
     .select("id,branch_id,title,difficulty_floor,sort_order")
+    .eq("is_active", true)
     .order("sort_order");
   if (branchId) q = q.eq("branch_id", branchId);
   const { data, error } = await q;
@@ -1014,6 +1046,7 @@ async function loadPanelPersonas(admin: any, session: any) {
         .schema("praticase")
         .from("oral_exam_personas")
         .select("id,title,difficulty,system_prompt,patience_level,panel_role")
+        .eq("is_active", true)
         .order("sort_order");
       return data ?? [];
     }
@@ -1021,6 +1054,7 @@ async function loadPanelPersonas(admin: any, session: any) {
       .schema("praticase")
       .from("oral_exam_personas")
       .select("id,title,difficulty,system_prompt,patience_level,panel_role")
+      .eq("is_active", true)
       .in("id", ids);
     return data ?? [];
   }
@@ -1028,6 +1062,7 @@ async function loadPanelPersonas(admin: any, session: any) {
     .schema("praticase")
     .from("oral_exam_personas")
     .select("id,title,difficulty,system_prompt,patience_level,panel_role")
+    .eq("is_active", true)
     .eq("id", session.persona_id);
   return data ?? [];
 }
@@ -1037,6 +1072,7 @@ async function loadPersona(admin: any, id: string) {
     .schema("praticase")
     .from("oral_exam_personas")
     .select("id,title,difficulty,system_prompt,patience_level,panel_role")
+    .eq("is_active", true)
     .eq("id", id)
     .maybeSingle();
   return data;
@@ -1197,8 +1233,10 @@ function qualityBasedPanelSpeaker(
   // En son mentor değerlendirmesini bul
   const mentorTurns = [...turns]
     .reverse()
-    .filter((t: any) => t.speaker === "mentor" && t.evaluation &&
-      typeof t.evaluation === "object");
+    .filter((t: any) =>
+      t.speaker === "mentor" && t.evaluation &&
+      typeof t.evaluation === "object"
+    );
   const lastEval: any = mentorTurns[0]?.evaluation ?? {};
 
   const safetyFlags: unknown[] = Array.isArray(lastEval.safety_flags)

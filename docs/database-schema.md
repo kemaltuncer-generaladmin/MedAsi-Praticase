@@ -4,6 +4,11 @@
 > **Dış Bağımlılık:** `public.profiles` (Medasi ekosistemi ortak tablosu), `auth.users` (Supabase Auth)
 > **Migration Dosyaları:** 7 dosya — `202605210001` → `202605210007`
 
+> **Admin/God Mode ek sözleşmesi:** Analytics, audit ve doğrulamalı yönetim
+> RPC alanları için [`GOD_MODE_DATA_CONTRACT.md`](./GOD_MODE_DATA_CONTRACT.md)
+> dosyasına bakın. Bu yüzeyler session transcripti, sonuç anlatısı veya
+> abonelik bağlantı ayrıntılarını analytics payload'ına dahil etmez.
+
 ---
 
 ## Genel Bakış

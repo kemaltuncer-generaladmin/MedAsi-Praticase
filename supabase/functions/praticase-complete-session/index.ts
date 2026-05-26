@@ -251,6 +251,11 @@ Deno.serve(async (request) => {
       feature: "praticase-complete-session",
       model,
       usageMetadata,
+      attribution: {
+        exam_kind: "osce",
+        operation: "ai_result_enrichment",
+        session_id: sessionId,
+      },
     });
     chargedCoinAmount = charge.chargedCoinAmount;
     walletBalance = charge.walletBalance;
