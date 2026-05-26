@@ -216,14 +216,16 @@ class PratiCaseGroupedSection extends StatelessWidget {
         decoration: BoxDecoration(
           color: PratiCaseColors.white,
           borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
-          border: Border.all(color: PratiCaseColors.border),
+          border: Border.all(
+            color: PratiCaseColors.border.withValues(alpha: 0.78),
+          ),
           boxShadow: PratiCaseShadows.card,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              padding: const EdgeInsets.fromLTRB(18, 18, 16, 10),
               child: Row(
                 children: [
                   if (icon != null) ...[
@@ -231,14 +233,18 @@ class PratiCaseGroupedSection extends StatelessWidget {
                       width: 36,
                       height: 36,
                       decoration: BoxDecoration(
-                        color: PratiCaseColors.teal.withValues(alpha: 0.1),
+                        color: PratiCaseColors.teal.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(
                           PratiCaseRadius.md,
                         ),
+                        border: Border.all(
+                          color:
+                              PratiCaseColors.teal.withValues(alpha: 0.14),
+                        ),
                       ),
-                      child: Icon(icon, color: PratiCaseColors.teal, size: 20),
+                      child: Icon(icon, color: PratiCaseColors.teal, size: 19),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 12),
                   ],
                   Expanded(
                     child: Column(
@@ -248,8 +254,9 @@ class PratiCaseGroupedSection extends StatelessWidget {
                           title,
                           style: const TextStyle(
                             color: PratiCaseColors.navy,
-                            fontSize: 16,
+                            fontSize: 15,
                             fontWeight: FontWeight.w900,
+                            letterSpacing: -0.1,
                           ),
                         ),
                         if (subtitle != null) ...[
@@ -259,7 +266,7 @@ class PratiCaseGroupedSection extends StatelessWidget {
                             style: const TextStyle(
                               color: PratiCaseColors.muted,
                               fontSize: 12,
-                              height: 1.35,
+                              height: 1.4,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -272,9 +279,16 @@ class PratiCaseGroupedSection extends StatelessWidget {
             ),
             for (var index = 0; index < children.length; index++) ...[
               if (index > 0)
-                const Divider(height: 1, indent: 58, endIndent: 16),
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: PratiCaseColors.border.withValues(alpha: 0.55),
+                  indent: 60,
+                  endIndent: 16,
+                ),
               children[index],
             ],
+            const SizedBox(height: 6),
           ],
         ),
       ),

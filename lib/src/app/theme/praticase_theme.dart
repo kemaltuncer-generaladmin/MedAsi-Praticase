@@ -67,23 +67,37 @@ abstract final class PratiCaseTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: PratiCaseColors.gradientEnd,
+          backgroundColor: PratiCaseColors.teal,
           foregroundColor: PratiCaseColors.white,
-          minimumSize: const Size.fromHeight(56),
+          disabledBackgroundColor:
+              PratiCaseColors.teal.withValues(alpha: 0.35),
+          disabledForegroundColor:
+              PratiCaseColors.white.withValues(alpha: 0.85),
+          minimumSize: const Size.fromHeight(54),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
           ),
+          textStyle: const TextStyle(
+            fontWeight: FontWeight.w900,
+            fontSize: 15,
+            letterSpacing: 0.1,
+          ),
+          elevation: 0,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: PratiCaseColors.teal,
-          side: const BorderSide(color: PratiCaseColors.border),
+          side: const BorderSide(color: PratiCaseColors.border, width: 1.2),
           minimumSize: const Size.fromHeight(48),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
           ),
-          textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+          textStyle: const TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 14,
+            letterSpacing: 0.1,
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
@@ -104,9 +118,19 @@ abstract final class PratiCaseTheme {
         fillColor: PratiCaseColors.white,
         hintStyle: const TextStyle(
           color: PratiCaseColors.muted,
-          fontSize: 16,
+          fontSize: 15,
           fontWeight: FontWeight.w500,
         ),
+        labelStyle: const TextStyle(
+          color: PratiCaseColors.muted,
+          fontWeight: FontWeight.w700,
+        ),
+        floatingLabelStyle: const TextStyle(
+          color: PratiCaseColors.teal,
+          fontWeight: FontWeight.w800,
+        ),
+        prefixIconColor: PratiCaseColors.slateBlue,
+        suffixIconColor: PratiCaseColors.slateBlue,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 18,
           vertical: 18,
@@ -121,7 +145,22 @@ abstract final class PratiCaseTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-          borderSide: const BorderSide(color: PratiCaseColors.teal, width: 1.4),
+          borderSide: const BorderSide(color: PratiCaseColors.teal, width: 1.6),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+          borderSide:
+              const BorderSide(color: PratiCaseColors.errorRed, width: 1.2),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+          borderSide:
+              const BorderSide(color: PratiCaseColors.errorRed, width: 1.6),
+        ),
+        errorStyle: const TextStyle(
+          color: PratiCaseColors.errorRed,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
         ),
       ),
       chipTheme: ChipThemeData(

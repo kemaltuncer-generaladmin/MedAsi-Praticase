@@ -46,31 +46,58 @@ class StateCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClinicalCard(
+      padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: iconColor, size: 42),
-          const SizedBox(height: 12),
+          // Concentric accent ring — premium, sade, illustrasyon yok.
+          Container(
+            width: 76,
+            height: 76,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: iconColor.withValues(alpha: 0.06),
+              border: Border.all(
+                color: iconColor.withValues(alpha: 0.10),
+                width: 1,
+              ),
+            ),
+            child: Center(
+              child: Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: iconColor.withValues(alpha: 0.13),
+                ),
+                child: Icon(icon, color: iconColor, size: 26),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           Text(
             title,
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: PratiCaseColors.navy,
-              fontSize: 18,
+              fontSize: 17,
+              height: 1.25,
               fontWeight: FontWeight.w900,
+              letterSpacing: -0.1,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             body,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              color: Color(0xFF64728A),
-              height: 1.35,
+              color: PratiCaseColors.muted,
+              fontSize: 13,
+              height: 1.45,
               fontWeight: FontWeight.w600,
             ),
           ),
-          if (action != null) ...[const SizedBox(height: 14), action!],
+          if (action != null) ...[const SizedBox(height: 18), action!],
         ],
       ),
     );

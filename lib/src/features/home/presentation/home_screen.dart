@@ -1822,28 +1822,33 @@ class _SearchPill extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
         child: Container(
-          height: 62,
+          height: 60,
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 18),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
             color: PratiCaseColors.white,
             borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-            border: Border.all(color: PratiCaseColors.border),
-            boxShadow: [
-              BoxShadow(
-                color: PratiCaseColors.navy.withValues(alpha: 0.025),
-                blurRadius: 15,
-                offset: const Offset(0, 5),
-              ),
-            ],
+            border: Border.all(
+              color: PratiCaseColors.border.withValues(alpha: 0.7),
+            ),
+            boxShadow: PratiCaseShadows.card,
           ),
-          child: const Row(
+          child: Row(
             children: [
-              Icon(Icons.search_rounded, color: PratiCaseColors.navy, size: 29),
-              SizedBox(width: 18),
-              Expanded(
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: PratiCaseColors.teal.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.search_rounded,
+                    color: PratiCaseColors.teal, size: 20),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
                 child: Text(
-                  'Vaka, branş veya zorluk ara...',
+                  'Vaka, branş veya zorluk ara…',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -1851,6 +1856,31 @@ class _SearchPill extends StatelessWidget {
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: PratiCaseColors.surfaceContainerLow,
+                  borderRadius:
+                      BorderRadius.circular(PratiCaseRadius.pill),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.tune_rounded,
+                        size: 12, color: PratiCaseColors.slateBlue),
+                    SizedBox(width: 4),
+                    Text(
+                      'Filtre',
+                      style: TextStyle(
+                        color: PratiCaseColors.slateBlue,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

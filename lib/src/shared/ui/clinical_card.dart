@@ -30,7 +30,8 @@ class ClinicalCard extends StatelessWidget {
       color: color ?? PratiCaseColors.white,
       borderRadius: BorderRadius.circular(radius),
       border: Border.all(
-        color: borderColor ?? PratiCaseColors.border.withValues(alpha: 0.88),
+        color: borderColor ?? PratiCaseColors.border.withValues(alpha: 0.78),
+        width: 1,
       ),
       boxShadow: elevated ? PratiCaseShadows.card : null,
     );

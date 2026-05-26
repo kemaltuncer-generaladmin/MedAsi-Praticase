@@ -379,7 +379,7 @@ class _PratiCaseBottomNav extends StatelessWidget {
             color: PratiCaseColors.white,
             borderRadius: BorderRadius.circular(PratiCaseRadius.xxl),
             border: Border.all(
-              color: PratiCaseColors.white.withValues(alpha: 0.92),
+              color: PratiCaseColors.border.withValues(alpha: 0.60),
             ),
             boxShadow: PratiCaseShadows.floating,
           ),

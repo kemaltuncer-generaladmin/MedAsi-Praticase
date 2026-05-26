@@ -211,7 +211,7 @@ class PressableScale extends StatefulWidget {
     required this.child,
     this.onTap,
     this.onLongPress,
-    this.scale = 0.97,
+    this.scale = 0.96,
     this.hapticsOnTap = true,
     super.key,
   });
