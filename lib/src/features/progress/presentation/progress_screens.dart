@@ -3313,102 +3313,113 @@ class _ProfileHero extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
       decoration: BoxDecoration(
-        color: PratiCaseColors.white,
+        gradient: PratiCaseGradients.hero,
         borderRadius: BorderRadius.circular(PratiCaseRadius.xxl),
-        border: Border.all(
-          color: PratiCaseColors.border.withValues(alpha: 0.8),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: PratiCaseColors.navy.withValues(alpha: 0.07),
-            blurRadius: 24,
-            spreadRadius: -8,
-            offset: const Offset(0, 16),
-          ),
-        ],
+        boxShadow: PratiCaseShadows.floating,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          Row(
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(PratiCaseRadius.xxl),
+              child: CustomPaint(painter: _ProfileHeroPatternPainter()),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                radius: 36,
-                backgroundColor: PratiCaseColors.teal.withValues(alpha: 0.10),
-                child: Text(
-                  _initial(avatarTitle),
-                  style: const TextStyle(
-                    color: PratiCaseColors.teal,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      avatarTitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+              Row(
+                children: [
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: PratiCaseColors.white.withValues(alpha: 0.14),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: PratiCaseColors.white.withValues(alpha: 0.24),
+                        width: 1.4,
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      _initial(avatarTitle),
                       style: const TextStyle(
-                        color: PratiCaseColors.navy,
-                        fontSize: 21,
-                        height: 1.15,
+                        color: PratiCaseColors.white,
+                        fontSize: 26,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    if (subtitle.isNotEmpty) ...[
-                      const SizedBox(height: 5),
-                      Text(
-                        subtitle,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: PratiCaseColors.muted,
-                          fontSize: 13,
-                          height: 1.3,
-                          fontWeight: FontWeight.w700,
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          avatarTitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: PratiCaseColors.white,
+                            fontSize: 21,
+                            height: 1.15,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
+                        if (subtitle.isNotEmpty) ...[
+                          const SizedBox(height: 5),
+                          Text(
+                            subtitle,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: PratiCaseColors.white
+                                  .withValues(alpha: 0.78),
+                              fontSize: 13,
+                              height: 1.3,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 11, vertical: 6),
+                decoration: BoxDecoration(
+                  color: PratiCaseColors.white.withValues(alpha: 0.14),
+                  borderRadius:
+                      BorderRadius.circular(PratiCaseRadius.pill),
+                  border: Border.all(
+                    color: PratiCaseColors.white.withValues(alpha: 0.22),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(
+                      Icons.verified_user_outlined,
+                      color: PratiCaseColors.tealBright,
+                      size: 15,
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      'PratiCase Üyesi',
+                      style: TextStyle(
+                        color: PratiCaseColors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.3,
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-            decoration: BoxDecoration(
-              color: PratiCaseColors.teal.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
-              border: Border.all(
-                color: PratiCaseColors.teal.withValues(alpha: 0.10),
-              ),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.verified_user_outlined,
-                  color: PratiCaseColors.tealBright,
-                  size: 17,
-                ),
-                SizedBox(width: 7),
-                Text(
-                  'PratiCase Üyesi',
-                  style: TextStyle(
-                    color: PratiCaseColors.teal,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
-            ),
-          ),
           const SizedBox(height: 14),
           Row(
             children: [
@@ -3436,8 +3447,28 @@ class _ProfileHero extends StatelessWidget {
           ),
         ],
       ),
+        ],
+      ),
     );
   }
+}
+
+class _ProfileHeroPatternPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final dotPaint = Paint()
+      ..color = PratiCaseColors.white.withValues(alpha: 0.06)
+      ..style = PaintingStyle.fill;
+    const step = 16.0;
+    for (double y = step / 2; y < size.height; y += step) {
+      for (double x = step / 2; x < size.width; x += step) {
+        canvas.drawCircle(Offset(x, y), 1.0, dotPaint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _ProfileHeroMetric extends StatelessWidget {
@@ -3449,12 +3480,14 @@ class _ProfileHeroMetric extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 60,
+      height: 62,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
-        color: PratiCaseColors.teal.withValues(alpha: 0.08),
+        color: PratiCaseColors.white.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-        border: Border.all(color: PratiCaseColors.teal.withValues(alpha: 0.08)),
+        border: Border.all(
+          color: PratiCaseColors.white.withValues(alpha: 0.16),
+        ),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -3465,7 +3498,7 @@ class _ProfileHeroMetric extends StatelessWidget {
               value,
               maxLines: 1,
               style: const TextStyle(
-                color: PratiCaseColors.navy,
+                color: PratiCaseColors.white,
                 fontSize: 17,
                 fontWeight: FontWeight.w900,
               ),
@@ -3477,7 +3510,7 @@ class _ProfileHeroMetric extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: PratiCaseColors.muted,
+              color: PratiCaseColors.white.withValues(alpha: 0.68),
               fontSize: 11,
               fontWeight: FontWeight.w800,
             ),
@@ -3602,63 +3635,164 @@ class _StatsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tiles = <_PremiumStatData>[
+      _PremiumStatData(
+        icon: Icons.check_circle_outline_rounded,
+        accent: PratiCaseColors.teal,
+        label: 'Çözdüğüm Vaka',
+        value: '${profile.solvedCaseCount}',
+      ),
+      _PremiumStatData(
+        icon: Icons.workspace_premium_rounded,
+        accent: PratiCaseColors.slateBlue,
+        label: 'Toplam Puan',
+        value: _formatPoints(profile.totalPoints),
+      ),
+      _PremiumStatData(
+        icon: Icons.medical_services_outlined,
+        accent: PratiCaseColors.successGreen,
+        label: 'Doğru Tanı',
+        value: '%${profile.correctDiagnosisRate}',
+      ),
+      _PremiumStatData(
+        icon: Icons.trending_up_rounded,
+        accent: PratiCaseColors.teal,
+        label: 'Ortalama',
+        value: '%${profile.successRatePercent}',
+      ),
+      _PremiumStatData(
+        icon: Icons.local_fire_department_rounded,
+        accent: PratiCaseColors.gold,
+        label: 'Seri',
+        value: '${profile.dailyStreak} gün',
+      ),
+      _PremiumStatData(
+        icon: Icons.school_outlined,
+        accent: PratiCaseColors.slateBlue,
+        label: 'Sınıf',
+        value: profile.classLevel.isEmpty ? '-' : profile.classLevel,
+      ),
+    ];
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
       decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'İstatistiklerim',
-            style: TextStyle(
-              color: PratiCaseColors.navy,
-              fontWeight: FontWeight.w900,
-            ),
+          Row(
+            children: const [
+              Icon(Icons.insights_rounded,
+                  color: PratiCaseColors.teal, size: 18),
+              SizedBox(width: 8),
+              Text(
+                'İstatistiklerim',
+                style: TextStyle(
+                  color: PratiCaseColors.navy,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 14),
           LayoutBuilder(
             builder: (context, constraints) {
               final columns = constraints.maxWidth < 360 ? 2 : 3;
-              final spacing = 8.0;
+              const spacing = 10.0;
               final width =
                   (constraints.maxWidth - spacing * (columns - 1)) / columns;
               return Wrap(
                 spacing: spacing,
-                runSpacing: 10,
+                runSpacing: spacing,
                 children: [
-                  _MiniMetric(
-                    width: width,
-                    label: 'Çözdüğüm Vaka',
-                    value: '${profile.solvedCaseCount}',
-                  ),
-                  _MiniMetric(
-                    width: width,
-                    label: 'Toplam Puan',
-                    value: '${profile.totalPoints}',
-                  ),
-                  _MiniMetric(
-                    width: width,
-                    label: 'Doğru Tanı',
-                    value: '%${profile.correctDiagnosisRate}',
-                  ),
-                  _MiniMetric(
-                    width: width,
-                    label: 'Ortalama',
-                    value: '%${profile.successRatePercent}',
-                  ),
-                  _MiniMetric(
-                    width: width,
-                    label: 'Seri',
-                    value: '${profile.dailyStreak} gün',
-                  ),
-                  _MiniMetric(
-                    width: width,
-                    label: 'Sınıf',
-                    value: profile.classLevel,
-                  ),
+                  for (final tile in tiles)
+                    SizedBox(width: width, child: _PremiumStatTile(data: tile)),
                 ],
               );
             },
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _formatPoints(int value) {
+    if (value >= 1000) {
+      final thousands = value / 1000;
+      return '${thousands.toStringAsFixed(thousands >= 10 ? 0 : 1)}K';
+    }
+    return '$value';
+  }
+}
+
+class _PremiumStatData {
+  const _PremiumStatData({
+    required this.icon,
+    required this.accent,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final Color accent;
+  final String label;
+  final String value;
+}
+
+class _PremiumStatTile extends StatelessWidget {
+  const _PremiumStatTile({required this.data});
+
+  final _PremiumStatData data;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+        border: Border.all(
+          color: data.accent.withValues(alpha: 0.14),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: data.accent.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(data.icon, color: data.accent, size: 16),
+          ),
+          const SizedBox(height: 10),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              data.value,
+              maxLines: 1,
+              style: const TextStyle(
+                color: PratiCaseColors.navy,
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                height: 1.0,
+              ),
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            data.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: PratiCaseColors.muted,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ],
       ),
@@ -4600,16 +4734,14 @@ class _FormFieldBlock extends StatelessWidget {
 }
 
 class _MiniMetric extends StatelessWidget {
-  const _MiniMetric({required this.label, required this.value, this.width});
+  const _MiniMetric({required this.label, required this.value});
 
   final String label;
   final String value;
-  final double? width;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: width,
       height: 72,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,

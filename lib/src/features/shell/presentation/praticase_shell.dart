@@ -1633,50 +1633,98 @@ class _ProgressHero extends StatelessWidget {
         borderRadius: BorderRadius.circular(PratiCaseRadius.xxl),
         boxShadow: PratiCaseShadows.floating,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Performans Özeti',
-                  style: TextStyle(
-                    color: PratiCaseColors.white,
-                    fontSize: 22,
-                    height: 1.14,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: PratiCaseColors.white.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(PratiCaseRadius.md),
-                  border: Border.all(
-                    color: PratiCaseColors.white.withValues(alpha: 0.2),
-                  ),
-                ),
-                child: const Icon(
-                  Icons.track_changes_rounded,
-                  color: PratiCaseColors.tealBright,
-                  size: 24,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(
-            '%$liveAverage',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 58,
-              height: 0.96,
-              fontWeight: FontWeight.w900,
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(PratiCaseRadius.xxl),
+              child: CustomPaint(painter: _ProgressHeroPatternPainter()),
             ),
           ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: PratiCaseColors.white.withValues(alpha: 0.14),
+                      borderRadius:
+                          BorderRadius.circular(PratiCaseRadius.pill),
+                      border: Border.all(
+                        color: PratiCaseColors.white.withValues(alpha: 0.22),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.trending_up_rounded,
+                            size: 13, color: PratiCaseColors.tealBright),
+                        SizedBox(width: 5),
+                        Text(
+                          'Performans Özeti',
+                          style: TextStyle(
+                            color: PratiCaseColors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: PratiCaseColors.white.withValues(alpha: 0.14),
+                      borderRadius:
+                          BorderRadius.circular(PratiCaseRadius.md),
+                      border: Border.all(
+                        color: PratiCaseColors.white.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.track_changes_rounded,
+                      color: PratiCaseColors.tealBright,
+                      size: 22,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    '%$liveAverage',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 54,
+                      height: 0.96,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Text(
+                      'ortalama',
+                      style: TextStyle(
+                        color:
+                            PratiCaseColors.white.withValues(alpha: 0.70),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
           const SizedBox(height: 8),
           Text(
             summary.sessionCount == 0
@@ -1718,8 +1766,28 @@ class _ProgressHero extends StatelessWidget {
           ),
         ],
       ),
+        ],
+      ),
     );
   }
+}
+
+class _ProgressHeroPatternPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final dotPaint = Paint()
+      ..color = PratiCaseColors.white.withValues(alpha: 0.06)
+      ..style = PaintingStyle.fill;
+    const step = 16.0;
+    for (double y = step / 2; y < size.height; y += step) {
+      for (double x = step / 2; x < size.width; x += step) {
+        canvas.drawCircle(Offset(x, y), 1.0, dotPaint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _ProgressHeroMetric extends StatelessWidget {
