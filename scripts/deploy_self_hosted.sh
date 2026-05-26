@@ -74,6 +74,7 @@ log "Uploading Edge Functions"
 scp -o BatchMode=yes -r \
   "$ROOT_DIR/supabase/functions/_shared" \
   "$ROOT_DIR/supabase/functions/praticase-patient-turn" \
+  "$ROOT_DIR/supabase/functions/praticase-speech" \
   "$ROOT_DIR/supabase/functions/praticase-complete-session" \
   "$ROOT_DIR/supabase/functions/praticase-theoretical-exam" \
   "$ROOT_DIR/supabase/functions/praticase-storekit-verify" \
@@ -84,6 +85,7 @@ log "Publishing Edge Functions"
 ssh -o BatchMode=yes "$DEPLOY_HOST" "set -euo pipefail
 cp -R '$REMOTE_FUNCTIONS/_shared' '$REMOTE_FUNCTIONS_DIR/'
 cp -R '$REMOTE_FUNCTIONS/praticase-patient-turn' '$REMOTE_FUNCTIONS_DIR/'
+cp -R '$REMOTE_FUNCTIONS/praticase-speech' '$REMOTE_FUNCTIONS_DIR/'
 cp -R '$REMOTE_FUNCTIONS/praticase-complete-session' '$REMOTE_FUNCTIONS_DIR/'
 cp -R '$REMOTE_FUNCTIONS/praticase-theoretical-exam' '$REMOTE_FUNCTIONS_DIR/'
 cp -R '$REMOTE_FUNCTIONS/praticase-storekit-verify' '$REMOTE_FUNCTIONS_DIR/'

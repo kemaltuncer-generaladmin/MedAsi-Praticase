@@ -17,12 +17,15 @@ part 'widgets/cases_lab.dart';
 part 'widgets/cases_imaging.dart';
 part 'widgets/cases_result.dart';
 
+enum CasesScreenMode { library, singleStation }
+
 class CasesScreen extends StatefulWidget {
   const CasesScreen({
     required this.repository,
     this.onOpenNotifications,
     this.onOpenProfile,
     this.onOpenHome,
+    this.mode = CasesScreenMode.library,
     this.unreadNotificationCount = 0,
     super.key,
   });
@@ -31,6 +34,7 @@ class CasesScreen extends StatefulWidget {
   final VoidCallback? onOpenNotifications;
   final VoidCallback? onOpenProfile;
   final VoidCallback? onOpenHome;
+  final CasesScreenMode mode;
   final int unreadNotificationCount;
 
   @override
@@ -76,170 +80,178 @@ class _CasesScreenState extends State<CasesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<OsceCaseSummary>>(
-      future: _casesFuture,
-      builder: (context, snapshot) {
-        final allCases = snapshot.data ?? const <OsceCaseSummary>[];
-        final visibleCases = _visibleCases(allCases);
-        return RefreshIndicator(
-          onRefresh: _refresh,
-          child: PratiCaseResponsiveListView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: PratiCaseResponsive.pagePadding(context),
-            children: [
-              _MobileHeader(
-                onOpenNotifications: widget.onOpenNotifications,
-                onOpenProfile: widget.onOpenProfile,
-                unreadNotificationCount: widget.unreadNotificationCount,
-              ),
-              const SizedBox(height: 34),
-              const _PageTitle(
-                title: 'OSCE İstasyonları',
-                subtitle:
-                    'Başlamak için bir istasyon seçin ve pratiğe hemen başlayın.',
-              ),
-              const SizedBox(height: 22),
-              _SearchBox(
-                controller: _searchController,
-                onChanged: _scheduleSearch,
-                onSubmitted: _search,
-                onClear: _clearSearch,
-              ),
-              if (snapshot.connectionState != ConnectionState.done)
-                const Padding(
-                  padding: EdgeInsets.only(top: 22),
-                  child: PratiCaseInlineSkeleton(heroHeight: 132, cardCount: 3),
-                )
-              else if (snapshot.hasError)
-                Padding(
-                  padding: const EdgeInsets.only(top: 22),
-                  child: _CenteredState(
-                    icon: Icons.cloud_off_rounded,
-                    title: 'Vakalar yüklenemedi',
-                    body: _errorText(snapshot.error),
+    return Scaffold(
+      backgroundColor: PratiCaseColors.softSurface,
+      body: SafeArea(
+        bottom: false,
+        child: FutureBuilder<List<OsceCaseSummary>>(
+          future: _casesFuture,
+          builder: (context, snapshot) {
+            final allCases = snapshot.data ?? const <OsceCaseSummary>[];
+            final visibleCases = _visibleCases(allCases);
+            return RefreshIndicator(
+              onRefresh: _refresh,
+              child: PratiCaseResponsiveListView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: PratiCaseResponsive.pagePadding(context),
+                children: [
+                  _MobileHeader(
+                    onOpenNotifications: widget.onOpenNotifications,
+                    onOpenProfile: widget.onOpenProfile,
+                    unreadNotificationCount: widget.unreadNotificationCount,
                   ),
-                )
-              else if (snapshot.requireData.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.only(top: 22),
-                  child: _CenteredState(
-                    icon: Icons.assignment_outlined,
-                    title: 'Yayınlanmış vaka yok',
-                    body: 'Yayınlanan OSCE vakaları burada listelenecek.',
+                  const SizedBox(height: 34),
+                  _PageTitle(title: _pageTitle, subtitle: _pageSubtitle),
+                  const SizedBox(height: 22),
+                  _SearchBox(
+                    controller: _searchController,
+                    onChanged: _scheduleSearch,
+                    onSubmitted: _search,
+                    onClear: _clearSearch,
                   ),
-                )
-              else ...[
-                const SizedBox(height: 28),
-                _CaseFilterOverview(
-                  totalCount: snapshot.requireData.length,
-                  visibleCount: visibleCases.length,
-                  activeCount: _activeFilterCount,
-                  onClear: _activeFilterCount == 0 ? null : _clearFilters,
-                ),
-                const SizedBox(height: 18),
-                _FilterStrip(
-                  label: 'Branşlar',
-                  items: [
-                    'Tümü',
-                    ...{
-                      for (final item in snapshot.requireData)
-                        if (item.branch.trim().isNotEmpty) item.branch,
-                    },
-                  ],
-                  selected: _branch ?? 'Tümü',
-                  counts: _counts(
-                    snapshot.requireData.map((item) => item.branch),
-                  ),
-                  onSelected: (value) {
-                    setState(() {
-                      _branch = value == 'Tümü' ? null : value;
-                      _difficulty = null;
-                      _setting = null;
-                    });
-                  },
-                ),
-                if (_branch != null) ...[
-                  const SizedBox(height: 18),
-                  _FilterStrip(
-                    label: 'Zorluk',
-                    items: const ['Tümü', 'Kolay', 'Orta', 'Zor'],
-                    selected: _difficulty ?? 'Tümü',
-                    counts: _counts(
-                      snapshot.requireData
-                          .where((item) => item.branch == _branch)
-                          .map((item) => item.difficulty.label),
-                    ),
-                    onSelected: (value) {
-                      setState(() {
-                        _difficulty = value == 'Tümü' ? null : value;
-                        _setting = null;
-                      });
-                    },
-                  ),
-                ],
-                if (_branch != null && _difficulty != null) ...[
-                  const SizedBox(height: 18),
-                  _FilterStrip(
-                    label: 'Klinik Ortam',
-                    items: [
-                      'Tümü',
-                      ...{
-                        for (final item in snapshot.requireData)
-                          if (item.branch == _branch &&
-                              item.difficulty.label == _difficulty &&
-                              item.setting.trim().isNotEmpty)
-                            item.setting,
-                      },
-                    ],
-                    selected: _setting ?? 'Tümü',
-                    counts: _counts(
-                      snapshot.requireData
-                          .where(
-                            (item) =>
-                                item.branch == _branch &&
-                                item.difficulty.label == _difficulty,
-                          )
-                          .map((item) => item.setting),
-                    ),
-                    onSelected: (value) {
-                      setState(() => _setting = value == 'Tümü' ? null : value);
-                    },
-                  ),
-                ],
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        '${visibleCases.length} vaka bulundu',
-                        style: const TextStyle(
-                          color: PratiCaseColors.navy,
-                          fontWeight: FontWeight.w800,
-                        ),
+                  if (snapshot.connectionState != ConnectionState.done)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 22),
+                      child: PratiCaseInlineSkeleton(
+                        heroHeight: 132,
+                        cardCount: 3,
                       ),
+                    )
+                  else if (snapshot.hasError)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 22),
+                      child: _CenteredState(
+                        icon: Icons.cloud_off_rounded,
+                        title: 'Vakalar yüklenemedi',
+                        body: _errorText(snapshot.error),
+                      ),
+                    )
+                  else if (snapshot.requireData.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 22),
+                      child: _CenteredState(
+                        icon: Icons.assignment_outlined,
+                        title: 'Yayınlanmış vaka yok',
+                        body: 'Yayınlanan OSCE vakaları burada listelenecek.',
+                      ),
+                    )
+                  else ...[
+                    const SizedBox(height: 28),
+                    _CaseFilterOverview(
+                      totalCount: snapshot.requireData.length,
+                      visibleCount: visibleCases.length,
+                      activeCount: _activeFilterCount,
+                      onClear: _activeFilterCount == 0 ? null : _clearFilters,
                     ),
-                    _TinyPill(
-                      text: _activeFilterCount == 0 ? 'Tümü' : 'Filtreli',
+                    const SizedBox(height: 18),
+                    _FilterStrip(
+                      label: 'Branşlar',
+                      items: [
+                        'Tümü',
+                        ...{
+                          for (final item in snapshot.requireData)
+                            if (item.branch.trim().isNotEmpty) item.branch,
+                        },
+                      ],
+                      selected: _branch ?? 'Tümü',
+                      counts: _counts(
+                        snapshot.requireData.map((item) => item.branch),
+                      ),
+                      onSelected: (value) {
+                        setState(() {
+                          _branch = value == 'Tümü' ? null : value;
+                          _difficulty = null;
+                          _setting = null;
+                        });
+                      },
                     ),
+                    if (_branch != null) ...[
+                      const SizedBox(height: 18),
+                      _FilterStrip(
+                        label: 'Zorluk',
+                        items: const ['Tümü', 'Kolay', 'Orta', 'Zor'],
+                        selected: _difficulty ?? 'Tümü',
+                        counts: _counts(
+                          snapshot.requireData
+                              .where((item) => item.branch == _branch)
+                              .map((item) => item.difficulty.label),
+                        ),
+                        onSelected: (value) {
+                          setState(() {
+                            _difficulty = value == 'Tümü' ? null : value;
+                            _setting = null;
+                          });
+                        },
+                      ),
+                    ],
+                    if (_branch != null && _difficulty != null) ...[
+                      const SizedBox(height: 18),
+                      _FilterStrip(
+                        label: 'Klinik Ortam',
+                        items: [
+                          'Tümü',
+                          ...{
+                            for (final item in snapshot.requireData)
+                              if (item.branch == _branch &&
+                                  item.difficulty.label == _difficulty &&
+                                  item.setting.trim().isNotEmpty)
+                                item.setting,
+                          },
+                        ],
+                        selected: _setting ?? 'Tümü',
+                        counts: _counts(
+                          snapshot.requireData
+                              .where(
+                                (item) =>
+                                    item.branch == _branch &&
+                                    item.difficulty.label == _difficulty,
+                              )
+                              .map((item) => item.setting),
+                        ),
+                        onSelected: (value) {
+                          setState(
+                            () => _setting = value == 'Tümü' ? null : value,
+                          );
+                        },
+                      ),
+                    ],
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${visibleCases.length} vaka bulundu',
+                            style: const TextStyle(
+                              color: PratiCaseColors.navy,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        _TinyPill(
+                          text: _activeFilterCount == 0 ? 'Tümü' : 'Filtreli',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    if (visibleCases.isEmpty)
+                      const _CenteredState(
+                        icon: Icons.search_off_rounded,
+                        title: 'Bu filtreye uygun vaka yok',
+                        body: 'Arama veya filtreleri değiştirerek tekrar dene.',
+                      )
+                    else
+                      _CaseResultsGrid(
+                        cases: visibleCases,
+                        onOpenCase: (item) => _openDetail(context, item.id),
+                      ),
                   ],
-                ),
-                const SizedBox(height: 14),
-                if (visibleCases.isEmpty)
-                  const _CenteredState(
-                    icon: Icons.search_off_rounded,
-                    title: 'Bu filtreye uygun vaka yok',
-                    body: 'Arama veya filtreleri değiştirerek tekrar dene.',
-                  )
-                else
-                  _CaseResultsGrid(
-                    cases: visibleCases,
-                    onOpenCase: (item) => _openDetail(context, item.id),
-                  ),
-              ],
-            ],
-          ),
-        );
-      },
+                ],
+              ),
+            );
+          },
+        ),
+      ),
     );
   }
 
@@ -249,6 +261,7 @@ class _CasesScreenState extends State<CasesScreen> {
         builder: (_) => CaseDetailScreen(
           repository: widget.repository,
           caseId: caseId,
+          mode: widget.mode,
           onOpenHome: widget.onOpenHome,
         ),
       ),
@@ -271,6 +284,22 @@ class _CasesScreenState extends State<CasesScreen> {
 
   int get _activeFilterCount {
     return [_branch, _difficulty, _setting].whereType<String>().length;
+  }
+
+  String get _pageTitle {
+    return switch (widget.mode) {
+      CasesScreenMode.singleStation => 'Tek İstasyon Seç',
+      CasesScreenMode.library => 'OSCE İstasyonları',
+    };
+  }
+
+  String get _pageSubtitle {
+    return switch (widget.mode) {
+      CasesScreenMode.singleStation =>
+        'Bir vaka seç, yönergeyi oku ve süreli hasta görüşmesine başla.',
+      CasesScreenMode.library =>
+        'Başlamak için bir istasyon seçin ve pratiğe hemen başlayın.',
+    };
   }
 
   List<OsceCaseSummary> _visibleCases(List<OsceCaseSummary> cases) {
@@ -400,12 +429,14 @@ class CaseDetailScreen extends StatefulWidget {
   const CaseDetailScreen({
     required this.repository,
     required this.caseId,
+    this.mode = CasesScreenMode.library,
     this.onOpenHome,
     super.key,
   });
 
   final CasesRepository repository;
   final String caseId;
+  final CasesScreenMode mode;
   final VoidCallback? onOpenHome;
 
   @override
@@ -484,7 +515,7 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 110),
             children: [
               _StepTopBar(
-                title: 'Vaka Detay',
+                title: _topBarTitle,
                 trailing: IconButton(
                   onPressed: _bookmarking
                       ? null
@@ -527,10 +558,24 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
       ),
       bottom: _BottomAction(
         identifier: 'cta.start-case',
-        label: _starting ? 'Başlatılıyor...' : 'Vaka Çözümüne Başla',
+        label: _starting ? 'Başlatılıyor...' : _startLabel,
         onPressed: _starting ? null : _start,
       ),
     );
+  }
+
+  String get _topBarTitle {
+    return switch (widget.mode) {
+      CasesScreenMode.singleStation => 'Tek İstasyon',
+      CasesScreenMode.library => 'Vaka Detay',
+    };
+  }
+
+  String get _startLabel {
+    return switch (widget.mode) {
+      CasesScreenMode.singleStation => 'Sınava Başla',
+      CasesScreenMode.library => 'Vaka Çözümüne Başla',
+    };
   }
 }
 

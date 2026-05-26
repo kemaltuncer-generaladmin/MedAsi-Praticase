@@ -1176,7 +1176,9 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
     _activePersonaId = widget.session.activePersonaId.isNotEmpty
         ? widget.session.activePersonaId
         : widget.session.personaId;
-    _voiceAdapter = widget.voiceAdapter ?? NativeVoiceExamAdapter();
+    _voiceAdapter =
+        widget.voiceAdapter ??
+        NativeVoiceExamAdapter(voiceRole: VoiceSpeechRole.mentor);
     _voiceState = _voiceAdapter.state;
     _voiceSubscription = _voiceAdapter.states.listen((state) {
       if (!mounted) return;

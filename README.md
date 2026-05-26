@@ -35,7 +35,8 @@ Coolify domain target: `praticase.medasi.com.tr`.
 ## Self-Hosted Supabase And Edge Functions
 
 PratiCase uses Supabase Edge Functions for live AI. Patient anamnesis turns use
-`gemini-2.5-flash`; final OSCE scoring uses `gemini-3.5-flash`.
+`gemini-2.5-flash`, voice playback uses Gemini TTS, and final OSCE scoring uses
+`gemini-3.5-flash`.
 The Flutter build receives only `SUPABASE_URL`, `FLUTTER_SUPABASE_URL`,
 `SUPABASE_ANON_KEY`, and `AUTH_REDIRECT_URL`; service-role, Vertex, and App
 Store secrets remain in the self-hosted Edge Function runtime.
@@ -50,6 +51,7 @@ PRATICASE_ALLOWED_ORIGINS=https://praticase.medasi.com.tr,https://www.praticase.
 VERTEX_AI_PROJECT_ID=<google cloud project id>
 VERTEX_AI_LOCATION=global
 VERTEX_AI_HISTORY_MODEL=gemini-2.5-flash
+VERTEX_AI_TTS_MODEL=gemini-2.5-flash-tts
 VERTEX_AI_EVALUATION_MODEL=gemini-3.5-flash
 GOOGLE_VERTEX_SERVICE_ACCOUNT_JSON_BASE64=<base64 encoded service account json>
 ```
@@ -57,7 +59,7 @@ GOOGLE_VERTEX_SERVICE_ACCOUNT_JSON_BASE64=<base64 encoded service account json>
 Keep the service account out of Flutter code, screenshots, logs, and committed
 files. Set it only as a Supabase secret.
 
-The deployment script applies PratiCase-owned migrations and publishes the five
+The deployment script applies PratiCase-owned migrations and publishes the six
 PratiCase Edge Functions. It does not replace the shared Qlinik store function
 or alter the Medasi payment contract used by the profile store flow.
 

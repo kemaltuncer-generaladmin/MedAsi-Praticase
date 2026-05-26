@@ -27,6 +27,7 @@ curl -fsS \
           "VERTEX_AI_LOCATION",
           "VERTEX_AI_PROJECT_ID",
           "VERTEX_AI_HISTORY_MODEL",
+          "VERTEX_AI_TTS_MODEL",
           "VERTEX_AI_EVALUATION_MODEL",
           "GOOGLE_VERTEX_SERVICE_ACCOUNT_JSON_BASE64"
         ))

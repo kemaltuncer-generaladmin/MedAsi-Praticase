@@ -1,8 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class VoiceExamState {
   const VoiceExamState({
@@ -68,15 +72,93 @@ abstract interface class VoiceExamAdapter {
   void dispose();
 }
 
+enum VoiceSpeechRole { patient, mentor }
+
+class VoiceSpeechAudio {
+  const VoiceSpeechAudio({required this.bytes, required this.mimeType});
+
+  final Uint8List bytes;
+  final String mimeType;
+}
+
+abstract interface class VoiceSpeechService {
+  Future<VoiceSpeechAudio> synthesizeSpeech({
+    required String text,
+    required VoiceSpeechRole role,
+  });
+}
+
+class SupabaseGeminiVoiceSpeechService implements VoiceSpeechService {
+  const SupabaseGeminiVoiceSpeechService({required SupabaseClient client})
+    : _client = client;
+
+  final SupabaseClient _client;
+
+  @override
+  Future<VoiceSpeechAudio> synthesizeSpeech({
+    required String text,
+    required VoiceSpeechRole role,
+  }) async {
+    final response = await _client.functions.invoke(
+      'praticase-speech',
+      body: {'text': text, 'voiceRole': role.name},
+    );
+    if (response.status >= 400) {
+      throw VoiceSpeechUnavailable(_functionMessage(response.data));
+    }
+    final data = response.data;
+    final payload = data is Map
+        ? Map<String, dynamic>.from(data)
+        : const <String, dynamic>{};
+    final audioContent = payload['audioContent'];
+    if (audioContent is! String || audioContent.trim().isEmpty) {
+      throw const VoiceSpeechUnavailable('Ses yanıtı boş döndü.');
+    }
+    return VoiceSpeechAudio(
+      bytes: base64Decode(audioContent),
+      mimeType: (payload['mimeType'] as String?)?.trim().isNotEmpty ?? false
+          ? (payload['mimeType'] as String).trim()
+          : 'audio/wav',
+    );
+  }
+}
+
+class VoiceSpeechUnavailable implements Exception {
+  const VoiceSpeechUnavailable(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 class NativeVoiceExamAdapter implements VoiceExamAdapter {
-  NativeVoiceExamAdapter({SpeechToText? speech, FlutterTts? tts})
-    : _speech = speech ?? SpeechToText(),
-      _tts = tts ?? FlutterTts();
+  NativeVoiceExamAdapter({
+    SpeechToText? speech,
+    FlutterTts? tts,
+    AudioPlayer? audioPlayer,
+    VoiceSpeechService? speechService,
+    VoiceSpeechRole voiceRole = VoiceSpeechRole.patient,
+  }) : _speech = speech ?? SpeechToText(),
+       _tts = tts ?? FlutterTts(),
+       _audioPlayer = audioPlayer ?? AudioPlayer(),
+       _speechService = speechService ?? _defaultSpeechService(),
+       _voiceRole = voiceRole {
+    _audioStateSubscription = _audioPlayer.onPlayerStateChanged.listen(
+      _handleAudioPlayerState,
+    );
+  }
 
   final SpeechToText _speech;
   final FlutterTts _tts;
+  final AudioPlayer _audioPlayer;
+  final VoiceSpeechService? _speechService;
+  final VoiceSpeechRole _voiceRole;
   final _controller = StreamController<VoiceExamState>.broadcast();
+  final _speechCache = <String, VoiceSpeechAudio>{};
+  late final StreamSubscription<PlayerState> _audioStateSubscription;
   VoiceExamState _state = const VoiceExamState();
+  int _speechGeneration = 0;
 
   @override
   VoiceExamState get state => _state;
@@ -155,13 +237,20 @@ class NativeVoiceExamAdapter implements VoiceExamAdapter {
     final clean = text.trim();
     if (clean.isEmpty || _state.muted) return;
     await initialize();
+    final generation = ++_speechGeneration;
+    await _tts.stop();
+    await _audioPlayer.stop();
+    if (await _speakWithGemini(clean, generation)) return;
+    if (generation != _speechGeneration || _state.muted) return;
     await _tts.stop();
     await _tts.speak(clean);
   }
 
   @override
   Future<void> stopSpeaking() async {
+    _speechGeneration++;
     await _tts.stop();
+    await _audioPlayer.stop();
     _emit(_state.copyWith(speaking: false));
   }
 
@@ -175,7 +264,49 @@ class NativeVoiceExamAdapter implements VoiceExamAdapter {
   void dispose() {
     unawaited(_speech.cancel());
     unawaited(_tts.stop());
+    unawaited(_audioPlayer.stop());
+    unawaited(_audioStateSubscription.cancel());
+    unawaited(_audioPlayer.dispose());
     unawaited(_controller.close());
+  }
+
+  Future<bool> _speakWithGemini(String text, int generation) async {
+    final speechService = _speechService;
+    if (speechService == null) return false;
+    try {
+      _emit(_state.copyWith(speaking: true, clearError: true));
+      final audio = await _speechAudioFor(text, speechService);
+      if (generation != _speechGeneration || _state.muted) {
+        _emit(_state.copyWith(speaking: false));
+        return true;
+      }
+      await _audioPlayer.play(
+        BytesSource(audio.bytes, mimeType: audio.mimeType),
+      );
+      return true;
+    } on Object {
+      await _audioPlayer.stop();
+      _emit(_state.copyWith(speaking: false));
+      return false;
+    }
+  }
+
+  Future<VoiceSpeechAudio> _speechAudioFor(
+    String text,
+    VoiceSpeechService speechService,
+  ) async {
+    final key = '${_voiceRole.name}:$text';
+    final cached = _speechCache[key];
+    if (cached != null) return cached;
+    final audio = await speechService.synthesizeSpeech(
+      text: text,
+      role: _voiceRole,
+    );
+    _speechCache[key] = audio;
+    if (_speechCache.length > 12) {
+      _speechCache.remove(_speechCache.keys.first);
+    }
+    return audio;
   }
 
   void _handleSpeechStatus(String status) {
@@ -185,8 +316,34 @@ class NativeVoiceExamAdapter implements VoiceExamAdapter {
     }
   }
 
+  void _handleAudioPlayerState(PlayerState state) {
+    if (state == PlayerState.playing) {
+      _emit(_state.copyWith(speaking: true));
+    }
+    if (state == PlayerState.completed || state == PlayerState.stopped) {
+      _emit(_state.copyWith(speaking: false));
+    }
+  }
+
   void _emit(VoiceExamState state) {
     _state = state;
     if (!_controller.isClosed) _controller.add(state);
   }
+
+  static VoiceSpeechService? _defaultSpeechService() {
+    try {
+      return SupabaseGeminiVoiceSpeechService(client: Supabase.instance.client);
+    } on Object {
+      return null;
+    }
+  }
+}
+
+String _functionMessage(Object? details) {
+  if (details is Map) {
+    final message = details['error'] ?? details['message'];
+    if (message is String && message.trim().isNotEmpty) return message.trim();
+  }
+  if (details is String && details.trim().isNotEmpty) return details.trim();
+  return 'Gemini ses üretimi şu anda alınamadı.';
 }

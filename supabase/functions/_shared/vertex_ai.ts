@@ -16,6 +16,15 @@ type GenerateContentOptions = {
   responseSchema?: JsonMap;
 };
 
+type GenerateSpeechOptions = {
+  model?: string;
+  location?: string;
+  text: string;
+  languageCode?: string;
+  voiceName?: string;
+  temperature?: number;
+};
+
 type ServiceAccount = {
   client_email: string;
   private_key: string;
@@ -25,6 +34,18 @@ type ServiceAccount = {
 
 type VertexCandidate = {
   content?: { parts?: Array<{ text?: string }> };
+  finishReason?: string;
+  finishMessage?: string;
+};
+
+type VertexSpeechPart = {
+  inlineData?: { data?: string; mimeType?: string };
+  inline_data?: { data?: string; mime_type?: string };
+  text?: string;
+};
+
+type VertexSpeechCandidate = {
+  content?: { parts?: VertexSpeechPart[] };
   finishReason?: string;
   finishMessage?: string;
 };
@@ -39,9 +60,24 @@ export type VertexGeneration = {
   finishMessage?: string;
 };
 
+export type VertexSpeechGeneration = {
+  audioBase64: string;
+  mimeType: string;
+  usageMetadata: JsonMap;
+  model: string;
+  finishReason?: string;
+  finishMessage?: string;
+};
+
 type VertexResponse = {
   candidates?: VertexCandidate[];
   usageMetadata?: JsonMap;
+};
+
+type VertexSpeechResponse = {
+  candidates?: VertexSpeechCandidate[];
+  usageMetadata?: JsonMap;
+  usage_metadata?: JsonMap;
 };
 
 const accessTokenCache = {
@@ -51,6 +87,7 @@ const accessTokenCache = {
 
 export const defaultHistoryModel = "gemini-2.5-flash";
 export const defaultEvaluationModel = "gemini-3.5-flash";
+export const defaultTtsModel = "gemini-2.5-flash-tts";
 
 export function historyModel(): string {
   return Deno.env.get("VERTEX_AI_HISTORY_MODEL")?.trim() || defaultHistoryModel;
@@ -61,11 +98,88 @@ export function evaluationModel(): string {
     defaultEvaluationModel;
 }
 
+export function ttsModel(): string {
+  return Deno.env.get("VERTEX_AI_TTS_MODEL")?.trim() || defaultTtsModel;
+}
+
 export async function generateVertexText(
   options: GenerateContentOptions,
 ): Promise<string> {
   const generated = await generateVertexContent(options);
   return generated.text;
+}
+
+export async function generateVertexSpeech(
+  options: GenerateSpeechOptions,
+): Promise<VertexSpeechGeneration> {
+  const account = serviceAccount();
+  const projectId = Deno.env.get("VERTEX_AI_PROJECT_ID")?.trim() ||
+    account.project_id?.trim();
+  if (!projectId) {
+    throw new Error("Vertex AI project id is missing");
+  }
+
+  const location = options.location ||
+    Deno.env.get("VERTEX_AI_TTS_LOCATION")?.trim() ||
+    Deno.env.get("VERTEX_AI_LOCATION")?.trim() ||
+    "global";
+  const model = options.model?.trim() || ttsModel();
+  const token = await accessToken(account);
+  const endpoint =
+    `https://aiplatform.googleapis.com/v1beta1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:generateContent`;
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: options.text }],
+        },
+      ],
+      generation_config: {
+        speech_config: {
+          language_code: options.languageCode?.trim() || "tr-TR",
+          voice_config: {
+            prebuilt_voice_config: {
+              voice_name: options.voiceName?.trim() || "Achird",
+            },
+          },
+        },
+        temperature: options.temperature ?? 1.2,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    await response.body?.cancel();
+    throw new Error(`Vertex AI speech request failed with ${response.status}`);
+  }
+
+  const payload = await response.json() as VertexSpeechResponse;
+  const candidate = payload.candidates?.[0];
+  const part = candidate?.content?.parts?.find((item) =>
+    item.inlineData?.data || item.inline_data?.data
+  );
+  const inline = part?.inlineData ?? part?.inline_data;
+  const audioBase64 = inline?.data?.trim() ?? "";
+  if (!audioBase64) {
+    throw new Error("Vertex AI speech returned an empty audio response");
+  }
+
+  return {
+    audioBase64,
+    mimeType: part?.inlineData?.mimeType ?? part?.inline_data?.mime_type ??
+      "audio/pcm",
+    usageMetadata: payload.usageMetadata ?? payload.usage_metadata ?? {},
+    model,
+    finishReason: candidate?.finishReason,
+    finishMessage: candidate?.finishMessage,
+  };
 }
 
 export async function generateVertexContent(

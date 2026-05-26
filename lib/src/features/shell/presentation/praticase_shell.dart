@@ -116,12 +116,13 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
     await _refreshUnreadNotificationCount();
   }
 
-  void _openCases() {
+  void _openCases({CasesScreenMode mode = CasesScreenMode.library}) {
     unawaited(
       Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (_) => CasesScreen(
             repository: widget.casesRepository,
+            mode: mode,
             unreadNotificationCount: _unreadNotificationCount ?? 0,
             onOpenNotifications: _openNotifications,
             onOpenProfile: _openProfile,
@@ -182,6 +183,8 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
         theoreticalExamRepository: widget.theoreticalExamRepository,
         oralExamRepository: widget.oralExamRepository,
         onOpenCases: _openCases,
+        onOpenSingleStation: () =>
+            _openCases(mode: CasesScreenMode.singleStation),
         unreadNotificationCount: _unreadNotificationCount ?? 0,
         onOpenNotifications: _openNotifications,
         onOpenProfile: _openProfile,
@@ -531,6 +534,7 @@ class _ExamsScreen extends StatefulWidget {
     required this.theoreticalExamRepository,
     required this.oralExamRepository,
     required this.onOpenCases,
+    required this.onOpenSingleStation,
     required this.onOpenNotifications,
     required this.onOpenProfile,
     required this.unreadNotificationCount,
@@ -540,6 +544,7 @@ class _ExamsScreen extends StatefulWidget {
   final TheoreticalExamRepository theoreticalExamRepository;
   final OralExamRepository oralExamRepository;
   final VoidCallback onOpenCases;
+  final VoidCallback onOpenSingleStation;
   final VoidCallback onOpenNotifications;
   final VoidCallback onOpenProfile;
   final int unreadNotificationCount;
@@ -653,6 +658,8 @@ class _ExamsScreenState extends State<_ExamsScreen> {
         );
         return;
       case 'single_station':
+        widget.onOpenSingleStation();
+        return;
       case 'mini_osce':
       case 'branch_package':
       case 'cases':
@@ -1648,11 +1655,12 @@ class _ProgressHero extends StatelessWidget {
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 5),
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
                     decoration: BoxDecoration(
                       color: PratiCaseColors.white.withValues(alpha: 0.14),
-                      borderRadius:
-                          BorderRadius.circular(PratiCaseRadius.pill),
+                      borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
                       border: Border.all(
                         color: PratiCaseColors.white.withValues(alpha: 0.22),
                       ),
@@ -1660,8 +1668,11 @@ class _ProgressHero extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: const [
-                        Icon(Icons.trending_up_rounded,
-                            size: 13, color: PratiCaseColors.tealBright),
+                        Icon(
+                          Icons.trending_up_rounded,
+                          size: 13,
+                          color: PratiCaseColors.tealBright,
+                        ),
                         SizedBox(width: 5),
                         Text(
                           'Performans Özeti',
@@ -1681,8 +1692,7 @@ class _ProgressHero extends StatelessWidget {
                     height: 40,
                     decoration: BoxDecoration(
                       color: PratiCaseColors.white.withValues(alpha: 0.14),
-                      borderRadius:
-                          BorderRadius.circular(PratiCaseRadius.md),
+                      borderRadius: BorderRadius.circular(PratiCaseRadius.md),
                       border: Border.all(
                         color: PratiCaseColors.white.withValues(alpha: 0.2),
                       ),
@@ -1716,8 +1726,7 @@ class _ProgressHero extends StatelessWidget {
                     child: Text(
                       'ortalama',
                       style: TextStyle(
-                        color:
-                            PratiCaseColors.white.withValues(alpha: 0.70),
+                        color: PratiCaseColors.white.withValues(alpha: 0.70),
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
                       ),
@@ -1725,47 +1734,47 @@ class _ProgressHero extends StatelessWidget {
                   ),
                 ],
               ),
-          const SizedBox(height: 8),
-          Text(
-            summary.sessionCount == 0
-                ? 'Tamamlanan sınav karnesi oluştuğunda trendin burada görünür.'
-                : '${summary.sessionCount} oturumdan gelen klinik beceri ortalaması.',
-            style: TextStyle(
-              color: PratiCaseColors.white.withValues(alpha: 0.76),
-              fontSize: 13,
-              height: 1.4,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: _ProgressHeroMetric(
-                  label: 'Hedef',
-                  value: profile.target.isEmpty
-                      ? 'Belirlenmedi'
-                      : profile.target,
+              const SizedBox(height: 8),
+              Text(
+                summary.sessionCount == 0
+                    ? 'Tamamlanan sınav karnesi oluştuğunda trendin burada görünür.'
+                    : '${summary.sessionCount} oturumdan gelen klinik beceri ortalaması.',
+                style: TextStyle(
+                  color: PratiCaseColors.white.withValues(alpha: 0.76),
+                  fontSize: 13,
+                  height: 1.4,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _ProgressHeroMetric(
-                  label: 'Seri',
-                  value: '${profile.dailyStreak} gün',
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _ProgressHeroMetric(
-                  label: 'Odak',
-                  value: weakest?.label ?? '-',
-                ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: _ProgressHeroMetric(
+                      label: 'Hedef',
+                      value: profile.target.isEmpty
+                          ? 'Belirlenmedi'
+                          : profile.target,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _ProgressHeroMetric(
+                      label: 'Seri',
+                      value: '${profile.dailyStreak} gün',
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _ProgressHeroMetric(
+                      label: 'Odak',
+                      value: weakest?.label ?? '-',
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
         ],
       ),
     );

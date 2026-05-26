@@ -833,6 +833,33 @@ void main() {
     expect(find.text('Cüzdan'), findsOneWidget);
   });
 
+  testWidgets('single station opens a focused case picker', (tester) async {
+    await _setIPhone14Viewport(tester);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PratiCaseShell(
+          authRepository: _TestAuthRepository(),
+          homeRepository: _EmptyLiveHomeRepository(),
+          casesRepository: _FakeCasesRepository(),
+          progressRepository: _SingleStationProgressRepository(),
+          theoreticalExamRepository: _FakeTheoreticalExamRepository(),
+          oralExamRepository: _FakeOralExamRepository(),
+          onSignOut: () async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Sınavlar').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Tek İstasyon').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tek İstasyon Seç'), findsOneWidget);
+    expect(find.text('OSCE İstasyonları'), findsNothing);
+  });
+
   testWidgets('theoretical setup sends selected Medasi topics', (tester) async {
     await _setViewport(tester, const Size(390, 1200));
     final repository = _RecordingTheoreticalExamRepository();
@@ -1008,6 +1035,19 @@ class _FakeProgressRepository extends Fake implements ProgressRepository {
 
   @override
   Future<List<BadgeCard>> loadBadges() async => const [];
+}
+
+class _SingleStationProgressRepository extends _FakeProgressRepository {
+  @override
+  Future<List<ExamModeItem>> loadExamModes() async => const [
+    ExamModeItem(
+      id: 'single_station',
+      title: 'Tek İstasyon',
+      subtitle: 'Bir vaka seç, süreli OSCE akışına gir.',
+      iconKey: 'timer',
+      actionKey: 'single_station',
+    ),
+  ];
 }
 
 class _FakeTheoreticalExamRepository extends Fake

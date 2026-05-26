@@ -73,6 +73,7 @@ fi
 printf '\nLocal release assets\n'
 for file in \
   "$ROOT_DIR/supabase/functions/praticase-patient-turn/index.ts" \
+  "$ROOT_DIR/supabase/functions/praticase-speech/index.ts" \
   "$ROOT_DIR/supabase/functions/praticase-complete-session/index.ts" \
   "$ROOT_DIR/supabase/functions/praticase-theoretical-exam/index.ts" \
   "$ROOT_DIR/supabase/functions/praticase-oral-exam/index.ts" \
@@ -99,6 +100,7 @@ fi
 if command -v deno >/dev/null 2>&1; then
   if deno check \
     "$ROOT_DIR/supabase/functions/praticase-patient-turn/index.ts" \
+    "$ROOT_DIR/supabase/functions/praticase-speech/index.ts" \
     "$ROOT_DIR/supabase/functions/praticase-complete-session/index.ts" \
     "$ROOT_DIR/supabase/functions/praticase-theoretical-exam/index.ts" \
     "$ROOT_DIR/supabase/functions/praticase-oral-exam/index.ts" \
@@ -177,6 +179,7 @@ for key in "${required_praticase_store_secrets[@]}"; do
 done
 for function_name in \
   praticase-patient-turn \
+  praticase-speech \
   praticase-complete-session \
   praticase-theoretical-exam \
   praticase-oral-exam \
