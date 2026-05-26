@@ -5,7 +5,10 @@ import '../../app/theme/praticase_motion.dart';
 import '../../app/theme/praticase_tokens.dart';
 import 'responsive.dart';
 
-class PratiCaseSkeletonBlock extends StatelessWidget {
+/// Sürekli akan shimmer gradient'le yükleme hissini güçlendiren skeleton
+/// bloğu. Statik fade yerine soldan sağa kayan ince parlaklık şeridi
+/// kullanır — premium SaaS / fintech standartına yakın.
+class PratiCaseSkeletonBlock extends StatefulWidget {
   const PratiCaseSkeletonBlock({
     this.width = double.infinity,
     this.height = 16,
@@ -18,30 +21,52 @@ class PratiCaseSkeletonBlock extends StatelessWidget {
   final double radius;
 
   @override
+  State<PratiCaseSkeletonBlock> createState() => _PratiCaseSkeletonBlockState();
+}
+
+class _PratiCaseSkeletonBlockState extends State<PratiCaseSkeletonBlock>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))
+        ..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween<double>(begin: 0.72, end: 1),
-      duration: PratiCaseDurations.showcase,
-      curve: PratiCaseCurves.smooth,
-      builder: (context, opacity, child) => Opacity(
-        opacity: opacity,
-        child: child,
-      ),
-      child: Container(
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(radius),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              PratiCaseColors.surfaceContainerHighest.withValues(alpha: 0.82),
-              PratiCaseColors.white,
-              PratiCaseColors.surfaceContainerHighest.withValues(alpha: 0.68),
-            ],
-            stops: const [0, 0.52, 1],
-          ),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(widget.radius),
+      child: SizedBox(
+        width: widget.width,
+        height: widget.height,
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) {
+            // -1 → 1 doğrusal hareket: shimmer çubuk soldan sağa kayar.
+            final shift = _controller.value * 2 - 1;
+            return DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment(-1 + shift, 0),
+                  end: Alignment(0 + shift, 0),
+                  colors: [
+                    PratiCaseColors.surfaceContainerHighest
+                        .withValues(alpha: 0.55),
+                    PratiCaseColors.white.withValues(alpha: 0.92),
+                    PratiCaseColors.surfaceContainerHighest
+                        .withValues(alpha: 0.55),
+                  ],
+                  stops: const [0.0, 0.5, 1.0],
+                ),
+                color: PratiCaseColors.surfaceContainerHighest
+                    .withValues(alpha: 0.55),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -296,6 +321,11 @@ class PratiCaseGroupedSection extends StatelessWidget {
   }
 }
 
+/// 0'dan hedef değere doğru sayan animasyonlu sayı.
+///
+/// [formatter] verilirse her frame'de o uygulanır (örn. K/M kısaltma,
+/// para formatı). [maxLines]/[textAlign] alt-Text widget'ı için
+/// FittedBox + tek satır taşma kontrolü sağlar.
 class PratiCaseAnimatedNumber extends StatelessWidget {
   const PratiCaseAnimatedNumber({
     required this.value,
@@ -303,6 +333,10 @@ class PratiCaseAnimatedNumber extends StatelessWidget {
     this.suffix = '',
     this.style,
     this.duration = const Duration(milliseconds: 850),
+    this.curve = PratiCaseCurves.overshoot,
+    this.formatter,
+    this.maxLines = 1,
+    this.textAlign,
     super.key,
   });
 
@@ -311,15 +345,28 @@ class PratiCaseAnimatedNumber extends StatelessWidget {
   final String suffix;
   final TextStyle? style;
   final Duration duration;
+  final Curve curve;
+  final String Function(double value)? formatter;
+  final int maxLines;
+  final TextAlign? textAlign;
 
   @override
   Widget build(BuildContext context) {
     return TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: 0, end: value.toDouble()),
       duration: duration,
-      curve: PratiCaseCurves.overshoot,
+      curve: curve,
       builder: (context, animated, _) {
-        return Text('$prefix${animated.round()}$suffix', style: style);
+        final body = formatter != null
+            ? formatter!(animated)
+            : animated.round().toString();
+        return Text(
+          '$prefix$body$suffix',
+          style: style,
+          maxLines: maxLines,
+          textAlign: textAlign,
+          overflow: TextOverflow.ellipsis,
+        );
       },
     );
   }

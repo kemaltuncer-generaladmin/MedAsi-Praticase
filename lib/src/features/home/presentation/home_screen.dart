@@ -883,13 +883,19 @@ class _WeeklyActivityChart extends StatelessWidget {
           const SizedBox(height: 18),
           SizedBox(
             height: 120,
-            child: CustomPaint(
-              painter: _WeeklyBarsPainter(
-                values: values,
-                maxValue: maxValue == 0 ? 1 : maxValue,
-                todayIndex: todayIndex,
+            child: TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 0, end: 1),
+              duration: const Duration(milliseconds: 950),
+              curve: PratiCaseCurves.overshoot,
+              builder: (context, progress, _) => CustomPaint(
+                painter: _WeeklyBarsPainter(
+                  values: values,
+                  maxValue: maxValue == 0 ? 1 : maxValue,
+                  todayIndex: todayIndex,
+                  growth: progress,
+                ),
+                child: const SizedBox.expand(),
               ),
-              child: const SizedBox.expand(),
             ),
           ),
           const SizedBox(height: 8),
@@ -923,15 +929,19 @@ class _WeeklyBarsPainter extends CustomPainter {
     required this.values,
     required this.maxValue,
     required this.todayIndex,
+    this.growth = 1.0,
   });
 
   final List<double> values;
   final double maxValue;
   final int todayIndex;
 
+  /// Çubukların büyüme oranı (0.0 → 1.0). Sahneye geliş için animasyonla
+  /// kontrol edilir; çubuklar staggered olarak alttan yukarı doğru yükselir.
+  final double growth;
+
   @override
   void paint(Canvas canvas, Size size) {
-    // grid lines
     final gridPaint = Paint()
       ..color = PratiCaseColors.border.withValues(alpha: 0.6)
       ..strokeWidth = 1;
@@ -945,8 +955,16 @@ class _WeeklyBarsPainter extends CustomPainter {
     final barWidth = (slot * 0.46).clamp(8.0, 22.0);
 
     for (var i = 0; i < count; i++) {
+      // Staggered: her çubuğun kendi büyüme penceresi var.
+      // i=0 0.0-0.7 arasında büyür, sonuncusu 0.3-1.0 arasında.
+      final start = i / count * 0.30;
+      final end = start + 0.70;
+      final localGrowth =
+          ((growth - start) / (end - start)).clamp(0.0, 1.0);
+      final eased = Curves.easeOutCubic.transform(localGrowth);
+
       final isToday = i == todayIndex;
-      final ratio = (values[i] / maxValue).clamp(0.0, 1.0);
+      final ratio = (values[i] / maxValue).clamp(0.0, 1.0) * eased;
       final h = size.height * ratio;
       final left = i * slot + (slot - barWidth) / 2;
       final top = size.height - h;
@@ -968,9 +986,11 @@ class _WeeklyBarsPainter extends CustomPainter {
         ).createShader(rect.outerRect);
       canvas.drawRRect(rect, paint);
 
-      if (isToday) {
-        // small marker dot on top of today's bar
-        final dotPaint = Paint()..color = PratiCaseColors.gold;
+      if (isToday && eased > 0.9) {
+        final dotPaint = Paint()
+          ..color = PratiCaseColors.gold.withValues(
+            alpha: (eased - 0.9) * 10,
+          );
         canvas.drawCircle(Offset(left + barWidth / 2, top - 6), 3, dotPaint);
       }
     }
@@ -980,7 +1000,8 @@ class _WeeklyBarsPainter extends CustomPainter {
   bool shouldRepaint(covariant _WeeklyBarsPainter old) {
     return old.values.join('|') != values.join('|') ||
         old.todayIndex != todayIndex ||
-        old.maxValue != maxValue;
+        old.maxValue != maxValue ||
+        old.growth != growth;
   }
 }
 

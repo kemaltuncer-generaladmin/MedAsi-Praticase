@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 
+import 'praticase_accent.dart';
 import 'praticase_colors.dart';
 import 'praticase_motion.dart';
 import 'praticase_tokens.dart';
 
 abstract final class PratiCaseTheme {
-  static ThemeData light() {
+  /// Aktif accent rengine göre tema üretir. `accent` verilmezse
+  /// `PratiCaseAccent.instance.primary` (default teal) kullanılır.
+  static ThemeData light({Color? accent}) {
+    final primary = accent ?? PratiCaseAccent.instance.primary;
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: PratiCaseColors.teal,
-      primary: PratiCaseColors.teal,
+      seedColor: primary,
+      primary: primary,
       secondary: PratiCaseColors.gold,
       surface: PratiCaseColors.white,
     );
@@ -67,10 +71,9 @@ abstract final class PratiCaseTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: PratiCaseColors.teal,
+          backgroundColor: primary,
           foregroundColor: PratiCaseColors.white,
-          disabledBackgroundColor:
-              PratiCaseColors.teal.withValues(alpha: 0.35),
+          disabledBackgroundColor: primary.withValues(alpha: 0.35),
           disabledForegroundColor:
               PratiCaseColors.white.withValues(alpha: 0.85),
           minimumSize: const Size.fromHeight(54),
@@ -102,7 +105,7 @@ abstract final class PratiCaseTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: PratiCaseColors.teal,
+          foregroundColor: primary,
           textStyle: const TextStyle(fontWeight: FontWeight.w800),
         ),
       ),
@@ -125,8 +128,8 @@ abstract final class PratiCaseTheme {
           color: PratiCaseColors.muted,
           fontWeight: FontWeight.w700,
         ),
-        floatingLabelStyle: const TextStyle(
-          color: PratiCaseColors.teal,
+        floatingLabelStyle: TextStyle(
+          color: primary,
           fontWeight: FontWeight.w800,
         ),
         prefixIconColor: PratiCaseColors.slateBlue,
@@ -145,7 +148,7 @@ abstract final class PratiCaseTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-          borderSide: const BorderSide(color: PratiCaseColors.teal, width: 1.6),
+          borderSide: BorderSide(color: primary, width: 1.6),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(PratiCaseRadius.lg),

@@ -11,6 +11,7 @@ import '../features/oral_exam/data/oral_exam_repository.dart';
 import '../features/progress/data/progress_repository.dart';
 import '../features/shell/presentation/praticase_shell.dart';
 import '../features/theoretical_exam/data/theoretical_exam_repository.dart';
+import 'theme/praticase_accent.dart';
 import 'theme/praticase_colors.dart';
 import 'theme/praticase_motion.dart';
 import 'theme/praticase_theme.dart';
@@ -167,10 +168,12 @@ class _PratiCaseAppState extends State<PratiCaseApp> {
       bodyKey = 'auth';
     }
 
-    return MaterialApp(
+    return ListenableBuilder(
+      listenable: PratiCaseAccent.instance,
+      builder: (context, _) => MaterialApp(
       title: 'PratiCase',
       debugShowCheckedModeBanner: false,
-      theme: PratiCaseTheme.light(),
+      theme: PratiCaseTheme.light(accent: PratiCaseAccent.instance.primary),
       home: AnimatedSwitcher(
         duration: PratiCaseDurations.emphasized,
         switchInCurve: PratiCaseCurves.emphasized,
@@ -189,6 +192,7 @@ class _PratiCaseAppState extends State<PratiCaseApp> {
         },
         child: KeyedSubtree(key: ValueKey(bodyKey), child: body),
       ),
+    ),
     );
   }
 }

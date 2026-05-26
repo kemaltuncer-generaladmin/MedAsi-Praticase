@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../app/theme/praticase_accent.dart';
 import '../../../app/theme/praticase_colors.dart';
 import '../../../app/theme/praticase_tokens.dart';
 import '../../../shared/data/user_facing_error.dart';
@@ -519,6 +520,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: 16),
+              const _AccentPickerCard(),
               const SizedBox(height: 16),
               _SettingsSection(
                 title: 'Veri',
@@ -4084,6 +4087,211 @@ class _DailyGoalHero extends StatelessWidget {
             size: 54,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Settings ekranında "Görünüm" altında yer alan accent renk seçici kart.
+/// PratiCaseAccent.instance üzerinden global accent'i değiştirir.
+class _AccentPickerCard extends StatefulWidget {
+  const _AccentPickerCard();
+
+  @override
+  State<_AccentPickerCard> createState() => _AccentPickerCardState();
+}
+
+class _AccentPickerCardState extends State<_AccentPickerCard> {
+  @override
+  void initState() {
+    super.initState();
+    PratiCaseAccent.instance.addListener(_onAccentChanged);
+  }
+
+  @override
+  void dispose() {
+    PratiCaseAccent.instance.removeListener(_onAccentChanged);
+    super.dispose();
+  }
+
+  void _onAccentChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final current = PratiCaseAccent.instance.option;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            'Görünüm',
+            style: TextStyle(
+              color: PratiCaseColors.navy,
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: PratiCaseColors.white,
+            borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
+            border: Border.all(
+              color: PratiCaseColors.border.withValues(alpha: 0.78),
+            ),
+            boxShadow: PratiCaseShadows.card,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: current.primary.withValues(alpha: 0.12),
+                      borderRadius:
+                          BorderRadius.circular(PratiCaseRadius.md),
+                      border: Border.all(
+                        color: current.primary.withValues(alpha: 0.14),
+                      ),
+                    ),
+                    child: Icon(Icons.palette_outlined,
+                        color: current.primary, size: 19),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Vurgu Rengi',
+                          style: TextStyle(
+                            color: PratiCaseColors.navy,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Butonlar, ikonlar ve odak çerçeveleri seçimini kullanır.',
+                          style: TextStyle(
+                            color: PratiCaseColors.muted,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  for (final option in PratiCaseAccentOption.values) ...[
+                    Expanded(
+                      child: _AccentSwatch(
+                        option: option,
+                        selected: option == current,
+                        onTap: () =>
+                            PratiCaseAccent.instance.setOption(option),
+                      ),
+                    ),
+                    if (option != PratiCaseAccentOption.values.last)
+                      const SizedBox(width: 8),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AccentSwatch extends StatelessWidget {
+  const _AccentSwatch({
+    required this.option,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final PratiCaseAccentOption option;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: selected
+              ? option.primary.withValues(alpha: 0.08)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+          border: Border.all(
+            color: selected
+                ? option.primary
+                : PratiCaseColors.border.withValues(alpha: 0.6),
+            width: selected ? 1.6 : 1,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 240),
+              curve: Curves.easeOutCubic,
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [option.primary, option.bright],
+                ),
+                boxShadow: selected
+                    ? [
+                        BoxShadow(
+                          color: option.primary.withValues(alpha: 0.35),
+                          blurRadius: 12,
+                          spreadRadius: -2,
+                          offset: const Offset(0, 4),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: selected
+                  ? const Icon(Icons.check_rounded,
+                      color: Colors.white, size: 16)
+                  : null,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              option.label,
+              style: TextStyle(
+                color: selected ? option.primary : PratiCaseColors.muted,
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

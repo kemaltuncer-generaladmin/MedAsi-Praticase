@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/praticase_colors.dart';
+import '../../../app/theme/praticase_motion.dart';
 import '../../../app/theme/praticase_tokens.dart';
 import '../../../shared/ui/ui.dart';
 import '../data/store_controller.dart';
@@ -322,7 +323,6 @@ class _WalletBalanceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final balance = state.walletCoinBalance;
-    final formatted = _formatMc(balance);
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 20, 16, 20),
       decoration: BoxDecoration(
@@ -394,16 +394,30 @@ class _WalletBalanceCard extends StatelessWidget {
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
-                  child: Text(
-                    hidden ? '••••' : formatted,
-                    style: const TextStyle(
-                      color: PratiCaseColors.white,
-                      fontSize: 42,
-                      fontWeight: FontWeight.w900,
-                      height: 1.0,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
+                  child: hidden
+                      ? const Text(
+                          '••••',
+                          style: TextStyle(
+                            color: PratiCaseColors.white,
+                            fontSize: 42,
+                            fontWeight: FontWeight.w900,
+                            height: 1.0,
+                            letterSpacing: -0.5,
+                          ),
+                        )
+                      : PratiCaseAnimatedNumber(
+                          value: balance,
+                          duration: const Duration(milliseconds: 950),
+                          curve: PratiCaseCurves.overshoot,
+                          formatter: (animated) => _formatMc(animated),
+                          style: const TextStyle(
+                            color: PratiCaseColors.white,
+                            fontSize: 42,
+                            fontWeight: FontWeight.w900,
+                            height: 1.0,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(width: 8),
