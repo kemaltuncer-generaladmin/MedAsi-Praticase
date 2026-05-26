@@ -236,6 +236,7 @@ class SupabaseProgressRepository implements ProgressRepository {
   @override
   Future<ClinicalProgressSummary> loadClinicalProgressSummary() async {
     try {
+      final learningFeedback = await _loadLearningGapFeedback();
       final osceRows = await _client
           .schema('praticase')
           .from('session_result_cards')
@@ -288,7 +289,10 @@ class SupabaseProgressRepository implements ProgressRepository {
           _skillScore('management', 'Yönetim & Tedavi', totals),
         ],
         recentResults: _recentResults(rows),
-        feedback: _feedbackInsights(rows),
+        feedback: [
+          ...learningFeedback,
+          ..._feedbackInsights(rows),
+        ].take(4).toList(),
       );
     } on PostgrestException catch (error) {
       throw ProgressDataUnavailable(_message(error));
@@ -304,6 +308,7 @@ class SupabaseProgressRepository implements ProgressRepository {
             'id,branch_id,ended_at,total_score,max_score,reasoning_score,'
             'knowledge_score,communication_score,pace_score,professionalism_score,'
             'mentor_summary,improvement_points,missed_points,case_brief,'
+            'critical_errors,'
             'oral_exam_branches(title)',
           )
           .eq('status', 'completed')
@@ -346,7 +351,7 @@ class SupabaseProgressRepository implements ProgressRepository {
         },
       ],
       'improvement_points': _stringList(row['improvement_points']),
-      'critical_mistakes': const <String>[],
+      'critical_mistakes': _stringList(row['critical_errors']),
       'unnecessary_tests': const <String>[],
       'missed_history': _stringList(row['missed_points']),
       'missed_physical_exam': const <String>[],
@@ -798,6 +803,69 @@ class SupabaseProgressRepository implements ProgressRepository {
       if (improvement.isNotEmpty)
         ProgressFeedbackInsight(title: 'Klinik Öneriler', items: improvement),
     ].take(4).toList();
+  }
+
+  Future<List<ProgressFeedbackInsight>> _loadLearningGapFeedback() async {
+    try {
+      final rows = await _client
+          .schema('praticase')
+          .from('user_learning_gap_rollups')
+          .select(
+            'exam_kind,skill_code,skill_label,concept_label,topic,branch,'
+            'event_count,occurrence_count,critical_count,incorrect_count,'
+            'omitted_count,missed_count,unnecessary_count,unsafe_count,'
+            'personalization_score',
+          )
+          .order('personalization_score', ascending: false)
+          .limit(12);
+      final theoretical = <String>[];
+      final clinical = <String>[];
+      for (final row in rows) {
+        final rowMap = Map<String, dynamic>.from(row);
+        final item = _learningGapItem(rowMap);
+        if (item.isEmpty) continue;
+        if (_string(rowMap, 'exam_kind') == 'theoretical') {
+          if (theoretical.length < 3) theoretical.add(item);
+        } else if (clinical.length < 3) {
+          clinical.add(item);
+        }
+      }
+      return [
+        if (theoretical.isNotEmpty)
+          ProgressFeedbackInsight(
+            title: 'Kişisel Teorik Eksikler',
+            items: theoretical,
+          ),
+        if (clinical.isNotEmpty)
+          ProgressFeedbackInsight(
+            title: 'Klinik Performans Odakları',
+            items: clinical,
+          ),
+      ];
+    } on PostgrestException catch (error) {
+      if (_isMissingSource(error)) return const [];
+      rethrow;
+    }
+  }
+
+  String _learningGapItem(Map<String, dynamic> row) {
+    final concept = _string(row, 'concept_label').isNotEmpty
+        ? _string(row, 'concept_label')
+        : _string(row, 'topic').isNotEmpty
+        ? _string(row, 'topic')
+        : _string(row, 'branch');
+    if (concept.isEmpty) return '';
+    final skill = _string(row, 'skill_label');
+    final count = _int(row, 'occurrence_count');
+    final critical = _int(row, 'critical_count');
+    final suffix = critical > 0
+        ? '$critical kritik kayıt'
+        : count > 1
+        ? '$count tekrar'
+        : '1 kayıt';
+    return skill.isEmpty || concept.toLowerCase() == skill.toLowerCase()
+        ? '$concept - $suffix'
+        : '$concept / $skill - $suffix';
   }
 
   List<String> _topItems(List<Map<String, dynamic>> rows, String key) {

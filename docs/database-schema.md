@@ -494,7 +494,44 @@ Admin panel her tabloya şu ortak kolonlarla POST eder: `course`, `case_name`, `
 | `case_id` | uuid | PK, FK → `cases(id)` |
 | `sort_order` | integer | |
 | `reason` | text | |
+| `source` | text | manual / admin / learning_events |
+| `metadata` | jsonb | Öneriyi üreten kişisel öğrenme sinyali |
 | `created_at` | timestamptz | |
+| `updated_at` | timestamptz | |
+
+#### `praticase.user_learning_events`
+| Sütun | Tip | Notlar |
+|---|---|---|
+| `id` | uuid | PK |
+| `user_id` | uuid | FK → `auth.users(id)` |
+| `event_key` | text | Kullanıcı bazında idempotent olay anahtarı |
+| `exam_kind` | text | theoretical / osce / oral_exam |
+| `outcome` | text | incorrect / omitted / unsafe / unnecessary / missed / partial / low_score |
+| `severity` | text | critical / moderate / low |
+| `skill_code` | text | communication / history / physical / tests / diagnosis / management / clinical_reasoning / exam_strategy / knowledge |
+| `branch` | text | Ders/branş |
+| `topic` | text | Konu/vaka bağlamı |
+| `concept_label` | text | Alt konu, kritik hata veya kaçırılan başlık |
+| `session_id` | uuid | OSCE/sözlü oturum ID'si, nullable |
+| `case_id` | uuid | FK → `cases(id)`, nullable |
+| `question_id` | uuid | Qlinik ortak `public.questions` ID'si, nullable |
+| `source_table` | text | Olayı üreten kaynak tablo/fonksiyon |
+| `source_id` | text | Kaynak satır/attempt ID'si |
+| `evidence` | text | Kullanıcıya gösterilebilir kısa kanıt |
+| `user_action` | text | Seçilen yanıt/aksiyon özeti |
+| `mentor_hint` | text | Kişisel çalışma önerisi |
+| `metadata` | jsonb | tags, raw metadata, skor ve kaynak ayrıntıları |
+| `occurrence_count` | integer | Aynı olay tekrarlandığında artar |
+| `occurred_at` | timestamptz | |
+| `last_seen_at` | timestamptz | |
+| `created_at` | timestamptz | |
+| `updated_at` | timestamptz | |
+
+#### `praticase.user_learning_gap_rollups`
+Kullanıcının teorik, OSCE ve sözlü sınavlardan biriken kişisel açıklarını
+`exam_kind`, `skill_code`, `concept_label`, `topic` ve `branch` bazında özetleyen
+security-invoker view. Gelişim ekranı ve `learning_events` kaynaklı vaka
+önerileri bu görünümü kullanır.
 
 #### `praticase.user_bookmarked_cases`
 | Sütun | Tip | Notlar |

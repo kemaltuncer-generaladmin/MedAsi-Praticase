@@ -426,17 +426,42 @@ async function enforceQuestionRateLimit(
 }
 
 async function submitAttempt(admin: any, userId: string, body: JsonMap) {
-  const answers = Array.isArray(body.answers) ? body.answers : [];
+  const rawAnswers = Array.isArray(body.answers) ? body.answers : [];
   const elapsedSeconds = clampNumber(body.elapsedSeconds, 0, 24 * 60 * 60, 0);
   let syncedCount = 0;
+  let learningEventCount = 0;
+  let omittedCount = 0;
   let remainingQuestionQuota: number | null = null;
   const results = [];
+  const answers: { questionId: string; selectedIndex: number }[] = [];
 
-  for (const value of answers) {
+  for (const value of rawAnswers) {
     if (!isJsonMap(value)) continue;
     const questionId = stringValue(value.questionId);
     const selectedIndex = Number.parseInt(stringValue(value.selectedOptionId));
     if (!questionId || !Number.isFinite(selectedIndex)) continue;
+    answers.push({ questionId, selectedIndex });
+  }
+
+  const deliveredQuestionIds = uniqueStrings([
+    ...stringArray(body.questionIds),
+    ...answers.map((answer) => answer.questionId),
+  ]).slice(0, 100);
+  const validDeliveredQuestionIds = await deliveredQuestionIdsFor(
+    admin,
+    userId,
+    deliveredQuestionIds,
+  );
+  const questionRows = await questionDataFor(admin, [
+    ...validDeliveredQuestionIds,
+    ...answers.map((answer) => answer.questionId),
+  ]);
+  const answeredQuestionIds = new Set<string>();
+
+  for (const answer of answers) {
+    const questionId = answer.questionId;
+    const selectedIndex = answer.selectedIndex;
+    answeredQuestionIds.add(questionId);
     const { data, error } = await admin.rpc("submit_answer_compact", {
       p_user_id: userId,
       p_question_id: questionId,
@@ -465,18 +490,170 @@ async function submitAttempt(admin: any, userId: string, body: JsonMap) {
     }
     remainingQuestionQuota = numberValue(row.remaining_question_quota) ??
       remainingQuestionQuota;
+    if (row.is_correct !== true) {
+      const question = isJsonMap(row.question)
+        ? row.question
+        : questionRows.get(questionId);
+      if (question) {
+        const recorded = await recordTheoreticalLearningEvent(admin, userId, {
+          question: question as JsonMap,
+          outcome: "incorrect",
+          elapsedSeconds,
+          selectedIndex,
+          attemptId,
+          result: row,
+        });
+        if (recorded) learningEventCount += 1;
+      }
+    }
     results.push({ questionId, result: row });
   }
 
+  for (const questionId of validDeliveredQuestionIds) {
+    if (answeredQuestionIds.has(questionId)) continue;
+    const question = questionRows.get(questionId);
+    if (!question) continue;
+    const recorded = await recordTheoreticalLearningEvent(admin, userId, {
+      question: question as JsonMap,
+      outcome: "omitted",
+      elapsedSeconds,
+      selectedIndex: null,
+      attemptId: "",
+      result: {},
+    });
+    if (recorded) learningEventCount += 1;
+    omittedCount += 1;
+  }
+
   return {
-    submittedCount: answers.length,
+    submittedCount: rawAnswers.length,
     syncedCount,
+    omittedCount,
+    learningEventCount,
     remainingQuestionQuota,
     results,
     warning: syncedCount === answers.length
       ? ""
       : "Bazı yanıtlar ilerleme kaydına işlenemedi.",
   };
+}
+
+async function recordTheoreticalLearningEvent(
+  admin: any,
+  userId: string,
+  options: {
+    question: JsonMap;
+    outcome: "incorrect" | "omitted";
+    elapsedSeconds: number;
+    selectedIndex: number | null;
+    attemptId: string;
+    result: JsonMap;
+  },
+) {
+  const question = options.question;
+  const questionId = stringValue(question.id);
+  if (!questionId) return false;
+
+  const tags = stringArray(question.tags);
+  const metadata = isJsonMap(question.metadata) ? question.metadata : {};
+  const subject = stringValue(question.subject) || "Genel";
+  const topic = stringValue(question.topic) || "Genel";
+  const difficulty = stringValue(question.difficulty);
+  const subtopic = metadataValue(metadata, tags, "subtopic") || topic;
+  const questionType = metadataValue(metadata, tags, "question_type");
+  const cognitiveLevel = metadataValue(metadata, tags, "cognitive_level");
+  const confidence = metadataValue(metadata, tags, "confidence");
+  const skillCode = theoreticalSkillCode(questionType, cognitiveLevel);
+  const attemptSuffix = options.attemptId || questionId;
+  const eventKey = options.outcome === "incorrect"
+    ? `theoretical:incorrect:${attemptSuffix}`
+    : `theoretical:omitted:${questionId}`;
+  const selectedIndex = options.selectedIndex;
+  const correctIndex = numberValue(options.result.correct_index) ??
+    numberValue(question.correct_index);
+  const payload = {
+    p_user_id: userId,
+    p_event_key: eventKey,
+    p_exam_kind: "theoretical",
+    p_outcome: options.outcome,
+    p_severity: "moderate",
+    p_skill_code: skillCode,
+    p_branch: subject,
+    p_topic: topic,
+    p_concept_label: subtopic,
+    p_session_id: null,
+    p_case_id: null,
+    p_question_id: questionId,
+    p_source_table: options.outcome === "incorrect"
+      ? "question_attempts"
+      : "praticase-theoretical-exam",
+    p_source_id: options.attemptId || questionId,
+    p_evidence: stringValue(question.text),
+    p_user_action: selectedIndex === null
+      ? "Boş bırakıldı"
+      : `Seçilen seçenek indeksi: ${selectedIndex}`,
+    p_mentor_hint: options.outcome === "omitted"
+      ? "Boş bırakılan sorunun alt konusunu kısa tekrar planına al."
+      : "Yanlış yapılan sorunun alt konusunu ve bilişsel düzeyini tekrar et.",
+    p_metadata: {
+      subject,
+      topic,
+      subtopic,
+      difficulty,
+      question_type: questionType,
+      cognitive_level: cognitiveLevel,
+      confidence,
+      tags,
+      raw_metadata: metadata,
+      selected_index: selectedIndex,
+      correct_index: correctIndex,
+      elapsed_seconds: options.elapsedSeconds,
+      result: options.result,
+    },
+    p_refresh_recommendations: true,
+  };
+  const { error } = await admin.schema("praticase").rpc(
+    "record_user_learning_event",
+    payload,
+  );
+  return !error;
+}
+
+async function questionDataFor(admin: any, ids: string[]) {
+  const cleanIds = uniqueStrings(ids.filter((id) => id.length > 0)).slice(
+    0,
+    100,
+  );
+  if (cleanIds.length === 0) return new Map<string, JsonMap>();
+  const { data, error } = await admin
+    .from("questions")
+    .select("id,subject,topic,difficulty,text,tags,metadata,correct_index")
+    .in("id", cleanIds);
+  if (error) return new Map<string, JsonMap>();
+  return new Map(
+    (data ?? []).map((row: JsonMap) => [stringValue(row.id), row]),
+  );
+}
+
+async function deliveredQuestionIdsFor(
+  admin: any,
+  userId: string,
+  ids: string[],
+) {
+  const cleanIds = uniqueStrings(ids.filter((id) => id.length > 0)).slice(
+    0,
+    100,
+  );
+  if (cleanIds.length === 0) return [];
+  const { data, error } = await admin
+    .from("question_deliveries")
+    .select("question_id")
+    .eq("user_id", userId)
+    .in("question_id", cleanIds);
+  if (error) return [];
+  return uniqueStrings(
+    (data ?? []).map((row: JsonMap) => stringValue(row.question_id)),
+  );
 }
 
 async function answerDataFor(admin: any, ids: string[]) {
@@ -509,6 +686,41 @@ function publicExamQuestion(row: QuestionRow) {
     tags: stringArray(row.tags),
     metadata: isJsonMap(row.metadata) ? row.metadata : {},
   };
+}
+
+function theoreticalSkillCode(questionType: string, cognitiveLevel: string) {
+  const value = `${questionType} ${cognitiveLevel}`.toLowerCase();
+  if (
+    value.includes("diagnos") || value.includes("analysis") ||
+    value.includes("reason")
+  ) {
+    return "clinical_reasoning";
+  }
+  if (value.includes("management") || value.includes("treatment")) {
+    return "management";
+  }
+  if (value.includes("communication")) return "communication";
+  return "knowledge";
+}
+
+function metadataValue(metadata: JsonMap, tags: string[], key: string) {
+  const direct = stringValue(metadata[key]);
+  if (direct) return direct;
+  const prefix = `${key}:`;
+  const tag = tags.find((value) => value.startsWith(prefix));
+  return tag ? tag.slice(prefix.length).trim() : "";
+}
+
+function uniqueStrings(values: string[]) {
+  const seen = new Set<string>();
+  const unique: string[] = [];
+  for (const value of values) {
+    const trimmed = value.trim();
+    if (!trimmed || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    unique.push(trimmed);
+  }
+  return unique;
 }
 
 function withOrigin(payload: JsonMap, origin: string | null) {

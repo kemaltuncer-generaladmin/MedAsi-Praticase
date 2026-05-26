@@ -1286,7 +1286,8 @@ class _RecommendedCases extends StatelessWidget {
       return const _EmptyPanel(
         icon: Icons.recommend_rounded,
         title: 'Henüz öneri yok',
-        body: 'Kişiselleştirilmiş vaka önerilerin hazır olduğunda burada görünecek.',
+        body:
+            'Kişiselleştirilmiş vaka önerilerin hazır olduğunda burada görünecek.',
       );
     }
 
@@ -1310,7 +1311,7 @@ class _RecommendedCases extends StatelessWidget {
               for (final item in cases)
                 SizedBox(
                   width: cardWidth,
-                  height: 230,
+                  height: 260,
                   child: _RecommendedCaseCard(
                     width: cardWidth,
                     recommendedCase: item,
@@ -1322,7 +1323,7 @@ class _RecommendedCases extends StatelessWidget {
         }
         final cardWidth = (width - spacing) / 2;
         return SizedBox(
-          height: 250,
+          height: 280,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: cases.length,
@@ -1396,6 +1397,20 @@ class _RecommendedCaseCard extends StatelessWidget {
                   fontWeight: FontWeight.w800,
                 ),
               ),
+              if (recommendedCase.reason.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  recommendedCase.reason,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: PratiCaseColors.teal,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    height: 1.2,
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
               const Divider(color: PratiCaseColors.border),
               Row(

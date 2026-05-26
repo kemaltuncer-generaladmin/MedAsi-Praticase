@@ -145,6 +145,7 @@ class RecommendedCase {
     required this.points,
     required this.iconKey,
     required this.isBookmarked,
+    this.reason = '',
   });
 
   final String caseId;
@@ -154,6 +155,7 @@ class RecommendedCase {
   final int points;
   final String? iconKey;
   final bool isBookmarked;
+  final String reason;
 }
 
 class BadgeSummary {

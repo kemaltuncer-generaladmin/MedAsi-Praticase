@@ -112,7 +112,7 @@ class SupabaseHomeRepository implements HomeRepository {
           .schema('praticase')
           .from('user_recommended_cases')
           .select(
-            'case_id,title,branch,difficulty,points,icon_key,is_bookmarked,sort_order',
+            'case_id,title,branch,difficulty,points,icon_key,is_bookmarked,sort_order,reason,source',
           )
           .eq('user_id', userId)
           .order('sort_order')
@@ -144,6 +144,7 @@ class SupabaseHomeRepository implements HomeRepository {
             'points': row['points'],
             'icon_key': row['icon_key'],
             'is_bookmarked': false,
+            'reason': '',
           },
       ];
     } on PostgrestException catch (error) {
@@ -247,6 +248,7 @@ class SupabaseHomeRepository implements HomeRepository {
       points: _readInt(row, 'points'),
       iconKey: _readString(row, 'icon_key'),
       isBookmarked: row['is_bookmarked'] == true,
+      reason: _readString(row, 'reason') ?? '',
     );
   }
 

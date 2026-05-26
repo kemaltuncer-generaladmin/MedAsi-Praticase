@@ -96,6 +96,8 @@ class TheoreticalQuestion {
     this.correctOptionId,
     this.explanation = '',
     this.optionRationales = const <String>[],
+    this.tags = const <String>[],
+    this.metadata = const <String, dynamic>{},
   });
 
   final String id;
@@ -107,6 +109,8 @@ class TheoreticalQuestion {
   final String? correctOptionId;
   final String explanation;
   final List<String> optionRationales;
+  final List<String> tags;
+  final Map<String, dynamic> metadata;
 
   bool get canScore => correctOptionId != null && correctOptionId!.isNotEmpty;
 }

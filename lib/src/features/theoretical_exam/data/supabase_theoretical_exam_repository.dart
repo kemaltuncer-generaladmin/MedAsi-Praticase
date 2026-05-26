@@ -117,6 +117,7 @@ class SupabaseTheoreticalExamRepository implements TheoreticalExamRepository {
     ];
     final data = await _invoke('submit_attempt', {
       'answers': answers,
+      'questionIds': [for (final question in attempt.questions) question.id],
       'elapsedSeconds': elapsed.inSeconds,
       'startedAt': attempt.startedAt.toUtc().toIso8601String(),
     });
@@ -199,6 +200,8 @@ TheoreticalQuestion _question(Map<String, dynamic> row) {
         : correctIndex.toString(),
     explanation: _string(row, 'explanation'),
     optionRationales: _stringList(row['option_rationales']),
+    tags: _stringList(row['tags']),
+    metadata: _metadataMap(row['metadata']),
   );
 }
 
@@ -213,6 +216,12 @@ List<String> _stringList(Object? value) {
     ];
   }
   return const <String>[];
+}
+
+Map<String, dynamic> _metadataMap(Object? value) {
+  if (value is Map<String, dynamic>) return Map<String, dynamic>.from(value);
+  if (value is Map) return Map<String, dynamic>.from(value);
+  return const <String, dynamic>{};
 }
 
 int _compare(String a, String b) => a.toLowerCase().compareTo(b.toLowerCase());
