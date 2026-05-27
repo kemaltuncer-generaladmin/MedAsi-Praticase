@@ -144,7 +144,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                           widget.titleOverride ?? 'Medasi Cüzdanına hak ekle',
                       subtitle:
                           widget.subtitleOverride ??
-                          'Qlinik ile ortak Medasi Coin ve soru haklarını '
+                          'Medasi ekosistemindeki ortak Coin ve soru haklarını '
                               'App Store üzerinden güvenle yönet.',
                     ),
                     const SizedBox(height: 18),
@@ -308,7 +308,7 @@ class _BenefitList extends StatelessWidget {
     (
       Icons.account_balance_wallet_outlined,
       'Ortak cüzdan',
-      'Qlinik ve PratiCase aynı bakiye ve kota üzerinden çalışır.',
+      'Medasi ekosistemindeki tüm uygulamalar aynı bakiye ve kota üzerinden çalışır.',
     ),
     (
       Icons.verified_outlined,
@@ -378,6 +378,16 @@ class _BenefitList extends StatelessWidget {
   }
 }
 
+String _formatPrice(int cents, String currency) {
+  if (cents <= 0) return 'Ücretsiz';
+  final value = cents / 100;
+  final symbol = currency.trim().toUpperCase() == 'TRY' ? '₺' : currency;
+  final formatted = value == value.roundToDouble()
+      ? value.toStringAsFixed(0)
+      : value.toStringAsFixed(2).replaceFirst('.', ',');
+  return '$formatted $symbol';
+}
+
 class _ProductCard extends StatelessWidget {
   const _ProductCard({
     required this.product,
@@ -393,11 +403,10 @@ class _ProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final periodLabel = product.periodLabel;
     final priceText =
-        product.localizedPrice ??
-        '${(product.priceCents / 100).toStringAsFixed(2)} ${product.currency}';
+        product.localizedPrice ?? _formatPrice(product.priceCents, product.currency);
     final originalPriceText = product.originalPriceCents == null
         ? null
-        : '${(product.originalPriceCents! / 100).toStringAsFixed(2)} ${product.currency}';
+        : _formatPrice(product.originalPriceCents!, product.currency);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -550,12 +559,15 @@ class _PurchaseButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasStoreKitPrice = product?.localizedPrice != null;
     final disabled =
-        product == null || busy || product!.canPurchaseInPratiCase == false;
+        product == null || busy || product!.canPurchaseInPratiCase == false || !hasStoreKitPrice;
     final label = product == null
         ? 'Bir paket seçin'
         : !product!.canPurchaseInPratiCase
         ? 'Satın alma bu uygulamada hazır değil'
+        : !hasStoreKitPrice
+        ? 'Fiyat bilgisi yükleniyor…'
         : product!.isSubscription
         ? 'Aboneliği başlat'
         : 'Satın al';
@@ -637,8 +649,7 @@ class _RenewalDisclosure extends StatelessWidget {
 
   String _renewalText(PratiCaseStoreProduct product) {
     final price =
-        product.localizedPrice ??
-        '${(product.priceCents / 100).toStringAsFixed(2)} ${product.currency}';
+        product.localizedPrice ?? _formatPrice(product.priceCents, product.currency);
     final period = product.periodLabel.isNotEmpty
         ? product.periodLabel
         : '${product.durationDays} gün';

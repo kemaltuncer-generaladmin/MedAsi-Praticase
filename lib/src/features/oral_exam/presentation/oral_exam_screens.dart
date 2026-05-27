@@ -1882,6 +1882,7 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
         _confirmExit();
       },
       child: Scaffold(
+        resizeToAvoidBottomInset: true,
         backgroundColor: PratiCaseColors.softSurface,
         appBar: AppBar(
           title: const Text('Sözlü Sınav Odası'),

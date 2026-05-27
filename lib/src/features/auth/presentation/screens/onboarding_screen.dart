@@ -162,7 +162,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     24,
                     8,
                     24,
-                    16 + mediaPadding.bottom * 0.4,
+                    mediaPadding.bottom < 16 ? 16 : mediaPadding.bottom,
                   ),
                   child: Column(
                     children: [

@@ -179,6 +179,7 @@ class _PratiCaseAppState extends State<PratiCaseApp> {
         title: 'PratiCase',
         debugShowCheckedModeBanner: false,
         theme: PratiCaseTheme.light(accent: PratiCaseAccent.instance.primary),
+        themeMode: ThemeMode.light,
         home: AnimatedSwitcher(
           duration: PratiCaseDurations.emphasized,
           switchInCurve: PratiCaseCurves.emphasized,

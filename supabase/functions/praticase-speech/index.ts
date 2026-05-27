@@ -5,7 +5,7 @@ import {
   ttsModel,
   vertexConfigured,
 } from "../_shared/vertex_ai.ts";
-import { recordAiUsage } from "../_shared/medasi_coin.ts";
+import { chargeAiCoins } from "../_shared/medasi_coin.ts";
 
 type VoiceRole = "patient" | "mentor";
 
@@ -128,7 +128,7 @@ Deno.serve(async (request) => {
       voiceName,
       temperature: role === "mentor" ? 1.0 : 1.25,
     });
-    await recordAiUsage({
+    await chargeAiCoins({
       admin,
       userId: userResult.user.id,
       feature: "praticase-speech",

@@ -1194,8 +1194,8 @@ class _WalletPackageCard extends StatelessWidget {
     final symbol = currency.trim().toUpperCase() == 'TRY' ? '₺' : currency;
     final formatted = value == value.roundToDouble()
         ? value.toStringAsFixed(0)
-        : value.toStringAsFixed(2);
-    return symbol == '₺' ? '$formatted ₺' : '$formatted $symbol';
+        : value.toStringAsFixed(2).replaceFirst('.', ',');
+    return '$formatted $symbol';
   }
 }
 

@@ -342,7 +342,7 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
           exam_format: examFormat,
           scenario_id: scenarioId || null,
         },
-      }).catch(() => {});
+      }).catch((e) => console.error("praticase_oral_charge_failed", e?.message ?? e));
     } catch (error) {
       console.error("praticase_oral_start_vertex_failed", errorMessage(error));
       mentorMessage =
@@ -411,7 +411,7 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
           exam_format: examFormat,
           scenario_id: null,
         },
-      }).catch(() => {});
+      }).catch((e) => console.error("praticase_oral_charge_failed", e?.message ?? e));
     } catch (error) {
       console.error("praticase_oral_start_vertex_failed", errorMessage(error));
       caseBrief =
@@ -597,9 +597,9 @@ async function takeTurn(admin: any, userId: string, body: JsonMap) {
 
   const isPanelTurn = session.exam_format === "panel" && panel.length === 3;
   const panelContext = isPanelTurn
-    ? `\n\nKOMİTE MODU. Sınav masasında 3 hoca var:\n` +
+    ? `\n\nKOMİTE MODU — GERÇEK SÖZLÜ SINAV SİMÜLASYONU.\nSınav masasında 3 hoca var:\n` +
       panel.map((p: any) =>
-        `- ${p.title} (${
+        `- ${p.title} (persona_id="${p.id}", ${
           p.panel_role === "lead"
             ? "ana sorgulayıcı"
             : p.panel_role === "second"
@@ -607,10 +607,19 @@ async function takeTurn(admin: any, userId: string, body: JsonMap) {
             : "gözlemci"
         }): ${p.difficulty}`
       ).join("\n") +
-      `\n\nAdayın bu yanıtını üç hoca da aynı turda değerlendirir. ` +
-      `Her hoca kendi tonuyla en fazla bir kısa cümle konuşsun. ` +
-      `Yalnız "${activePersona.title}" konuşmasının sonunda TEK takip sorusu sorsun; ` +
-      `diğer iki hoca kesinlikle soru sormasın.`
+      `\n\nGERÇEK SÖZLÜ SINAV DAVRANIŞI:\n` +
+      `Bu gerçek bir tıp fakültesi sözlü sınav masasıdır. Üç hoca da CANLI, AKTİF ve SORGULAYICIDIR.\n` +
+      `Her hoca adayın son cevabına göre kendi uzmanlık alanından tepki verir VE soru sorabilir.\n\n` +
+      `KURALLAR:\n` +
+      `1) Üç hocanın üçü de adayın cevabına tepki verir — kısa klinik yorum + soru.\n` +
+      `2) Her hoca farklı açıdan sorar: biri tanıyı, biri tedaviyi, biri mekanizmayı sorgulayabilir.\n` +
+      `3) Sorular adayın verdiği cevabın üstüne biner — doğruysa derinleştirir, eksikse oraya yönlendirir, yanlışsa çelişkiyi sorgular.\n` +
+      `4) Hocalar aday cevabını duymazdan gelmez. Her mesaj adayın son söylediğiyle doğrudan bağlantılı olmalı.\n` +
+      `5) "Değerlendirmeye aldık", "Not ettik", "Komisyon değerlendirmesine aldım" gibi pasif klişeler KESİNLİKLE YASAK.\n` +
+      `6) Sınav bir SORU-CEVAP DİYALOĞUDUR: her tur yeni sorular getirir, her cevap yeni soruları tetikler.\n` +
+      `7) Her hocanın asks_question alanı true olabilir — soru sormak doğaldır ve beklenen davranıştır.\n` +
+      `8) Aday tek seferde 3 soruyla boğulmasın: her hoca EN FAZLA 1 soru sorsun, toplamda max 2-3 soru.\n` +
+      `9) Tüm hocaların persona_id değerlerini doğru kullan: ${panel.map((p: any) => `"${p.id}"`).join(", ")}.`
     : "";
 
   let parsed: JsonMap = {};
@@ -639,14 +648,18 @@ async function takeTurn(admin: any, userId: string, body: JsonMap) {
         `Görevin:\n` +
         `1) Adayın son cevabını gizli vaka bağlamına göre klinik olarak iç değerlendirmeye al.\n` +
         `2) Türkçe kısa hoca mesajı yaz: en fazla 2 cümle ve en fazla TEK yeni soru. ` +
-        `Görünür mesaj aday cevabını yönetir; doğru/yanlış bilgisini, eksikleri ve ideal yaklaşımı açıklamaz. ` +
-        `Eğer aday "öğretilmedi" derse sakin ve profesyonel sınav diliyle devam et. ` +
-        `Eğer süre <2dk kaldıysa "Şimdi sınavı bitirelim, son bir şey sorayım..." gibi kapatmaya yönel.\n` +
+        `Görünür mesajda adayın söylediğine MUTLAKA tepki ver — ne dediğini duyduğunu göster, sonra üzerine sor. ` +
+        `Örnek: "Tamam, antibiyotik başlayacağını söyledin ama hangi etkeni düşünüyorsun?" veya ` +
+        `"O muayene bulgusunu iyi yakaladın, peki ayırıcı tanıda başka ne düşünürsün?". ` +
+        `Doğru/yanlış bilgisini doğrudan söyleme ama adayın cevabıyla bağlantılı konuş. ` +
+        `Eğer aday "bilmiyorum/öğretilmedi" derse sakin ve profesyonel sınav diliyle başka açıdan sor. ` +
+        `Eğer süre <2dk kaldıysa "Son bir soru sorayım..." gibi kapatmaya yönel.\n` +
         (isPanelTurn
-          ? `3) JSON döndür: {"mentor_message":"${activePersona.title} tarafından sorulan tek takip sorusu",` +
-            `"committee_messages":[{"persona_id":"...","message":"...","asks_question":false},` +
-            `{"persona_id":"...","message":"...","asks_question":false},` +
-            `{"persona_id":"${activePersona.id}","message":"kısa sınav tepkisi ve tek soru","asks_question":true}],`
+          ? `3) JSON döndür: {"mentor_message":"${activePersona.title}'ın cevaba tepkisi + sorusu",` +
+            `"committee_messages":[` +
+            panel.map((p: any) =>
+              `{"persona_id":"${p.id}","message":"${p.title}'ın adayın cevabına tepkisi ve sorusu","asks_question":true}`
+            ).join(",") + `],`
           : `3) JSON döndür: {"mentor_message":"...",`) +
         `"is_followup":bool,"turn_evaluation":` +
         `{"score_delta":-10..15,"is_correct":bool,"moderation":"accepted|partial|unsafe|off_topic",` +
@@ -667,7 +680,7 @@ async function takeTurn(admin: any, userId: string, body: JsonMap) {
         }],
       }],
       temperature: 0.55,
-      maxOutputTokens: 1400,
+      maxOutputTokens: isPanelTurn ? 2000 : 1400,
       responseMimeType: "application/json",
     });
     parsed = safeParse(response.text);
@@ -685,8 +698,9 @@ async function takeTurn(admin: any, userId: string, body: JsonMap) {
       persona_id: activePersona.id,
       persona_title: activePersona.title,
       message: mentorMessage,
-      asks_question: isFollowup,
+      asks_question: true,
     }];
+  const hasAnyQuestion = mentorReplies.some((reply) => reply.asks_question);
   const questionMessage =
     mentorReplies.find((reply) => reply.asks_question)?.message ??
       mentorMessage;
@@ -704,7 +718,7 @@ async function takeTurn(admin: any, userId: string, body: JsonMap) {
         session_id: sessionId,
         exam_format: session.exam_format,
       },
-    }).catch(() => {});
+    }).catch((e) => console.error("praticase_oral_charge_failed", e?.message ?? e));
   }
 
   await admin.schema("praticase").from("oral_exam_turns").insert(
@@ -722,7 +736,7 @@ async function takeTurn(admin: any, userId: string, body: JsonMap) {
   return {
     mentor_message: questionMessage,
     committee_messages: mentorReplies,
-    is_followup: isFollowup,
+    is_followup: hasAnyQuestion,
     should_end: shouldEnd,
     remaining_seconds: remainingSeconds,
     turn_evaluation: turnEval,
@@ -795,10 +809,10 @@ async function skipQuestion(admin: any, userId: string, body: JsonMap) {
         }\n\n` +
         `${personalizationContract}\n\n` +
         (isPanelTurn
-          ? `KOMİSYON MODU: Üç hoca aynı turda birer kısa tepki verir; yalnız ` +
-            `${activePersona?.title} (persona_id="${activePersona?.id}") ` +
-            `asks_question=true ile TEK yeni soruyu sorar, diğer iki hoca ` +
-            `asks_question=false olur ve soru sormaz.`
+          ? `KOMİSYON MODU: Üç hoca da pas geçilmesine tepki verir ve yeni soru sorar. ` +
+            `Her hoca kendi karakteriyle kısa yorum + soru sorar (asks_question=true). ` +
+            `"Değerlendirmeye aldık" gibi pasif klişeler KESİNLİKLE YASAK. ` +
+            `Her hoca farklı klinik açıdan soru sorsun. Persona ID'ler: ${panel.map((p: any) => `"${p.id}"`).join(", ")}.`
           : `SOLO MOD: mentor_message alanına tepkiyi + tek yeni soruyu yaz.`),
       contents: [{
         role: "user",
@@ -824,7 +838,7 @@ async function skipQuestion(admin: any, userId: string, body: JsonMap) {
       persona_id: activePersona.id,
       persona_title: activePersona.title,
       message: mentorMessage,
-      asks_question: false,
+      asks_question: true,
     }];
 
   if (response) {
@@ -840,7 +854,7 @@ async function skipQuestion(admin: any, userId: string, body: JsonMap) {
         session_id: sessionId,
         exam_format: session.exam_format,
       },
-    }).catch(() => {});
+    }).catch((e) => console.error("praticase_oral_charge_failed", e?.message ?? e));
   }
 
   await admin.schema("praticase").from("oral_exam_turns").insert(
@@ -978,7 +992,7 @@ async function finalize(admin: any, userId: string, body: JsonMap) {
         session_id: sessionId,
         exam_format: session.exam_format,
       },
-    }).catch(() => {});
+    }).catch((e) => console.error("praticase_oral_charge_failed", e?.message ?? e));
   }
 
   const reasoning = clamp(numberValue(parsed.reasoning_score) ?? 0, 0, 40);
@@ -1137,7 +1151,8 @@ async function loadTurns(admin: any, sessionId: string) {
       "sequence,speaker,speaker_persona_id,message,is_followup,was_skipped,evaluation",
     )
     .eq("session_id", sessionId)
-    .order("sequence");
+    .order("sequence")
+    .limit(100);
   return data ?? [];
 }
 
@@ -1158,29 +1173,38 @@ function committeeReplies(
     ) as JsonMap[]
     : [];
 
-  const messageFor = (personaId: string) => {
-    const raw = rawMessages.find((message) =>
-      stringValue(message.persona_id) === personaId
-    );
-    return safeOralMentorMessage(raw?.message);
-  };
+  const replies: {
+    persona_id: string;
+    persona_title: string;
+    message: string;
+    asks_question: boolean;
+  }[] = [];
 
-  const comments = panel
-    .filter((persona: any) => persona.id !== activePersona.id)
-    .map((persona: any) => ({
-      persona_id: persona.id,
-      persona_title: persona.title,
-      message: messageFor(persona.id) ||
-        "Yanıtınızı komisyon değerlendirmesine aldım.",
-      asks_question: false,
-    }));
-  comments.push({
-    persona_id: activePersona.id,
-    persona_title: activePersona.title,
-    message: messageFor(activePersona.id) || fallbackMessage,
-    asks_question: true,
-  });
-  return comments;
+  for (const persona of panel) {
+    const raw = rawMessages.find((m) =>
+      stringValue(m.persona_id) === persona.id
+    );
+    const message = safeOralMentorMessage(raw?.message);
+    if (message) {
+      replies.push({
+        persona_id: persona.id,
+        persona_title: persona.title,
+        message,
+        asks_question: raw?.asks_question === true,
+      });
+    }
+  }
+
+  if (replies.length === 0) {
+    replies.push({
+      persona_id: activePersona.id,
+      persona_title: activePersona.title,
+      message: fallbackMessage,
+      asks_question: true,
+    });
+  }
+
+  return replies;
 }
 
 function safeParse(raw: string): JsonMap {

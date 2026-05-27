@@ -361,6 +361,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  static const _appVersion = 'v1.0.1';
   late Future<ProfileCard> _profileFuture;
 
   @override
@@ -610,7 +611,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _SettingsRow(
                     Icons.info_outline_rounded,
                     'Hakkında',
-                    value: 'v1.2.0',
+                    value: _appVersion,
                     onTap: () => _showInfo(
                       context,
                       'Hakkında',
