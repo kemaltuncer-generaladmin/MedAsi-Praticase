@@ -361,77 +361,102 @@ class SupabaseProgressRepository implements ProgressRepository {
 
   @override
   Future<List<NotificationCard>> loadNotifications() async {
-    try {
-      final rows = await _client
-          .schema('praticase')
-          .from('user_notification_cards')
-          .select('id,title,body,is_read,created_at')
-          .order('created_at', ascending: false);
-      return [for (final row in rows) _notification(row)];
-    } on PostgrestException catch (error) {
-      throw ProgressDataUnavailable(_message(error));
-    }
+    final data = await _sharedNotificationAction('list_notifications', {
+      'limit': 60,
+    });
+    final rows = data['notifications'] is List
+        ? data['notifications'] as List
+        : const <Object>[];
+    return [
+      for (final row in rows)
+        if (row is Map) _notification(Map<String, dynamic>.from(row)),
+    ];
   }
 
   @override
   Future<int> loadUnreadNotificationCount() async {
-    try {
-      final response = await _client
-          .schema('praticase')
-          .from('user_notifications')
-          .select('id')
-          .eq('is_read', false)
-          .count(CountOption.exact);
-      return response.count;
-    } on PostgrestException catch (error) {
-      throw ProgressDataUnavailable(_message(error));
+    final data = await _sharedNotificationAction('unread_notification_count');
+    return _int(data, 'unread_count');
+  }
+
+  @override
+  Stream<List<NotificationCard>> watchNotifications() async* {
+    if (_client.auth.currentUser == null) {
+      yield const <NotificationCard>[];
+      return;
+    }
+    while (_client.auth.currentUser != null) {
+      try {
+        yield await loadNotifications();
+      } on ProgressDataUnavailable {
+        // The initial request owns visible errors; keep a live subscription
+        // alive through short network interruptions.
+      }
+      await Future<void>.delayed(const Duration(seconds: 10));
     }
   }
 
   @override
-  Stream<List<NotificationCard>> watchNotifications() {
-    final user = _client.auth.currentUser;
-    if (user == null) return Stream.value(const <NotificationCard>[]);
-    return _client
-        .schema('praticase')
-        .from('user_notifications')
-        .stream(primaryKey: ['id'])
-        .eq('user_id', user.id)
-        .order('created_at', ascending: false)
-        .map((rows) => [for (final row in rows) _notification(row)]);
-  }
-
-  @override
-  Stream<int> watchUnreadNotificationCount() {
-    return watchNotifications().map(
-      (items) => items.where((item) => !item.isRead).length,
-    );
+  Stream<int> watchUnreadNotificationCount() async* {
+    if (_client.auth.currentUser == null) {
+      yield 0;
+      return;
+    }
+    while (_client.auth.currentUser != null) {
+      try {
+        yield await loadUnreadNotificationCount();
+      } on ProgressDataUnavailable {
+        // Preserve the last badge value while the shared inbox reconnects.
+      }
+      await Future<void>.delayed(const Duration(seconds: 10));
+    }
   }
 
   @override
   Future<void> markNotificationRead(String notificationId) async {
     if (notificationId.trim().isEmpty) return;
-    try {
-      await _client
-          .schema('praticase')
-          .from('user_notifications')
-          .update({'is_read': true})
-          .eq('id', notificationId);
-    } on PostgrestException catch (error) {
-      throw ProgressDataUnavailable(_message(error));
-    }
+    await _sharedNotificationAction('mark_notification_read', {
+      'delivery_id': notificationId,
+    });
   }
 
   @override
   Future<void> markAllNotificationsRead() async {
+    await _sharedNotificationAction('mark_all_notifications_read');
+  }
+
+  Future<Map<String, dynamic>> _sharedNotificationAction(
+    String action, [
+    Map<String, dynamic> payload = const <String, dynamic>{},
+  ]) async {
     try {
-      await _client
-          .schema('praticase')
-          .from('user_notifications')
-          .update({'is_read': true})
-          .eq('is_read', false);
-    } on PostgrestException catch (error) {
-      throw ProgressDataUnavailable(_message(error));
+      final response = await _client.functions.invoke(
+        'qlinik',
+        body: {'action': action, ...payload},
+      );
+      final data = response.data is Map
+          ? Map<String, dynamic>.from(response.data as Map)
+          : const <String, dynamic>{};
+      final error = data['error']?.toString().trim() ?? '';
+      if (error.isNotEmpty) {
+        throw ProgressDataUnavailable(
+          PratiCaseUserMessage.safe(
+            error,
+            fallback: 'Bildirimler şu anda alınamadı. Birazdan tekrar dene.',
+          ),
+        );
+      }
+      return data;
+    } on ProgressDataUnavailable {
+      rethrow;
+    } on FunctionException {
+      throw const ProgressDataUnavailable(
+        'Bildirimler şu anda alınamadı. Birazdan tekrar dene.',
+      );
+    } on Object {
+      throw const ProgressDataUnavailable(
+        'Bildirimler şu anda alınamadı. Birazdan tekrar dene.',
+      );
     }
   }
 
@@ -888,7 +913,7 @@ class SupabaseProgressRepository implements ProgressRepository {
       id: _string(row, 'id'),
       title: _string(row, 'title'),
       body: _string(row, 'body'),
-      isRead: row['is_read'] == true,
+      isRead: row['is_read'] == true || _string(row, 'read_at').isNotEmpty,
       createdAt:
           DateTime.tryParse(_string(row, 'created_at')) ?? DateTime.now(),
     );

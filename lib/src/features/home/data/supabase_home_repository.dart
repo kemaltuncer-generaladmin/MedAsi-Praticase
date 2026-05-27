@@ -27,9 +27,7 @@ class SupabaseHomeRepository implements HomeRepository {
       final continued = await _loadContinuedCase(authUser.id);
       final recommendations = await _loadRecommendations(authUser.id);
       final badge = await _loadBadgeSummary(authUser.id);
-      final unreadNotifications = await _loadUnreadNotificationCount(
-        authUser.id,
-      );
+      final unreadNotifications = await _loadUnreadNotificationCount();
 
       return HomeDashboard(
         user: HomeUser(
@@ -186,19 +184,22 @@ class SupabaseHomeRepository implements HomeRepository {
     }
   }
 
-  Future<int> _loadUnreadNotificationCount(String userId) async {
+  Future<int> _loadUnreadNotificationCount() async {
     try {
-      final response = await _client
-          .schema('praticase')
-          .from('user_notifications')
-          .select('id')
-          .eq('user_id', userId)
-          .eq('is_read', false)
-          .count(CountOption.exact);
-      return response.count;
-    } on PostgrestException catch (error) {
-      if (_isOptionalSourceMissing(error)) return 0;
-      rethrow;
+      final response = await _client.functions.invoke(
+        'qlinik',
+        body: {'action': 'unread_notification_count'},
+      );
+      final data = response.data is Map
+          ? Map<String, dynamic>.from(response.data as Map)
+          : const <String, dynamic>{};
+      final value = data['unread_count'];
+      if (value is num) return value.toInt();
+      return int.tryParse(value?.toString() ?? '') ?? 0;
+    } on FunctionException {
+      return 0;
+    } on Object {
+      return 0;
     }
   }
 
