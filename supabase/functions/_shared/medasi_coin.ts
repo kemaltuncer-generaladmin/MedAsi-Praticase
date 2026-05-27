@@ -83,12 +83,20 @@ export async function chargeAiCoins(options: {
 export async function syncWalletProfile(
   admin: SupabaseAdmin | null,
   userId: string,
-): Promise<void> {
-  if (!admin || !userId) return;
+): Promise<JsonMap> {
+  if (!admin || !userId) return {};
   try {
-    await admin.rpc("sync_wallet_profile", { p_user_id: userId });
+    const { data, error } = await admin.rpc("sync_wallet_profile", {
+      p_user_id: userId,
+    });
+    if (error) {
+      console.error("praticase_wallet_profile_sync_failed", error.message);
+      return {};
+    }
+    return isJsonMap(data) ? data : {};
   } catch (error) {
     console.error("praticase_wallet_profile_sync_failed", errorMessage(error));
+    return {};
   }
 }
 
@@ -100,93 +108,38 @@ export async function loadEffectiveWalletProfile(
     return { wallet_balance: 0, question_quota: 0 };
   }
 
-  await syncWalletProfile(admin, userId);
-
-  const rpcState = await loadWalletRpcState(admin, userId);
-  if (rpcState != null) return rpcState;
+  const syncedProfile = await syncWalletProfile(admin, userId);
 
   try {
     const { data: profile } = await query(admin.from("profiles"))
-      .select("wallet_balance,question_quota")
+      .select("wallet_balance,question_quota,ai_quota")
       .eq("id", userId)
       .maybeSingle();
-    if (profile != null) {
-      return {
-        wallet_balance: numberValue(profile.wallet_balance),
-        question_quota: Math.round(numberValue(profile.question_quota)),
-      };
-    }
+    return walletProfileSnapshot(
+      syncedProfile,
+      isJsonMap(profile) ? profile : {},
+    );
   } catch (_) {
-    // Optional shared mirror may be unavailable in isolated test/deploy envs.
+    return walletProfileSnapshot(syncedProfile);
   }
-
-  return await loadEntitlementWalletFallback(admin, userId);
 }
 
-async function loadEntitlementWalletFallback(
-  admin: SupabaseAdmin,
-  userId: string,
-): Promise<JsonMap> {
-  let walletBalance = 0;
-  let questionQuota = 0;
-  try {
-    const nowIso = new Date().toISOString();
-    const { data: rows } = await query(admin.from("wallet_entitlements"))
-      .select(
-        "remaining_coin_amount,remaining_question_amount,expires_at,status",
-      )
-      .eq("user_id", userId)
-      .eq("status", "active");
-    let coinSum = 0;
-    let questionSum = 0;
-    for (const row of ((rows ?? []) as JsonMap[])) {
-      const expires = stringValue(row.expires_at);
-      if (expires && expires <= nowIso) continue;
-      coinSum += numberValue(row.remaining_coin_amount);
-      questionSum += numberValue(row.remaining_question_amount);
-    }
-    walletBalance = coinSum;
-    questionQuota = Math.round(questionSum);
-  } catch (_) {
-    // Shared entitlement table is owned by the Medasi wallet schema.
-  }
+function walletProfileSnapshot(
+  syncedProfile: JsonMap,
+  profile: JsonMap = {},
+): JsonMap {
   return {
-    wallet_balance: walletBalance,
-    question_quota: questionQuota,
+    wallet_balance: nullableNumberValue(syncedProfile.wallet_balance) ??
+      nullableNumberValue(profile.wallet_balance) ?? 0,
+    question_quota: Math.round(
+      nullableNumberValue(syncedProfile.question_quota) ??
+        nullableNumberValue(profile.question_quota) ?? 0,
+    ),
+    ai_quota: Math.round(
+      nullableNumberValue(syncedProfile.ai_quota) ??
+        nullableNumberValue(profile.ai_quota) ?? 0,
+    ),
   };
-}
-
-async function loadWalletRpcState(
-  admin: SupabaseAdmin,
-  userId: string,
-): Promise<JsonMap | null> {
-  const rpcCandidates = [
-    "get_user_wallet_balance",
-    "wallet_state_for_user",
-    "medasi_wallet_state",
-    "medasi_user_wallet",
-    "user_wallet_state",
-  ];
-  for (const name of rpcCandidates) {
-    try {
-      const { data, error } = await admin.rpc(name, { p_user_id: userId });
-      if (error || data == null) continue;
-      if (typeof data === "number") {
-        return { wallet_balance: data, question_quota: 0 };
-      } else if (isJsonMap(data)) {
-        return {
-          wallet_balance: numberValue(data.wallet_balance) ||
-            numberValue(data.balance),
-          question_quota: Math.round(
-            numberValue(data.question_quota) || numberValue(data.questions),
-          ),
-        };
-      }
-    } catch (_) {
-      // Candidate RPC is optional; Qlinik deployments differ by generation.
-    }
-  }
-  return null;
 }
 
 export async function recordAiUsage(options: {
@@ -325,10 +278,6 @@ function nullableNumberValue(value: unknown): number | null {
 
 function numberValue(value: unknown): number {
   return nullableNumberValue(value) ?? 0;
-}
-
-function stringValue(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
 }
 
 function isJsonMap(value: unknown): value is JsonMap {

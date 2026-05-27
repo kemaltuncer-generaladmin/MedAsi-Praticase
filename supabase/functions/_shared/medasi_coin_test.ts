@@ -203,6 +203,16 @@ function fakeAdmin(
       };
     },
     async rpc(name: string, params: Record<string, unknown>) {
+      if (name === "sync_wallet_profile") {
+        return {
+          data: {
+            wallet_balance: options.remainingBalance ?? options.walletBalance,
+            question_quota: 0,
+            ai_quota: 0,
+          },
+          error: null,
+        };
+      }
       if (name !== "consume_ai_credits") {
         throw new Error(`Unexpected RPC ${name}`);
       }

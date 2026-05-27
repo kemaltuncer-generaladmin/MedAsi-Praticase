@@ -44,7 +44,7 @@ class SupabaseProgressRepository implements ProgressRepository {
     try {
       final response = await _client.functions.invoke(
         'praticase-storekit-verify',
-        body: {'action': 'catalog'},
+        body: {'action': 'store'},
       );
       final data = response.data is Map
           ? Map<String, dynamic>.from(response.data as Map)

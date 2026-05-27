@@ -73,7 +73,7 @@ Deno.serve(async (request) => {
   const action = stringValue(body.action) || "verify";
   const userId = authData.user.id;
 
-  if (action === "catalog") {
+  if (action === "catalog" || action === "store") {
     const payload = await loadCatalogPayload(admin, userId);
     return jsonResponse(payload, payload.error ? 503 : 200, origin);
   }
@@ -270,107 +270,55 @@ async function loadCatalogPayload(
 
 /// Kullanıcının kanonik MC + soru bakiyesini döner.
 ///
-/// Burada "en yüksek değeri seç" yapılmaz. MC ve soru kotası Qlinik ile aynı
-/// düşmek zorunda olduğu için tek state zinciri okunur:
-///   1. Varsa Qlinik/Medasi wallet state RPC'si
-///   2. `sync_wallet_profile` sonrası `public.profiles` mirror'ı
-///   3. Sadece eski/eksik deploy için `public.wallet_entitlements` fallback'i
+/// Qlinik canlı cüzdan sekmesiyle aynı sözleşme kullanılır:
+///   1. `sync_wallet_profile` çalışır.
+///   2. RPC'nin döndürdüğü snapshot birincil gerçek kabul edilir.
+///   3. `public.profiles` sadece aynı snapshot shape'i için mirror'dır.
 async function loadEffectiveWalletProfile(
   // deno-lint-ignore no-explicit-any
   admin: any,
   userId: string,
 ): Promise<JsonMap> {
-  await admin.rpc("sync_wallet_profile", { p_user_id: userId }).catch(() => {});
-
-  const rpcState = await loadWalletRpcState(admin, userId);
-  if (rpcState != null) return rpcState;
+  const { data: syncedData, error: syncError } = await admin.rpc(
+    "sync_wallet_profile",
+    { p_user_id: userId },
+  );
+  if (syncError) {
+    recordEvent("wallet_sync_failed", { message: syncError.message });
+  }
+  const syncedProfile = isJsonMap(syncedData) ? syncedData : {};
 
   try {
     const { data: profile } = await admin
       .from("profiles")
-      .select("wallet_balance,question_quota")
+      .select("wallet_balance,question_quota,ai_quota")
       .eq("id", userId)
       .maybeSingle();
-    if (profile != null) {
-      return {
-        wallet_balance: numberValue(profile.wallet_balance) ?? 0,
-        question_quota: Math.round(numberValue(profile.question_quota) ?? 0),
-      };
-    }
+    return walletProfileSnapshot(
+      syncedProfile,
+      isJsonMap(profile) ? profile : {},
+    );
   } catch (_) {
-    /* ignore */
+    return walletProfileSnapshot(syncedProfile);
   }
-
-  return await loadEntitlementWalletFallback(admin, userId);
 }
 
-async function loadEntitlementWalletFallback(
-  // deno-lint-ignore no-explicit-any
-  admin: any,
-  userId: string,
-): Promise<JsonMap> {
-  try {
-    const nowIso = new Date().toISOString();
-    const { data: rows } = await admin
-      .from("wallet_entitlements")
-      .select(
-        "remaining_coin_amount,remaining_question_amount,expires_at,status",
-      )
-      .eq("user_id", userId)
-      .eq("status", "active");
-    let coinSum = 0;
-    let qSum = 0;
-    for (const row of ((rows ?? []) as JsonMap[])) {
-      const expires = stringValue(row.expires_at);
-      if (expires && expires <= nowIso) continue;
-      coinSum += numberValue(row.remaining_coin_amount) ?? 0;
-      qSum += numberValue(row.remaining_question_amount) ?? 0;
-    }
-    return {
-      wallet_balance: coinSum,
-      question_quota: Math.round(qSum),
-    };
-  } catch (_) {
-    /* ignore */
-  }
-  return { wallet_balance: 0, question_quota: 0 };
-}
-
-async function loadWalletRpcState(
-  // deno-lint-ignore no-explicit-any
-  admin: any,
-  userId: string,
-): Promise<JsonMap | null> {
-  const rpcCandidates = [
-    "get_user_wallet_balance",
-    "wallet_state_for_user",
-    "medasi_wallet_state",
-    "medasi_user_wallet",
-    "user_wallet_state",
-  ];
-  for (const name of rpcCandidates) {
-    try {
-      const { data, error } = await admin.rpc(name, { p_user_id: userId });
-      if (error || data == null) continue;
-      // Dönüş scalar (sadece coin) veya jsonb {wallet_balance, question_quota}
-      // olabilir.
-      if (typeof data === "number") {
-        return { wallet_balance: data, question_quota: 0 };
-      } else if (isJsonMap(data)) {
-        const coin = numberValue(data.wallet_balance) ??
-          numberValue(data.balance) ?? 0;
-        const quota = numberValue(data.question_quota) ??
-          numberValue(data.questions) ?? 0;
-        return {
-          wallet_balance: coin,
-          question_quota: Math.round(quota),
-        };
-      }
-    } catch (_) {
-      /* RPC yok */
-    }
-  }
-  return null;
+function walletProfileSnapshot(
+  syncedProfile: JsonMap,
+  profile: JsonMap = {},
+): JsonMap {
+  return {
+    wallet_balance: numberValue(syncedProfile.wallet_balance) ??
+      numberValue(profile.wallet_balance) ?? 0,
+    question_quota: Math.round(
+      numberValue(syncedProfile.question_quota) ??
+        numberValue(profile.question_quota) ?? 0,
+    ),
+    ai_quota: Math.round(
+      numberValue(syncedProfile.ai_quota) ??
+        numberValue(profile.ai_quota) ?? 0,
+    ),
+  };
 }
 
 async function loadMappedCatalog(

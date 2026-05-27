@@ -17,7 +17,7 @@ class StoreKitRepository {
 
   Future<List<PratiCaseStoreProduct>> loadCatalog() async {
     final data = await _invoke(const {
-      'action': 'catalog',
+      'action': 'store',
     }, fallback: PratiCaseUserMessage.storeFailure);
     final rows = data['products'];
     // Edge function paketleri yükleyememiş ama bakiye geliyor olabilir
@@ -51,10 +51,9 @@ class StoreKitRepository {
     final user = _client.auth.currentUser;
     if (user == null) return const <WalletTransaction>[];
     try {
-      final data = await _invoke(
-        const {'action': 'wallet_transactions'},
-        fallback: 'İşlem geçmişi şu anda yüklenemedi.',
-      );
+      final data = await _invoke(const {
+        'action': 'wallet_transactions',
+      }, fallback: 'İşlem geçmişi şu anda yüklenemedi.');
       final rows = data['transactions'];
       if (rows is! List) return const <WalletTransaction>[];
       return [
