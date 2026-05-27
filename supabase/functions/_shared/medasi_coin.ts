@@ -108,36 +108,27 @@ export async function loadEffectiveWalletProfile(
     return { wallet_balance: 0, question_quota: 0 };
   }
 
-  const syncedProfile = await syncWalletProfile(admin, userId);
-
   try {
     const { data: profile } = await query(admin.from("profiles"))
       .select("wallet_balance,question_quota,ai_quota")
       .eq("id", userId)
       .maybeSingle();
-    return walletProfileSnapshot(
-      syncedProfile,
-      isJsonMap(profile) ? profile : {},
-    );
+    return walletProfileSnapshot(isJsonMap(profile) ? profile : {});
   } catch (_) {
-    return walletProfileSnapshot(syncedProfile);
+    return walletProfileSnapshot({});
   }
 }
 
 function walletProfileSnapshot(
-  syncedProfile: JsonMap,
-  profile: JsonMap = {},
+  profile: JsonMap,
 ): JsonMap {
   return {
-    wallet_balance: nullableNumberValue(syncedProfile.wallet_balance) ??
-      nullableNumberValue(profile.wallet_balance) ?? 0,
+    wallet_balance: nullableNumberValue(profile.wallet_balance) ?? 0,
     question_quota: Math.round(
-      nullableNumberValue(syncedProfile.question_quota) ??
-        nullableNumberValue(profile.question_quota) ?? 0,
+      nullableNumberValue(profile.question_quota) ?? 0,
     ),
     ai_quota: Math.round(
-      nullableNumberValue(syncedProfile.ai_quota) ??
-        nullableNumberValue(profile.ai_quota) ?? 0,
+      nullableNumberValue(profile.ai_quota) ?? 0,
     ),
   };
 }

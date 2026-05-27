@@ -251,9 +251,6 @@ async function loadCatalogPayload(
   admin: any,
   userId: string,
 ): Promise<JsonMap> {
-  await admin.rpc("sync_wallet_profile", { p_user_id: userId }).catch(() => {});
-  // Katalog null dönerse bile bakiye + warnings yine de tazelensin.
-  // Cüzdan ekranı paketler olmasa da MC bakiyesini gösterebilir.
   const products = await loadMappedCatalog(admin);
   const profile = await loadEffectiveWalletProfile(admin, userId);
   const warnings = await walletExpiryWarnings(admin, userId);
@@ -270,53 +267,37 @@ async function loadCatalogPayload(
 
 /// Kullanıcının kanonik MC + soru bakiyesini döner.
 ///
-/// Qlinik canlı cüzdan sekmesiyle aynı sözleşme kullanılır:
-///   1. `sync_wallet_profile` çalışır.
-///   2. RPC'nin döndürdüğü snapshot birincil gerçek kabul edilir.
-///   3. `public.profiles` sadece aynı snapshot shape'i için mirror'dır.
+/// Qlinik'in canlı dashboard/store ekranlarında görünen profil mirror'ı tek
+/// okuma kaynağıdır. Read endpointlerinde `sync_wallet_profile` çalıştırmayız;
+/// aksi halde eski Qlinik akışlarının `public.profiles` üzerine yazdığı canlı
+/// bakiye, entitlement toplamıyla ezilip 0 görünebilir.
 async function loadEffectiveWalletProfile(
   // deno-lint-ignore no-explicit-any
   admin: any,
   userId: string,
 ): Promise<JsonMap> {
-  const { data: syncedData, error: syncError } = await admin.rpc(
-    "sync_wallet_profile",
-    { p_user_id: userId },
-  );
-  if (syncError) {
-    recordEvent("wallet_sync_failed", { message: syncError.message });
-  }
-  const syncedProfile = isJsonMap(syncedData) ? syncedData : {};
-
   try {
     const { data: profile } = await admin
       .from("profiles")
       .select("wallet_balance,question_quota,ai_quota")
       .eq("id", userId)
       .maybeSingle();
-    return walletProfileSnapshot(
-      syncedProfile,
-      isJsonMap(profile) ? profile : {},
-    );
+    return walletProfileSnapshot(isJsonMap(profile) ? profile : {});
   } catch (_) {
-    return walletProfileSnapshot(syncedProfile);
+    return walletProfileSnapshot({});
   }
 }
 
 function walletProfileSnapshot(
-  syncedProfile: JsonMap,
-  profile: JsonMap = {},
+  profile: JsonMap,
 ): JsonMap {
   return {
-    wallet_balance: numberValue(syncedProfile.wallet_balance) ??
-      numberValue(profile.wallet_balance) ?? 0,
+    wallet_balance: numberValue(profile.wallet_balance) ?? 0,
     question_quota: Math.round(
-      numberValue(syncedProfile.question_quota) ??
-        numberValue(profile.question_quota) ?? 0,
+      numberValue(profile.question_quota) ?? 0,
     ),
     ai_quota: Math.round(
-      numberValue(syncedProfile.ai_quota) ??
-        numberValue(profile.ai_quota) ?? 0,
+      numberValue(profile.ai_quota) ?? 0,
     ),
   };
 }
@@ -494,13 +475,6 @@ async function loadWalletTransactionsPayload(
   admin: any,
   userId: string,
 ): Promise<JsonMap> {
-  // Bütün cüzdan okumaları aynı anda Qlinik tarafında da güncel görünsün
-  // diye önce paylaşılan profil mirror'unu eşitle. Bu RPC public.profiles
-  // (wallet_balance, question_quota) tablosunu paylaşılan
-  // wallet_entitlements + ai_usage_events gerçekliğine senkronlar.
-  await admin.rpc("sync_wallet_profile", { p_user_id: userId }).catch(
-    () => {},
-  );
   // Read all entitlements for the user (subscriptions + one-time purchases)
   // and map each row to a transaction-style event. This avoids requiring a
   // dedicated wallet_transactions table while still surfacing real purchases.
@@ -602,7 +576,6 @@ async function loadSubscriptionPayload(
   admin: any,
   userId: string,
 ): Promise<JsonMap> {
-  await admin.rpc("sync_wallet_profile", { p_user_id: userId }).catch(() => {});
   const { data: rows, error } = await admin
     .from("wallet_entitlements")
     .select(
