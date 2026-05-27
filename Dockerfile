@@ -29,7 +29,8 @@ RUN --mount=type=secret,id=praticase_env \
   cp web/flutter_service_worker.js build/web/flutter_service_worker.js; \
   WEB_REVISION="$(sha256sum build/web/main.dart.js | cut -c1-12)"; \
   sed -i "s#flutter_bootstrap.js#flutter_bootstrap.js?v=${WEB_REVISION}#" build/web/index.html; \
-  sed -i "s#main.dart.js#main.dart.js?v=${WEB_REVISION}#g" build/web/flutter_bootstrap.js
+  sed -i "s#main.dart.js#main.dart.js?v=${WEB_REVISION}#g" build/web/flutter_bootstrap.js; \
+  sed -i "s#serviceWorkerVersion: \"\\([0-9][0-9]*\\)\"#serviceWorkerVersion: \"\\1-${WEB_REVISION}\"#" build/web/flutter_bootstrap.js
 
 FROM nginx:1.27-alpine
 
