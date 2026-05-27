@@ -1,13 +1,48 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { Buffer } from "node:buffer";
+import { X509Certificate } from "node:crypto";
+
+// Supabase Edge Runtime (Deno node-compat) ships an X509Certificate where
+// `toString()` is an unimplemented stub. Apple's app-store-server-library
+// calls it while building the certificate chain and the whole verifier
+// blows up with "Not implemented: crypto.X509Certificate.prototype.toString".
+// Polyfill it from the DER bytes that `raw` already exposes — equivalent to
+// what Node does — BEFORE importing the Apple library so its first touch of
+// the prototype hits our implementation.
+installX509ToStringPolyfill();
+
 import {
   Environment,
   SignedDataVerifier,
   VerificationException,
   VerificationStatus,
 } from "npm:@apple/app-store-server-library@3.1.0";
-import { Buffer } from "node:buffer";
 import { defaultAppleRootCertificates } from "../_shared/apple_root_certificates.ts";
 import { corsHeaders, isAllowedOrigin, jsonResponse } from "../_shared/cors.ts";
+
+function installX509ToStringPolyfill() {
+  try {
+    const proto = (X509Certificate as unknown as {
+      prototype: { toString: (this: { raw?: Uint8Array }) => string };
+    }).prototype;
+    proto.toString = function (this: { raw?: Uint8Array }): string {
+      const der = this.raw;
+      if (!der || der.length === 0) return "[X509Certificate]";
+      let binary = "";
+      for (const byte of der) binary += String.fromCharCode(byte);
+      const base64 = btoa(binary);
+      const lines = base64.match(/.{1,64}/g) ?? [base64];
+      return `-----BEGIN CERTIFICATE-----\n${
+        lines.join("\n")
+      }\n-----END CERTIFICATE-----`;
+    };
+  } catch (error) {
+    console.warn(
+      "X509Certificate.prototype.toString polyfill could not be installed:",
+      error,
+    );
+  }
+}
 
 type JsonMap = Record<string, unknown>;
 
