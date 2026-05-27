@@ -25,7 +25,11 @@ RUN --mount=type=secret,id=praticase_env \
     --dart-define=PRIVACY_POLICY_URL="${PRIVACY_POLICY_URL:-https://praticase.medasi.com.tr/legal/privacy.html}" \
     --dart-define=TERMS_URL="${TERMS_URL:-https://praticase.medasi.com.tr/legal/terms.html}" \
     --dart-define=STUDY_TERMS_URL="${STUDY_TERMS_URL:-https://praticase.medasi.com.tr/legal/study-terms.html}" \
-    --dart-define=PURCHASE_TERMS_URL="${PURCHASE_TERMS_URL:-https://praticase.medasi.com.tr/legal/purchase-terms.html}"
+    --dart-define=PURCHASE_TERMS_URL="${PURCHASE_TERMS_URL:-https://praticase.medasi.com.tr/legal/purchase-terms.html}"; \
+  cp web/flutter_service_worker.js build/web/flutter_service_worker.js; \
+  WEB_REVISION="$(sha256sum build/web/main.dart.js | cut -c1-12)"; \
+  sed -i "s#flutter_bootstrap.js#flutter_bootstrap.js?v=${WEB_REVISION}#" build/web/index.html; \
+  sed -i "s#main.dart.js#main.dart.js?v=${WEB_REVISION}#g" build/web/flutter_bootstrap.js
 
 FROM nginx:1.27-alpine
 
