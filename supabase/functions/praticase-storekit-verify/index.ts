@@ -1367,7 +1367,7 @@ function signedDataVerifier(
 ) {
   return new SignedDataVerifier(
     config.rootCertificates,
-    true,
+    false,
     environment,
     config.bundleId,
     environment === Environment.PRODUCTION ? config.appAppleId : undefined,
