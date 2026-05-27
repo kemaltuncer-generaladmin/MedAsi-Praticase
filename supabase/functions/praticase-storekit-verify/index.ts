@@ -468,6 +468,14 @@ async function handlePaymentEntitlementWebhook(
   if (!product) {
     return jsonResponse({ error: "Seçilen paket bulunamadı." }, 404, origin);
   }
+  const signedApprovedAt = new Date(stringValue(body.approvedAt));
+  const periodStart = Number.isNaN(signedApprovedAt.getTime())
+    ? new Date()
+    : signedApprovedAt;
+  const durationDays = numberValue(product.duration_days) ?? 0;
+  const expiresAt = durationDays > 0
+    ? new Date(periodStart.getTime() + durationDays * 24 * 3600 * 1000)
+    : null;
   const { error } = await admin.rpc("grant_store_product", {
     p_user_id: userId,
     p_product_id: product.id,
@@ -481,8 +489,8 @@ async function handlePaymentEntitlementWebhook(
       reference,
       payload: body,
     },
-    p_started_at: stringValue(body.approvedAt) || new Date().toISOString(),
-    p_expires_at: null,
+    p_started_at: periodStart.toISOString(),
+    p_expires_at: expiresAt?.toISOString() ?? null,
   });
   if (error && !error.message.includes("Active subscription exists")) {
     return jsonResponse(
