@@ -646,16 +646,20 @@ async function loadSubscriptionPayload(
       // PratiCase'de link yok → Qlinik veya başka bir Medasi uygulamasından
       // satın alınmış olabilir. public şemada paylaşılan link tablosunu
       // dene; yoksa hata sessizce yutulur ve default kullanılır.
-      const { data: sharedLink } = await admin
-        .from("app_store_subscription_links")
-        .select("will_auto_renew")
-        .eq("user_id", userId)
-        .eq("product_code", stringValue(row.product_code))
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle()
-        .catch(() => ({ data: null }));
-      if (sharedLink?.will_auto_renew === false) willAutoRenew = false;
+      try {
+        const { data: sharedLink } = await admin
+          .from("app_store_subscription_links")
+          .select("will_auto_renew")
+          .eq("user_id", userId)
+          .eq("product_code", stringValue(row.product_code))
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (sharedLink?.will_auto_renew === false) willAutoRenew = false;
+      } catch (_) {
+        // Paylaşılan Apple link tablosu bu kurulumda yoksa yenileme durumu
+        // bilinmiyor kabul edilir; cüzdan bakiyesi yine canlı kalır.
+      }
     }
   }
   // Ortak entitlement toplamı, Qlinik ile aynı canlı RPC üzerinden okunur.
