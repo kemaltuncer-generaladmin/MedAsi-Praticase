@@ -53,6 +53,25 @@ class SubscriptionState {
   bool get isExpired =>
       expiresAt != null && DateTime.now().toUtc().isAfter(expiresAt!.toUtc());
 
+  SubscriptionState withWalletProfileFrom(SubscriptionState walletState) {
+    return SubscriptionState(
+      hasActiveSubscription: hasActiveSubscription,
+      productCode: productCode,
+      productName: productName,
+      expiresAt: expiresAt,
+      periodStartedAt: periodStartedAt,
+      willAutoRenew: willAutoRenew,
+      environment: environment,
+      transactionId: transactionId,
+      originalTransactionId: originalTransactionId,
+      walletCoinBalance: walletState.walletCoinBalance,
+      questionQuota: walletState.questionQuota,
+      remainingCoinAmount: remainingCoinAmount,
+      remainingQuestionAmount: remainingQuestionAmount,
+      warnings: {...warnings, ...walletState.warnings}.toList(),
+    );
+  }
+
   Duration? get remainingDuration {
     final expires = expiresAt;
     if (expires == null) return null;

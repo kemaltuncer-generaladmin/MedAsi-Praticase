@@ -14,11 +14,13 @@ class StoreKitRepository {
     : _client = client ?? Supabase.instance.client;
 
   final SupabaseClient _client;
+  SubscriptionState? _catalogWalletState;
 
   Future<List<PratiCaseStoreProduct>> loadCatalog() async {
     final data = await _invoke(const {
       'action': 'store',
     }, fallback: PratiCaseUserMessage.storeFailure);
+    _catalogWalletState = _walletStateFromCatalog(data);
     final rows = data['products'];
     // Edge function paketleri yükleyememiş ama bakiye geliyor olabilir
     // (catalog_unavailable: true). Bu durumda sessiz boş liste döndür —
@@ -37,11 +39,22 @@ class StoreKitRepository {
   Future<SubscriptionState> loadSubscriptionState() async {
     final user = _client.auth.currentUser;
     if (user == null) return SubscriptionState.empty;
-    final data = await _invoke(
-      const {'action': 'subscription_status'},
-      fallback: 'Abonelik bilgisi şu anda yüklenemedi. Tekrar deneyebilirsin.',
-    );
-    return SubscriptionState.fromVerificationResponse(data);
+    try {
+      final data = await _invoke(
+        const {'action': 'subscription_status'},
+        fallback:
+            'Abonelik bilgisi şu anda yüklenemedi. Tekrar deneyebilirsin.',
+      );
+      final state = SubscriptionState.fromVerificationResponse(data);
+      final catalogWalletState = _catalogWalletState;
+      return catalogWalletState == null
+          ? state
+          : state.withWalletProfileFrom(catalogWalletState);
+    } on StorePurchaseException {
+      final catalogWalletState = _catalogWalletState;
+      if (catalogWalletState != null) return catalogWalletState;
+      rethrow;
+    }
   }
 
   /// Cüzdan işlem geçmişini yükler. Edge fonksiyonu deploy edilmemişse
@@ -119,5 +132,12 @@ class StoreKitRepository {
     } on Object {
       throw StorePurchaseException(fallback, code: 'request_failed');
     }
+  }
+
+  SubscriptionState _walletStateFromCatalog(Map<String, dynamic> data) {
+    return SubscriptionState.fromVerificationResponse({
+      ...data,
+      'warnings': data['wallet_warnings'] ?? data['warnings'],
+    });
   }
 }

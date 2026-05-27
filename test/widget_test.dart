@@ -117,6 +117,33 @@ void main() {
     expect(state.remainingQuestionAmount, 30);
   });
 
+  test('wallet keeps catalog profile balance while enriching subscription', () {
+    final subscription = SubscriptionState.fromVerificationResponse({
+      'entitlement': {
+        'active': true,
+        'product_name': 'Aylık',
+        'remaining_coin_amount': 80,
+        'remaining_question_amount': 2500,
+      },
+      'profile': {'wallet_balance': 0, 'question_quota': 0},
+      'warnings': ['Abonelik uyarısı'],
+    });
+    final catalogWallet = SubscriptionState.fromVerificationResponse({
+      'profile': {'wallet_balance': '1459.20', 'question_quota': '2795'},
+      'warnings': ['Cüzdan uyarısı'],
+    });
+
+    final state = subscription.withWalletProfileFrom(catalogWallet);
+
+    expect(state.hasActiveSubscription, isTrue);
+    expect(state.productName, 'Aylık');
+    expect(state.walletCoinBalance, 1459.20);
+    expect(state.questionQuota, 2795);
+    expect(state.remainingCoinAmount, 80);
+    expect(state.remainingQuestionAmount, 2500);
+    expect(state.warnings, ['Abonelik uyarısı', 'Cüzdan uyarısı']);
+  });
+
   testWidgets('wallet surfaces shared balance and live MC consumption', (
     tester,
   ) async {
@@ -1213,12 +1240,15 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     await tester.tap(find.text('Sınavlar').last);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
     await tester.tap(find.text('Tek İstasyon').first);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('Tek İstasyon Seç'), findsOneWidget);
     expect(find.text('OSCE İstasyonları'), findsNothing);
