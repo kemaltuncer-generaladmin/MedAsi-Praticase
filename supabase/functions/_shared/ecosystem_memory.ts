@@ -9,6 +9,45 @@ export type PersonalizationMemory = {
   appSummary: JsonMap;
 };
 
+export function buildPersonalizationContract(
+  memory: PersonalizationMemory,
+  surface:
+    | "osce_patient"
+    | "osce_score"
+    | "oral_start"
+    | "oral_turn"
+    | "oral_skip"
+    | "oral_final",
+) {
+  const signals = extractMemorySignals(memory).slice(0, 10);
+  const primaryFocus = signals[0] ||
+    "Bu kullanıcı için henüz güvenilir kişisel eksik sinyali yok.";
+  const secondaryFocus = signals.slice(1, 3);
+  const surfaceRule = surface === "osce_patient"
+    ? "Hasta rolünde ipucu, koçluk, geçmiş hatırlatma veya öğretici açıklama verme. Kişisel odağı yalnız aday spesifik sorarsa doğal hasta cevabının hangi bilgiyi açacağına karar vermek için kullan."
+    : surface === "osce_score"
+    ? "Puanı yalnız bu oturum performansına göre ver. Kişisel odağı improvementPoints, missedHistory, missedPhysicalExam, missedTests ve idealApproach içinde tek sonraki deneme hamlesine dönüştür."
+    : surface === "oral_start"
+    ? "Vaka seçimi, açılış sorusu ve zorluk ayarını birincil kişisel odağa doğru kur; görünür metinde hafıza, geçmiş, tablo veya eksik listesi söyleme."
+    : surface === "oral_turn"
+    ? "Takip sorusunu ve turn_evaluation.missing_points alanını birincil kişisel odağa göre keskinleştir. Görünür hoca mesajında doğru cevabı öğretme veya hafızadan bahsetme."
+    : surface === "oral_skip"
+    ? "Pas sonrası yeni soruyu birincil kişisel açığı yoklayacak yönde seç. İdeal cevabı açıklama; tek yeni klinik soru sor."
+    : "Final karnesinde skora ek ceza yazma. mentor_summary, improvement_points, missed_points ve next_attempt_plan alanlarını birincil kişisel odağa bağla; bir sonraki deneme için ölçülebilir tek klinik drill öner.";
+
+  return [
+    "SON SEVİYE KİŞİSELLEŞTİRME SÖZLEŞMESİ - GİZLİ",
+    "Bu alan sadece AI davranışını yöneten arka plan eğitim sözleşmesidir; kullanıcıya hafıza, veritabanı, tablo, skor hafızası, önceki kayıt veya son 10 eksik diye anlatılmaz.",
+    `Birincil kişisel odak: ${primaryFocus}`,
+    ...secondaryFocus.map((focus) => `Yedek odak: ${focus}`),
+    surfaceRule,
+    "Her yanıtta/çıktıda en fazla bir kişisel odağı omurga yap; uzun eksik listesiyle öğrenciyi dağıtma.",
+    "Mevcut vaka veya cevap bu odağa uygun değilse zorla konu değiştirme; yalnız sonraki deneme planına kısa ve somut bir mikro aksiyon olarak bağla.",
+    "Gizli kişisel sinyal:",
+    memory.prompt || "Henüz kişisel eğitim hafızası sinyali yok.",
+  ].join("\n");
+}
+
 export async function loadPersonalizationMemory(
   // deno-lint-ignore no-explicit-any
   admin: any,
@@ -59,6 +98,22 @@ export async function loadPersonalizationMemory(
     praticaseSummary,
     appSummary,
   };
+}
+
+function extractMemorySignals(memory: PersonalizationMemory) {
+  if (!memory.available || !memory.prompt) return [];
+  const rawLines = memory.prompt.split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const bulletLines = rawLines
+    .filter((line) => line.startsWith("- "))
+    .map((line) => line.replace(/^-+\s*/, "").trim())
+    .filter(Boolean);
+  return uniqueStrings(bulletLines.length > 0 ? bulletLines : rawLines)
+    .filter((line) =>
+      !line.toLocaleLowerCase("tr").includes("gizli bağlam") &&
+      !line.toLocaleLowerCase("tr").includes("tablo")
+    );
 }
 
 function emptyMemory(): PersonalizationMemory {
