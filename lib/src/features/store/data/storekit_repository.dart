@@ -56,6 +56,29 @@ class StoreKitRepository {
     }
   }
 
+  Future<Uri> createPaymentCheckout({
+    required String productCode,
+    required String channel,
+  }) async {
+    final data = await _invoke({
+      'action': 'create_payment_checkout',
+      'product_code': productCode,
+      'channel': channel,
+    }, fallback: PratiCaseUserMessage.purchaseFailure);
+    final checkout = data['checkout'];
+    final checkoutData = checkout is Map
+        ? Map<String, dynamic>.from(checkout)
+        : const <String, dynamic>{};
+    final uri = Uri.tryParse((checkoutData['checkoutUrl'] ?? '').toString());
+    if (uri == null || !uri.hasScheme) {
+      throw const StorePurchaseException(
+        'Ödeme sayfası şu anda açılamadı. Lütfen tekrar dene.',
+        code: 'missing_checkout_url',
+      );
+    }
+    return uri;
+  }
+
   /// `praticase-storekit-verify` fonksiyonuna istek atar.
   Future<SubscriptionState> verifyPurchase({
     required String productCode,

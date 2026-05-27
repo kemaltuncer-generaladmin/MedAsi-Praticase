@@ -75,9 +75,9 @@ class _PaywallScreenState extends State<PaywallScreen> {
   PratiCaseStoreProduct? _defaultProduct() {
     final products = widget.controller.products;
     if (products.isEmpty) return null;
-    final available = products
-        .where((product) => product.canPurchaseInPratiCase)
-        .toList();
+    final available = widget.controller.supportsExternalCheckout
+        ? products
+        : products.where((product) => product.canPurchaseInPratiCase).toList();
     final selectable = available.isEmpty ? products : available;
     final featured = selectable.where((product) => product.isFeatured).toList();
     if (featured.isNotEmpty) return featured.first;
@@ -115,16 +115,17 @@ class _PaywallScreenState extends State<PaywallScreen> {
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         actions: [
-          TextButton(
-            onPressed: controller.busy ? null : _restore,
-            child: const Text(
-              'Geri Yükle',
-              style: TextStyle(
-                color: PratiCaseColors.teal,
-                fontWeight: FontWeight.w700,
+          if (controller.supportsAppStorePurchases)
+            TextButton(
+              onPressed: controller.busy ? null : _restore,
+              child: const Text(
+                'Geri Yükle',
+                style: TextStyle(
+                  color: PratiCaseColors.teal,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
-          ),
         ],
       ),
       body: SafeArea(
@@ -141,8 +142,11 @@ class _PaywallScreenState extends State<PaywallScreen> {
                           widget.titleOverride ?? 'Medasi Cüzdanına hak ekle',
                       subtitle:
                           widget.subtitleOverride ??
-                          'Medasi ekosistemindeki ortak Coin ve soru haklarını '
-                              'App Store üzerinden güvenle yönet.',
+                          (controller.supportsExternalCheckout
+                              ? 'Medasi ekosistemindeki ortak Coin ve soru haklarını '
+                                    'banka transferi ve dekont onayıyla yönet.'
+                              : 'Medasi ekosistemindeki ortak Coin ve soru haklarını '
+                                    'App Store üzerinden güvenle yönet.'),
                     ),
                     const SizedBox(height: 18),
                     const _BenefitList(),
@@ -176,10 +180,14 @@ class _PaywallScreenState extends State<PaywallScreen> {
                     _PurchaseButton(
                       product: _selected,
                       busy: controller.busy,
+                      externalCheckout: controller.supportsExternalCheckout,
                       onTap: _purchase,
                     ),
                     const SizedBox(height: 14),
-                    _RenewalDisclosure(product: _selected),
+                    _RenewalDisclosure(
+                      product: _selected,
+                      externalCheckout: controller.supportsExternalCheckout,
+                    ),
                     const SizedBox(height: 18),
                     _LegalLinks(
                       onOpenEula: () => _openUrl(PratiCaseLegal.termsUrl),
@@ -189,18 +197,19 @@ class _PaywallScreenState extends State<PaywallScreen> {
                           _openUrl(PratiCaseLegal.purchaseTermsUrl),
                     ),
                     const SizedBox(height: 12),
-                    Center(
-                      child: TextButton(
-                        onPressed: controller.busy ? null : _restore,
-                        child: const Text(
-                          'Önceki satın almalarımı geri yükle',
-                          style: TextStyle(
-                            color: PratiCaseColors.teal,
-                            fontWeight: FontWeight.w700,
+                    if (controller.supportsAppStorePurchases)
+                      Center(
+                        child: TextButton(
+                          onPressed: controller.busy ? null : _restore,
+                          child: const Text(
+                            'Önceki satın almalarımı geri yükle',
+                            style: TextStyle(
+                              color: PratiCaseColors.teal,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -548,11 +557,13 @@ class _PurchaseButton extends StatelessWidget {
   const _PurchaseButton({
     required this.product,
     required this.busy,
+    required this.externalCheckout,
     required this.onTap,
   });
 
   final PratiCaseStoreProduct? product;
   final bool busy;
+  final bool externalCheckout;
   final VoidCallback onTap;
 
   @override
@@ -560,9 +571,11 @@ class _PurchaseButton extends StatelessWidget {
     final disabled =
         product == null ||
         busy ||
-        product!.canPurchaseInPratiCase == false;
+        (!externalCheckout && product!.canPurchaseInPratiCase == false);
     final label = product == null
         ? 'Bir paket seçin'
+        : externalCheckout
+        ? 'Banka transferi ile öde'
         : !product!.canPurchaseInPratiCase
         ? 'Satın alma bu uygulamada hazır değil'
         : product!.isSubscription
@@ -620,13 +633,21 @@ class _StatusBanner extends StatelessWidget {
 }
 
 class _RenewalDisclosure extends StatelessWidget {
-  const _RenewalDisclosure({required this.product});
+  const _RenewalDisclosure({
+    required this.product,
+    required this.externalCheckout,
+  });
 
   final PratiCaseStoreProduct? product;
+  final bool externalCheckout;
 
   @override
   Widget build(BuildContext context) {
-    final localText = product?.isSubscription == true
+    final localText = externalCheckout
+        ? product?.isSubscription == true
+              ? _bankTransferSubscriptionText(product!)
+              : _bankTransferOneTimeText(product)
+        : product?.isSubscription == true
         ? _renewalText(product!)
         : _oneTimeText;
     return Text(
@@ -643,6 +664,23 @@ class _RenewalDisclosure extends StatelessWidget {
       'Tek seferlik satın alımdır. Otomatik yenileme yapılmaz. '
       'Ödeme Apple kimliğinize tanımlı yönteme yansır. '
       'Yüklenen MC veya soru hakkı Medasi Cüzdanınıza eklenir.';
+
+  String _bankTransferOneTimeText(PratiCaseStoreProduct? product) {
+    final days = product?.durationDays ?? 0;
+    final validity = days > 0 ? ' $days gün geçerlidir.' : '';
+    return 'Tek seferlik satın alımdır; otomatik yenilenmez.$validity '
+        'Banka transferi ve dekont onayı tamamlandığında haklar Medasi '
+        'Cüzdanınıza eklenir.';
+  }
+
+  String _bankTransferSubscriptionText(PratiCaseStoreProduct product) {
+    final days = product.durationDays > 0
+        ? '${product.durationDays} gün'
+        : product.periodLabel;
+    return 'Bu paket onaylanan her banka transferi için $days geçerlidir. '
+        'Otomatik yenileme yapılmaz; devam etmek için yeni ödeme onayı gerekir. '
+        'Dekont onaylandığında haklar Medasi Cüzdanınıza eklenir.';
+  }
 
   String _renewalText(PratiCaseStoreProduct product) {
     final price = _formatPrice(product.priceCents);

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart'
+    show debugDefaultTargetPlatformOverride;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
@@ -170,6 +172,8 @@ void main() {
   });
 
   test('PratiCase purchase grants the shared Medasi wallet product', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
     final repository = _RecordingStoreKitRepository();
     final service = _RecordingStoreKitService();
     final controller = StoreController(

@@ -66,6 +66,7 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
   Widget build(BuildContext context) {
     final controller = widget.controller;
     final state = controller.subscriptionState;
+    final usesAppStore = controller.supportsAppStorePurchases;
     return Scaffold(
       backgroundColor: PratiCaseColors.softSurface,
       appBar: AppBar(
@@ -87,7 +88,7 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
               _StatusCard(state: state),
               const SizedBox(height: 16),
               if (state.hasActiveSubscription) ...[
-                _DetailsCard(state: state),
+                _DetailsCard(state: state, usesAppStore: usesAppStore),
                 const SizedBox(height: 16),
               ],
               if (state.warnings.isNotEmpty)
@@ -95,8 +96,11 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
               const SizedBox(height: 8),
               _ActionsCard(
                 hasActiveSubscription: state.hasActiveSubscription,
+                usesAppStore: usesAppStore,
                 onManage: _openSubscriptionsSettings,
-                onRestore: controller.busy ? null : controller.restore,
+                onRestore: usesAppStore && !controller.busy
+                    ? controller.restore
+                    : null,
                 onUpgrade: _openPaywall,
               ),
               const SizedBox(height: 16),
@@ -109,7 +113,7 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
                   isError: false,
                 ),
               const SizedBox(height: 16),
-              const _FaqList(),
+              _FaqList(usesAppStore: usesAppStore),
             ],
           ),
         ),
@@ -283,9 +287,10 @@ class _StatusCard extends StatelessWidget {
 }
 
 class _DetailsCard extends StatelessWidget {
-  const _DetailsCard({required this.state});
+  const _DetailsCard({required this.state, required this.usesAppStore});
 
   final SubscriptionState state;
+  final bool usesAppStore;
 
   @override
   Widget build(BuildContext context) {
@@ -312,8 +317,10 @@ class _DetailsCard extends StatelessWidget {
             value: _formatDate(state.expiresAt),
           ),
           _DetailRow(
-            label: 'Otomatik yenileme',
-            value: state.willAutoRenew ? 'Açık' : 'Kapalı',
+            label: usesAppStore ? 'Otomatik yenileme' : 'Yenileme',
+            value: usesAppStore
+                ? (state.willAutoRenew ? 'Açık' : 'Kapalı')
+                : 'Yeni ödeme gerekli',
           ),
           _DetailRow(
             label: 'Kalan soru hakkı',
@@ -438,12 +445,14 @@ class _WarningsCard extends StatelessWidget {
 class _ActionsCard extends StatelessWidget {
   const _ActionsCard({
     required this.hasActiveSubscription,
+    required this.usesAppStore,
     required this.onManage,
     required this.onRestore,
     required this.onUpgrade,
   });
 
   final bool hasActiveSubscription;
+  final bool usesAppStore;
   final VoidCallback onManage;
   final VoidCallback? onRestore;
   final VoidCallback onUpgrade;
@@ -460,46 +469,55 @@ class _ActionsCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          ListTile(
-            leading: const Icon(
-              Icons.shopping_bag_outlined,
-              color: PratiCaseColors.teal,
+          if (usesAppStore) ...[
+            ListTile(
+              leading: const Icon(
+                Icons.shopping_bag_outlined,
+                color: PratiCaseColors.teal,
+              ),
+              title: Text(
+                hasActiveSubscription
+                    ? 'Aboneliği yönet / iptal et'
+                    : 'Apple aboneliklerimi aç',
+              ),
+              subtitle: const Text(
+                'App Store ayarlarına yönlendirir. İptal ve plan değişiklikleri '
+                'Apple tarafından yönetilir.',
+              ),
+              trailing: const Icon(Icons.open_in_new_rounded),
+              onTap: onManage,
             ),
-            title: Text(
-              hasActiveSubscription
-                  ? 'Aboneliği yönet / iptal et'
-                  : 'Apple aboneliklerimi aç',
-            ),
-            subtitle: const Text(
-              'App Store ayarlarına yönlendirir. İptal ve plan değişiklikleri '
-              'Apple tarafından yönetilir.',
-            ),
-            trailing: const Icon(Icons.open_in_new_rounded),
-            onTap: onManage,
-          ),
-          const Divider(height: 1, indent: 16, endIndent: 16),
-          ListTile(
-            leading: const Icon(
-              Icons.restore_rounded,
-              color: PratiCaseColors.teal,
-            ),
-            title: const Text('Satın almaları geri yükle'),
-            subtitle: const Text(
-              'Aynı Apple kimliğiyle yapılan tüm satın almaları yeniler.',
-            ),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: onRestore,
-          ),
-          if (!hasActiveSubscription) ...[
             const Divider(height: 1, indent: 16, endIndent: 16),
             ListTile(
               leading: const Icon(
-                Icons.workspace_premium_outlined,
+                Icons.restore_rounded,
+                color: PratiCaseColors.teal,
+              ),
+              title: const Text('Satın almaları geri yükle'),
+              subtitle: const Text(
+                'Aynı Apple kimliğiyle yapılan tüm satın almaları yeniler.',
+              ),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: onRestore,
+            ),
+          ],
+          if (!usesAppStore || !hasActiveSubscription) ...[
+            if (usesAppStore)
+              const Divider(height: 1, indent: 16, endIndent: 16),
+            ListTile(
+              leading: Icon(
+                usesAppStore
+                    ? Icons.workspace_premium_outlined
+                    : Icons.account_balance_outlined,
                 color: PratiCaseColors.gold,
               ),
-              title: const Text('Premium’a yükselt'),
-              subtitle: const Text(
-                'Aylık, yıllık veya yaşam boyu planlardan birini seç.',
+              title: Text(
+                usesAppStore ? 'Premium’a yükselt' : 'Paket seç ve ödeme yap',
+              ),
+              subtitle: Text(
+                usesAppStore
+                    ? 'Aylık, yıllık veya yaşam boyu planlardan birini seç.'
+                    : 'Banka transferi sonrası dekont onayı ile hakların tanımlanır.',
               ),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: onUpgrade,
@@ -550,9 +568,11 @@ class _StatusBanner extends StatelessWidget {
 }
 
 class _FaqList extends StatelessWidget {
-  const _FaqList();
+  const _FaqList({required this.usesAppStore});
 
-  static const _items = <(String, String)>[
+  final bool usesAppStore;
+
+  static const _appStoreItems = <(String, String)>[
     (
       'Ödeme nasıl alınır?',
       'Tüm satın alma işlemleri Apple Kimliğinize tanımlı ödeme yöntemi '
@@ -574,6 +594,25 @@ class _FaqList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final items = usesAppStore
+        ? _appStoreItems
+        : const <(String, String)>[
+            (
+              'Ödeme nasıl alınır?',
+              'Seçtiğiniz paket için banka transferi yapar ve ödeme sayfasına '
+                  'dekont yüklersiniz. Onaydan sonra hakkınız cüzdanınıza işlenir.',
+            ),
+            (
+              'Abonelik otomatik yenilenir mi?',
+              'Hayır. Banka transferiyle alınan süreli paket bitince devam etmek '
+                  'için yeni ödeme ve dekont onayı gerekir.',
+            ),
+            (
+              'Ödeme durumunu nereden görürüm?',
+              'Ödeme sayfasındaki sipariş takip ekranında e-posta adresiniz ve '
+                  'açıklama kodunuz ile durumu kontrol edebilirsiniz.',
+            ),
+          ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -597,7 +636,7 @@ class _FaqList extends StatelessWidget {
           ),
           child: Column(
             children: [
-              for (final entry in _items)
+              for (final entry in items)
                 ExpansionTile(
                   shape: const Border(),
                   collapsedShape: const Border(),

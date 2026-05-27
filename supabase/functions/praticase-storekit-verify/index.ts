@@ -53,7 +53,24 @@ Deno.serve(async (request) => {
   const admin = createClient(supabaseUrl, supabaseServiceRoleKey, {
     auth: { persistSession: false },
   });
-  const body = await request.json().catch(() => ({})) as JsonMap;
+  const rawBody = await request.text();
+  let body: JsonMap = {};
+  try {
+    const parsed = JSON.parse(rawBody || "{}");
+    body = isJsonMap(parsed) ? parsed : {};
+  } catch (_) {
+    body = {};
+  }
+  const action = stringValue(body.action) || "verify";
+  if (action === "payment_entitlement_webhook") {
+    return handlePaymentEntitlementWebhook(
+      admin,
+      request,
+      rawBody,
+      body,
+      origin,
+    );
+  }
   const signedPayload = stringValue(body.signedPayload);
   if (signedPayload) {
     return handleAppStoreNotification(admin, signedPayload, origin);
@@ -79,7 +96,6 @@ Deno.serve(async (request) => {
     );
   }
 
-  const action = stringValue(body.action) || "verify";
   const userId = authData.user.id;
 
   if (action === "catalog" || action === "store") {
@@ -95,6 +111,10 @@ Deno.serve(async (request) => {
   if (action === "wallet_transactions") {
     const payload = await loadWalletTransactionsPayload(admin, userId);
     return jsonResponse(payload, payload.error ? 503 : 200, origin);
+  }
+
+  if (action === "create_payment_checkout") {
+    return createPaymentCheckout(admin, authData.user, body, request, origin);
   }
 
   const productCode = stringValue(body.product_code);
@@ -282,6 +302,211 @@ Deno.serve(async (request) => {
   );
 });
 
+async function createPaymentCheckout(
+  // deno-lint-ignore no-explicit-any
+  admin: any,
+  user: { id: string; email?: string | null },
+  body: JsonMap,
+  request: Request,
+  origin: string | null,
+): Promise<Response> {
+  const productCode = stringValue(body.product_code);
+  if (!productCode) {
+    return jsonResponse({ error: "Paket kodu eksik." }, 400, origin);
+  }
+
+  const blockedCodes = await blockedSubscriptionProductCodes(admin, user.id);
+  if (blockedCodes.includes(productCode)) {
+    return jsonResponse(
+      { error: activeSubscriptionPurchaseMessage },
+      409,
+      origin,
+    );
+  }
+
+  const product = await loadPaymentProduct(admin, productCode);
+  if (!product) {
+    return jsonResponse({ error: "Seçilen paket bulunamadı." }, 404, origin);
+  }
+  const apiKey = stringValue(Deno.env.get("MEDASIPAY_API_KEY"));
+  if (!apiKey) {
+    return jsonResponse(
+      { error: "Ödeme servisi şu anda hazır değil." },
+      503,
+      origin,
+    );
+  }
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("email,first_name,last_name")
+    .eq("id", user.id)
+    .maybeSingle();
+  const email = stringValue(profile?.email) || stringValue(user.email);
+  if (!email) {
+    return jsonResponse(
+      { error: "Ödeme takibi için hesap e-postası gerekli." },
+      400,
+      origin,
+    );
+  }
+  const name = [
+    stringValue(profile?.first_name),
+    stringValue(profile?.last_name),
+  ].filter(Boolean).join(" ") || email;
+  const priceCents = numberValue(product.price_cents) ?? 0;
+  const currency = stringValue(product.currency) || "TRY";
+  const snapshot = {
+    id: stringValue(product.id),
+    code: stringValue(product.code),
+    name: stringValue(product.name),
+    description: stringValue(product.description),
+    price_cents: priceCents,
+    currency,
+    interval: stringValue(product.interval),
+    coin_amount: numberValue(product.coin_amount) ?? 0,
+    question_amount: numberValue(product.question_amount) ?? 0,
+    entitlement_kind: stringValue(product.entitlement_kind) || "one_time",
+    duration_days: numberValue(product.duration_days) ?? 0,
+  };
+  const checkoutPayload = {
+    product: "praticase",
+    channel: paymentChannel(body.channel),
+    accountId: user.id,
+    customerName: name,
+    customerEmail: email,
+    returnUrl: Deno.env.get("PRATICASE_PAYMENT_RETURN_URL") ??
+      "https://praticase.medasi.com.tr/",
+    webhookUrl: Deno.env.get("PRATICASE_PAYMENT_WEBHOOK_URL") ??
+      request.url,
+    currency,
+    items: [
+      {
+        sku: snapshot.code,
+        name: snapshot.name,
+        quantity: 1,
+        priceCents,
+        currency,
+        entitlementType: snapshot.entitlement_kind,
+        entitlementQuantity: paymentEntitlementQuantity(snapshot),
+        unit: paymentUnit(snapshot),
+        metadata: snapshot,
+      },
+    ],
+    metadata: {
+      source: "praticase",
+      app: "praticase",
+      userId: user.id,
+      userEmail: email,
+      product: snapshot,
+    },
+  };
+
+  const response = await fetch(
+    `${paymentServiceUrl()}/api/checkout-sessions`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-MedAsi-Api-Key": apiKey,
+      },
+      body: JSON.stringify(checkoutPayload),
+    },
+  );
+  const payload = await response.json().catch(() => ({})) as JsonMap;
+  if (!response.ok) {
+    return jsonResponse(
+      { error: stringValue(payload.error) || "Ödeme oturumu oluşturulamadı." },
+      response.status,
+      origin,
+    );
+  }
+  return jsonResponse({ checkout: payload, product: snapshot }, 200, origin);
+}
+
+async function handlePaymentEntitlementWebhook(
+  // deno-lint-ignore no-explicit-any
+  admin: any,
+  request: Request,
+  rawBody: string,
+  body: JsonMap,
+  origin: string | null,
+): Promise<Response> {
+  const secret = stringValue(
+    Deno.env.get("MEDASIPAY_WEBHOOK_SECRET") ??
+      Deno.env.get("PAYMENT_WEBHOOK_SECRET"),
+  );
+  if (!secret) {
+    return jsonResponse({ error: "Webhook imza anahtarı eksik." }, 503, origin);
+  }
+  const signature = request.headers.get("X-MedAsi-Signature") ?? "";
+  if (!(await verifyPaymentSignature(rawBody, signature, secret))) {
+    return jsonResponse({ error: "Webhook imzası geçersiz." }, 401, origin);
+  }
+  if (
+    stringValue(body.event) !== "payment.entitlement_granted" ||
+    stringValue(body.product).toLowerCase() !== "praticase"
+  ) {
+    return jsonResponse({ error: "Desteklenmeyen ödeme olayı." }, 400, origin);
+  }
+
+  const userId = stringValue(body.accountId);
+  const orderId = stringValue(body.orderId);
+  const reference = stringValue(body.reference);
+  const items = Array.isArray(body.items) ? body.items : [];
+  const firstItem = isJsonMap(items[0]) ? items[0] : {};
+  const productCode = stringValue(firstItem.sku ?? firstItem.code);
+  if (!userId || !orderId || !productCode) {
+    return jsonResponse(
+      { error: "Webhook sipariş bilgisi eksik." },
+      400,
+      origin,
+    );
+  }
+
+  const product = await loadPaymentProduct(admin, productCode);
+  if (!product) {
+    return jsonResponse({ error: "Seçilen paket bulunamadı." }, 404, origin);
+  }
+  const { error } = await admin.rpc("grant_store_product", {
+    p_user_id: userId,
+    p_product_id: product.id,
+    p_provider: "manual",
+    p_provider_transaction_id: `medasipay:${orderId}`,
+    p_status: "active",
+    p_raw_receipt: {
+      app: "praticase",
+      provider: "medasipay",
+      payment_order_id: orderId,
+      reference,
+      payload: body,
+    },
+    p_started_at: stringValue(body.approvedAt) || new Date().toISOString(),
+    p_expires_at: null,
+  });
+  if (error && !error.message.includes("Active subscription exists")) {
+    return jsonResponse(
+      { error: friendlyPurchaseGrantError(error.message) },
+      400,
+      origin,
+    );
+  }
+
+  recordEvent("medasipay_entitlement_granted", {
+    productCode,
+    orderId,
+    alreadyActive: Boolean(error),
+  });
+  return jsonResponse(
+    {
+      status: error ? "active_subscription_exists" : "ok",
+      profile: await loadEffectiveWalletProfile(admin, userId),
+    },
+    200,
+    origin,
+  );
+}
+
 async function loadCatalogPayload(
   // deno-lint-ignore no-explicit-any
   admin: any,
@@ -412,6 +637,22 @@ async function loadMappedProduct(
     stringValue(item.app_store_product_id) === storeProductId
   );
   return product ?? null;
+}
+
+async function loadPaymentProduct(
+  // deno-lint-ignore no-explicit-any
+  admin: any,
+  productCode: string,
+): Promise<JsonMap | null> {
+  const { data, error } = await admin
+    .from("store_products")
+    .select(
+      "id,code,name,description,price_cents,currency,interval,coin_amount,question_amount,entitlement_kind,duration_days",
+    )
+    .eq("code", productCode)
+    .eq("is_active", true)
+    .maybeSingle();
+  return error || !data ? null : data as JsonMap;
 }
 
 async function loadMappedProductByOverride(
@@ -814,6 +1055,69 @@ function friendlyPurchaseGrantError(message: string): string {
   return "Paket hakkın şu anda etkinleştirilemedi. Lütfen tekrar dene.";
 }
 
+function paymentChannel(value: unknown): string {
+  return stringValue(value).toLowerCase() === "android" ? "android" : "web";
+}
+
+function paymentUnit(product: JsonMap): string {
+  if (stringValue(product.entitlement_kind) === "subscription") {
+    return "abonelik";
+  }
+  if ((numberValue(product.question_amount) ?? 0) > 0) return "soru hakkı";
+  if ((numberValue(product.coin_amount) ?? 0) > 0) return "Medasi Coin";
+  return "paket";
+}
+
+function paymentEntitlementQuantity(product: JsonMap): number {
+  const questionAmount = numberValue(product.question_amount) ?? 0;
+  if (questionAmount > 0) return questionAmount;
+  const coinAmount = numberValue(product.coin_amount) ?? 0;
+  if (coinAmount > 0) return coinAmount;
+  return 1;
+}
+
+function paymentServiceUrl(): string {
+  const value = Deno.env.get("MEDASIPAY_API_URL") ??
+    Deno.env.get("MEDASI_PAYMENT_API_URL") ??
+    "https://odeme.medasi.com.tr";
+  const url = new URL(value);
+  if (url.protocol !== "https:" && url.hostname !== "localhost") {
+    throw new Error("MEDASIPAY_API_URL must use HTTPS.");
+  }
+  return url.toString().replace(/\/+$/, "");
+}
+
+async function verifyPaymentSignature(
+  rawBody: string,
+  signatureHeader: string,
+  secret: string,
+): Promise<boolean> {
+  const provided = stringValue(signatureHeader).replace(/^sha256=/i, "");
+  if (!/^[0-9a-f]{64}$/i.test(provided)) return false;
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signed = new Uint8Array(
+    await crypto.subtle.sign(
+      "HMAC",
+      key,
+      new TextEncoder().encode(rawBody),
+    ),
+  );
+  const expected = [...signed]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+  let difference = 0;
+  for (let index = 0; index < expected.length; index += 1) {
+    difference |= expected.charCodeAt(index) ^ provided.charCodeAt(index);
+  }
+  return difference === 0;
+}
+
 function aiUsageLabel(feature: string): string {
   switch (feature) {
     case "praticase-patient-turn":
@@ -857,8 +1161,7 @@ async function handleAppStoreNotification(
       return jsonResponse({ status: "ok" }, 200, origin);
     }
     const notificationUuid = stringValue(notification.notificationUUID);
-    const notificationData =
-      (notification.data as JsonMap | undefined) ?? {};
+    const notificationData = (notification.data as JsonMap | undefined) ?? {};
 
     const signedTransaction = stringValue(
       notificationData.signedTransactionInfo,
@@ -1268,9 +1571,9 @@ async function verifyWithAppStoreServerApi(
       );
     } catch (sandboxError) {
       failures.push(
-        `${config.source}: production=${errorMessage(productionError)}, sandbox=${
-          errorMessage(sandboxError)
-        }`,
+        `${config.source}: production=${
+          errorMessage(productionError)
+        }, sandbox=${errorMessage(sandboxError)}`,
       );
     }
   }
@@ -1309,7 +1612,9 @@ async function verifyAndDecodeAppleJws(
   for (let i = 0; i < chain.length - 1; i++) {
     const child = chain[i];
     const parent = chain[i + 1];
-    const ok = await child.verify({ publicKey: await parent.publicKey.export() });
+    const ok = await child.verify({
+      publicKey: await parent.publicKey.export(),
+    });
     if (!ok) {
       throw new Error(`Chain link ${i} is not signed by the next certificate`);
     }

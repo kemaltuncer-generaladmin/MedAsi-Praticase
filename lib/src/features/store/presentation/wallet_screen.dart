@@ -167,6 +167,7 @@ class _WalletScreenState extends State<WalletScreen>
               _WalletPackagesList(
                 products: products,
                 blockedProductCodes: controller.blockedProductCodes,
+                externalCheckout: controller.supportsExternalCheckout,
                 onSelect: controller.busy
                     ? (_) {}
                     : (product) => controller.purchase(product),
@@ -909,11 +910,13 @@ class _WalletPackagesList extends StatelessWidget {
   const _WalletPackagesList({
     required this.products,
     required this.onSelect,
+    required this.externalCheckout,
     this.blockedProductCodes = const <String>{},
   });
 
   final List<PratiCaseStoreProduct> products;
   final ValueChanged<PratiCaseStoreProduct> onSelect;
+  final bool externalCheckout;
   final Set<String> blockedProductCodes;
 
   @override
@@ -928,6 +931,7 @@ class _WalletPackagesList extends StatelessWidget {
       return _WalletPackageCard(
         product: product,
         blocked: blocked,
+        externalCheckout: externalCheckout,
         onTap: blocked ? null : () => onSelect(product),
       );
     }
@@ -966,11 +970,13 @@ class _WalletPackageCard extends StatelessWidget {
   const _WalletPackageCard({
     required this.product,
     required this.onTap,
+    required this.externalCheckout,
     this.blocked = false,
   });
 
   final PratiCaseStoreProduct product;
   final VoidCallback? onTap;
+  final bool externalCheckout;
   final bool blocked;
 
   @override
@@ -1006,198 +1012,200 @@ class _WalletPackageCard extends StatelessWidget {
               ),
               boxShadow: PratiCaseShadows.card,
             ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      product.localizedTitle?.trim().isNotEmpty == true
-                          ? product.localizedTitle!.trim()
-                          : product.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: PratiCaseColors.navy,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                  if (blocked) ...[
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 9,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: PratiCaseColors.successGreen.withValues(
-                          alpha: 0.14,
-                        ),
-                        borderRadius: BorderRadius.circular(
-                          PratiCaseRadius.pill,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Icon(
-                            Icons.check_circle_rounded,
-                            color: PratiCaseColors.successGreen,
-                            size: 12,
-                          ),
-                          SizedBox(width: 4),
-                          Text(
-                            'Aktif',
-                            style: TextStyle(
-                              color: PratiCaseColors.successGreen,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 0.2,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ] else if (showFeaturedBadge) ...[
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: PratiCaseColors.teal.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(
-                          PratiCaseRadius.pill,
-                        ),
-                      ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
                       child: Text(
-                        badgeText,
-                        style: const TextStyle(
-                          color: PratiCaseColors.teal,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Flexible(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        priceLabel,
+                        product.localizedTitle?.trim().isNotEmpty == true
+                            ? product.localizedTitle!.trim()
+                            : product.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: PratiCaseColors.navy,
-                          fontSize: 22,
+                          fontSize: 16,
                           fontWeight: FontWeight.w900,
-                          height: 1.0,
                         ),
                       ),
                     ),
-                  ),
-                  if (periodLabel.isNotEmpty) ...[
-                    const SizedBox(width: 6),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 2),
-                      child: Text(
-                        '/$periodLabel',
-                        style: const TextStyle(
-                          color: PratiCaseColors.muted,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
+                    if (blocked) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: PratiCaseColors.successGreen.withValues(
+                            alpha: 0.14,
+                          ),
+                          borderRadius: BorderRadius.circular(
+                            PratiCaseRadius.pill,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Icon(
+                              Icons.check_circle_rounded,
+                              color: PratiCaseColors.successGreen,
+                              size: 12,
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              'Aktif',
+                              style: TextStyle(
+                                color: PratiCaseColors.successGreen,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  ],
-                ],
-              ),
-              const SizedBox(height: 10),
-              if (product.coinAmount > 0 || product.questionAmount > 0)
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    if (product.coinAmount > 0)
-                      _PackageChip(
-                        icon: Icons.savings_outlined,
-                        label: '${product.coinAmount.toStringAsFixed(0)} MC',
+                    ] else if (showFeaturedBadge) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: PratiCaseColors.teal.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(
+                            PratiCaseRadius.pill,
+                          ),
+                        ),
+                        child: Text(
+                          badgeText,
+                          style: const TextStyle(
+                            color: PratiCaseColors.teal,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
                       ),
-                    if (product.questionAmount > 0)
-                      _PackageChip(
-                        icon: Icons.menu_book_outlined,
-                        label: '${product.questionAmount} soru',
-                      ),
+                    ],
                   ],
                 ),
-              if (product.description.trim().isNotEmpty) ...[
                 const SizedBox(height: 10),
-                Text(
-                  product.description.trim(),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: PratiCaseColors.muted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    height: 1.35,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          priceLabel,
+                          style: const TextStyle(
+                            color: PratiCaseColors.navy,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            height: 1.0,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (periodLabel.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 2),
+                        child: Text(
+                          '/$periodLabel',
+                          style: const TextStyle(
+                            color: PratiCaseColors.muted,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 10),
+                if (product.coinAmount > 0 || product.questionAmount > 0)
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      if (product.coinAmount > 0)
+                        _PackageChip(
+                          icon: Icons.savings_outlined,
+                          label: '${product.coinAmount.toStringAsFixed(0)} MC',
+                        ),
+                      if (product.questionAmount > 0)
+                        _PackageChip(
+                          icon: Icons.menu_book_outlined,
+                          label: '${product.questionAmount} soru',
+                        ),
+                    ],
                   ),
+                if (product.description.trim().isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    product.description.trim(),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: PratiCaseColors.muted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: blocked
+                      ? const [
+                          Icon(
+                            Icons.lock_outline_rounded,
+                            color: PratiCaseColors.muted,
+                            size: 16,
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            'Cüzdanında aktif',
+                            style: TextStyle(
+                              color: PratiCaseColors.muted,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ]
+                      : [
+                          Text(
+                            externalCheckout ? 'IBAN ile öde' : 'Satın Al',
+                            style: const TextStyle(
+                              color: PratiCaseColors.teal,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            externalCheckout
+                                ? Icons.account_balance_outlined
+                                : Icons.shopping_bag_rounded,
+                            color: PratiCaseColors.teal,
+                            size: 18,
+                          ),
+                        ],
                 ),
               ],
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: blocked
-                    ? const [
-                        Icon(
-                          Icons.lock_outline_rounded,
-                          color: PratiCaseColors.muted,
-                          size: 16,
-                        ),
-                        SizedBox(width: 6),
-                        Text(
-                          'Cüzdanında aktif',
-                          style: TextStyle(
-                            color: PratiCaseColors.muted,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ]
-                    : const [
-                        Text(
-                          'Satın Al',
-                          style: TextStyle(
-                            color: PratiCaseColors.teal,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 13,
-                          ),
-                        ),
-                        SizedBox(width: 4),
-                        Icon(
-                          Icons.shopping_bag_rounded,
-                          color: PratiCaseColors.teal,
-                          size: 18,
-                        ),
-                      ],
-              ),
-            ],
+            ),
           ),
         ),
       ),
-    ),
     );
   }
 

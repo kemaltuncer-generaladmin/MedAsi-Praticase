@@ -59,6 +59,29 @@ GOOGLE_VERTEX_SERVICE_ACCOUNT_JSON_BASE64=<base64 encoded service account json>
 Keep the service account out of Flutter code, screenshots, logs, and committed
 files. Set it only as a Supabase secret.
 
+## Web And Android Bank Transfer Payments
+
+Web and Android package selections create a MedAsi Pay checkout session and
+open `https://odeme.medasi.com.tr` for IBAN transfer and receipt upload. iOS
+continues to use StoreKit only; no bank-transfer navigation is displayed in
+the iOS purchase flow.
+
+Required Edge Function secrets for MedAsi Pay:
+
+```bash
+MEDASIPAY_API_URL=https://odeme.medasi.com.tr
+MEDASIPAY_API_KEY=<service checkout key>
+MEDASIPAY_WEBHOOK_SECRET=<shared webhook signature secret>
+PRATICASE_PAYMENT_RETURN_URL=https://praticase.medasi.com.tr/
+PRATICASE_PAYMENT_WEBHOOK_URL=https://qlinik.medasi.com.tr/functions/v1/praticase-storekit-verify
+```
+
+The checkout payload carries the selected live package snapshot, including
+`entitlement_kind` and `duration_days`. After receipt approval, the signed
+webhook grants the same shared Medasi wallet product. A subscription uses its
+configured validity period and is not automatically renewed by bank transfer;
+a one-time purchase uses its configured validity period as well.
+
 The deployment script applies PratiCase-owned migrations and publishes the six
 PratiCase Edge Functions. It does not replace the shared Qlinik store function
 or alter the Medasi payment contract used by the profile store flow.

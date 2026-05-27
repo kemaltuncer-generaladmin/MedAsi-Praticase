@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:url_launcher/url_launcher.dart' show LaunchMode, launchUrl;
 
 import '../../../shared/data/user_facing_error.dart';
 import '../domain/store_product.dart';
@@ -47,6 +48,9 @@ class StoreController extends ChangeNotifier {
   String? get statusMessage => _statusMessage;
   String? get errorMessage => _errorMessage;
   bool get isSupported => _service.isSupported;
+  bool get supportsAppStorePurchases => _service.isSupported;
+  bool get supportsExternalCheckout =>
+      kIsWeb || defaultTargetPlatform == TargetPlatform.android;
   bool get initialized => _initialized;
 
   Future<void> initialize() async {
@@ -93,6 +97,10 @@ class StoreController extends ChangeNotifier {
       notifyListeners();
       return;
     }
+    if (supportsExternalCheckout) {
+      await _openPaymentCheckout(product);
+      return;
+    }
     _setBusy(true);
     _errorMessage = null;
     _statusMessage = 'App Store ödeme onayı bekleniyor.';
@@ -107,6 +115,38 @@ class StoreController extends ChangeNotifier {
       _setBusy(false);
     } on Object {
       _errorMessage = PratiCaseUserMessage.purchaseFailure;
+      _setBusy(false);
+    }
+  }
+
+  Future<void> _openPaymentCheckout(PratiCaseStoreProduct product) async {
+    _setBusy(true);
+    _errorMessage = null;
+    _statusMessage = 'Banka transferi ödeme sayfası hazırlanıyor.';
+    try {
+      final uri = await _repo.createPaymentCheckout(
+        productCode: product.code,
+        channel: kIsWeb ? 'web' : 'android',
+      );
+      final launched = await launchUrl(
+        uri,
+        mode: kIsWeb
+            ? LaunchMode.platformDefault
+            : LaunchMode.externalApplication,
+        webOnlyWindowName: kIsWeb ? '_self' : null,
+      );
+      if (!launched) {
+        throw const StorePurchaseException(
+          'Ödeme sayfası şu anda açılamadı. Lütfen tekrar dene.',
+          code: 'checkout_launch_failed',
+        );
+      }
+      _statusMessage = 'Dekont yüklemen için ödeme sayfası açıldı.';
+    } on StorePurchaseException catch (error) {
+      _errorMessage = PratiCaseUserMessage.purchase(error.message);
+    } on Object {
+      _errorMessage = PratiCaseUserMessage.purchaseFailure;
+    } finally {
       _setBusy(false);
     }
   }
