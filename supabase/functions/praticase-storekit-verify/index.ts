@@ -1273,12 +1273,71 @@ async function verifySignedTransaction(
       Environment.SANDBOX,
     );
   } catch (sandboxError) {
+    // Diagnostic: kütüphanenin sadece status enum'unu vermesi yetmiyor.
+    // JWS başlığı/payload'undaki bundle/app id ile bizim config'i kıyaslayıp
+    // logla — sır içermez, hata daraltmaya yarar.
+    const jwsClaims = describeJwsForDiagnostics(signedTransaction);
+    recordEvent("signed_transaction_diagnostic", {
+      expectedBundle: config.bundleId,
+      expectedAppAppleId: config.appAppleId,
+      rootCertCount: config.rootCertificates.length,
+      productionStatus: verificationFailureCode(productionError),
+      productionMessage: deepErrorMessage(productionError),
+      sandboxStatus: verificationFailureCode(sandboxError),
+      sandboxMessage: deepErrorMessage(sandboxError),
+      jws: jwsClaims,
+    });
     throw new Error(
       `Apple signed transaction validation failed (production=${
         verificationFailureCode(productionError)
       }, sandbox=${verificationFailureCode(sandboxError)})`,
     );
   }
+}
+
+function describeJwsForDiagnostics(signedTransaction: string): JsonMap {
+  const parts = (signedTransaction || "").split(".");
+  if (parts.length !== 3) return { shape: "non_jws", segments: parts.length };
+  try {
+    const header = JSON.parse(b64UrlDecode(parts[0])) as JsonMap;
+    const payload = JSON.parse(b64UrlDecode(parts[1])) as JsonMap;
+    const x5c = Array.isArray(header.x5c) ? header.x5c as unknown[] : [];
+    return {
+      headerAlg: stringValue(header.alg),
+      headerKid: stringValue(header.kid),
+      x5cLength: x5c.length,
+      leafCertLength: x5c[0]
+        ? String((x5c[0] as string).length ?? 0).slice(0, 8)
+        : "0",
+      payloadBundleId: stringValue(payload.bundleId),
+      payloadAppAppleId: stringValue(payload.appAppleId),
+      payloadProductId: stringValue(payload.productId),
+      payloadEnvironment: stringValue(payload.environment),
+      payloadType: stringValue(payload.type),
+      payloadInAppOwnershipType: stringValue(payload.inAppOwnershipType),
+    };
+  } catch (error) {
+    return { decodeError: errorMessage(error) };
+  }
+}
+
+function b64UrlDecode(value: string): string {
+  const padded = value.replace(/-/g, "+").replace(/_/g, "/").padEnd(
+    value.length + ((4 - value.length % 4) % 4),
+    "=",
+  );
+  return new TextDecoder().decode(
+    Uint8Array.from(atob(padded), (char) => char.charCodeAt(0)),
+  );
+}
+
+function deepErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    const cause = (error as { cause?: unknown }).cause;
+    const causeText = cause != null ? ` cause=${errorMessage(cause)}` : "";
+    return `${error.name}: ${error.message}${causeText}`;
+  }
+  return String(error);
 }
 
 async function verifyNotificationPayload(signedPayload: string) {
