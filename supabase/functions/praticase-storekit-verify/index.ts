@@ -499,7 +499,17 @@ async function handlePaymentEntitlementWebhook(
     p_started_at: periodStart.toISOString(),
     p_expires_at: expiresAt.toISOString(),
   });
-  if (error && !error.message.includes("Active subscription exists")) {
+  if (error) {
+    if (error.message.includes("Active subscription exists")) {
+      return jsonResponse(
+        {
+          error: "Aktif abonelik nedeniyle ödeme hakkı tanımlanamadı.",
+          status: "active_subscription_exists",
+        },
+        409,
+        origin,
+      );
+    }
     return jsonResponse(
       { error: friendlyPurchaseGrantError(error.message) },
       400,
@@ -510,11 +520,11 @@ async function handlePaymentEntitlementWebhook(
   recordEvent("medasipay_entitlement_granted", {
     productCode,
     orderId,
-    alreadyActive: Boolean(error),
+    alreadyActive: false,
   });
   return jsonResponse(
     {
-      status: error ? "active_subscription_exists" : "ok",
+      status: "ok",
       profile: await loadEffectiveWalletProfile(admin, userId),
     },
     200,
@@ -1029,7 +1039,7 @@ async function blockedSubscriptionProductCodes(
 ): Promise<string[]> {
   const { data, error } = await admin
     .from("wallet_entitlements")
-    .select("product_code")
+    .select("product_code,purchase_id")
     .eq("user_id", userId)
     .eq("status", "active")
     .eq("entitlement_type", "subscription")
@@ -1039,8 +1049,41 @@ async function blockedSubscriptionProductCodes(
     return [];
   }
 
+  const entitlements = (data ?? []) as JsonMap[];
+  const purchaseIds = [
+    ...new Set(
+      entitlements.map((row) => stringValue(row.purchase_id)).filter(Boolean),
+    ),
+  ];
+  const sourceApps = new Map<string, string>();
+  if (purchaseIds.length > 0) {
+    const { data: purchases, error: purchaseError } = await admin
+      .from("purchases")
+      .select("id,raw_receipt")
+      .in("id", purchaseIds);
+    if (purchaseError) {
+      recordEvent("subscription_purchase_sources_failed", {
+        message: purchaseError.message,
+      });
+    } else {
+      for (const purchase of (purchases ?? []) as JsonMap[]) {
+        const receipt = isJsonMap(purchase.raw_receipt)
+          ? purchase.raw_receipt
+          : {};
+        sourceApps.set(
+          stringValue(purchase.id),
+          stringValue(receipt.app_key ?? receipt.app) || "qlinik",
+        );
+      }
+    }
+  }
+  const scopedEntitlements = sourceApps.size === 0 && purchaseIds.length > 0
+    ? entitlements
+    : entitlements.filter((row) =>
+      (sourceApps.get(stringValue(row.purchase_id)) || "qlinik") === "praticase"
+    );
   const activeCodes = new Set(
-    ((data ?? []) as JsonMap[])
+    scopedEntitlements
       .map((row) => stringValue(row.product_code))
       .filter(Boolean),
   );
