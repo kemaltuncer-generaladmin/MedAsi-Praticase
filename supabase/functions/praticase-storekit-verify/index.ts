@@ -10,6 +10,9 @@ import { corsHeaders, isAllowedOrigin, jsonResponse } from "../_shared/cors.ts";
 
 type JsonMap = Record<string, unknown>;
 
+const activeSubscriptionPurchaseMessage =
+  "Aktif aboneliğinin süresi bitmeden aynı abonelik tekrar alınamaz. Haftalıktan aylığa yükseltme yapabilirsin.";
+
 Deno.serve(async (request) => {
   const origin = request.headers.get("Origin");
 
@@ -128,16 +131,25 @@ Deno.serve(async (request) => {
     );
   }
 
-  if (!hasServerApiConfiguration()) {
+  const blockedSubscriptionCodes = await blockedSubscriptionProductCodes(
+    admin,
+    userId,
+  );
+  if (blockedSubscriptionCodes.includes(productCode)) {
     return jsonResponse(
-      { error: "Satın alma şu anda doğrulanamadı. Lütfen tekrar dene." },
-      503,
+      { error: activeSubscriptionPurchaseMessage },
+      409,
       origin,
     );
   }
+
   let appleResult: AppleReceipt;
   try {
-    appleResult = await verifyWithAppStoreServerApi(purchaseId, storeProductId);
+    appleResult = await verifyPurchase(
+      serverPayload,
+      purchaseId,
+      storeProductId,
+    );
   } catch (error) {
     recordEvent("verify_failed", {
       provider,
@@ -189,7 +201,7 @@ Deno.serve(async (request) => {
   );
   if (grantError) {
     return jsonResponse(
-      { error: "Paket hakkın şu anda etkinleştirilemedi. Lütfen tekrar dene." },
+      { error: friendlyPurchaseGrantError(grantError.message) },
       400,
       origin,
     );
@@ -244,10 +256,17 @@ async function loadCatalogPayload(
   userId: string,
 ): Promise<JsonMap> {
   const products = await loadMappedCatalog(admin);
+  const blockedProductCodes = await blockedSubscriptionProductCodes(
+    admin,
+    userId,
+  );
   const profile = await loadEffectiveWalletProfile(admin, userId);
   const warnings = await walletExpiryWarnings(admin, userId);
   return {
-    products: products ?? [],
+    products: (products ?? []).filter((product) =>
+      !blockedProductCodes.includes(stringValue(product.code))
+    ),
+    blocked_product_codes: blockedProductCodes,
     wallet_warnings: warnings,
     profile,
     // Sadece katalog gerçekten erişilemediyse warning olarak işaretle —
@@ -714,6 +733,54 @@ async function walletExpiryWarnings(
   });
 }
 
+async function blockedSubscriptionProductCodes(
+  // deno-lint-ignore no-explicit-any
+  admin: any,
+  userId: string,
+): Promise<string[]> {
+  const { data, error } = await admin
+    .from("wallet_entitlements")
+    .select("product_code")
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .eq("entitlement_type", "subscription")
+    .gt("expires_at", new Date().toISOString());
+  if (error) {
+    recordEvent("subscription_blocks_failed", { message: error.message });
+    return [];
+  }
+
+  const activeCodes = new Set(
+    ((data ?? []) as JsonMap[])
+      .map((row) => stringValue(row.product_code))
+      .filter(Boolean),
+  );
+  const blocked = new Set<string>();
+  if (activeCodes.has("weekly_subscription")) {
+    blocked.add("weekly_subscription");
+  }
+  if (activeCodes.has("monthly_subscription")) {
+    blocked.add("weekly_subscription");
+    blocked.add("monthly_subscription");
+  }
+  for (const code of activeCodes) {
+    if (code.endsWith("_subscription") && code !== "weekly_subscription") {
+      blocked.add(code);
+    }
+  }
+  return [...blocked].sort();
+}
+
+function friendlyPurchaseGrantError(message: string): string {
+  if (message.includes("Active subscription exists")) {
+    return activeSubscriptionPurchaseMessage;
+  }
+  if (message.includes("duplicate key") || message.includes("already")) {
+    return "Bu App Store işlemi daha önce işlendi. Bakiyeni yenileyip kontrol edebilirsin.";
+  }
+  return "Paket hakkın şu anda etkinleştirilemedi. Lütfen tekrar dene.";
+}
+
 function aiUsageLabel(feature: string): string {
   switch (feature) {
     case "praticase-patient-turn":
@@ -986,64 +1053,65 @@ type AppleReceipt = {
   autoRenew: boolean;
 };
 
-type AppStoreServerConfiguration = {
+type AppleVerifierConfiguration = {
   bundleId: string;
-  keyId: string;
-  issuerId: string;
-  privateKey: string;
   appAppleId: number;
   rootCertificates: Buffer[];
 };
 
-function hasServerApiConfiguration(): boolean {
-  return [
-    "PRATICASE_APP_STORE_PRIVATE_KEY_BASE64",
-    "PRATICASE_APP_STORE_KEY_ID",
-    "PRATICASE_APP_STORE_ISSUER_ID",
-    "PRATICASE_APP_STORE_APP_ID",
-  ].every((key) => Boolean(Deno.env.get(key)?.trim()));
-}
+type AppStoreServerConfiguration = AppleVerifierConfiguration & {
+  keyId: string;
+  issuerId: string;
+  privateKey: string;
+};
 
-function loadServerApiConfiguration(): AppStoreServerConfiguration {
+function loadVerifierConfiguration(): AppleVerifierConfiguration {
   const bundleId = Deno.env.get("PRATICASE_APP_STORE_BUNDLE_ID")?.trim() ||
     "com.medasi.praticase";
-  const keyId = Deno.env.get("PRATICASE_APP_STORE_KEY_ID")?.trim() ?? "";
-  const issuerId = Deno.env.get("PRATICASE_APP_STORE_ISSUER_ID")?.trim() ?? "";
-  const encodedPrivateKey =
-    Deno.env.get("PRATICASE_APP_STORE_PRIVATE_KEY_BASE64")?.trim() ?? "";
   const appAppleId = Number(Deno.env.get("PRATICASE_APP_STORE_APP_ID") ?? "");
   const encodedCertificates =
     Deno.env.get("PRATICASE_APPLE_ROOT_CA_CERTIFICATES_BASE64")?.trim() ?? "";
 
-  if (
-    !keyId ||
-    !issuerId ||
-    !encodedPrivateKey ||
-    !Number.isSafeInteger(appAppleId) ||
-    appAppleId <= 0
-  ) {
-    throw new Error("App Store Server API configuration is incomplete");
+  if (!Number.isSafeInteger(appAppleId) || appAppleId <= 0) {
+    throw new Error("App Store verification configuration is incomplete");
   }
 
-  const privateKey = new TextDecoder().decode(
-    Uint8Array.from(atob(encodedPrivateKey), (char) => char.charCodeAt(0)),
-  );
   const rootCertificates = encodedCertificates
     ? encodedCertificates.split(",")
       .map((certificate) => certificate.trim())
       .filter(Boolean)
       .map((certificate) => Buffer.from(certificate, "base64"))
     : defaultAppleRootCertificates();
-  if (!privateKey.includes("PRIVATE KEY") || rootCertificates.length === 0) {
-    throw new Error("App Store Server API key material is invalid");
+  if (rootCertificates.length === 0) {
+    throw new Error("App Store verification certificates are invalid");
   }
   return {
     bundleId,
+    appAppleId,
+    rootCertificates,
+  };
+}
+
+function loadServerApiConfiguration(): AppStoreServerConfiguration {
+  const verifierConfig = loadVerifierConfiguration();
+  const keyId = Deno.env.get("PRATICASE_APP_STORE_KEY_ID")?.trim() ?? "";
+  const issuerId = Deno.env.get("PRATICASE_APP_STORE_ISSUER_ID")?.trim() ?? "";
+  const encodedPrivateKey =
+    Deno.env.get("PRATICASE_APP_STORE_PRIVATE_KEY_BASE64")?.trim() ?? "";
+  if (!keyId || !issuerId || !encodedPrivateKey) {
+    throw new Error("App Store Server API configuration is incomplete");
+  }
+  const privateKey = new TextDecoder().decode(
+    Uint8Array.from(atob(encodedPrivateKey), (char) => char.charCodeAt(0)),
+  );
+  if (!privateKey.includes("PRIVATE KEY")) {
+    throw new Error("App Store Server API key material is invalid");
+  }
+  return {
+    ...verifierConfig,
     keyId,
     issuerId,
     privateKey,
-    appAppleId,
-    rootCertificates,
   };
 }
 
@@ -1071,8 +1139,52 @@ async function verifyWithAppStoreServerApi(
   }
 }
 
+async function verifyPurchase(
+  signedTransaction: string,
+  transactionId: string,
+  expectedProductId: string,
+): Promise<AppleReceipt> {
+  try {
+    return await verifySignedTransaction(signedTransaction, expectedProductId);
+  } catch (signedError) {
+    recordEvent("signed_transaction_verify_failed", {
+      productId: expectedProductId,
+      message: errorMessage(signedError),
+    });
+    return await verifyWithAppStoreServerApi(transactionId, expectedProductId);
+  }
+}
+
+async function verifySignedTransaction(
+  signedTransaction: string,
+  expectedProductId: string,
+): Promise<AppleReceipt> {
+  const config = loadVerifierConfiguration();
+  try {
+    const verifier = signedDataVerifier(config, Environment.PRODUCTION);
+    const transaction = await verifier.verifyAndDecodeTransaction(
+      signedTransaction,
+    );
+    return receiptFromTransaction(
+      transaction,
+      expectedProductId,
+      Environment.PRODUCTION,
+    );
+  } catch (_) {
+    const verifier = signedDataVerifier(config, Environment.SANDBOX);
+    const transaction = await verifier.verifyAndDecodeTransaction(
+      signedTransaction,
+    );
+    return receiptFromTransaction(
+      transaction,
+      expectedProductId,
+      Environment.SANDBOX,
+    );
+  }
+}
+
 async function verifyNotificationPayload(signedPayload: string) {
-  const config = loadServerApiConfiguration();
+  const config = loadVerifierConfiguration();
   try {
     const verifier = signedDataVerifier(config, Environment.PRODUCTION);
     const notification = await verifier.verifyAndDecodeNotification(
@@ -1109,6 +1221,21 @@ async function verifyTransactionInEnvironment(
   const transaction = await verifier.verifyAndDecodeTransaction(
     response.signedTransactionInfo,
   );
+  return receiptFromTransaction(transaction, expectedProductId, environment);
+}
+
+function receiptFromTransaction(
+  transaction: {
+    productId?: unknown;
+    revocationDate?: unknown;
+    transactionId?: unknown;
+    originalTransactionId?: unknown;
+    expiresDate?: unknown;
+    purchaseDate?: unknown;
+  },
+  expectedProductId: string,
+  environment: Environment,
+): AppleReceipt {
   if (
     transaction.productId !== expectedProductId ||
     transaction.revocationDate != null
@@ -1138,7 +1265,7 @@ async function verifyTransactionInEnvironment(
 }
 
 function signedDataVerifier(
-  config: AppStoreServerConfiguration,
+  config: AppleVerifierConfiguration,
   environment: Environment,
 ) {
   return new SignedDataVerifier(
