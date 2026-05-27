@@ -547,6 +547,32 @@ Servis rolüyle diğer ekosistemler tarafından okunabilecek RPC. Dönen JSON:
 `source`, `schema_version`, `recent_sentences` ve `top_gaps` alanlarını içerir.
 Authenticated kullanıcı sadece kendi `user_id` değeri için sonuç alabilir.
 
+#### Ekosistem AI hafızası
+PratiCase kişisel öğrenme hafızası Qlinik ile aynı prensibi izler: ham detay
+`praticase.user_learning_events` içinde kalır, AI ve diğer Medasi uygulamaları
+kontrollü özet/event yüzeyinden beslenir.
+
+- `praticase.push_learning_event_to_core(event_id, refresh_rollups)`:
+  PratiCase teorik, OSCE ve sözlü eventini varsa ortak
+  `public.core_record_learning_event` RPC'sine `source_app_code = praticase`
+  olarak gönderir.
+- `praticase.sync_praticase_app_memory_summary(user_id, reason)`:
+  Kullanıcının PratiCase özetini varsa
+  `public.core_upsert_app_memory_summary` içine yazar.
+- `praticase.praticase_app_memory_summary(user_id, limit)`:
+  Uygulama başında ve AI çağrılarında okunabilecek son/güçlü kişisel eksik
+  özetini döndürür. Varsayılan AI kullanımı son 10 eksik ile sınırlıdır.
+- `praticase.rebuild_core_learning_memory_from_praticase(user_id, refresh)`:
+  Geçmiş PratiCase eventlerini core hafızaya geri doldurur.
+
+PratiCase Edge AI fonksiyonları (`praticase-patient-turn`,
+`praticase-complete-session`, `praticase-oral-exam`) her çağrıda
+`core_learning_context`, `core_app_memory_summary`,
+`praticase_learning_user_context` ve `praticase_app_memory_summary`
+yüzeylerinden güncel kişisel hafızayı okur. Bu bağlam kullanıcının skoruna ek
+ceza olarak uygulanmaz; takip sorusu, eksik önceliği, karne önerisi ve çalışma
+planı kişiselleştirmesinde kullanılır.
+
 #### `praticase.user_bookmarked_cases`
 | Sütun | Tip | Notlar |
 |---|---|---|

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../domain/home_dashboard.dart';
@@ -15,6 +17,8 @@ class SupabaseHomeRepository implements HomeRepository {
     if (authUser == null) {
       throw const HomeDataUnavailable('Oturum bulunamadı.');
     }
+
+    _warmPersonalizationMemory(authUser.id);
 
     try {
       final profile = await _loadProfile(authUser.id);
@@ -45,6 +49,21 @@ class SupabaseHomeRepository implements HomeRepository {
     } on PostgrestException catch (error) {
       throw HomeDataUnavailable(_friendlyDatabaseMessage(error));
     }
+  }
+
+  void _warmPersonalizationMemory(String userId) {
+    unawaited(() async {
+      try {
+        await _client
+            .schema('praticase')
+            .rpc(
+              'praticase_app_memory_summary',
+              params: {'p_user_id': userId, 'p_limit': 10},
+            );
+      } catch (_) {
+        // Optional warm-up; dashboard data should not depend on memory sync.
+      }
+    }());
   }
 
   Future<Map<String, dynamic>?> _loadProfile(String userId) {

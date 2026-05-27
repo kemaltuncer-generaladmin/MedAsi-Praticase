@@ -595,8 +595,14 @@ async function recordTheoreticalLearningEvent(
     ? `theoretical:incorrect:${attemptSuffix}`
     : `theoretical:omitted:${questionId}`;
   const selectedIndex = options.selectedIndex;
+  const optionsList = stringArray(question.options);
+  const optionRationales = stringArray(question.option_rationales);
   const correctIndex = numberValue(options.result.correct_index) ??
     numberValue(question.correct_index);
+  const selectedOptionText = optionTextAt(optionsList, selectedIndex);
+  const correctOptionText = optionTextAt(optionsList, correctIndex);
+  const selectedOptionRationale = optionTextAt(optionRationales, selectedIndex);
+  const correctOptionRationale = optionTextAt(optionRationales, correctIndex);
   const payload = {
     p_user_id: userId,
     p_event_key: eventKey,
@@ -617,6 +623,8 @@ async function recordTheoreticalLearningEvent(
     p_evidence: stringValue(question.text),
     p_user_action: selectedIndex === null
       ? "Boş bırakıldı"
+      : selectedOptionText
+      ? `Seçilen seçenek: ${selectedOptionText}`
       : `Seçilen seçenek indeksi: ${selectedIndex}`,
     p_mentor_hint: options.outcome === "omitted"
       ? "Boş bırakılan sorunun alt konusunu kısa tekrar planına al."
@@ -632,7 +640,14 @@ async function recordTheoreticalLearningEvent(
       tags,
       raw_metadata: metadata,
       selected_index: selectedIndex,
+      selected_option_text: selectedOptionText,
+      selected_option_rationale: selectedOptionRationale,
       correct_index: correctIndex,
+      correct_option_text: correctOptionText,
+      correct_option_rationale: correctOptionRationale,
+      options: optionsList,
+      explanation: stringValue(question.explanation),
+      option_rationales: optionRationales,
       elapsed_seconds: options.elapsedSeconds,
       result: options.result,
     },
@@ -653,7 +668,9 @@ async function questionDataFor(admin: any, ids: string[]) {
   if (cleanIds.length === 0) return new Map<string, JsonMap>();
   const { data, error } = await admin
     .from("questions")
-    .select("id,subject,topic,difficulty,text,tags,metadata,correct_index")
+    .select(
+      "id,subject,topic,difficulty,text,options,correct_index,explanation,option_rationales,tags,metadata",
+    )
     .in("id", cleanIds);
   if (error) return new Map<string, JsonMap>();
   return new Map(
@@ -735,6 +752,11 @@ function metadataValue(metadata: JsonMap, tags: string[], key: string) {
   const prefix = `${key}:`;
   const tag = tags.find((value) => value.startsWith(prefix));
   return tag ? tag.slice(prefix.length).trim() : "";
+}
+
+function optionTextAt(options: string[], index: number | null) {
+  if (index === null || index < 0 || index >= options.length) return "";
+  return options[index] ?? "";
 }
 
 function uniqueStrings(values: string[]) {
