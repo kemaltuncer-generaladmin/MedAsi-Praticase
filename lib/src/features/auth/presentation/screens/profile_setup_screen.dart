@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../app/theme/praticase_colors.dart';
 import '../../../../app/theme/praticase_tokens.dart';
 import '../../data/auth_repository.dart';
+import '../../domain/auth_user.dart';
 import '../../domain/profile_setup.dart';
 import '../widgets/auth_primary_button.dart';
 import '../widgets/auth_scaffold.dart';
@@ -20,7 +21,7 @@ class ProfileSetupScreen extends StatefulWidget {
   final AuthRepository repository;
   final String fullName;
   final VoidCallback onBack;
-  final VoidCallback onCompleted;
+  final ValueChanged<AuthUser> onCompleted;
 
   @override
   State<ProfileSetupScreen> createState() => _ProfileSetupScreenState();
@@ -41,7 +42,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       _error = null;
     });
     try {
-      await widget.repository.completeProfile(
+      final user = await widget.repository.completeProfile(
         ProfileSetup(
           grade: _grade,
           targetExam: _targetExam,
@@ -50,7 +51,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           examDate: _examDate,
         ),
       );
-      widget.onCompleted();
+      if (!mounted) return;
+      widget.onCompleted(user);
     } on AuthFailure catch (failure) {
       setState(() => _error = failure.message);
     } finally {
@@ -165,6 +167,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               runSpacing: 8,
               children: [
                 for (final grade in const [
+                  '1. Sınıf',
+                  '2. Sınıf',
+                  '3. Sınıf',
                   '4. Sınıf',
                   '5. Sınıf',
                   '6. Sınıf',
@@ -311,28 +316,25 @@ class _SetupStepDot extends StatelessWidget {
     final fillColor = done
         ? PratiCaseColors.teal
         : isCurrent
-            ? PratiCaseColors.white
-            : PratiCaseColors.surfaceContainerLow;
+        ? PratiCaseColors.white
+        : PratiCaseColors.surfaceContainerLow;
     final borderColor = done
         ? PratiCaseColors.teal
         : isCurrent
-            ? PratiCaseColors.teal
-            : PratiCaseColors.border;
+        ? PratiCaseColors.teal
+        : PratiCaseColors.border;
     final textColor = done
         ? PratiCaseColors.white
         : isCurrent
-            ? PratiCaseColors.teal
-            : PratiCaseColors.muted;
+        ? PratiCaseColors.teal
+        : PratiCaseColors.muted;
     return Container(
       width: 28,
       height: 28,
       decoration: BoxDecoration(
         color: fillColor,
         shape: BoxShape.circle,
-        border: Border.all(
-          color: borderColor,
-          width: isCurrent ? 1.6 : 1,
-        ),
+        border: Border.all(color: borderColor, width: isCurrent ? 1.6 : 1),
       ),
       alignment: Alignment.center,
       child: done

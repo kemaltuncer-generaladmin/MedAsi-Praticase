@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'
     show AuthClientOptions, SupabaseClient;
 import 'package:praticase/src/app/praticase_app.dart';
@@ -129,6 +130,38 @@ void main() {
     expect(find.text('MC tüketimi canlı takip edilir'), findsOneWidget);
     expect(find.textContaining('Sanal hasta görüşmesi'), findsOneWidget);
     expect(find.textContaining('-0,10 MC'), findsOneWidget);
+
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -900));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Qlinik MC Paketi'), findsOneWidget);
+    expect(find.text('+25 MC'), findsOneWidget);
+  });
+
+  test('PratiCase purchase grants the shared Medasi wallet product', () async {
+    final repository = _RecordingStoreKitRepository();
+    final service = _RecordingStoreKitService();
+    final controller = StoreController(
+      repository: repository,
+      service: service,
+    );
+    addTearDown(controller.dispose);
+
+    await controller.initialize();
+    await controller.refresh();
+    await controller.purchase(repository.products.single);
+
+    for (var i = 0; i < 20 && controller.busy; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+
+    expect(repository.verifiedProductCode, 'mc_25');
+    expect(repository.verifiedAppStoreProductId, 'com.medasi.praticase.mc.25');
+    expect(repository.verifiedPurchaseId, 'tx-praticase-mc-25');
+    expect(service.completedPurchases, ['tx-praticase-mc-25']);
+    expect(controller.statusMessage, 'Satın alma doğrulandı.');
+    expect(controller.subscriptionState.walletCoinBalance, 125);
+    expect(controller.subscriptionState.questionQuota, 50);
   });
 
   testWidgets('PratiCase auth onboarding renders', (tester) async {
@@ -258,7 +291,7 @@ void main() {
           repository: repository,
           fullName: 'Ayse Yilmaz',
           onBack: () {},
-          onCompleted: () {},
+          onCompleted: (_) {},
         ),
       ),
     );
@@ -269,6 +302,64 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repository.completedProfile?.targetExam, 'OSCE');
+  });
+
+  testWidgets('profile setup offers 1st through 6th year and graduate', (
+    tester,
+  ) async {
+    await _setIPhone14Viewport(tester);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ProfileSetupScreen(
+          repository: _TestAuthRepository(),
+          fullName: 'Ayse Yilmaz',
+          onBack: () {},
+          onCompleted: (_) {},
+        ),
+      ),
+    );
+
+    for (final grade in const [
+      '1. Sınıf',
+      '2. Sınıf',
+      '3. Sınıf',
+      '4. Sınıf',
+      '5. Sınıf',
+      '6. Sınıf',
+      'Mezun',
+    ]) {
+      expect(find.text(grade), findsOneWidget);
+    }
+  });
+
+  testWidgets('completed profile setup opens the authenticated shell', (
+    tester,
+  ) async {
+    await _setIPhone14Viewport(tester);
+    final authRepository = _PendingThenUnavailableAuthRepository();
+
+    await tester.pumpWidget(
+      PratiCaseApp(
+        authRepository: authRepository,
+        homeRepository: _EmptyLiveHomeRepository(),
+        casesRepository: _FakeCasesRepository(),
+        progressRepository: _FakeProgressRepository(),
+        theoreticalExamRepository: _FakeTheoreticalExamRepository(),
+        oralExamRepository: _FakeOralExamRepository(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Profilini Tamamla'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('PratiCase’e Başla'));
+    await tester.tap(find.text('PratiCase’e Başla'));
+    await tester.pumpAndSettle();
+
+    expect(authRepository.completedProfile, isNotNull);
+    expect(find.text('Profilini Tamamla'), findsNothing);
+    expect(find.text('Ana Sayfa'), findsWidgets);
   });
 
   testWidgets('account security sends reset email on iPhone 14', (
@@ -1038,7 +1129,7 @@ void main() {
             repository: _TestAuthRepository(),
             fullName: 'Ayse Yilmaz',
             onBack: () {},
-            onCompleted: () {},
+            onCompleted: (_) {},
           ),
         ),
       );
@@ -1323,6 +1414,19 @@ class _WalletStoreRepository extends StoreKitRepository {
   Future<List<WalletTransaction>> loadWalletTransactions() async {
     return [
       WalletTransaction.fromMap({
+        'id': 'purchase-qlinik-mc',
+        'kind': 'one_time',
+        'product_code': 'mc_25',
+        'product_name': 'Qlinik MC Paketi',
+        'coin_amount': 25,
+        'question_amount': 0,
+        'remaining_coin_amount': 25,
+        'remaining_question_amount': 0,
+        'status': 'active',
+        'expired': false,
+        'occurred_at': '2026-05-26T13:00:00Z',
+      }),
+      WalletTransaction.fromMap({
         'id': 'usage-1',
         'kind': 'usage',
         'product_code': 'praticase-patient-turn',
@@ -1347,6 +1451,131 @@ class _WalletStoreService extends StoreKitService {
   Future<List<PratiCaseStoreProduct>> attachStoreKitMetadata(
     List<PratiCaseStoreProduct> products,
   ) async => products;
+}
+
+class _RecordingStoreKitRepository extends StoreKitRepository {
+  _RecordingStoreKitRepository()
+    : super(
+        client: SupabaseClient(
+          'https://example.supabase.co',
+          'anon',
+          authOptions: const AuthClientOptions(autoRefreshToken: false),
+        ),
+      );
+
+  final products = const [
+    PratiCaseStoreProduct(
+      code: 'mc_25',
+      name: '25 MC',
+      description: 'Medasi ekosistemi ortak coin paketi.',
+      priceCents: 9900,
+      currency: 'TRY',
+      appStoreProductId: 'com.medasi.praticase.mc.25',
+      entitlementKind: 'one_time',
+      interval: 'consumable',
+      durationDays: 365,
+      coinAmount: 25,
+    ),
+  ];
+
+  String? verifiedProductCode;
+  String? verifiedAppStoreProductId;
+  String? verifiedPurchaseId;
+
+  @override
+  Future<List<PratiCaseStoreProduct>> loadCatalog() async => products;
+
+  @override
+  Future<SubscriptionState> loadSubscriptionState() async {
+    return const SubscriptionState(
+      hasActiveSubscription: false,
+      productCode: '',
+      productName: '',
+      expiresAt: null,
+      periodStartedAt: null,
+      willAutoRenew: false,
+      environment: '',
+      transactionId: '',
+      originalTransactionId: '',
+      walletCoinBalance: 125,
+      questionQuota: 50,
+    );
+  }
+
+  @override
+  Future<List<WalletTransaction>> loadWalletTransactions() async => const [];
+
+  @override
+  Future<SubscriptionState> verifyPurchase({
+    required String productCode,
+    required String appStoreProductId,
+    required String purchaseId,
+    required String verificationSource,
+    required String localVerificationData,
+    required String serverVerificationData,
+  }) async {
+    verifiedProductCode = productCode;
+    verifiedAppStoreProductId = appStoreProductId;
+    verifiedPurchaseId = purchaseId;
+    return const SubscriptionState(
+      hasActiveSubscription: true,
+      productCode: 'mc_25',
+      productName: '25 MC',
+      expiresAt: null,
+      periodStartedAt: null,
+      willAutoRenew: false,
+      environment: 'sandbox',
+      transactionId: 'tx-praticase-mc-25',
+      originalTransactionId: 'tx-praticase-mc-25',
+      walletCoinBalance: 125,
+      questionQuota: 50,
+    );
+  }
+}
+
+class _RecordingStoreKitService extends StoreKitService {
+  final _updates = StreamController<PurchaseDetails>.broadcast();
+  final completedPurchases = <String>[];
+
+  @override
+  Stream<PurchaseDetails> get purchaseUpdates => _updates.stream;
+
+  @override
+  Future<bool> initialize() async => true;
+
+  @override
+  Future<List<PratiCaseStoreProduct>> attachStoreKitMetadata(
+    List<PratiCaseStoreProduct> products,
+  ) async => products;
+
+  @override
+  Future<bool> buy(PratiCaseStoreProduct product) async {
+    _updates.add(
+      PurchaseDetails(
+        purchaseID: 'tx-praticase-mc-25',
+        productID: product.appStoreProductId,
+        verificationData: PurchaseVerificationData(
+          localVerificationData: 'local-jws',
+          serverVerificationData: 'server-jws',
+          source: 'app_store',
+        ),
+        transactionDate: '1780000000000',
+        status: PurchaseStatus.purchased,
+      )..pendingCompletePurchase = true,
+    );
+    return true;
+  }
+
+  @override
+  Future<void> completePurchase(PurchaseDetails purchase) async {
+    completedPurchases.add(purchase.purchaseID ?? '');
+  }
+
+  @override
+  Future<void> dispose() async {
+    await _updates.close();
+    await super.dispose();
+  }
 }
 
 class _FakeCasesRepository extends Fake implements CasesRepository {
@@ -2415,5 +2644,36 @@ class _RecordingAuthRepository extends _TestAuthRepository {
   Future<AuthUser> completeProfile(ProfileSetup setup) async {
     completedProfile = setup;
     return super.completeProfile(setup);
+  }
+}
+
+class _PendingThenUnavailableAuthRepository extends _TestAuthRepository {
+  int _currentUserCalls = 0;
+  ProfileSetup? completedProfile;
+
+  @override
+  Future<AuthUser?> currentUser() async {
+    _currentUserCalls++;
+    if (_currentUserCalls == 1) {
+      return const AuthUser(
+        id: 'test-user',
+        email: 'ayse@example.com',
+        fullName: 'Ayse Yilmaz',
+        emailVerified: true,
+      );
+    }
+    return null;
+  }
+
+  @override
+  Future<AuthUser> completeProfile(ProfileSetup setup) async {
+    completedProfile = setup;
+    return const AuthUser(
+      id: 'test-user',
+      email: 'ayse@example.com',
+      fullName: 'Ayse Yilmaz',
+      emailVerified: true,
+      profileCompleted: true,
+    );
   }
 }

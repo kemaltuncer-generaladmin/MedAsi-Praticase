@@ -154,7 +154,7 @@ class StoreController extends ChangeNotifier {
             purchase.verificationData.serverVerificationData,
       );
       _subscriptionState = state;
-      _statusMessage = state.hasActiveSubscription
+      _statusMessage = product.isSubscription
           ? 'Aboneliğiniz aktif edildi.'
           : 'Satın alma doğrulandı.';
       await _service.completePurchase(purchase);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/auth_repository.dart';
+import '../domain/auth_user.dart';
 import 'screens/forgot_password_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/onboarding_screen.dart';
@@ -30,7 +31,7 @@ class AuthFlow extends StatefulWidget {
   });
 
   final AuthRepository authRepository;
-  final VoidCallback onAuthenticated;
+  final ValueChanged<AuthUser> onAuthenticated;
   final AuthStep initialStep;
   final String initialEmail;
   final String initialFullName;
@@ -74,7 +75,7 @@ class _AuthFlowState extends State<AuthFlow> {
           _setEmail(user.email);
           _setFullName(user.fullName ?? '');
           if (user.profileCompleted) {
-            widget.onAuthenticated();
+            widget.onAuthenticated(user);
           } else {
             _go(AuthStep.profileSetup);
           }

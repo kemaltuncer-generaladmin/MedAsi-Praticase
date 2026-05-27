@@ -111,7 +111,12 @@ class _PratiCaseAppState extends State<PratiCaseApp> {
     setState(() => _gate = _SessionGate.loggedOut);
   }
 
-  Future<void> _completeAuthentication() async {
+  Future<void> _completeAuthentication(AuthUser completedUser) async {
+    if (completedUser.profileCompleted) {
+      _applySessionUser(completedUser, restoringSession: false);
+      return;
+    }
+
     AuthUser? user;
     try {
       user = await widget.authRepository.currentUser();
@@ -163,7 +168,7 @@ class _PratiCaseAppState extends State<PratiCaseApp> {
             : AuthStep.onboarding,
         initialEmail: _initialEmail,
         initialFullName: _initialFullName,
-        onAuthenticated: () => unawaited(_completeAuthentication()),
+        onAuthenticated: (user) => unawaited(_completeAuthentication(user)),
       );
       bodyKey = 'auth';
     }
@@ -171,28 +176,28 @@ class _PratiCaseAppState extends State<PratiCaseApp> {
     return ListenableBuilder(
       listenable: PratiCaseAccent.instance,
       builder: (context, _) => MaterialApp(
-      title: 'PratiCase',
-      debugShowCheckedModeBanner: false,
-      theme: PratiCaseTheme.light(accent: PratiCaseAccent.instance.primary),
-      home: AnimatedSwitcher(
-        duration: PratiCaseDurations.emphasized,
-        switchInCurve: PratiCaseCurves.emphasized,
-        switchOutCurve: PratiCaseCurves.exit,
-        transitionBuilder: (child, animation) {
-          return FadeTransition(
-            opacity: animation,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 0.02),
-                end: Offset.zero,
-              ).animate(animation),
-              child: child,
-            ),
-          );
-        },
-        child: KeyedSubtree(key: ValueKey(bodyKey), child: body),
+        title: 'PratiCase',
+        debugShowCheckedModeBanner: false,
+        theme: PratiCaseTheme.light(accent: PratiCaseAccent.instance.primary),
+        home: AnimatedSwitcher(
+          duration: PratiCaseDurations.emphasized,
+          switchInCurve: PratiCaseCurves.emphasized,
+          switchOutCurve: PratiCaseCurves.exit,
+          transitionBuilder: (child, animation) {
+            return FadeTransition(
+              opacity: animation,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 0.02),
+                  end: Offset.zero,
+                ).animate(animation),
+                child: child,
+              ),
+            );
+          },
+          child: KeyedSubtree(key: ValueKey(bodyKey), child: body),
+        ),
       ),
-    ),
     );
   }
 }
