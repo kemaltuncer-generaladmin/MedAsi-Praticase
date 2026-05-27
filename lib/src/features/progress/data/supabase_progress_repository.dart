@@ -937,6 +937,12 @@ class SupabaseProgressRepository implements ProgressRepository {
     return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 
+  double _double(Map<String, dynamic> row, String key) {
+    final value = row[key];
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString().trim() ?? '') ?? 0;
+  }
+
   int? _nullableInt(Map<String, dynamic> row, String key) {
     if (row[key] == null) return null;
     return _int(row, key);
@@ -1022,7 +1028,7 @@ class SupabaseProgressRepository implements ProgressRepository {
         ? data['wallet_warnings'] as List
         : const [];
     return StoreCatalog(
-      walletBalance: (profile['wallet_balance'] as num?)?.toDouble() ?? 0,
+      walletBalance: _double(profile, 'wallet_balance'),
       questionQuota: _int(profile, 'question_quota'),
       aiQuota: _int(profile, 'ai_quota'),
       warnings: [

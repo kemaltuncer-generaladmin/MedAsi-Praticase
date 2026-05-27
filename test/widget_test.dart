@@ -101,6 +101,22 @@ void main() {
     expect(product.isSubscription, isTrue);
   });
 
+  test('wallet parses live profile balances returned as text', () {
+    final state = SubscriptionState.fromVerificationResponse({
+      'entitlement': {
+        'active': false,
+        'remaining_coin_amount': '12.50',
+        'remaining_question_amount': '30',
+      },
+      'profile': {'wallet_balance': '1459.20', 'question_quota': '2795'},
+    });
+
+    expect(state.walletCoinBalance, 1459.20);
+    expect(state.questionQuota, 2795);
+    expect(state.remainingCoinAmount, 12.5);
+    expect(state.remainingQuestionAmount, 30);
+  });
+
   testWidgets('wallet surfaces shared balance and live MC consumption', (
     tester,
   ) async {

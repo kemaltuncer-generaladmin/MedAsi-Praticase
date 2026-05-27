@@ -80,14 +80,14 @@ class SubscriptionState {
       willAutoRenew: entitlement['will_auto_renew'] == true,
       environment: (entitlement['environment'] ?? '').toString(),
       transactionId: (entitlement['transaction_id'] ?? '').toString(),
-      originalTransactionId:
-          (entitlement['original_transaction_id'] ?? '').toString(),
-      walletCoinBalance: (profile['wallet_balance'] as num?)?.toDouble() ?? 0,
-      questionQuota: (profile['question_quota'] as num?)?.round() ?? 0,
-      remainingCoinAmount:
-          (entitlement['remaining_coin_amount'] as num?)?.toDouble() ?? 0,
-      remainingQuestionAmount:
-          (entitlement['remaining_question_amount'] as num?)?.round() ?? 0,
+      originalTransactionId: (entitlement['original_transaction_id'] ?? '')
+          .toString(),
+      walletCoinBalance: _doubleValue(profile['wallet_balance']),
+      questionQuota: _intValue(profile['question_quota']),
+      remainingCoinAmount: _doubleValue(entitlement['remaining_coin_amount']),
+      remainingQuestionAmount: _intValue(
+        entitlement['remaining_question_amount'],
+      ),
       warnings: warningsValue is List
           ? [
               for (final item in warningsValue)
@@ -103,6 +103,13 @@ class SubscriptionState {
     return DateTime.tryParse(value.toString());
   }
 }
+
+double _doubleValue(Object? value) {
+  if (value is num) return value.toDouble();
+  return double.tryParse(value?.toString().trim() ?? '') ?? 0;
+}
+
+int _intValue(Object? value) => _doubleValue(value).round();
 
 class StorePurchaseException implements Exception {
   const StorePurchaseException(this.message, {this.code = ''});
