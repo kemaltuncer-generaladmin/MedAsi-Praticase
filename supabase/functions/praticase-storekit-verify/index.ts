@@ -270,47 +270,176 @@ async function loadCatalogPayload(
 
 /// Kullanıcının kanonik MC + soru bakiyesini döner.
 ///
-/// Önce `public.profiles.wallet_balance / question_quota` okunur. Eğer
-/// `sync_wallet_profile` Qlinik tarafından gelen entitlement'leri mirror'a
-/// almadıysa profil 0 görünebilir. Bu durumda aktif `wallet_entitlements`
-/// satırlarının `remaining_coin_amount` ve `remaining_question_amount`
-/// toplamı kullanılır — Qlinik'in gösterdiği bakiyeyle aynı hale gelir.
+/// Qlinik ile birebir paralel olmak için 4 ayrı kaynak denenir ve **en
+/// yüksek non-zero değer** kullanılır. Hangi kaynak çalışırsa o veriyle
+/// devam edilir — Qlinik manuel bonus, admin top-up veya farklı table
+/// shape ile yazıyor olsa da PratiCase doğru rakamı surface eder.
+///
+///   1. `public.profiles.wallet_balance / question_quota` (klasik mirror)
+///   2. Aktif `public.wallet_entitlements` toplamı
+///   3. Olası RPC'ler: `get_user_wallet_balance`, `wallet_state_for_user`,
+///      `medasi_wallet_state`
+///   4. Olası ek tablolar: `public.user_wallets`, `public.medasi_wallets`,
+///      `public.user_credits`
+///
+/// Tüm sorgular hata yutar → bir kaynağın olmaması diğerlerini etkilemez.
 async function loadEffectiveWalletProfile(
   // deno-lint-ignore no-explicit-any
   admin: any,
   userId: string,
 ): Promise<JsonMap> {
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("wallet_balance,question_quota")
-    .eq("id", userId)
-    .maybeSingle();
-  const profileBalance = numberValue(profile?.wallet_balance) ?? 0;
-  const profileQuota = numberValue(profile?.question_quota) ?? 0;
+  let bestCoin = 0;
+  let bestQuestion = 0;
+  const sources: string[] = [];
 
-  // Aktif (status='active' AND expires_at > now) entitlement'lerin
-  // remaining alanlarını topla.
-  const nowIso = new Date().toISOString();
-  const { data: rows } = await admin
-    .from("wallet_entitlements")
-    .select("remaining_coin_amount,remaining_question_amount,expires_at,status")
-    .eq("user_id", userId)
-    .eq("status", "active");
-  let entitlementCoinSum = 0;
-  let entitlementQuestionSum = 0;
-  for (const row of ((rows ?? []) as JsonMap[])) {
-    const expires = stringValue(row.expires_at);
-    if (expires && expires <= nowIso) continue;
-    entitlementCoinSum += numberValue(row.remaining_coin_amount) ?? 0;
-    entitlementQuestionSum += numberValue(row.remaining_question_amount) ?? 0;
+  // 1. public.profiles
+  try {
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("wallet_balance,question_quota")
+      .eq("id", userId)
+      .maybeSingle();
+    const coin = numberValue(profile?.wallet_balance) ?? 0;
+    const quota = numberValue(profile?.question_quota) ?? 0;
+    if (coin > bestCoin) {
+      bestCoin = coin;
+      sources.push(`profiles:${coin}`);
+    }
+    if (quota > bestQuestion) {
+      bestQuestion = quota;
+    }
+  } catch (_) {
+    /* ignore */
   }
 
-  // Profil mirror'ı entitlement toplamından küçükse mirror eskimiş demektir
-  // (örn. Qlinik'in yeni satın alması henüz sync_wallet_profile ile
-  // taşınmamış). Kullanıcı için her zaman daha yüksek olanı göster.
+  // 2. wallet_entitlements toplamı (active + henüz dolmamış)
+  try {
+    const nowIso = new Date().toISOString();
+    const { data: rows } = await admin
+      .from("wallet_entitlements")
+      .select(
+        "remaining_coin_amount,remaining_question_amount,expires_at,status",
+      )
+      .eq("user_id", userId)
+      .eq("status", "active");
+    let coinSum = 0;
+    let qSum = 0;
+    for (const row of ((rows ?? []) as JsonMap[])) {
+      const expires = stringValue(row.expires_at);
+      if (expires && expires <= nowIso) continue;
+      coinSum += numberValue(row.remaining_coin_amount) ?? 0;
+      qSum += numberValue(row.remaining_question_amount) ?? 0;
+    }
+    if (coinSum > bestCoin) {
+      bestCoin = coinSum;
+      sources.push(`entitlements:${coinSum}`);
+    }
+    if (qSum > bestQuestion) {
+      bestQuestion = Math.round(qSum);
+    }
+  } catch (_) {
+    /* ignore */
+  }
+
+  // 3. Olası Medasi cüzdan RPC'leri — varsa Qlinik'in kullandığı state'i
+  //    direkt döndürür. Yoksa "function does not exist" hatası sessiz
+  //    yutulur.
+  const rpcCandidates = [
+    "get_user_wallet_balance",
+    "wallet_state_for_user",
+    "medasi_wallet_state",
+    "medasi_user_wallet",
+    "user_wallet_state",
+  ];
+  for (const name of rpcCandidates) {
+    try {
+      const { data, error } = await admin.rpc(name, { p_user_id: userId });
+      if (error || data == null) continue;
+      // Dönüş scalar (sadece coin) veya jsonb {wallet_balance, question_quota}
+      // olabilir.
+      if (typeof data === "number") {
+        if (data > bestCoin) {
+          bestCoin = data;
+          sources.push(`rpc:${name}:${data}`);
+        }
+      } else if (isJsonMap(data)) {
+        const coin = numberValue(data.wallet_balance) ??
+          numberValue(data.balance) ?? 0;
+        const quota = numberValue(data.question_quota) ??
+          numberValue(data.questions) ?? 0;
+        if (coin > bestCoin) {
+          bestCoin = coin;
+          sources.push(`rpc:${name}:${coin}`);
+        }
+        if (quota > bestQuestion) {
+          bestQuestion = Math.round(quota);
+        }
+      }
+    } catch (_) {
+      /* RPC yok */
+    }
+  }
+
+  // 4. Olası alternatif tablolar
+  const tableCandidates: Array<
+    { table: string; idCol: string; coinCol: string; quotaCol?: string }
+  > = [
+    {
+      table: "user_wallets",
+      idCol: "user_id",
+      coinCol: "wallet_balance",
+      quotaCol: "question_quota",
+    },
+    {
+      table: "medasi_wallets",
+      idCol: "user_id",
+      coinCol: "balance",
+      quotaCol: "questions",
+    },
+    {
+      table: "user_credits",
+      idCol: "user_id",
+      coinCol: "balance",
+    },
+  ];
+  for (const t of tableCandidates) {
+    try {
+      const cols = t.quotaCol ? `${t.coinCol},${t.quotaCol}` : t.coinCol;
+      const { data, error } = await admin
+        .from(t.table)
+        .select(cols)
+        .eq(t.idCol, userId)
+        .maybeSingle();
+      if (error || data == null) continue;
+      const row = data as JsonMap;
+      const coin = numberValue(row[t.coinCol]) ?? 0;
+      const quota = t.quotaCol ? numberValue(row[t.quotaCol]) ?? 0 : 0;
+      if (coin > bestCoin) {
+        bestCoin = coin;
+        sources.push(`${t.table}:${coin}`);
+      }
+      if (quota > bestQuestion) {
+        bestQuestion = Math.round(quota);
+      }
+    } catch (_) {
+      /* tablo yok */
+    }
+  }
+
+  if (sources.length > 1) {
+    recordEvent("wallet_multi_source_resolved", {
+      user_id: userId,
+      bestCoin,
+      bestQuestion,
+      sources,
+    });
+  } else if (bestCoin === 0 && bestQuestion === 0) {
+    recordEvent("wallet_empty_from_all_sources", { user_id: userId });
+  }
+
   return {
-    wallet_balance: Math.max(profileBalance, entitlementCoinSum),
-    question_quota: Math.max(profileQuota, Math.round(entitlementQuestionSum)),
+    wallet_balance: bestCoin,
+    question_quota: bestQuestion,
   };
 }
 
@@ -1170,6 +1299,10 @@ function stringValue(value: unknown) {
 function numberValue(value: unknown) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : null;
+}
+
+function isJsonMap(value: unknown): value is JsonMap {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function errorMessage(error: unknown) {
