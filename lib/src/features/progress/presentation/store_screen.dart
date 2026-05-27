@@ -140,7 +140,12 @@ class _StoreScreenState extends State<StoreScreen> {
           _catalogFuture = _load();
         });
       } on ProgressDataUnavailable catch (error) {
-        if (mounted) setState(() => _status = error.message);
+        if (mounted) {
+          setState(() {
+            _busy = false;
+            _status = error.message;
+          });
+        }
       }
     }
   }

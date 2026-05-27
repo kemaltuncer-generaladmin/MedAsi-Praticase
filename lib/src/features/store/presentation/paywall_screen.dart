@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart' show launchUrl, LaunchMode;
 
+import '../../../app/praticase_legal.dart';
 import '../../../app/theme/praticase_colors.dart';
 import '../../../app/theme/praticase_motion.dart';
 import '../../../shared/ui/glow_button.dart';
@@ -32,10 +33,6 @@ class PaywallScreen extends StatefulWidget {
 }
 
 class _PaywallScreenState extends State<PaywallScreen> {
-  static const _eulaUrl =
-      'https://praticase.medasi.com.tr/yasal/kullanim-sartlari';
-  static const _privacyUrl = 'https://praticase.medasi.com.tr/yasal/gizlilik';
-
   PratiCaseStoreProduct? _selected;
 
   @override
@@ -185,8 +182,11 @@ class _PaywallScreenState extends State<PaywallScreen> {
                     _RenewalDisclosure(product: _selected),
                     const SizedBox(height: 18),
                     _LegalLinks(
-                      onOpenEula: () => _openUrl(_eulaUrl),
-                      onOpenPrivacy: () => _openUrl(_privacyUrl),
+                      onOpenEula: () => _openUrl(PratiCaseLegal.termsUrl),
+                      onOpenPrivacy: () =>
+                          _openUrl(PratiCaseLegal.privacyPolicyUrl),
+                      onOpenPurchaseTerms: () =>
+                          _openUrl(PratiCaseLegal.purchaseTermsUrl),
                     ),
                     const SizedBox(height: 12),
                     Center(
@@ -378,14 +378,13 @@ class _BenefitList extends StatelessWidget {
   }
 }
 
-String _formatPrice(int cents, String currency) {
+String _formatPrice(int cents) {
   if (cents <= 0) return 'Ücretsiz';
   final value = cents / 100;
-  final symbol = currency.trim().toUpperCase() == 'TRY' ? '₺' : currency;
   final formatted = value == value.roundToDouble()
       ? value.toStringAsFixed(0)
       : value.toStringAsFixed(2).replaceFirst('.', ',');
-  return '$formatted $symbol';
+  return '₺$formatted';
 }
 
 class _ProductCard extends StatelessWidget {
@@ -402,11 +401,10 @@ class _ProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final periodLabel = product.periodLabel;
-    final priceText =
-        product.localizedPrice ?? _formatPrice(product.priceCents, product.currency);
+    final priceText = _formatPrice(product.priceCents);
     final originalPriceText = product.originalPriceCents == null
         ? null
-        : _formatPrice(product.originalPriceCents!, product.currency);
+        : _formatPrice(product.originalPriceCents!);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -559,15 +557,14 @@ class _PurchaseButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasStoreKitPrice = product?.localizedPrice != null;
     final disabled =
-        product == null || busy || product!.canPurchaseInPratiCase == false || !hasStoreKitPrice;
+        product == null ||
+        busy ||
+        product!.canPurchaseInPratiCase == false;
     final label = product == null
         ? 'Bir paket seçin'
         : !product!.canPurchaseInPratiCase
         ? 'Satın alma bu uygulamada hazır değil'
-        : !hasStoreKitPrice
-        ? 'Fiyat bilgisi yükleniyor…'
         : product!.isSubscription
         ? 'Aboneliği başlat'
         : 'Satın al';
@@ -648,8 +645,7 @@ class _RenewalDisclosure extends StatelessWidget {
       'Yüklenen MC veya soru hakkı Medasi Cüzdanınıza eklenir.';
 
   String _renewalText(PratiCaseStoreProduct product) {
-    final price =
-        product.localizedPrice ?? _formatPrice(product.priceCents, product.currency);
+    final price = _formatPrice(product.priceCents);
     final period = product.periodLabel.isNotEmpty
         ? product.periodLabel
         : '${product.durationDays} gün';
@@ -663,10 +659,15 @@ class _RenewalDisclosure extends StatelessWidget {
 }
 
 class _LegalLinks extends StatelessWidget {
-  const _LegalLinks({required this.onOpenEula, required this.onOpenPrivacy});
+  const _LegalLinks({
+    required this.onOpenEula,
+    required this.onOpenPrivacy,
+    required this.onOpenPurchaseTerms,
+  });
 
   final VoidCallback onOpenEula;
   final VoidCallback onOpenPrivacy;
+  final VoidCallback onOpenPurchaseTerms;
 
   @override
   Widget build(BuildContext context) {
@@ -689,6 +690,16 @@ class _LegalLinks extends StatelessWidget {
           TextSpan(
             text: 'Gizlilik Politikası',
             recognizer: TapGestureRecognizer()..onTap = onOpenPrivacy,
+            style: const TextStyle(
+              color: PratiCaseColors.teal,
+              decoration: TextDecoration.underline,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const TextSpan(text: '; satın alma için '),
+          TextSpan(
+            text: 'Satın Alma Şartları',
+            recognizer: TapGestureRecognizer()..onTap = onOpenPurchaseTerms,
             style: const TextStyle(
               color: PratiCaseColors.teal,
               decoration: TextDecoration.underline,

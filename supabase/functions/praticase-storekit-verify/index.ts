@@ -203,6 +203,30 @@ Deno.serve(async (request) => {
     },
   );
   if (grantError) {
+    if (grantError.message.includes("Active subscription exists")) {
+      const profile = await loadEffectiveWalletProfile(admin, userId);
+      return jsonResponse(
+        {
+          status: "ok",
+          entitlement: {
+            active: true,
+            product_code: product.code,
+            product_name: product.name,
+            entitlement_type: entitlementKind,
+            expires_at: expiresAt.toISOString(),
+            period_started_at: periodStart.toISOString(),
+            transaction_id: appleResult.transactionId,
+            original_transaction_id: appleResult.originalTransactionId,
+            environment: appleResult.environment,
+            will_auto_renew: appleResult.autoRenew,
+            idempotent: true,
+          },
+          profile,
+        },
+        200,
+        origin,
+      );
+    }
     return jsonResponse(
       { error: friendlyPurchaseGrantError(grantError.message) },
       400,
@@ -1066,6 +1090,7 @@ type AppStoreServerConfiguration = AppleVerifierConfiguration & {
   keyId: string;
   issuerId: string;
   privateKey: string;
+  source: "praticase" | "shared";
 };
 
 function loadVerifierConfiguration(): AppleVerifierConfiguration {
@@ -1095,18 +1120,52 @@ function loadVerifierConfiguration(): AppleVerifierConfiguration {
   };
 }
 
-function loadServerApiConfiguration(): AppStoreServerConfiguration {
+function loadServerApiConfigurations(): AppStoreServerConfiguration[] {
   const verifierConfig = loadVerifierConfiguration();
-  const keyId = Deno.env.get("PRATICASE_APP_STORE_KEY_ID")?.trim() ?? "";
-  const issuerId = Deno.env.get("PRATICASE_APP_STORE_ISSUER_ID")?.trim() ?? "";
-  const encodedPrivateKey =
-    Deno.env.get("PRATICASE_APP_STORE_PRIVATE_KEY_BASE64")?.trim() ?? "";
-  if (!keyId || !issuerId || !encodedPrivateKey) {
+  const configs = [
+    appStoreServerConfigFromEnv(verifierConfig, {
+      source: "praticase",
+      keyIdName: "PRATICASE_APP_STORE_KEY_ID",
+      issuerIdName: "PRATICASE_APP_STORE_ISSUER_ID",
+      privateKeyBase64Name: "PRATICASE_APP_STORE_PRIVATE_KEY_BASE64",
+      privateKeyName: "PRATICASE_APP_STORE_PRIVATE_KEY",
+    }),
+    appStoreServerConfigFromEnv(verifierConfig, {
+      source: "shared",
+      keyIdName: "APP_STORE_CONNECT_KEY_ID",
+      issuerIdName: "APP_STORE_CONNECT_ISSUER_ID",
+      privateKeyBase64Name: "APP_STORE_CONNECT_PRIVATE_KEY_BASE64",
+      privateKeyName: "APP_STORE_CONNECT_PRIVATE_KEY",
+    }),
+  ].filter((config): config is AppStoreServerConfiguration => config != null);
+
+  const uniqueConfigs = new Map<string, AppStoreServerConfiguration>();
+  for (const config of configs) {
+    uniqueConfigs.set(`${config.keyId}:${config.issuerId}`, config);
+  }
+  if (uniqueConfigs.size === 0) {
     throw new Error("App Store Server API configuration is incomplete");
   }
-  const privateKey = new TextDecoder().decode(
-    Uint8Array.from(atob(encodedPrivateKey), (char) => char.charCodeAt(0)),
+  return Array.from(uniqueConfigs.values());
+}
+
+function appStoreServerConfigFromEnv(
+  verifierConfig: AppleVerifierConfiguration,
+  names: {
+    source: "praticase" | "shared";
+    keyIdName: string;
+    issuerIdName: string;
+    privateKeyBase64Name: string;
+    privateKeyName: string;
+  },
+): AppStoreServerConfiguration | null {
+  const keyId = Deno.env.get(names.keyIdName)?.trim() ?? "";
+  const issuerId = Deno.env.get(names.issuerIdName)?.trim() ?? "";
+  const privateKey = readPrivateKeyEnv(
+    names.privateKeyBase64Name,
+    names.privateKeyName,
   );
+  if (!keyId || !issuerId || !privateKey) return null;
   if (!privateKey.includes("PRIVATE KEY")) {
     throw new Error("App Store Server API key material is invalid");
   }
@@ -1115,7 +1174,18 @@ function loadServerApiConfiguration(): AppStoreServerConfiguration {
     keyId,
     issuerId,
     privateKey,
+    source: names.source,
   };
+}
+
+function readPrivateKeyEnv(base64Name: string, rawName: string): string {
+  const encoded = Deno.env.get(base64Name)?.trim() ?? "";
+  if (encoded) {
+    return new TextDecoder().decode(
+      Uint8Array.from(atob(encoded), (char) => char.charCodeAt(0)),
+    ).replace(/\\n/g, "\n").trim();
+  }
+  return (Deno.env.get(rawName)?.trim() ?? "").replace(/\\n/g, "\n");
 }
 
 async function verifyWithAppStoreServerApi(
@@ -1123,33 +1193,37 @@ async function verifyWithAppStoreServerApi(
   expectedProductId: string,
 ): Promise<AppleReceipt> {
   if (!transactionId) throw new Error("Missing transaction identifier");
-  const config = loadServerApiConfiguration();
-  let productionError: unknown;
+  const configs = loadServerApiConfigurations();
+  const failures: string[] = [];
 
-  try {
-    return await verifyTransactionInEnvironment(
-      config,
-      transactionId,
-      expectedProductId,
-      Environment.PRODUCTION,
-    );
-  } catch (error) {
-    productionError = error;
+  for (const config of configs) {
+    let productionError: unknown;
+    try {
+      return await verifyTransactionInEnvironment(
+        config,
+        transactionId,
+        expectedProductId,
+        Environment.PRODUCTION,
+      );
+    } catch (error) {
+      productionError = error;
+    }
+    try {
+      return await verifyTransactionInEnvironment(
+        config,
+        transactionId,
+        expectedProductId,
+        Environment.SANDBOX,
+      );
+    } catch (sandboxError) {
+      failures.push(
+        `${config.source}: production=${errorMessage(productionError)}, sandbox=${
+          errorMessage(sandboxError)
+        }`,
+      );
+    }
   }
-  try {
-    return await verifyTransactionInEnvironment(
-      config,
-      transactionId,
-      expectedProductId,
-      Environment.SANDBOX,
-    );
-  } catch (sandboxError) {
-    throw new Error(
-      `Apple transaction lookup failed (production=${
-        errorMessage(productionError)
-      }, sandbox=${errorMessage(sandboxError)})`,
-    );
-  }
+  throw new Error(`Apple transaction lookup failed (${failures.join("; ")})`);
 }
 
 async function verifyPurchase(

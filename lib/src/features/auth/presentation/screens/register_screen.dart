@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart' show LaunchMode, launchUrl;
 
+import '../../../../app/praticase_legal.dart';
 import '../../../../app/theme/praticase_colors.dart';
 import '../../../../app/theme/praticase_tokens.dart';
 import '../../data/auth_repository.dart';
@@ -37,7 +39,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _repeatPassword = TextEditingController();
+  bool _acceptedPrivacy = false;
   bool _acceptedTerms = false;
+  bool _acceptedStudyTerms = false;
   bool _loading = false;
   String? _error;
 
@@ -59,10 +63,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    if (!_acceptedTerms) {
+    if (!_acceptedPrivacy || !_acceptedTerms || !_acceptedStudyTerms) {
       setState(
         () => _error =
-            'Kullanım koşulları ve gizlilik politikasını kabul etmelisin.',
+            'Devam etmek için KVKK/Gizlilik, kullanıcı sözleşmesi ve çalışma koşulları onayları gereklidir.',
       );
       return;
     }
@@ -216,86 +220,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                   ),
                   const SizedBox(height: PratiCaseSpacing.xl),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      InkWell(
-                        onTap: () =>
-                            setState(() => _acceptedTerms = !_acceptedTerms),
-                        borderRadius: BorderRadius.circular(PratiCaseRadius.sm),
-                        child: SizedBox(
-                          width: 44,
-                          height: 44,
-                          child: Center(
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 150),
-                              width: 24,
-                              height: 24,
-                              decoration: BoxDecoration(
-                                color: _acceptedTerms
-                                    ? PratiCaseColors.teal
-                                    : PratiCaseColors.white,
-                                borderRadius: BorderRadius.circular(7),
-                                border: Border.all(
-                                  color: _acceptedTerms
-                                      ? PratiCaseColors.teal
-                                      : PratiCaseColors.border,
-                                  width: 1.6,
-                                ),
-                              ),
-                              child: _acceptedTerms
-                                  ? const Icon(
-                                      Icons.check_rounded,
-                                      color: PratiCaseColors.white,
-                                      size: 16,
-                                    )
-                                  : null,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: PratiCaseSpacing.sm),
-                      Expanded(
-                        child: Wrap(
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            Text(
-                              'Kullanım koşullarını ve ',
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(
-                                    color: PratiCaseColors.slateBlue,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    height: 1.5,
-                                  ),
-                            ),
-                            GestureDetector(
-                              onTap: _openLegalNotice,
-                              child: Text(
-                                'gizlilik politikasını',
-                                style: Theme.of(context).textTheme.bodyMedium
-                                    ?.copyWith(
-                                      color: PratiCaseColors.teal,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w900,
-                                      height: 1.5,
-                                    ),
-                              ),
-                            ),
-                            Text(
-                              ' okudum, kabul ediyorum.',
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(
-                                    color: PratiCaseColors.slateBlue,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    height: 1.5,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                  _ConsentRow(
+                    value: _acceptedPrivacy,
+                    label: 'KVKK / Gizlilik metnini okudum',
+                    onChanged: (value) =>
+                        setState(() => _acceptedPrivacy = value),
+                    onOpen: () =>
+                        _openLegalUrl(PratiCaseLegal.privacyPolicyUrl),
+                  ),
+                  _ConsentRow(
+                    value: _acceptedTerms,
+                    label: 'Kullanıcı sözleşmesini kabul ediyorum',
+                    onChanged: (value) =>
+                        setState(() => _acceptedTerms = value),
+                    onOpen: () => _openLegalUrl(PratiCaseLegal.termsUrl),
+                  ),
+                  _ConsentRow(
+                    value: _acceptedStudyTerms,
+                    label: 'Çalışma koşullarını kabul ediyorum',
+                    onChanged: (value) =>
+                        setState(() => _acceptedStudyTerms = value),
+                    onOpen: () => _openLegalUrl(PratiCaseLegal.studyTermsUrl),
                   ),
                   AnimatedSize(
                     duration: const Duration(milliseconds: 200),
@@ -346,91 +291,92 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  void _openLegalNotice() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const AuthLegalNoticeScreen()),
-    );
+  Future<void> _openLegalUrl(String url) async {
+    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
   }
 }
 
-class AuthLegalNoticeScreen extends StatelessWidget {
-  const AuthLegalNoticeScreen({super.key});
+class _ConsentRow extends StatelessWidget {
+  const _ConsentRow({
+    required this.value,
+    required this.label,
+    required this.onChanged,
+    required this.onOpen,
+  });
 
-  @override
-  Widget build(BuildContext context) {
-    return AuthScaffold(
-      showFooterText: false,
-      onBack: () => Navigator.maybePop(context),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Gizlilik ve Kullanım Koşulları',
-            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-              color: PratiCaseColors.navy,
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              height: 1.2,
-            ),
-          ),
-          const SizedBox(height: 18),
-          const AuthStatusCard(
-            title: 'Medasi PratiCase',
-            message:
-                'PratiCase, hesap oluşturma sırasında kimlik, iletişim ve öğrenme hedefi bilgilerini yalnızca OSCE simülasyon deneyimini sunmak ve geliştirmek için işler.',
-            tone: AuthStatusTone.info,
-          ),
-          const SizedBox(height: 18),
-          _LegalParagraph(
-            title: 'Kullanım',
-            body:
-                'Uygulama eğitim amaçlıdır. Klinik karar, acil müdahale veya hasta tedavisi yerine geçmez.',
-          ),
-          _LegalParagraph(
-            title: 'Veri',
-            body:
-                'Profil, sınav oturumu, vaka ilerleme ve iletişim kayıtları Medasi altyapısında saklanır. Veriler yetkisiz kişilerle paylaşılmaz.',
-          ),
-          _LegalParagraph(
-            title: 'Onay',
-            body:
-                'Hesap oluşturarak kullanım koşullarını ve gizlilik politikasını okuduğunu, anladığını ve kabul ettiğini beyan edersin.',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LegalParagraph extends StatelessWidget {
-  const _LegalParagraph({required this.title, required this.body});
-
-  final String title;
-  final String body;
+  final bool value;
+  final String label;
+  final ValueChanged<bool> onChanged;
+  final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: PratiCaseColors.navy,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
+          InkWell(
+            onTap: () => onChanged(!value),
+            borderRadius: BorderRadius.circular(PratiCaseRadius.sm),
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: Center(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: value ? PratiCaseColors.teal : PratiCaseColors.white,
+                    borderRadius: BorderRadius.circular(7),
+                    border: Border.all(
+                      color: value
+                          ? PratiCaseColors.teal
+                          : PratiCaseColors.border,
+                      width: 1.6,
+                    ),
+                  ),
+                  child: value
+                      ? const Icon(
+                          Icons.check_rounded,
+                          color: PratiCaseColors.white,
+                          size: 16,
+                        )
+                      : null,
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            body,
-            style: const TextStyle(
-              color: PratiCaseColors.muted,
-              fontSize: 14,
-              height: 1.5,
-              fontWeight: FontWeight.w500,
+          const SizedBox(width: PratiCaseSpacing.sm),
+          Expanded(
+            child: InkWell(
+              borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+              onTap: () => onChanged(!value),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: PratiCaseColors.slateBlue,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    height: 1.45,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: onOpen,
+            style: TextButton.styleFrom(
+              foregroundColor: PratiCaseColors.teal,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
+            ),
+            child: const Text(
+              'Aç',
+              style: TextStyle(fontWeight: FontWeight.w900),
             ),
           ),
         ],

@@ -9,7 +9,6 @@ import '../domain/store_product.dart';
 import '../domain/subscription_state.dart';
 import '../domain/wallet_snapshot.dart';
 import '../domain/wallet_transaction.dart';
-import 'paywall_screen.dart';
 import 'subscription_status_screen.dart';
 
 /// Cüzdan sekmesi: MC bakiyesi, soru hakkı, aktif abonelik ve paket önerileri.
@@ -105,14 +104,6 @@ class _WalletScreenState extends State<WalletScreen>
     _lastRefresh = DateTime.now();
   }
 
-  void _openPaywall() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => PaywallScreen(controller: widget.controller),
-      ),
-    );
-  }
-
   void _openSubscriptionStatus() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -164,12 +155,10 @@ class _WalletScreenState extends State<WalletScreen>
               ),
               const SizedBox(height: 18),
             ],
-            _WalletCtaBar(onPrimary: _openPaywall, primaryLabel: 'MC Satın Al'),
-            const SizedBox(height: 22),
-            _WalletSectionHeader(
+            const _WalletSectionHeader(
               title: 'Paketler',
-              actionLabel: products.isEmpty ? null : 'Tümünü Gör',
-              onAction: products.isEmpty ? null : _openPaywall,
+              actionLabel: null,
+              onAction: null,
             ),
             const SizedBox(height: 10),
             if (products.isEmpty)
@@ -177,7 +166,9 @@ class _WalletScreenState extends State<WalletScreen>
             else
               _WalletPackagesList(
                 products: products,
-                onSelect: (_) => _openPaywall(),
+                onSelect: controller.busy
+                    ? (_) {}
+                    : (product) => controller.purchase(product),
               ),
             if (error != null) ...[
               const SizedBox(height: 18),
@@ -869,54 +860,6 @@ class _WalletConsumptionCard extends StatelessWidget {
   }
 }
 
-// CTA bar
-
-class _WalletCtaBar extends StatelessWidget {
-  const _WalletCtaBar({required this.onPrimary, required this.primaryLabel});
-
-  final VoidCallback onPrimary;
-  final String primaryLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: GlowButton(
-            label: primaryLabel,
-            icon: Icons.add_rounded,
-            height: 52,
-            pulse: true,
-            onPressed: onPrimary,
-            semanticIdentifier: 'cta.wallet-primary',
-          ),
-        ),
-        const SizedBox(width: 12),
-        SizedBox(
-          height: 52,
-          child: OutlinedButton.icon(
-            onPressed: onPrimary,
-            icon: const Icon(Icons.inventory_2_outlined),
-            label: const Text('Paketleri Gör'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: PratiCaseColors.navy,
-              side: const BorderSide(color: PratiCaseColors.border),
-              textStyle: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 // Section header
 
 class _WalletSectionHeader extends StatelessWidget {
@@ -1021,9 +964,7 @@ class _WalletPackageCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final priceLabel =
-        product.localizedPrice ??
-        _fallbackPrice(product.priceCents, product.currency);
+    final priceLabel = _fallbackPrice(product.priceCents);
     final periodLabel = product.periodLabel;
     final hasBadge = product.badge.trim().isNotEmpty || product.isFeatured;
     final badgeText = product.badge.trim().isNotEmpty
@@ -1166,7 +1107,7 @@ class _WalletPackageCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: const [
                   Text(
-                    'İncele',
+                    'Satın Al',
                     style: TextStyle(
                       color: PratiCaseColors.teal,
                       fontWeight: FontWeight.w900,
@@ -1175,7 +1116,7 @@ class _WalletPackageCard extends StatelessWidget {
                   ),
                   SizedBox(width: 4),
                   Icon(
-                    Icons.arrow_forward_rounded,
+                    Icons.shopping_bag_rounded,
                     color: PratiCaseColors.teal,
                     size: 18,
                   ),
@@ -1188,14 +1129,13 @@ class _WalletPackageCard extends StatelessWidget {
     );
   }
 
-  static String _fallbackPrice(int cents, String currency) {
+  static String _fallbackPrice(int cents) {
     if (cents <= 0) return 'Ücretsiz';
     final value = cents / 100;
-    final symbol = currency.trim().toUpperCase() == 'TRY' ? '₺' : currency;
     final formatted = value == value.roundToDouble()
         ? value.toStringAsFixed(0)
         : value.toStringAsFixed(2).replaceFirst('.', ',');
-    return '$formatted $symbol';
+    return '₺$formatted';
   }
 }
 

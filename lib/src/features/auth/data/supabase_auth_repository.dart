@@ -133,7 +133,11 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   Future<void> resendEmailVerification(String email) async {
     try {
-      await _client.auth.resend(email: email.trim(), type: OtpType.signup);
+      await _client.auth.resend(
+        email: email.trim(),
+        type: OtpType.signup,
+        emailRedirectTo: _config.redirectUrl,
+      );
     } on AuthException catch (error) {
       throw AuthFailure(_friendlyMessage(error.message));
     }

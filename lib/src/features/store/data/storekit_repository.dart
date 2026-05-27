@@ -102,10 +102,25 @@ class StoreKitRepository {
       return data;
     } on StorePurchaseException {
       rethrow;
-    } on FunctionException {
-      throw StorePurchaseException(fallback, code: 'function_failed');
+    } on FunctionException catch (error) {
+      throw StorePurchaseException(
+        _functionErrorMessage(error, fallback: fallback),
+        code: 'function_failed',
+      );
     } on Object {
       throw StorePurchaseException(fallback, code: 'request_failed');
     }
+  }
+
+  String _functionErrorMessage(
+    FunctionException error, {
+    required String fallback,
+  }) {
+    final details = error.details;
+    if (details is Map) {
+      final message = (details['error'] ?? details['message'])?.toString();
+      return PratiCaseUserMessage.safe(message, fallback: fallback);
+    }
+    return PratiCaseUserMessage.safe(details?.toString(), fallback: fallback);
   }
 }

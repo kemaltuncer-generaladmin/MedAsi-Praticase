@@ -61,8 +61,13 @@ class SupabaseProgressRepository implements ProgressRepository {
       return _storeCatalog(data);
     } on ProgressDataUnavailable {
       rethrow;
-    } on FunctionException {
-      throw const ProgressDataUnavailable(PratiCaseUserMessage.storeFailure);
+    } on FunctionException catch (error) {
+      throw ProgressDataUnavailable(
+        _functionErrorMessage(
+          error,
+          fallback: PratiCaseUserMessage.storeFailure,
+        ),
+      );
     } on Object {
       throw const ProgressDataUnavailable(PratiCaseUserMessage.storeFailure);
     }
@@ -107,11 +112,28 @@ class SupabaseProgressRepository implements ProgressRepository {
       return loadStoreCatalog();
     } on ProgressDataUnavailable {
       rethrow;
-    } on FunctionException {
-      throw const ProgressDataUnavailable(PratiCaseUserMessage.purchaseFailure);
+    } on FunctionException catch (error) {
+      throw ProgressDataUnavailable(
+        _functionErrorMessage(
+          error,
+          fallback: PratiCaseUserMessage.purchaseFailure,
+        ),
+      );
     } on Object {
       throw const ProgressDataUnavailable(PratiCaseUserMessage.purchaseFailure);
     }
+  }
+
+  String _functionErrorMessage(
+    FunctionException error, {
+    required String fallback,
+  }) {
+    final details = error.details;
+    if (details is Map) {
+      final message = (details['error'] ?? details['message'])?.toString();
+      return PratiCaseUserMessage.safe(message, fallback: fallback);
+    }
+    return PratiCaseUserMessage.safe(details?.toString(), fallback: fallback);
   }
 
   @override

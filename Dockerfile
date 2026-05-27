@@ -11,13 +11,21 @@ ARG SUPABASE_URL=https://qlinik.medasi.com.tr
 ARG FLUTTER_SUPABASE_URL=https://qlinik.medasi.com.tr
 ARG SUPABASE_ANON_KEY=
 ARG AUTH_REDIRECT_URL=https://praticase.medasi.com.tr/auth/callback
+ARG PRIVACY_POLICY_URL=https://praticase.medasi.com.tr/legal/privacy.html
+ARG TERMS_URL=https://praticase.medasi.com.tr/legal/terms.html
+ARG STUDY_TERMS_URL=https://praticase.medasi.com.tr/legal/study-terms.html
+ARG PURCHASE_TERMS_URL=https://praticase.medasi.com.tr/legal/purchase-terms.html
 RUN --mount=type=secret,id=praticase_env \
   if [ -f /run/secrets/praticase_env ]; then . /run/secrets/praticase_env; fi; \
   flutter build web --release --output build/web \
     --dart-define=SUPABASE_URL="${SUPABASE_URL:-https://qlinik.medasi.com.tr}" \
     --dart-define=FLUTTER_SUPABASE_URL="${FLUTTER_SUPABASE_URL:-https://qlinik.medasi.com.tr}" \
     --dart-define=SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:-}" \
-    --dart-define=AUTH_REDIRECT_URL="${AUTH_REDIRECT_URL:-https://praticase.medasi.com.tr/auth/callback}"
+    --dart-define=AUTH_REDIRECT_URL="${AUTH_REDIRECT_URL:-https://praticase.medasi.com.tr/auth/callback}" \
+    --dart-define=PRIVACY_POLICY_URL="${PRIVACY_POLICY_URL:-https://praticase.medasi.com.tr/legal/privacy.html}" \
+    --dart-define=TERMS_URL="${TERMS_URL:-https://praticase.medasi.com.tr/legal/terms.html}" \
+    --dart-define=STUDY_TERMS_URL="${STUDY_TERMS_URL:-https://praticase.medasi.com.tr/legal/study-terms.html}" \
+    --dart-define=PURCHASE_TERMS_URL="${PURCHASE_TERMS_URL:-https://praticase.medasi.com.tr/legal/purchase-terms.html}"
 
 FROM nginx:1.27-alpine
 

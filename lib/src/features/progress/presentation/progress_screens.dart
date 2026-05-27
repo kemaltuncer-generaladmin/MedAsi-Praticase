@@ -361,7 +361,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  static const _appVersion = 'v1.0.1';
+  static const _appVersion = 'v1.0.2';
   late Future<ProfileCard> _profileFuture;
 
   @override
@@ -740,7 +740,7 @@ class _AccountSecurityScreenState extends State<AccountSecurityScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Şifre sıfırlama bağlantısı ${widget.profile.email} adresine gönderildi.',
+            'Şifre sıfırlama kodu ${widget.profile.email} adresine gönderildi.',
           ),
         ),
       );
@@ -786,8 +786,8 @@ class _AccountSecurityScreenState extends State<AccountSecurityScreen> {
             _SettingsRow(
               Icons.password_rounded,
               _sendingReset
-                  ? 'Şifre bağlantısı gönderiliyor'
-                  : 'Şifre Sıfırlama Bağlantısı Gönder',
+                  ? 'Şifre kodu gönderiliyor'
+                  : 'Şifre Sıfırlama Kodu Gönder',
               value: _sendingReset ? 'Bekle' : 'Gönder',
               onTap: _sendingReset ? null : _sendResetCode,
             ),

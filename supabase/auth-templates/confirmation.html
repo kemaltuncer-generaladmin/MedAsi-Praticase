@@ -1,0 +1,54 @@
+{{ if eq .RedirectTo "https://praticase.medasi.com.tr/auth/callback" }}
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PratiCase e-posta doğrulama</title>
+  </head>
+  <body style="margin:0;background:#f5f6f7;color:#17212b;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f5f6f7;padding:28px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#ffffff;border:1px solid #e2e6ea;border-radius:18px;overflow:hidden;">
+            <tr>
+              <td style="background:#0b1d2a;padding:26px 28px;">
+                <div style="font-size:24px;line-height:1.2;font-weight:800;color:#ffffff;">PratiCase</div>
+                <div style="margin-top:6px;font-size:14px;line-height:1.4;color:#32c8bf;">OSCE simülasyon hesabını doğrula</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:30px 28px 10px;">
+                <h1 style="margin:0 0 12px;font-size:24px;line-height:1.25;color:#0b1d2a;">E-posta doğrulama kodun</h1>
+                <p style="margin:0;color:#5c6873;font-size:16px;line-height:1.55;">
+                  PratiCase hesabını güvenle tamamlamak için aşağıdaki 6 haneli kodu uygulamadaki doğrulama ekranına gir.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="padding:24px 28px 18px;">
+                <div style="display:inline-block;letter-spacing:10px;font-size:34px;line-height:1;font-weight:800;color:#0e7c78;background:#eaf8f7;border:1px solid #bfe9e6;border-radius:14px;padding:20px 18px 20px 28px;">
+                  {{ .Token }}
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:8px 28px 30px;">
+                <p style="margin:0;color:#5c6873;font-size:14px;line-height:1.55;">
+                  Bu kodu sen istemediysen bu e-postayı yok sayabilirsin. Güvenliğin için kodu kimseyle paylaşma.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+{{ else }}
+<h2>E-posta adresini doğrula</h2>
+<p>Medasi hesabın için doğrulama kodun:</p>
+<p style="font-size:28px;font-weight:700;letter-spacing:6px;">{{ .Token }}</p>
+<p>Bağlantı ile devam etmek istersen:</p>
+<p><a href="{{ .ConfirmationURL }}">E-postamı doğrula</a></p>
+{{ end }}

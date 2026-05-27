@@ -236,9 +236,14 @@ void main() {
     await tester.pump();
 
     expect(
-      find.text('Kullanım koşulları ve gizlilik politikasını kabul etmelisin.'),
+      find.text(
+        'Devam etmek için KVKK/Gizlilik, kullanıcı sözleşmesi ve çalışma koşulları onayları gereklidir.',
+      ),
       findsOneWidget,
     );
+    expect(find.text('KVKK / Gizlilik metnini okudum'), findsOneWidget);
+    expect(find.text('Kullanıcı sözleşmesini kabul ediyorum'), findsOneWidget);
+    expect(find.text('Çalışma koşullarını kabul ediyorum'), findsOneWidget);
   });
 
   testWidgets('reset password requires OTP code', (tester) async {
@@ -428,17 +433,15 @@ void main() {
     );
 
     await tester.scrollUntilVisible(
-      find.text('Şifre Sıfırlama Bağlantısı Gönder'),
+      find.text('Şifre Sıfırlama Kodu Gönder'),
       160,
     );
-    await tester.tap(find.text('Şifre Sıfırlama Bağlantısı Gönder'));
+    await tester.tap(find.text('Şifre Sıfırlama Kodu Gönder'));
     await tester.pumpAndSettle();
 
     expect(repository.resetEmail, 'ayse@example.com');
     expect(
-      find.text(
-        'Şifre sıfırlama bağlantısı ayse@example.com adresine gönderildi.',
-      ),
+      find.text('Şifre sıfırlama kodu ayse@example.com adresine gönderildi.'),
       findsOneWidget,
     );
   });

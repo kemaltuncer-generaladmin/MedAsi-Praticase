@@ -68,6 +68,11 @@ scripts/deploy_self_hosted.sh
 scripts/preflight_self_hosted.sh --remote
 ```
 
+Auth email templates are shared by the Medasi Supabase Auth service. Use the
+conditional templates in `supabase/auth-templates/` so PratiCase receives
+OTP-first confirmation/recovery emails without replacing Qlinik's fallback
+email flow. See `docs/praticase-auth-email-templates.md`.
+
 ## App Store Server API
 
 PratiCase validates StoreKit purchases in `praticase-storekit-verify` using
