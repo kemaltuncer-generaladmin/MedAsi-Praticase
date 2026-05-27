@@ -472,10 +472,17 @@ async function handlePaymentEntitlementWebhook(
   const periodStart = Number.isNaN(signedApprovedAt.getTime())
     ? new Date()
     : signedApprovedAt;
-  const durationDays = numberValue(product.duration_days) ?? 0;
-  const expiresAt = durationDays > 0
-    ? new Date(periodStart.getTime() + durationDays * 24 * 3600 * 1000)
-    : null;
+  const durationDays = Math.trunc(numberValue(product.duration_days) ?? 0);
+  if (durationDays <= 0) {
+    return jsonResponse(
+      { error: "Paket geçerlilik süresi yapılandırılmamış." },
+      503,
+      origin,
+    );
+  }
+  const expiresAt = new Date(
+    periodStart.getTime() + durationDays * 24 * 3600 * 1000,
+  );
   const { error } = await admin.rpc("grant_store_product", {
     p_user_id: userId,
     p_product_id: product.id,
@@ -490,7 +497,7 @@ async function handlePaymentEntitlementWebhook(
       payload: body,
     },
     p_started_at: periodStart.toISOString(),
-    p_expires_at: expiresAt?.toISOString() ?? null,
+    p_expires_at: expiresAt.toISOString(),
   });
   if (error && !error.message.includes("Active subscription exists")) {
     return jsonResponse(
