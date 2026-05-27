@@ -1,8 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import {
-  AppStoreServerAPIClient,
   Environment,
   SignedDataVerifier,
+  VerificationException,
+  VerificationStatus,
 } from "npm:@apple/app-store-server-library@3.1.0";
 import { Buffer } from "node:buffer";
 import { defaultAppleRootCertificates } from "../_shared/apple_root_certificates.ts";
@@ -1160,6 +1161,7 @@ async function verifySignedTransaction(
   expectedProductId: string,
 ): Promise<AppleReceipt> {
   const config = loadVerifierConfiguration();
+  let productionError: unknown;
   try {
     const verifier = signedDataVerifier(config, Environment.PRODUCTION);
     const transaction = await verifier.verifyAndDecodeTransaction(
@@ -1170,7 +1172,10 @@ async function verifySignedTransaction(
       expectedProductId,
       Environment.PRODUCTION,
     );
-  } catch (_) {
+  } catch (error) {
+    productionError = error;
+  }
+  try {
     const verifier = signedDataVerifier(config, Environment.SANDBOX);
     const transaction = await verifier.verifyAndDecodeTransaction(
       signedTransaction,
@@ -1179,6 +1184,12 @@ async function verifySignedTransaction(
       transaction,
       expectedProductId,
       Environment.SANDBOX,
+    );
+  } catch (sandboxError) {
+    throw new Error(
+      `Apple signed transaction validation failed (production=${
+        verificationFailureCode(productionError)
+      }, sandbox=${verificationFailureCode(sandboxError)})`,
     );
   }
 }
@@ -1206,14 +1217,11 @@ async function verifyTransactionInEnvironment(
   expectedProductId: string,
   environment: Environment,
 ): Promise<AppleReceipt> {
-  const client = new AppStoreServerAPIClient(
-    config.privateKey,
-    config.keyId,
-    config.issuerId,
-    config.bundleId,
+  const response = await fetchAppStoreTransaction(
+    config,
+    transactionId,
     environment,
   );
-  const response = await client.getTransactionInfo(transactionId);
   if (!response.signedTransactionInfo) {
     throw new Error("Apple transaction information is missing");
   }
@@ -1222,6 +1230,81 @@ async function verifyTransactionInEnvironment(
     response.signedTransactionInfo,
   );
   return receiptFromTransaction(transaction, expectedProductId, environment);
+}
+
+async function fetchAppStoreTransaction(
+  config: AppStoreServerConfiguration,
+  transactionId: string,
+  environment: Environment,
+): Promise<{ signedTransactionInfo?: string }> {
+  const host = environment === Environment.PRODUCTION
+    ? "https://api.storekit.itunes.apple.com"
+    : "https://api.storekit-sandbox.itunes.apple.com";
+  const token = await createAppStoreServerJwt(config);
+  const response = await fetch(
+    `${host}/inApps/v1/transactions/${encodeURIComponent(transactionId)}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!response.ok) {
+    throw new Error(`Apple transaction lookup failed (${response.status})`);
+  }
+  return await response.json() as { signedTransactionInfo?: string };
+}
+
+async function createAppStoreServerJwt(
+  config: AppStoreServerConfiguration,
+): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: "ES256", kid: config.keyId, typ: "JWT" };
+  const payload = {
+    iss: config.issuerId,
+    iat: now,
+    exp: now + 20 * 60,
+    aud: "appstoreconnect-v1",
+    bid: config.bundleId,
+  };
+  const signingInput = `${base64UrlJson(header)}.${base64UrlJson(payload)}`;
+  const key = await importAppStorePrivateKey(config.privateKey);
+  const signature = new Uint8Array(
+    await crypto.subtle.sign(
+      { name: "ECDSA", hash: "SHA-256" },
+      key,
+      new TextEncoder().encode(signingInput),
+    ),
+  );
+  return `${signingInput}.${base64UrlBytes(signature)}`;
+}
+
+async function importAppStorePrivateKey(
+  privateKey: string,
+): Promise<CryptoKey> {
+  const pem = privateKey.trim()
+    .replace(/^['"]|['"]$/g, "")
+    .replace(/\\n/g, "\n")
+    .replace("-----BEGIN PRIVATE KEY-----", "")
+    .replace("-----END PRIVATE KEY-----", "")
+    .replace(/\s+/g, "");
+  const binary = Uint8Array.from(atob(pem), (char) => char.charCodeAt(0));
+  return await crypto.subtle.importKey(
+    "pkcs8",
+    binary,
+    { name: "ECDSA", namedCurve: "P-256" },
+    false,
+    ["sign"],
+  );
+}
+
+function base64UrlJson(value: JsonMap): string {
+  return base64UrlBytes(new TextEncoder().encode(JSON.stringify(value)));
+}
+
+function base64UrlBytes(value: Uint8Array): string {
+  let binary = "";
+  for (const byte of value) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(
+    /=+$/,
+    "",
+  );
 }
 
 function receiptFromTransaction(
@@ -1282,6 +1365,13 @@ function dateFromMilliseconds(value: unknown): Date | null {
   return Number.isFinite(milliseconds) && milliseconds > 0
     ? new Date(milliseconds)
     : null;
+}
+
+function verificationFailureCode(error: unknown): string {
+  if (error instanceof VerificationException) {
+    return VerificationStatus[error.status] ?? `status_${error.status}`;
+  }
+  return error instanceof Error && error.message ? error.message : "unknown";
 }
 
 function recordEvent(event: string, context: JsonMap) {
