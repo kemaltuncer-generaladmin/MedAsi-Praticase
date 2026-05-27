@@ -6,6 +6,7 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 import '../../../shared/data/user_facing_error.dart';
 import '../domain/store_product.dart';
 import '../domain/subscription_state.dart';
+import '../domain/wallet_snapshot.dart';
 import '../domain/wallet_transaction.dart';
 import 'storekit_repository.dart';
 import 'storekit_service.dart';
@@ -28,6 +29,7 @@ class StoreController extends ChangeNotifier {
   StreamSubscription<PurchaseDetails>? _subscription;
 
   List<PratiCaseStoreProduct> _products = const [];
+  WalletSnapshot _walletSnapshot = WalletSnapshot.empty;
   SubscriptionState _subscriptionState = SubscriptionState.empty;
   List<WalletTransaction> _transactions = const [];
   bool _busy = false;
@@ -36,6 +38,7 @@ class StoreController extends ChangeNotifier {
   bool _initialized = false;
 
   List<PratiCaseStoreProduct> get products => List.unmodifiable(_products);
+  WalletSnapshot get walletSnapshot => _walletSnapshot;
   SubscriptionState get subscriptionState => _subscriptionState;
   List<WalletTransaction> get transactions => List.unmodifiable(_transactions);
   bool get busy => _busy;
@@ -55,9 +58,14 @@ class StoreController extends ChangeNotifier {
     _setBusy(true);
     _errorMessage = null;
     try {
-      final catalog = await _repo.loadCatalog();
-      _products = await _service.attachStoreKitMetadata(catalog);
-      _subscriptionState = await _repo.loadSubscriptionState();
+      final catalog = await _repo.loadWalletCatalog();
+      _products = await _service.attachStoreKitMetadata(catalog.products);
+      _walletSnapshot = catalog.snapshot;
+      try {
+        _subscriptionState = await _repo.loadSubscriptionState();
+      } on Object {
+        _subscriptionState = SubscriptionState.empty;
+      }
       // Transactions are best-effort; failure shouldn't break the wallet view.
       try {
         _transactions = await _repo.loadWalletTransactions();
@@ -159,10 +167,14 @@ class StoreController extends ChangeNotifier {
           : 'Satın alma doğrulandı.';
       await _service.completePurchase(purchase);
       // Katalog, bakiye ve hareket akışı ortak cüzdandan yeniden okunur.
-      _products = await _service.attachStoreKitMetadata(
-        await _repo.loadCatalog(),
-      );
-      _subscriptionState = await _repo.loadSubscriptionState();
+      final catalog = await _repo.loadWalletCatalog();
+      _products = await _service.attachStoreKitMetadata(catalog.products);
+      _walletSnapshot = catalog.snapshot;
+      try {
+        _subscriptionState = await _repo.loadSubscriptionState();
+      } on Object {
+        _subscriptionState = SubscriptionState.empty;
+      }
       try {
         _transactions = await _repo.loadWalletTransactions();
       } on Object {

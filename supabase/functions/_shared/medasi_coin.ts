@@ -108,27 +108,39 @@ export async function loadEffectiveWalletProfile(
     return { wallet_balance: 0, question_quota: 0 };
   }
 
+  const syncedProfile = await syncWalletProfile(admin, userId);
   try {
-    const { data: profile } = await query(admin.from("profiles"))
+    const { data: profile, error } = await query(admin.from("profiles"))
       .select("wallet_balance,question_quota,ai_quota")
       .eq("id", userId)
       .maybeSingle();
-    return walletProfileSnapshot(isJsonMap(profile) ? profile : {});
-  } catch (_) {
-    return walletProfileSnapshot({});
+    if (error) {
+      console.error("wallet_profile_snapshot_failed", error.message);
+    }
+    return walletProfileSnapshot(
+      syncedProfile,
+      isJsonMap(profile) ? profile : {},
+    );
+  } catch (error) {
+    console.error("wallet_profile_snapshot_failed", errorMessage(error));
+    return walletProfileSnapshot(syncedProfile);
   }
 }
 
 function walletProfileSnapshot(
-  profile: JsonMap,
+  syncedProfile: JsonMap,
+  profile: JsonMap = {},
 ): JsonMap {
   return {
-    wallet_balance: nullableNumberValue(profile.wallet_balance) ?? 0,
+    wallet_balance: nullableNumberValue(syncedProfile.wallet_balance) ??
+      nullableNumberValue(profile.wallet_balance) ?? 0,
     question_quota: Math.round(
-      nullableNumberValue(profile.question_quota) ?? 0,
+      nullableNumberValue(syncedProfile.question_quota) ??
+        nullableNumberValue(profile.question_quota) ?? 0,
     ),
     ai_quota: Math.round(
-      nullableNumberValue(profile.ai_quota) ?? 0,
+      nullableNumberValue(syncedProfile.ai_quota) ??
+        nullableNumberValue(profile.ai_quota) ?? 0,
     ),
   };
 }

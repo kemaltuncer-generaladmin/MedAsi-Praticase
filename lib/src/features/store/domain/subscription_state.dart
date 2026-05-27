@@ -1,7 +1,7 @@
-/// Kullanıcının PratiCase + Qlinik ortak cüzdanındaki canlı durumunu temsil
-/// eder. Veriler `praticase-storekit-verify` edge fonksiyonunun döndürdüğü
-/// `entitlement` paketinden ve Supabase `wallet_entitlements` görünümünden
-/// gelir.
+/// Kullanıcının aktif dönemsel paket durumunu temsil eder.
+///
+/// Ortak MC ve soru bakiyesi bu modelde tutulmaz; cüzdan sekmesi bu değerleri
+/// tek canlı `store` cevabından `WalletSnapshot` olarak okur.
 class SubscriptionState {
   const SubscriptionState({
     required this.hasActiveSubscription,
@@ -13,8 +13,6 @@ class SubscriptionState {
     required this.environment,
     required this.transactionId,
     required this.originalTransactionId,
-    this.walletCoinBalance = 0,
-    this.questionQuota = 0,
     this.remainingCoinAmount = 0,
     this.remainingQuestionAmount = 0,
     this.warnings = const <String>[],
@@ -32,8 +30,6 @@ class SubscriptionState {
   final String transactionId;
   final String originalTransactionId;
 
-  final double walletCoinBalance;
-  final int questionQuota;
   final double remainingCoinAmount;
   final int remainingQuestionAmount;
   final List<String> warnings;
@@ -53,25 +49,6 @@ class SubscriptionState {
   bool get isExpired =>
       expiresAt != null && DateTime.now().toUtc().isAfter(expiresAt!.toUtc());
 
-  SubscriptionState withWalletProfileFrom(SubscriptionState walletState) {
-    return SubscriptionState(
-      hasActiveSubscription: hasActiveSubscription,
-      productCode: productCode,
-      productName: productName,
-      expiresAt: expiresAt,
-      periodStartedAt: periodStartedAt,
-      willAutoRenew: willAutoRenew,
-      environment: environment,
-      transactionId: transactionId,
-      originalTransactionId: originalTransactionId,
-      walletCoinBalance: walletState.walletCoinBalance,
-      questionQuota: walletState.questionQuota,
-      remainingCoinAmount: remainingCoinAmount,
-      remainingQuestionAmount: remainingQuestionAmount,
-      warnings: {...warnings, ...walletState.warnings}.toList(),
-    );
-  }
-
   Duration? get remainingDuration {
     final expires = expiresAt;
     if (expires == null) return null;
@@ -86,9 +63,6 @@ class SubscriptionState {
     final entitlement = data['entitlement'] is Map
         ? Map<String, dynamic>.from(data['entitlement'] as Map)
         : const <String, dynamic>{};
-    final profile = data['profile'] is Map
-        ? Map<String, dynamic>.from(data['profile'] as Map)
-        : const <String, dynamic>{};
     final warningsValue = data['warnings'];
     return SubscriptionState(
       hasActiveSubscription: entitlement['active'] == true,
@@ -101,8 +75,6 @@ class SubscriptionState {
       transactionId: (entitlement['transaction_id'] ?? '').toString(),
       originalTransactionId: (entitlement['original_transaction_id'] ?? '')
           .toString(),
-      walletCoinBalance: _doubleValue(profile['wallet_balance']),
-      questionQuota: _intValue(profile['question_quota']),
       remainingCoinAmount: _doubleValue(entitlement['remaining_coin_amount']),
       remainingQuestionAmount: _intValue(
         entitlement['remaining_question_amount'],

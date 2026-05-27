@@ -206,14 +206,6 @@ Deno.serve(async (request) => {
     });
   }
 
-  try {
-    await admin.rpc("sync_wallet_profile", { p_user_id: userId });
-  } catch (error) {
-    recordEvent("sync_wallet_profile_failed", {
-      message: errorMessage(error),
-    });
-  }
-
   recordEvent("verify_succeeded", {
     productCode: product.code,
     provider,
@@ -265,39 +257,72 @@ async function loadCatalogPayload(
   };
 }
 
-/// Kullanıcının kanonik MC + soru bakiyesini döner.
+/// Qlinik ile aynı kanonik MC + soru bakiyesini döner.
 ///
-/// Qlinik'in canlı dashboard/store ekranlarında görünen profil mirror'ı tek
-/// okuma kaynağıdır. Read endpointlerinde `sync_wallet_profile` çalıştırmayız;
-/// aksi halde eski Qlinik akışlarının `public.profiles` üzerine yazdığı canlı
-/// bakiye, entitlement toplamıyla ezilip 0 görünebilir.
+/// Ortak `sync_wallet_profile` RPC'si aktif ve süresi dolmamış
+/// `wallet_entitlements` toplamını canlı hesaplar; `profiles` mirror'ı sadece
+/// RPC yanıtında olmayan alanlar için kullanılır.
 async function loadEffectiveWalletProfile(
   // deno-lint-ignore no-explicit-any
   admin: any,
   userId: string,
 ): Promise<JsonMap> {
+  let syncedProfile: JsonMap = {};
   try {
-    const { data: profile } = await admin
+    const { data: sync, error: syncError } = await admin.rpc(
+      "sync_wallet_profile",
+      { p_user_id: userId },
+    );
+    if (syncError) {
+      recordEvent("sync_wallet_profile_failed", {
+        message: syncError.message,
+      });
+    } else if (isJsonMap(sync)) {
+      syncedProfile = sync;
+    }
+  } catch (error) {
+    recordEvent("sync_wallet_profile_failed", {
+      message: errorMessage(error),
+    });
+  }
+
+  try {
+    const { data: profile, error } = await admin
       .from("profiles")
       .select("wallet_balance,question_quota,ai_quota")
       .eq("id", userId)
       .maybeSingle();
-    return walletProfileSnapshot(isJsonMap(profile) ? profile : {});
-  } catch (_) {
-    return walletProfileSnapshot({});
+    if (error) {
+      recordEvent("wallet_profile_snapshot_failed", {
+        message: error.message,
+      });
+    }
+    return walletProfileSnapshot(
+      syncedProfile,
+      isJsonMap(profile) ? profile : {},
+    );
+  } catch (error) {
+    recordEvent("wallet_profile_snapshot_failed", {
+      message: errorMessage(error),
+    });
+    return walletProfileSnapshot(syncedProfile);
   }
 }
 
 function walletProfileSnapshot(
-  profile: JsonMap,
+  syncedProfile: JsonMap,
+  profile: JsonMap = {},
 ): JsonMap {
   return {
-    wallet_balance: numberValue(profile.wallet_balance) ?? 0,
+    wallet_balance: numberValue(syncedProfile.wallet_balance) ??
+      numberValue(profile.wallet_balance) ?? 0,
     question_quota: Math.round(
-      numberValue(profile.question_quota) ?? 0,
+      numberValue(syncedProfile.question_quota) ??
+        numberValue(profile.question_quota) ?? 0,
     ),
     ai_quota: Math.round(
-      numberValue(profile.ai_quota) ?? 0,
+      numberValue(syncedProfile.ai_quota) ??
+        numberValue(profile.ai_quota) ?? 0,
     ),
   };
 }
@@ -481,7 +506,7 @@ async function loadWalletTransactionsPayload(
   const { data: rows, error } = await admin
     .from("wallet_entitlements")
     .select(
-      "product_code,entitlement_type,status,coin_amount,question_amount,remaining_coin_amount,remaining_question_amount,period_started_at,expires_at,created_at",
+      "product_code,entitlement_type,status,original_coin_amount,original_question_amount,remaining_coin_amount,remaining_question_amount,period_started_at,expires_at,created_at",
     )
     .eq("user_id", userId)
     .order("period_started_at", { ascending: false })
@@ -508,8 +533,8 @@ async function loadWalletTransactionsPayload(
   const transactions = entries.map((row) => {
     const code = stringValue(row.product_code);
     const productName = nameMap.get(code) || code || "PratiCase paketi";
-    const coin = numberValue(row.coin_amount) ?? 0;
-    const question = numberValue(row.question_amount) ?? 0;
+    const coin = numberValue(row.original_coin_amount) ?? 0;
+    const question = numberValue(row.original_question_amount) ?? 0;
     const status = stringValue(row.status) || "active";
     const expiresIso = stringValue(row.expires_at);
     const expired = expiresIso
@@ -633,8 +658,7 @@ async function loadSubscriptionPayload(
       if (sharedLink?.will_auto_renew === false) willAutoRenew = false;
     }
   }
-  // Profile mirror'ı boş olabilir (Qlinik tarafından senkronlanmamış),
-  // bu durumda wallet_entitlements toplamından canlı bakiye hesaplanır.
+  // Ortak entitlement toplamı, Qlinik ile aynı canlı RPC üzerinden okunur.
   const profile = await loadEffectiveWalletProfile(admin, userId);
   return {
     entitlement: row

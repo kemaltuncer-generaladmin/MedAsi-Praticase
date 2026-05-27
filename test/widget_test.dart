@@ -30,6 +30,7 @@ import 'package:praticase/src/features/store/data/storekit_repository.dart';
 import 'package:praticase/src/features/store/data/storekit_service.dart';
 import 'package:praticase/src/features/store/domain/store_product.dart';
 import 'package:praticase/src/features/store/domain/subscription_state.dart';
+import 'package:praticase/src/features/store/domain/wallet_snapshot.dart';
 import 'package:praticase/src/features/store/domain/wallet_transaction.dart';
 import 'package:praticase/src/features/store/presentation/wallet_screen.dart';
 import 'package:praticase/src/features/theoretical_exam/data/theoretical_exam_repository.dart';
@@ -102,46 +103,33 @@ void main() {
   });
 
   test('wallet parses live profile balances returned as text', () {
-    final state = SubscriptionState.fromVerificationResponse({
-      'entitlement': {
-        'active': false,
-        'remaining_coin_amount': '12.50',
-        'remaining_question_amount': '30',
-      },
+    final snapshot = WalletSnapshot.fromStoreResponse({
       'profile': {'wallet_balance': '1459.20', 'question_quota': '2795'},
     });
 
-    expect(state.walletCoinBalance, 1459.20);
-    expect(state.questionQuota, 2795);
-    expect(state.remainingCoinAmount, 12.5);
-    expect(state.remainingQuestionAmount, 30);
+    expect(snapshot.walletCoinBalance, 1459.20);
+    expect(snapshot.questionQuota, 2795);
   });
 
-  test('wallet keeps catalog profile balance while enriching subscription', () {
-    final subscription = SubscriptionState.fromVerificationResponse({
-      'entitlement': {
-        'active': true,
-        'product_name': 'Aylık',
-        'remaining_coin_amount': 80,
-        'remaining_question_amount': 2500,
-      },
-      'profile': {'wallet_balance': 0, 'question_quota': 0},
-      'warnings': ['Abonelik uyarısı'],
-    });
-    final catalogWallet = SubscriptionState.fromVerificationResponse({
+  test('wallet reads products and shared profile from one store response', () {
+    final catalog = WalletCatalog.fromStoreResponse({
       'profile': {'wallet_balance': '1459.20', 'question_quota': '2795'},
-      'warnings': ['Cüzdan uyarısı'],
+      'products': [
+        {
+          'code': 'monthly_subscription',
+          'name': 'Aylık',
+          'price_cents': 50000,
+          'currency': 'TRY',
+          'entitlement_kind': 'subscription',
+          'interval': 'month',
+          'duration_days': 30,
+        },
+      ],
     });
 
-    final state = subscription.withWalletProfileFrom(catalogWallet);
-
-    expect(state.hasActiveSubscription, isTrue);
-    expect(state.productName, 'Aylık');
-    expect(state.walletCoinBalance, 1459.20);
-    expect(state.questionQuota, 2795);
-    expect(state.remainingCoinAmount, 80);
-    expect(state.remainingQuestionAmount, 2500);
-    expect(state.warnings, ['Abonelik uyarısı', 'Cüzdan uyarısı']);
+    expect(catalog.snapshot.walletCoinBalance, 1459.20);
+    expect(catalog.snapshot.questionQuota, 2795);
+    expect(catalog.products.single.name, 'Aylık');
   });
 
   testWidgets('wallet surfaces shared balance and live MC consumption', (
@@ -203,8 +191,8 @@ void main() {
     expect(repository.verifiedPurchaseId, 'tx-praticase-mc-25');
     expect(service.completedPurchases, ['tx-praticase-mc-25']);
     expect(controller.statusMessage, 'Satın alma doğrulandı.');
-    expect(controller.subscriptionState.walletCoinBalance, 125);
-    expect(controller.subscriptionState.questionQuota, 50);
+    expect(controller.walletSnapshot.walletCoinBalance, 125);
+    expect(controller.walletSnapshot.questionQuota, 50);
   });
 
   testWidgets('PratiCase auth onboarding renders', (tester) async {
@@ -1422,21 +1410,24 @@ class _WalletStoreRepository extends StoreKitRepository {
       );
 
   @override
-  Future<List<PratiCaseStoreProduct>> loadCatalog() async {
-    return const [
-      PratiCaseStoreProduct(
-        code: 'mc_10',
-        name: '10 MC',
-        description: 'AI işlemleri için Medasi Coin.',
-        priceCents: 4000,
-        currency: 'TRY',
-        appStoreProductId: 'com.medasi.qlinik.mc.10',
-        entitlementKind: 'one_time',
-        interval: 'consumable',
-        durationDays: 365,
-        coinAmount: 10,
-      ),
-    ];
+  Future<WalletCatalog> loadWalletCatalog() async {
+    return const WalletCatalog(
+      snapshot: WalletSnapshot(walletCoinBalance: 100, questionQuota: 50),
+      products: [
+        PratiCaseStoreProduct(
+          code: 'mc_10',
+          name: '10 MC',
+          description: 'AI işlemleri için Medasi Coin.',
+          priceCents: 4000,
+          currency: 'TRY',
+          appStoreProductId: 'com.medasi.qlinik.mc.10',
+          entitlementKind: 'one_time',
+          interval: 'consumable',
+          durationDays: 365,
+          coinAmount: 10,
+        ),
+      ],
+    );
   }
 
   @override
@@ -1451,8 +1442,6 @@ class _WalletStoreRepository extends StoreKitRepository {
       environment: '',
       transactionId: '',
       originalTransactionId: '',
-      walletCoinBalance: 100,
-      questionQuota: 50,
     );
   }
 
@@ -1529,7 +1518,10 @@ class _RecordingStoreKitRepository extends StoreKitRepository {
   String? verifiedPurchaseId;
 
   @override
-  Future<List<PratiCaseStoreProduct>> loadCatalog() async => products;
+  Future<WalletCatalog> loadWalletCatalog() async => WalletCatalog(
+    products: products,
+    snapshot: const WalletSnapshot(walletCoinBalance: 125, questionQuota: 50),
+  );
 
   @override
   Future<SubscriptionState> loadSubscriptionState() async {
@@ -1543,8 +1535,6 @@ class _RecordingStoreKitRepository extends StoreKitRepository {
       environment: '',
       transactionId: '',
       originalTransactionId: '',
-      walletCoinBalance: 125,
-      questionQuota: 50,
     );
   }
 
@@ -1573,8 +1563,6 @@ class _RecordingStoreKitRepository extends StoreKitRepository {
       environment: 'sandbox',
       transactionId: 'tx-praticase-mc-25',
       originalTransactionId: 'tx-praticase-mc-25',
-      walletCoinBalance: 125,
-      questionQuota: 50,
     );
   }
 }

@@ -3,6 +3,7 @@ import {
   chargeAiCoins,
   ensureAiCoinBalance,
   InsufficientCoinBalanceError,
+  loadEffectiveWalletProfile,
   recordAiUsage,
   vertexAiCostFromUsage,
 } from "./medasi_coin.ts";
@@ -41,6 +42,16 @@ Deno.test("ensureAiCoinBalance rejects insufficient wallet balance", async () =>
     throw error;
   }
   throw new Error("Expected insufficient balance error");
+});
+
+Deno.test("wallet snapshot prefers synchronized entitlement totals", async () => {
+  const admin = fakeAdmin({ walletBalance: 0, remainingBalance: 42.5 });
+  const profile = await loadEffectiveWalletProfile(admin, "user-1");
+  if (profile.wallet_balance !== 42.5) {
+    throw new Error(
+      `Expected synchronized balance 42.5, got ${profile.wallet_balance}`,
+    );
+  }
 });
 
 Deno.test("chargeAiCoins consumes credits and logs usage event", async () => {

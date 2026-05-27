@@ -7,6 +7,7 @@ import '../../../shared/ui/ui.dart';
 import '../data/store_controller.dart';
 import '../domain/store_product.dart';
 import '../domain/subscription_state.dart';
+import '../domain/wallet_snapshot.dart';
 import '../domain/wallet_transaction.dart';
 import 'paywall_screen.dart';
 import 'subscription_status_screen.dart';
@@ -124,6 +125,7 @@ class _WalletScreenState extends State<WalletScreen>
   Widget build(BuildContext context) {
     final controller = widget.controller;
     final state = controller.subscriptionState;
+    final wallet = controller.walletSnapshot;
     final products = controller.products;
     final loading = controller.busy && products.isEmpty;
     final error = controller.errorMessage;
@@ -145,13 +147,13 @@ class _WalletScreenState extends State<WalletScreen>
             const _WalletSkeleton(),
           ] else ...[
             _WalletBalanceCard(
-              state: state,
+              wallet: wallet,
               hidden: _balanceHidden,
               onToggleHidden: () =>
                   setState(() => _balanceHidden = !_balanceHidden),
             ),
             const SizedBox(height: 10),
-            _WalletStatsRow(state: state, hidden: _balanceHidden),
+            _WalletStatsRow(wallet: wallet, hidden: _balanceHidden),
             const SizedBox(height: 10),
             _WalletConsumptionCard(transactions: controller.transactions),
             const SizedBox(height: 18),
@@ -351,18 +353,18 @@ class _WalletTitle extends StatelessWidget {
 
 class _WalletBalanceCard extends StatelessWidget {
   const _WalletBalanceCard({
-    required this.state,
+    required this.wallet,
     required this.hidden,
     required this.onToggleHidden,
   });
 
-  final SubscriptionState state;
+  final WalletSnapshot wallet;
   final bool hidden;
   final VoidCallback onToggleHidden;
 
   @override
   Widget build(BuildContext context) {
-    final balance = state.walletCoinBalance;
+    final balance = wallet.walletCoinBalance;
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 20, 16, 20),
       decoration: BoxDecoration(
@@ -477,11 +479,9 @@ class _WalletBalanceCard extends StatelessWidget {
           const SizedBox(height: 10),
           Row(
             children: [
-              // Shared wallet rozeti — PratiCase + Qlinik aynı Medasi
-              // hesabından okuyor (public.profiles.wallet_balance).
+              // PratiCase ve Qlinik, ortak Medasi entitlement bakiyesini okur.
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: PratiCaseColors.white.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
@@ -545,9 +545,9 @@ class _WalletBalanceCard extends StatelessWidget {
 // Stats row
 
 class _WalletStatsRow extends StatelessWidget {
-  const _WalletStatsRow({required this.state, required this.hidden});
+  const _WalletStatsRow({required this.wallet, required this.hidden});
 
-  final SubscriptionState state;
+  final WalletSnapshot wallet;
   final bool hidden;
 
   @override
@@ -560,7 +560,7 @@ class _WalletStatsRow extends StatelessWidget {
             icon: Icons.menu_book_outlined,
             accent: PratiCaseColors.teal,
             label: 'Soru hakkı',
-            value: hidden ? '••••' : '${state.questionQuota}',
+            value: hidden ? '••••' : '${wallet.questionQuota}',
             unit: 'kalan',
             sublabel: 'Teorik sınavda kullanılabilir',
           ),
@@ -568,7 +568,7 @@ class _WalletStatsRow extends StatelessWidget {
             icon: Icons.savings_outlined,
             accent: PratiCaseColors.slateBlue,
             label: 'Kullanılabilir MC',
-            value: hidden ? '••••' : _formatMetricMc(state.walletCoinBalance),
+            value: hidden ? '••••' : _formatMetricMc(wallet.walletCoinBalance),
             unit: 'MC',
             sublabel: 'AI işlemlerinde ortak bakiye',
           ),
