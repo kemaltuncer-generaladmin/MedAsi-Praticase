@@ -155,6 +155,8 @@ Deno.serve(async (request) => {
     recordEvent("verify_failed", {
       provider,
       productCode,
+      payloadShape: verificationPayloadShape(serverPayload),
+      purchaseIdPresent: purchaseId.length > 0,
       message: errorMessage(error),
     });
     return jsonResponse(
@@ -1122,6 +1124,7 @@ async function verifyWithAppStoreServerApi(
 ): Promise<AppleReceipt> {
   if (!transactionId) throw new Error("Missing transaction identifier");
   const config = loadServerApiConfiguration();
+  let productionError: unknown;
 
   try {
     return await verifyTransactionInEnvironment(
@@ -1130,12 +1133,21 @@ async function verifyWithAppStoreServerApi(
       expectedProductId,
       Environment.PRODUCTION,
     );
-  } catch (_) {
+  } catch (error) {
+    productionError = error;
+  }
+  try {
     return await verifyTransactionInEnvironment(
       config,
       transactionId,
       expectedProductId,
       Environment.SANDBOX,
+    );
+  } catch (sandboxError) {
+    throw new Error(
+      `Apple transaction lookup failed (production=${
+        errorMessage(productionError)
+      }, sandbox=${errorMessage(sandboxError)})`,
     );
   }
 }
@@ -1246,7 +1258,9 @@ async function fetchAppStoreTransaction(
     { headers: { Authorization: `Bearer ${token}` } },
   );
   if (!response.ok) {
-    throw new Error(`Apple transaction lookup failed (${response.status})`);
+    throw new Error(
+      `HTTP ${response.status}: ${truncateText(await response.text(), 240)}`,
+    );
   }
   return await response.json() as { signedTransactionInfo?: string };
 }
@@ -1374,6 +1388,23 @@ function verificationFailureCode(error: unknown): string {
   return error instanceof Error && error.message ? error.message : "unknown";
 }
 
+function verificationPayloadShape(value: string): string {
+  if (!value) return "empty";
+  const parts = value.split(".");
+  if (parts.length !== 3) return `non_jws:${value.length}`;
+  try {
+    const headerText = atob(
+      parts[0].replace(/-/g, "+").replace(/_/g, "/"),
+    );
+    const header = JSON.parse(headerText);
+    const alg = stringValue(header.alg) || "unknown_alg";
+    const hasCertificateChain = Array.isArray(header.x5c);
+    return `jws:${alg}:x5c_${hasCertificateChain ? "yes" : "no"}`;
+  } catch (_) {
+    return "jws:unreadable_header";
+  }
+}
+
 function recordEvent(event: string, context: JsonMap) {
   console.info("praticase_storekit_event", { event, ...context });
 }
@@ -1401,6 +1432,18 @@ function isJsonMap(value: unknown): value is JsonMap {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function truncateText(value: string, maxLength: number): string {
+  return value.length <= maxLength
+    ? value
+    : `${value.substring(0, maxLength)}...`;
+}
+
 function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
+  if (error instanceof Error) {
+    return error.message || error.name || String(error);
+  }
+  if (typeof DOMException !== "undefined" && error instanceof DOMException) {
+    return error.message || error.name || String(error);
+  }
+  return String(error);
 }
