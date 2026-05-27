@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { loadEffectiveWalletProfile } from "../_shared/medasi_coin.ts";
 
 type JsonMap = Record<string, unknown>;
 
@@ -135,6 +136,11 @@ Deno.serve(async (request) => {
 });
 
 async function loadFilters(admin: any, userId: string) {
+  const walletProfile = await loadEffectiveWalletProfile(admin, userId);
+  const questionQuota = Math.max(
+    0,
+    Math.round(numberValue(walletProfile.question_quota) ?? 0),
+  );
   const payloadResult = await admin.rpc("question_filter_payload", {
     p_user_id: userId,
   });
@@ -207,6 +213,8 @@ async function loadFilters(admin: any, userId: string) {
     filters,
     total_questions: totalQuestions,
     remaining_questions: remainingQuestions,
+    remaining_question_quota: questionQuota,
+    total_question_quota: questionQuota,
     filter_groups: filters.length,
   };
 }
@@ -222,6 +230,18 @@ async function loadQuestions(
     plans.reduce((total, plan) => total + plan.limit, 0) ||
       clampNumber(body.limit, 1, 100, 20),
   );
+  const walletProfile = await loadEffectiveWalletProfile(admin, userId);
+  const questionQuota = Math.max(
+    0,
+    Math.round(numberValue(walletProfile.question_quota) ?? 0),
+  );
+  if (questionQuota < limit) {
+    return {
+      error:
+        `Bu sınav için ${limit} soru hakkı gerekiyor. Medasi cüzdanında ${questionQuota} soru hakkı görünüyor.`,
+      remaining_question_quota: questionQuota,
+    };
+  }
   const delivered = new Map<string, QuestionRow>();
 
   for (const plan of plans) {
@@ -524,6 +544,12 @@ async function submitAttempt(admin: any, userId: string, body: JsonMap) {
     if (recorded) learningEventCount += 1;
     omittedCount += 1;
   }
+
+  const walletProfile = await loadEffectiveWalletProfile(admin, userId);
+  remainingQuestionQuota = Math.max(
+    0,
+    Math.round(numberValue(walletProfile.question_quota) ?? 0),
+  );
 
   return {
     submittedCount: rawAnswers.length,

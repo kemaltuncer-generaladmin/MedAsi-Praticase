@@ -64,6 +64,8 @@ class SupabaseTheoreticalExamRepository implements TheoreticalExamRepository {
         for (final entry in topicOptionsByCourse.entries)
           entry.key: entry.value..sort(_compareTopicOptions),
       },
+      totalQuestionQuota: _int(data, 'total_question_quota'),
+      remainingQuestionQuota: _int(data, 'remaining_question_quota'),
     );
   }
 

@@ -5,6 +5,8 @@ class TheoreticalExamFilters {
     this.topicOptionsByCourse = const <String, List<TheoreticalTopicOption>>{},
     this.totalQuestionCount = 0,
     this.remainingQuestionCount = 0,
+    this.totalQuestionQuota = 0,
+    this.remainingQuestionQuota = 0,
   });
 
   final List<String> courses;
@@ -12,6 +14,8 @@ class TheoreticalExamFilters {
   final Map<String, List<TheoreticalTopicOption>> topicOptionsByCourse;
   final int totalQuestionCount;
   final int remainingQuestionCount;
+  final int totalQuestionQuota;
+  final int remainingQuestionQuota;
 
   List<String> topicsFor(Set<String> selectedCourses) {
     final topics = <String>{};

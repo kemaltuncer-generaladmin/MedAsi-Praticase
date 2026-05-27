@@ -288,8 +288,8 @@ class _TheoreticalExamSetupScreenState
               ),
               children: [
                 _SharedQuotaCard(
-                  remaining: filters.remainingQuestionCount,
-                  total: filters.totalQuestionCount,
+                  remaining: filters.remainingQuestionQuota,
+                  total: filters.totalQuestionQuota,
                 ),
                 const SizedBox(height: 18),
                 _SectionCard(

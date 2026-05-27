@@ -270,49 +270,45 @@ async function loadCatalogPayload(
 
 /// Kullanıcının kanonik MC + soru bakiyesini döner.
 ///
-/// Qlinik ile birebir paralel olmak için 4 ayrı kaynak denenir ve **en
-/// yüksek non-zero değer** kullanılır. Hangi kaynak çalışırsa o veriyle
-/// devam edilir — Qlinik manuel bonus, admin top-up veya farklı table
-/// shape ile yazıyor olsa da PratiCase doğru rakamı surface eder.
-///
-///   1. `public.profiles.wallet_balance / question_quota` (klasik mirror)
-///   2. Aktif `public.wallet_entitlements` toplamı
-///   3. Olası RPC'ler: `get_user_wallet_balance`, `wallet_state_for_user`,
-///      `medasi_wallet_state`
-///   4. Olası ek tablolar: `public.user_wallets`, `public.medasi_wallets`,
-///      `public.user_credits`
-///
-/// Tüm sorgular hata yutar → bir kaynağın olmaması diğerlerini etkilemez.
+/// Burada "en yüksek değeri seç" yapılmaz. MC ve soru kotası Qlinik ile aynı
+/// düşmek zorunda olduğu için tek state zinciri okunur:
+///   1. Varsa Qlinik/Medasi wallet state RPC'si
+///   2. `sync_wallet_profile` sonrası `public.profiles` mirror'ı
+///   3. Sadece eski/eksik deploy için `public.wallet_entitlements` fallback'i
 async function loadEffectiveWalletProfile(
   // deno-lint-ignore no-explicit-any
   admin: any,
   userId: string,
 ): Promise<JsonMap> {
-  let bestCoin = 0;
-  let bestQuestion = 0;
-  const sources: string[] = [];
+  await admin.rpc("sync_wallet_profile", { p_user_id: userId }).catch(() => {});
 
-  // 1. public.profiles
+  const rpcState = await loadWalletRpcState(admin, userId);
+  if (rpcState != null) return rpcState;
+
   try {
     const { data: profile } = await admin
       .from("profiles")
       .select("wallet_balance,question_quota")
       .eq("id", userId)
       .maybeSingle();
-    const coin = numberValue(profile?.wallet_balance) ?? 0;
-    const quota = numberValue(profile?.question_quota) ?? 0;
-    if (coin > bestCoin) {
-      bestCoin = coin;
-      sources.push(`profiles:${coin}`);
-    }
-    if (quota > bestQuestion) {
-      bestQuestion = quota;
+    if (profile != null) {
+      return {
+        wallet_balance: numberValue(profile.wallet_balance) ?? 0,
+        question_quota: Math.round(numberValue(profile.question_quota) ?? 0),
+      };
     }
   } catch (_) {
     /* ignore */
   }
 
-  // 2. wallet_entitlements toplamı (active + henüz dolmamış)
+  return await loadEntitlementWalletFallback(admin, userId);
+}
+
+async function loadEntitlementWalletFallback(
+  // deno-lint-ignore no-explicit-any
+  admin: any,
+  userId: string,
+): Promise<JsonMap> {
   try {
     const nowIso = new Date().toISOString();
     const { data: rows } = await admin
@@ -330,20 +326,21 @@ async function loadEffectiveWalletProfile(
       coinSum += numberValue(row.remaining_coin_amount) ?? 0;
       qSum += numberValue(row.remaining_question_amount) ?? 0;
     }
-    if (coinSum > bestCoin) {
-      bestCoin = coinSum;
-      sources.push(`entitlements:${coinSum}`);
-    }
-    if (qSum > bestQuestion) {
-      bestQuestion = Math.round(qSum);
-    }
+    return {
+      wallet_balance: coinSum,
+      question_quota: Math.round(qSum),
+    };
   } catch (_) {
     /* ignore */
   }
+  return { wallet_balance: 0, question_quota: 0 };
+}
 
-  // 3. Olası Medasi cüzdan RPC'leri — varsa Qlinik'in kullandığı state'i
-  //    direkt döndürür. Yoksa "function does not exist" hatası sessiz
-  //    yutulur.
+async function loadWalletRpcState(
+  // deno-lint-ignore no-explicit-any
+  admin: any,
+  userId: string,
+): Promise<JsonMap | null> {
   const rpcCandidates = [
     "get_user_wallet_balance",
     "wallet_state_for_user",
@@ -358,89 +355,22 @@ async function loadEffectiveWalletProfile(
       // Dönüş scalar (sadece coin) veya jsonb {wallet_balance, question_quota}
       // olabilir.
       if (typeof data === "number") {
-        if (data > bestCoin) {
-          bestCoin = data;
-          sources.push(`rpc:${name}:${data}`);
-        }
+        return { wallet_balance: data, question_quota: 0 };
       } else if (isJsonMap(data)) {
         const coin = numberValue(data.wallet_balance) ??
           numberValue(data.balance) ?? 0;
         const quota = numberValue(data.question_quota) ??
           numberValue(data.questions) ?? 0;
-        if (coin > bestCoin) {
-          bestCoin = coin;
-          sources.push(`rpc:${name}:${coin}`);
-        }
-        if (quota > bestQuestion) {
-          bestQuestion = Math.round(quota);
-        }
+        return {
+          wallet_balance: coin,
+          question_quota: Math.round(quota),
+        };
       }
     } catch (_) {
       /* RPC yok */
     }
   }
-
-  // 4. Olası alternatif tablolar
-  const tableCandidates: Array<
-    { table: string; idCol: string; coinCol: string; quotaCol?: string }
-  > = [
-    {
-      table: "user_wallets",
-      idCol: "user_id",
-      coinCol: "wallet_balance",
-      quotaCol: "question_quota",
-    },
-    {
-      table: "medasi_wallets",
-      idCol: "user_id",
-      coinCol: "balance",
-      quotaCol: "questions",
-    },
-    {
-      table: "user_credits",
-      idCol: "user_id",
-      coinCol: "balance",
-    },
-  ];
-  for (const t of tableCandidates) {
-    try {
-      const cols = t.quotaCol ? `${t.coinCol},${t.quotaCol}` : t.coinCol;
-      const { data, error } = await admin
-        .from(t.table)
-        .select(cols)
-        .eq(t.idCol, userId)
-        .maybeSingle();
-      if (error || data == null) continue;
-      const row = data as JsonMap;
-      const coin = numberValue(row[t.coinCol]) ?? 0;
-      const quota = t.quotaCol ? numberValue(row[t.quotaCol]) ?? 0 : 0;
-      if (coin > bestCoin) {
-        bestCoin = coin;
-        sources.push(`${t.table}:${coin}`);
-      }
-      if (quota > bestQuestion) {
-        bestQuestion = Math.round(quota);
-      }
-    } catch (_) {
-      /* tablo yok */
-    }
-  }
-
-  if (sources.length > 1) {
-    recordEvent("wallet_multi_source_resolved", {
-      user_id: userId,
-      bestCoin,
-      bestQuestion,
-      sources,
-    });
-  } else if (bestCoin === 0 && bestQuestion === 0) {
-    recordEvent("wallet_empty_from_all_sources", { user_id: userId });
-  }
-
-  return {
-    wallet_balance: bestCoin,
-    question_quota: bestQuestion,
-  };
+  return null;
 }
 
 async function loadMappedCatalog(
