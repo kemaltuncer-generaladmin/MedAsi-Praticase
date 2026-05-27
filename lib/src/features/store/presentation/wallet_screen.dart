@@ -166,6 +166,7 @@ class _WalletScreenState extends State<WalletScreen>
             else
               _WalletPackagesList(
                 products: products,
+                blockedProductCodes: controller.blockedProductCodes,
                 onSelect: controller.busy
                     ? (_) {}
                     : (product) => controller.purchase(product),
@@ -905,10 +906,15 @@ class _WalletSectionHeader extends StatelessWidget {
 // Packages
 
 class _WalletPackagesList extends StatelessWidget {
-  const _WalletPackagesList({required this.products, required this.onSelect});
+  const _WalletPackagesList({
+    required this.products,
+    required this.onSelect,
+    this.blockedProductCodes = const <String>{},
+  });
 
   final List<PratiCaseStoreProduct> products;
   final ValueChanged<PratiCaseStoreProduct> onSelect;
+  final Set<String> blockedProductCodes;
 
   @override
   Widget build(BuildContext context) {
@@ -917,6 +923,15 @@ class _WalletPackagesList extends StatelessWidget {
         if (a.isFeatured == b.isFeatured) return 0;
         return a.isFeatured ? -1 : 1;
       });
+    Widget cardFor(PratiCaseStoreProduct product) {
+      final blocked = blockedProductCodes.contains(product.code);
+      return _WalletPackageCard(
+        product: product,
+        blocked: blocked,
+        onTap: blocked ? null : () => onSelect(product),
+      );
+    }
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 640;
@@ -930,23 +945,14 @@ class _WalletPackagesList extends StatelessWidget {
             runSpacing: spacing,
             children: [
               for (final p in featured)
-                SizedBox(
-                  width: width,
-                  child: _WalletPackageCard(
-                    product: p,
-                    onTap: () => onSelect(p),
-                  ),
-                ),
+                SizedBox(width: width, child: cardFor(p)),
             ],
           );
         }
         return Column(
           children: [
             for (var i = 0; i < featured.length; i++) ...[
-              _WalletPackageCard(
-                product: featured[i],
-                onTap: () => onSelect(featured[i]),
-              ),
+              cardFor(featured[i]),
               if (i != featured.length - 1) const SizedBox(height: 10),
             ],
           ],
@@ -957,37 +963,49 @@ class _WalletPackagesList extends StatelessWidget {
 }
 
 class _WalletPackageCard extends StatelessWidget {
-  const _WalletPackageCard({required this.product, required this.onTap});
+  const _WalletPackageCard({
+    required this.product,
+    required this.onTap,
+    this.blocked = false,
+  });
 
   final PratiCaseStoreProduct product;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final bool blocked;
 
   @override
   Widget build(BuildContext context) {
     final priceLabel = _fallbackPrice(product.priceCents);
     final periodLabel = product.periodLabel;
-    final hasBadge = product.badge.trim().isNotEmpty || product.isFeatured;
+    final showFeaturedBadge =
+        !blocked && (product.badge.trim().isNotEmpty || product.isFeatured);
     final badgeText = product.badge.trim().isNotEmpty
         ? product.badge.trim()
         : 'En çok tercih edilen';
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: PratiCaseColors.white,
-            borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-            border: Border.all(
-              color: product.isFeatured
-                  ? PratiCaseColors.teal.withValues(alpha: 0.55)
-                  : PratiCaseColors.border,
-              width: product.isFeatured ? 1.4 : 1,
+    return Opacity(
+      opacity: blocked ? 0.92 : 1,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: blocked
+                  ? PratiCaseColors.surfaceContainerLow
+                  : PratiCaseColors.white,
+              borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+              border: Border.all(
+                color: blocked
+                    ? PratiCaseColors.successGreen.withValues(alpha: 0.45)
+                    : product.isFeatured
+                    ? PratiCaseColors.teal.withValues(alpha: 0.55)
+                    : PratiCaseColors.border,
+                width: blocked || product.isFeatured ? 1.4 : 1,
+              ),
+              boxShadow: PratiCaseShadows.card,
             ),
-            boxShadow: PratiCaseShadows.card,
-          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -1008,7 +1026,43 @@ class _WalletPackageCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (hasBadge) ...[
+                  if (blocked) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: PratiCaseColors.successGreen.withValues(
+                          alpha: 0.14,
+                        ),
+                        borderRadius: BorderRadius.circular(
+                          PratiCaseRadius.pill,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(
+                            Icons.check_circle_rounded,
+                            color: PratiCaseColors.successGreen,
+                            size: 12,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            'Aktif',
+                            style: TextStyle(
+                              color: PratiCaseColors.successGreen,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else if (showFeaturedBadge) ...[
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -1105,27 +1159,45 @@ class _WalletPackageCard extends StatelessWidget {
               const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
-                children: const [
-                  Text(
-                    'Satın Al',
-                    style: TextStyle(
-                      color: PratiCaseColors.teal,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 13,
-                    ),
-                  ),
-                  SizedBox(width: 4),
-                  Icon(
-                    Icons.shopping_bag_rounded,
-                    color: PratiCaseColors.teal,
-                    size: 18,
-                  ),
-                ],
+                children: blocked
+                    ? const [
+                        Icon(
+                          Icons.lock_outline_rounded,
+                          color: PratiCaseColors.muted,
+                          size: 16,
+                        ),
+                        SizedBox(width: 6),
+                        Text(
+                          'Cüzdanında aktif',
+                          style: TextStyle(
+                            color: PratiCaseColors.muted,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ]
+                    : const [
+                        Text(
+                          'Satın Al',
+                          style: TextStyle(
+                            color: PratiCaseColors.teal,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 13,
+                          ),
+                        ),
+                        SizedBox(width: 4),
+                        Icon(
+                          Icons.shopping_bag_rounded,
+                          color: PratiCaseColors.teal,
+                          size: 18,
+                        ),
+                      ],
               ),
             ],
           ),
         ),
       ),
+    ),
     );
   }
 

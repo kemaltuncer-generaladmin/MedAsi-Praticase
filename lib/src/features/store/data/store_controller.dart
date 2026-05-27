@@ -32,6 +32,7 @@ class StoreController extends ChangeNotifier {
   WalletSnapshot _walletSnapshot = WalletSnapshot.empty;
   SubscriptionState _subscriptionState = SubscriptionState.empty;
   List<WalletTransaction> _transactions = const [];
+  Set<String> _blockedProductCodes = const <String>{};
   bool _busy = false;
   String? _statusMessage;
   String? _errorMessage;
@@ -41,6 +42,7 @@ class StoreController extends ChangeNotifier {
   WalletSnapshot get walletSnapshot => _walletSnapshot;
   SubscriptionState get subscriptionState => _subscriptionState;
   List<WalletTransaction> get transactions => List.unmodifiable(_transactions);
+  Set<String> get blockedProductCodes => _blockedProductCodes;
   bool get busy => _busy;
   String? get statusMessage => _statusMessage;
   String? get errorMessage => _errorMessage;
@@ -61,6 +63,7 @@ class StoreController extends ChangeNotifier {
       final catalog = await _repo.loadWalletCatalog();
       _products = await _service.attachStoreKitMetadata(catalog.products);
       _walletSnapshot = catalog.snapshot;
+      _blockedProductCodes = catalog.blockedProductCodes;
       try {
         _subscriptionState = await _repo.loadSubscriptionState();
       } on Object {
@@ -83,6 +86,13 @@ class StoreController extends ChangeNotifier {
 
   Future<void> purchase(PratiCaseStoreProduct product) async {
     if (_busy) return;
+    if (_blockedProductCodes.contains(product.code)) {
+      _statusMessage = null;
+      _errorMessage =
+          'Bu paket cüzdanında zaten aktif. Süresi bitince yeniden alabilirsin.';
+      notifyListeners();
+      return;
+    }
     _setBusy(true);
     _errorMessage = null;
     _statusMessage = 'App Store ödeme onayı bekleniyor.';
@@ -170,6 +180,7 @@ class StoreController extends ChangeNotifier {
       final catalog = await _repo.loadWalletCatalog();
       _products = await _service.attachStoreKitMetadata(catalog.products);
       _walletSnapshot = catalog.snapshot;
+      _blockedProductCodes = catalog.blockedProductCodes;
       try {
         _subscriptionState = await _repo.loadSubscriptionState();
       } on Object {

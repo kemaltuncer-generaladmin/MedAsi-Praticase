@@ -289,10 +289,11 @@ async function loadCatalogPayload(
   );
   const profile = await loadEffectiveWalletProfile(admin, userId);
   const warnings = await walletExpiryWarnings(admin, userId);
+  // Aktif aboneliği olan paketleri katalogda tutuyoruz; UI bunları "Aktif"
+  // rozeti ile devre dışı gösterir. Sunucu tarafı satın alma denemesini yine
+  // `blockedSubscriptionCodes` ile 409 reddeder — savunma çift katmanlı.
   return {
-    products: (products ?? []).filter((product) =>
-      !blockedProductCodes.includes(stringValue(product.code))
-    ),
+    products: products ?? [],
     blocked_product_codes: blockedProductCodes,
     wallet_warnings: warnings,
     profile,

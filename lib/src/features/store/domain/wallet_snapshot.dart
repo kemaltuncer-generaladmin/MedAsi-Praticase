@@ -30,13 +30,22 @@ class WalletSnapshot {
 }
 
 class WalletCatalog {
-  const WalletCatalog({required this.products, required this.snapshot});
+  const WalletCatalog({
+    required this.products,
+    required this.snapshot,
+    this.blockedProductCodes = const <String>{},
+  });
 
   final List<PratiCaseStoreProduct> products;
   final WalletSnapshot snapshot;
 
+  /// Aktif aboneliği veya kuralı nedeniyle tekrar satın alınamayacak ürün
+  /// kodları. Katalogda görünür ama UI tarafında devre dışı işaretlenir.
+  final Set<String> blockedProductCodes;
+
   factory WalletCatalog.fromStoreResponse(Map<String, dynamic> data) {
     final rows = data['products'];
+    final blocked = data['blocked_product_codes'];
     return WalletCatalog(
       products: [
         for (final row in (rows is List ? rows : const <Object>[]))
@@ -44,6 +53,13 @@ class WalletCatalog {
             PratiCaseStoreProduct.fromMap(Map<String, dynamic>.from(row)),
       ],
       snapshot: WalletSnapshot.fromStoreResponse(data),
+      blockedProductCodes: blocked is List
+          ? <String>{
+              for (final code in blocked)
+                if (code != null && code.toString().trim().isNotEmpty)
+                  code.toString().trim(),
+            }
+          : const <String>{},
     );
   }
 }
