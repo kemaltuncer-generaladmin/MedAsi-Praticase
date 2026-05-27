@@ -35,20 +35,46 @@ class WalletScreen extends StatefulWidget {
   State<WalletScreen> createState() => _WalletScreenState();
 }
 
-class _WalletScreenState extends State<WalletScreen> {
+class _WalletScreenState extends State<WalletScreen>
+    with WidgetsBindingObserver {
   bool _balanceHidden = false;
+
+  /// Çok sık refresh'i önlemek için son tazeleme zamanı. App resume veya
+  /// sekme tekrar seçilirken bu eşiğin üstündeyse otomatik tazele.
+  DateTime _lastRefresh = DateTime.fromMillisecondsSinceEpoch(0);
+  static const Duration _autoRefreshDebounce = Duration(seconds: 12);
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     widget.controller.addListener(_onChanged);
     _bootstrap();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     widget.controller.removeListener(_onChanged);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // App foreground'a dönünce: Qlinik'te yapılmış olabilecek satın alma /
+    // tüketim için cüzdanı sessizce tazele. Debounce eşiği var → 12 saniye
+    // içinde tekrar tetiklenmez.
+    if (state == AppLifecycleState.resumed) {
+      _maybeAutoRefresh();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Sekme değişiminde (IndexedStack visibility) tekrar build çağrıldığında
+    // tazelenmeyi tetikle — Route gözlemcisi kullanmadan ucuz bir trigger.
+    _maybeAutoRefresh();
   }
 
   Future<void> _bootstrap() async {
@@ -56,13 +82,27 @@ class _WalletScreenState extends State<WalletScreen> {
       await widget.controller.initialize();
     }
     await widget.controller.refresh();
+    _lastRefresh = DateTime.now();
+  }
+
+  void _maybeAutoRefresh() {
+    if (!mounted) return;
+    if (widget.controller.busy) return;
+    final now = DateTime.now();
+    if (now.difference(_lastRefresh) < _autoRefreshDebounce) return;
+    _lastRefresh = now;
+    // ignore: discarded_futures
+    widget.controller.refresh();
   }
 
   void _onChanged() {
     if (mounted) setState(() {});
   }
 
-  Future<void> _refresh() => widget.controller.refresh();
+  Future<void> _refresh() async {
+    await widget.controller.refresh();
+    _lastRefresh = DateTime.now();
+  }
 
   void _openPaywall() {
     Navigator.of(context).push(

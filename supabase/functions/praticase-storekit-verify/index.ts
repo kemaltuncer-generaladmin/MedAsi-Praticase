@@ -560,7 +560,14 @@ async function loadSubscriptionPayload(
       .eq("code", stringValue(row.product_code))
       .maybeSingle();
     productName = stringValue(product?.name);
-    const { data: link } = await admin
+    // will_auto_renew önceliği:
+    //   1. praticase.app_store_subscription_links (PratiCase'in kendi
+    //      satın aldığı abonelik için Apple notification'larından gelir)
+    //   2. public.app_store_subscription_links (Qlinik'in mobil
+    //      satın aldığı abonelik için — varsa)
+    //   3. Default true (server-side bilinmiyorsa Apple "yenilenecek"
+    //      kabul edilir; iptal bilgisi gelince false olur)
+    const { data: pratiLink } = await admin
       .schema("praticase")
       .from("app_store_subscription_links")
       .select("will_auto_renew")
@@ -569,7 +576,23 @@ async function loadSubscriptionPayload(
       .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (link?.will_auto_renew === false) willAutoRenew = false;
+    if (pratiLink?.will_auto_renew === false) {
+      willAutoRenew = false;
+    } else if (pratiLink == null) {
+      // PratiCase'de link yok → Qlinik veya başka bir Medasi uygulamasından
+      // satın alınmış olabilir. public şemada paylaşılan link tablosunu
+      // dene; yoksa hata sessizce yutulur ve default kullanılır.
+      const { data: sharedLink } = await admin
+        .from("app_store_subscription_links")
+        .select("will_auto_renew")
+        .eq("user_id", userId)
+        .eq("product_code", stringValue(row.product_code))
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+        .catch(() => ({ data: null }));
+      if (sharedLink?.will_auto_renew === false) willAutoRenew = false;
+    }
   }
   // Profile mirror'ı boş olabilir (Qlinik tarafından senkronlanmamış),
   // bu durumda wallet_entitlements toplamından canlı bakiye hesaplanır.
