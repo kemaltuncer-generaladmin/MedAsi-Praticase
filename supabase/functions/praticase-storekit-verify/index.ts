@@ -220,11 +220,7 @@ Deno.serve(async (request) => {
     environment: appleResult.environment,
   });
 
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("wallet_balance,question_quota")
-    .eq("id", userId)
-    .maybeSingle();
+  const profile = await loadEffectiveWalletProfile(admin, userId);
 
   return jsonResponse(
     {
@@ -243,7 +239,7 @@ Deno.serve(async (request) => {
         remaining_coin_amount: numberValue(product.coin_amount) ?? 0,
         remaining_question_amount: numberValue(product.question_amount) ?? 0,
       },
-      profile: profile ?? {},
+      profile: profile,
     },
     200,
     origin,
@@ -259,15 +255,57 @@ async function loadCatalogPayload(
   const products = await loadMappedCatalog(admin);
   if (products == null) return { error: "Paketler şu anda yüklenemedi." };
 
+  const profile = await loadEffectiveWalletProfile(admin, userId);
+  return {
+    products: products ?? [],
+    wallet_warnings: await walletExpiryWarnings(admin, userId),
+    profile,
+  };
+}
+
+/// Kullanıcının kanonik MC + soru bakiyesini döner.
+///
+/// Önce `public.profiles.wallet_balance / question_quota` okunur. Eğer
+/// `sync_wallet_profile` Qlinik tarafından gelen entitlement'leri mirror'a
+/// almadıysa profil 0 görünebilir. Bu durumda aktif `wallet_entitlements`
+/// satırlarının `remaining_coin_amount` ve `remaining_question_amount`
+/// toplamı kullanılır — Qlinik'in gösterdiği bakiyeyle aynı hale gelir.
+async function loadEffectiveWalletProfile(
+  // deno-lint-ignore no-explicit-any
+  admin: any,
+  userId: string,
+): Promise<JsonMap> {
   const { data: profile } = await admin
     .from("profiles")
     .select("wallet_balance,question_quota")
     .eq("id", userId)
     .maybeSingle();
+  const profileBalance = numberValue(profile?.wallet_balance) ?? 0;
+  const profileQuota = numberValue(profile?.question_quota) ?? 0;
+
+  // Aktif (status='active' AND expires_at > now) entitlement'lerin
+  // remaining alanlarını topla.
+  const nowIso = new Date().toISOString();
+  const { data: rows } = await admin
+    .from("wallet_entitlements")
+    .select("remaining_coin_amount,remaining_question_amount,expires_at,status")
+    .eq("user_id", userId)
+    .eq("status", "active");
+  let entitlementCoinSum = 0;
+  let entitlementQuestionSum = 0;
+  for (const row of ((rows ?? []) as JsonMap[])) {
+    const expires = stringValue(row.expires_at);
+    if (expires && expires <= nowIso) continue;
+    entitlementCoinSum += numberValue(row.remaining_coin_amount) ?? 0;
+    entitlementQuestionSum += numberValue(row.remaining_question_amount) ?? 0;
+  }
+
+  // Profil mirror'ı entitlement toplamından küçükse mirror eskimiş demektir
+  // (örn. Qlinik'in yeni satın alması henüz sync_wallet_profile ile
+  // taşınmamış). Kullanıcı için her zaman daha yüksek olanı göster.
   return {
-    products: products ?? [],
-    wallet_warnings: await walletExpiryWarnings(admin, userId),
-    profile: profile ?? {},
+    wallet_balance: Math.max(profileBalance, entitlementCoinSum),
+    question_quota: Math.max(profileQuota, Math.round(entitlementQuestionSum)),
   };
 }
 
@@ -533,11 +571,9 @@ async function loadSubscriptionPayload(
       .maybeSingle();
     if (link?.will_auto_renew === false) willAutoRenew = false;
   }
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("wallet_balance,question_quota")
-    .eq("id", userId)
-    .maybeSingle();
+  // Profile mirror'ı boş olabilir (Qlinik tarafından senkronlanmamış),
+  // bu durumda wallet_entitlements toplamından canlı bakiye hesaplanır.
+  const profile = await loadEffectiveWalletProfile(admin, userId);
   return {
     entitlement: row
       ? {
@@ -552,7 +588,7 @@ async function loadSubscriptionPayload(
       }
       : { active: false },
     warnings: await walletExpiryWarnings(admin, userId),
-    profile: profile ?? {},
+    profile: profile,
   };
 }
 
