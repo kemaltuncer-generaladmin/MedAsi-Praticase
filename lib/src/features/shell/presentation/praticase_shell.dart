@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -856,13 +857,30 @@ class _ExamModeGrid extends StatelessWidget {
   }
 }
 
-class _ExamFocusHero extends StatelessWidget {
+class _ExamFocusHero extends StatefulWidget {
   const _ExamFocusHero({required this.modes});
 
   final List<ExamModeItem> modes;
 
+  @override
+  State<_ExamFocusHero> createState() => _ExamFocusHeroState();
+}
+
+class _ExamFocusHeroState extends State<_ExamFocusHero>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 9000),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
   int _count(Set<String> keys) =>
-      modes.where((m) => keys.contains(m.actionKey)).length;
+      widget.modes.where((m) => keys.contains(m.actionKey)).length;
 
   @override
   Widget build(BuildContext context) {
@@ -892,10 +910,18 @@ class _ExamFocusHero extends StatelessWidget {
       ),
       child: Stack(
         children: [
+          // Canlı pattern + floating particles, izole RepaintBoundary
           Positioned.fill(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(PratiCaseRadius.xxl),
-              child: CustomPaint(painter: _ExamHeroPatternPainter()),
+            child: RepaintBoundary(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(PratiCaseRadius.xxl),
+                child: AnimatedBuilder(
+                  animation: _ctrl,
+                  builder: (context, _) => CustomPaint(
+                    painter: _ExamHeroPatternPainter(time: _ctrl.value),
+                  ),
+                ),
+              ),
             ),
           ),
           Column(
@@ -937,21 +963,40 @@ class _ExamFocusHero extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: PratiCaseColors.white.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(PratiCaseRadius.md),
-                      border: Border.all(
-                        color: PratiCaseColors.white.withValues(alpha: 0.20),
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.fact_check_rounded,
-                      color: PratiCaseColors.tealBright,
-                      size: 22,
-                    ),
+                  // Pulsing icon container — orbital ring
+                  AnimatedBuilder(
+                    animation: _ctrl,
+                    builder: (context, _) {
+                      final pulse = 1 - (_ctrl.value - 0.5).abs() * 2;
+                      return Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: PratiCaseColors.white
+                              .withValues(alpha: 0.14 + pulse * 0.06),
+                          borderRadius:
+                              BorderRadius.circular(PratiCaseRadius.md),
+                          border: Border.all(
+                            color: PratiCaseColors.tealBright
+                                .withValues(alpha: 0.30 + pulse * 0.30),
+                            width: 1.0 + pulse * 0.4,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: PratiCaseColors.tealBright
+                                  .withValues(alpha: pulse * 0.20),
+                              blurRadius: 14,
+                              spreadRadius: -2,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.fact_check_rounded,
+                          color: PratiCaseColors.tealBright,
+                          size: 22,
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -1069,9 +1114,19 @@ class _ExamHeroChip extends StatelessWidget {
   }
 }
 
+/// Sınav hero arka planı:
+/// - Statik dotted grid (perf-light)
+/// - 8 floating particle: alttan yukarı, yavaşça döngü; opaklık üst-alt
+///   tail uçlarında 0'a iner — başlangıçta belirsiz, ortada parlak.
 class _ExamHeroPatternPainter extends CustomPainter {
+  _ExamHeroPatternPainter({required this.time});
+
+  /// 0.0 → 1.0 sürekli döngü.
+  final double time;
+
   @override
   void paint(Canvas canvas, Size size) {
+    // 1. Statik dotted grid.
     final dotPaint = Paint()
       ..color = PratiCaseColors.white.withValues(alpha: 0.06)
       ..style = PaintingStyle.fill;
@@ -1081,10 +1136,59 @@ class _ExamHeroPatternPainter extends CustomPainter {
         canvas.drawCircle(Offset(x, y), 1.0, dotPaint);
       }
     }
+
+    // 2. Floating particles: 8 partikül, her birinin sabit X koordinatı
+    // ve faz ofseti var. time + faz, 0→1 arasında ilerler → partikül
+    // alttan yukarı süzülür ve döngüye girer.
+    final particles = <_Particle>[
+      _Particle(xRatio: 0.08, phase: 0.00, sizeR: 1.6),
+      _Particle(xRatio: 0.18, phase: 0.45, sizeR: 1.2),
+      _Particle(xRatio: 0.28, phase: 0.20, sizeR: 1.9),
+      _Particle(xRatio: 0.42, phase: 0.70, sizeR: 1.4),
+      _Particle(xRatio: 0.54, phase: 0.10, sizeR: 1.7),
+      _Particle(xRatio: 0.68, phase: 0.55, sizeR: 1.3),
+      _Particle(xRatio: 0.80, phase: 0.30, sizeR: 1.6),
+      _Particle(xRatio: 0.92, phase: 0.85, sizeR: 1.5),
+    ];
+
+    final paint = Paint()..style = PaintingStyle.fill;
+    for (final p in particles) {
+      final localT = (time + p.phase) % 1.0;
+      // Y: alttan başla, yukarı çık.
+      final y = size.height * (1 - localT) - 4;
+      // Opaklık: 0 → 1 (0.2'de) → 1 (0.7'de) → 0 (1.0'da).
+      double alpha;
+      if (localT < 0.2) {
+        alpha = localT / 0.2;
+      } else if (localT < 0.7) {
+        alpha = 1.0;
+      } else {
+        alpha = 1 - (localT - 0.7) / 0.3;
+      }
+      // Yatay hafif drift (sin dalgası).
+      final drift = math.sin((localT + p.phase) * 2 * math.pi) * 5;
+      final x = size.width * p.xRatio + drift;
+      paint.color = PratiCaseColors.tealBright
+          .withValues(alpha: 0.45 * alpha.clamp(0.0, 1.0));
+      canvas.drawCircle(Offset(x, y), p.sizeR, paint);
+    }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _ExamHeroPatternPainter old) =>
+      old.time != time;
+}
+
+class _Particle {
+  const _Particle({
+    required this.xRatio,
+    required this.phase,
+    required this.sizeR,
+  });
+
+  final double xRatio;
+  final double phase;
+  final double sizeR;
 }
 
 class _ExamQuickStart extends StatelessWidget {
@@ -1230,66 +1334,176 @@ class _QuickStartItem {
   final Color accent;
 }
 
-class _QuickStartCard extends StatelessWidget {
+/// Sınavlar sekmesindeki "Hızlı Başla" tile'ı.
+/// - Accent-tinted gradient yüzey + ışıklı border (hover/press'te yoğunlaşır)
+/// - Sağdaki arrow ikonu hafifçe sallar (idle attention)
+/// - PressableScale spring tap
+/// - Tek seferlik entrance shimmer
+class _QuickStartCard extends StatefulWidget {
   const _QuickStartCard({required this.item, required this.onTap});
 
   final _QuickStartItem item;
   final VoidCallback onTap;
 
   @override
+  State<_QuickStartCard> createState() => _QuickStartCardState();
+}
+
+class _QuickStartCardState extends State<_QuickStartCard>
+    with TickerProviderStateMixin {
+  late final AnimationController _shimmer = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1400),
+  )..forward();
+
+  late final AnimationController _arrowDrift = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2200),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _shimmer.dispose();
+    _arrowDrift.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final accent = widget.item.accent;
     return PressableScale(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: PratiCaseColors.white,
-          borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-          border: Border.all(color: item.accent.withValues(alpha: 0.22)),
-          boxShadow: PratiCaseShadows.card,
-        ),
-        child: Row(
+      onTap: widget.onTap,
+      child: RepaintBoundary(
+        child: Stack(
           children: [
+            // 1. Base accent gradient card
             Container(
-              width: 44,
-              height: 44,
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: item.accent.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    PratiCaseColors.white,
+                    accent.withValues(alpha: 0.04),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+                border: Border.all(
+                  color: accent.withValues(alpha: 0.24),
+                ),
+                boxShadow: [
+                  ...PratiCaseShadows.card,
+                  BoxShadow(
+                    color: accent.withValues(alpha: 0.06),
+                    blurRadius: 16,
+                    spreadRadius: -4,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
               ),
-              child: Icon(item.icon, color: item.accent, size: 22),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+              child: Row(
                 children: [
-                  Text(
-                    item.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: PratiCaseColors.navy,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          accent.withValues(alpha: 0.18),
+                          accent.withValues(alpha: 0.10),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: accent.withValues(alpha: 0.18),
+                      ),
+                    ),
+                    child: Icon(widget.item.icon, color: accent, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          widget.item.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: PratiCaseColors.navy,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          widget.item.helper,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: PratiCaseColors.muted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    item.helper,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: PratiCaseColors.muted,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  AnimatedBuilder(
+                    animation: _arrowDrift,
+                    builder: (context, _) {
+                      // 0→1→0 triangle wave drifts arrow 3px to right.
+                      final t = 1 - (_arrowDrift.value - 0.5).abs() * 2;
+                      return Transform.translate(
+                        offset: Offset(t * 3, 0),
+                        child: Icon(
+                          Icons.arrow_forward_rounded,
+                          color: accent,
+                          size: 20,
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
             ),
-            Icon(Icons.arrow_forward_rounded, color: item.accent, size: 20),
+            // 2. Tek seferlik shimmer overlay — entrance hissi
+            Positioned.fill(
+              child: IgnorePointer(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+                  child: AnimatedBuilder(
+                    animation: _shimmer,
+                    builder: (context, _) {
+                      final t = _shimmer.value;
+                      if (t >= 1.0) return const SizedBox.shrink();
+                      final shift = -1.0 + t * 2.0;
+                      return Opacity(
+                        opacity: (1 - t) * 0.55,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment(-1 + shift, -0.4),
+                              end: Alignment(shift, 0.6),
+                              colors: [
+                                Colors.transparent,
+                                accent.withValues(alpha: 0.20),
+                                Colors.transparent,
+                              ],
+                              stops: const [0.35, 0.5, 0.65],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
