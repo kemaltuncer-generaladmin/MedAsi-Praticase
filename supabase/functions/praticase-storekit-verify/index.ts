@@ -252,14 +252,19 @@ async function loadCatalogPayload(
   userId: string,
 ): Promise<JsonMap> {
   await admin.rpc("sync_wallet_profile", { p_user_id: userId }).catch(() => {});
+  // Katalog null dönerse bile bakiye + warnings yine de tazelensin.
+  // Cüzdan ekranı paketler olmasa da MC bakiyesini gösterebilir.
   const products = await loadMappedCatalog(admin);
-  if (products == null) return { error: "Paketler şu anda yüklenemedi." };
-
   const profile = await loadEffectiveWalletProfile(admin, userId);
+  const warnings = await walletExpiryWarnings(admin, userId);
   return {
     products: products ?? [],
-    wallet_warnings: await walletExpiryWarnings(admin, userId),
+    wallet_warnings: warnings,
     profile,
+    // Sadece katalog gerçekten erişilemediyse warning olarak işaretle —
+    // top-level `error` kullanmıyoruz çünkü o tüm response'u hata sayar
+    // ve UI bakiyeyi de göstermez.
+    ...(products == null ? { catalog_unavailable: true } : {}),
   };
 }
 
@@ -392,6 +397,15 @@ async function loadAppStoreProductMappings(
   );
 }
 
+/// Qlinik ile aynı `public.store_products` kataloğunu okur.
+///
+/// Defansif fallback zinciri:
+///   1. Tam kolon seti (`...,app_store_product_id`) ile dene.
+///   2. Hata "kolon yok" değilse, `is_active` filtresini kaldır
+///      (legacy kayıtlarda `is_active` NULL olabilir → Qlinik'te görünür,
+///      PratiCase'de "yüklenemedi"ye düşerdi).
+///   3. Hâlâ hata varsa minimum kolon seti ile dene.
+///   4. Tüm aşamalarda hata server log'una yazılır → telemetry için.
 async function loadSharedStoreProducts(
   // deno-lint-ignore no-explicit-any
   admin: any,
@@ -399,26 +413,71 @@ async function loadSharedStoreProducts(
   const baseColumns =
     "id,code,name,description,price_cents,original_price_cents,currency,interval,features,is_featured,coin_amount,question_amount,badge,entitlement_kind,duration_days,sort_order";
   const withSharedStoreId = `${baseColumns},app_store_product_id`;
-  const withStoreId = await loadSharedStoreProductsWithColumns(
+
+  // Adım 1: tam kolon + is_active filtresi.
+  const fullActive = await loadSharedStoreProductsWithColumns(
     admin,
     withSharedStoreId,
+    { onlyActive: true },
   );
-  if (withStoreId.products != null) return withStoreId.products;
-  if (!isMissingStoreProductIdColumn(withStoreId.error)) return null;
-  const fallback = await loadSharedStoreProductsWithColumns(admin, baseColumns);
-  return fallback.products;
+  if (fullActive.products != null && fullActive.products.length > 0) {
+    return fullActive.products;
+  }
+
+  // Adım 2: kolon hatasıysa minimuma düş.
+  let columns = withSharedStoreId;
+  let lastError = fullActive.error;
+  if (lastError != null && isMissingStoreProductIdColumn(lastError)) {
+    columns = baseColumns;
+  }
+
+  // Adım 3: is_active filtresi olmadan dene (legacy NULL kayıtları kurtar).
+  const withoutFilter = await loadSharedStoreProductsWithColumns(
+    admin,
+    columns,
+    { onlyActive: false },
+  );
+  if (withoutFilter.products != null && withoutFilter.products.length > 0) {
+    recordEvent("catalog_loaded_without_active_filter", {});
+    // Aktif olanları client'ta filtreleme — null da geçer.
+    return withoutFilter.products.filter((p) => p.is_active !== false);
+  }
+  if (withoutFilter.error != null) lastError = withoutFilter.error;
+
+  // Adım 4: minimum kolon + filtresiz, son şans.
+  const minimal = await loadSharedStoreProductsWithColumns(
+    admin,
+    baseColumns,
+    { onlyActive: false },
+  );
+  if (minimal.products != null && minimal.products.length > 0) {
+    recordEvent("catalog_loaded_minimal_columns", {});
+    return minimal.products.filter((p) => p.is_active !== false);
+  }
+
+  if (minimal.error != null || lastError != null) {
+    recordEvent("catalog_query_failed", {
+      message: errorMessage(minimal.error ?? lastError),
+    });
+    return null;
+  }
+
+  // Tüm sorgular boş döndü — gerçekten ürün yok.
+  return [];
 }
 
 async function loadSharedStoreProductsWithColumns(
   // deno-lint-ignore no-explicit-any
   admin: any,
   columns: string,
+  options: { onlyActive: boolean } = { onlyActive: true },
 ): Promise<{ products: JsonMap[] | null; error: unknown }> {
-  const { data, error } = await admin
-    .from("store_products")
-    .select(columns)
-    .eq("is_active", true)
-    .order("sort_order")
+  let query = admin.from("store_products").select(columns);
+  if (options.onlyActive) {
+    query = query.eq("is_active", true);
+  }
+  const { data, error } = await query
+    .order("sort_order", { nullsFirst: false })
     .order("price_cents");
   return { products: error ? null : ((data ?? []) as JsonMap[]), error };
 }

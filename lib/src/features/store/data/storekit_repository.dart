@@ -20,11 +20,12 @@ class StoreKitRepository {
       'action': 'catalog',
     }, fallback: PratiCaseUserMessage.storeFailure);
     final rows = data['products'];
+    // Edge function paketleri yükleyememiş ama bakiye geliyor olabilir
+    // (catalog_unavailable: true). Bu durumda sessiz boş liste döndür —
+    // UI bakiyeyi göstermeye devam eder, paketler için "şu anda
+    // yüklenemedi" empty state'i çalışır.
     if (rows is! List) {
-      throw const StorePurchaseException(
-        PratiCaseUserMessage.storeFailure,
-        code: 'catalog_unavailable',
-      );
+      return const <PratiCaseStoreProduct>[];
     }
     return [
       for (final row in rows)
