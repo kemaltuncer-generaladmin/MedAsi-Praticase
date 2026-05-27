@@ -2,6 +2,8 @@
 
 PratiCase is the OSCE simulation application in the Medasi ecosystem. It is a Flutter-first, iPhone-oriented product for virtual patient interviews, timed stations, structured clinical actions, and rubric-based score reports.
 
+> ⚠️ **Platform İzolasyonu:** iOS (App Store + StoreKit) ile Android (APK + iyzico/IBAN) ayrı kanallarda. Bir tarafa dokunmadan önce **mutlaka** [`docs/PLATFORM_ISOLATION.md`](docs/PLATFORM_ISOLATION.md) ve [`AGENTS.md`](AGENTS.md) okunmalı. iOS klasörü Android iş akışında, Android klasörü iOS iş akışında dokunulmaz.
+
 ## Development
 
 Use the bundled Flutter SDK from the sibling Developer folder:
