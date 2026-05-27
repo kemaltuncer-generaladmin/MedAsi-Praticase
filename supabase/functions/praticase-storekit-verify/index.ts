@@ -390,6 +390,13 @@ async function loadWalletTransactionsPayload(
   admin: any,
   userId: string,
 ): Promise<JsonMap> {
+  // Bütün cüzdan okumaları aynı anda Qlinik tarafında da güncel görünsün
+  // diye önce paylaşılan profil mirror'unu eşitle. Bu RPC public.profiles
+  // (wallet_balance, question_quota) tablosunu paylaşılan
+  // wallet_entitlements + ai_usage_events gerçekliğine senkronlar.
+  await admin.rpc("sync_wallet_profile", { p_user_id: userId }).catch(
+    () => {},
+  );
   // Read all entitlements for the user (subscriptions + one-time purchases)
   // and map each row to a transaction-style event. This avoids requiring a
   // dedicated wallet_transactions table while still surfacing real purchases.

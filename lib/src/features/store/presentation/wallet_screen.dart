@@ -434,14 +434,56 @@ class _WalletBalanceCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Qlinik ve Medasi ekosisteminde kullanılabilir.',
-            style: TextStyle(
-              color: PratiCaseColors.white.withValues(alpha: 0.86),
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              // Shared wallet rozeti — PratiCase + Qlinik aynı Medasi
+              // hesabından okuyor (public.profiles.wallet_balance).
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: PratiCaseColors.white.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+                  border: Border.all(
+                    color: PratiCaseColors.white.withValues(alpha: 0.22),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(
+                      Icons.sync_rounded,
+                      size: 12,
+                      color: PratiCaseColors.tealBright,
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      'Medasi ortak cüzdanı',
+                      style: TextStyle(
+                        color: PratiCaseColors.white,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  'Qlinik ve PratiCase ile senkron.',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: PratiCaseColors.white.withValues(alpha: 0.78),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
