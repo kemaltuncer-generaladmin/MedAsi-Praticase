@@ -1398,16 +1398,47 @@ class _RecommendedCaseCard extends StatelessWidget {
                 ),
               ),
               if (recommendedCase.reason.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Text(
-                  recommendedCase.reason,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: PratiCaseColors.teal,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    height: 1.2,
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.fromLTRB(8, 6, 10, 6),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        PratiCaseColors.teal.withValues(alpha: 0.10),
+                        PratiCaseColors.tealBright.withValues(alpha: 0.06),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+                    border: Border.all(
+                      color: PratiCaseColors.teal.withValues(alpha: 0.16),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.tips_and_updates_outlined,
+                        size: 14,
+                        color: PratiCaseColors.teal,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          recommendedCase.reason,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: PratiCaseColors.teal,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w800,
+                            height: 1.3,
+                            letterSpacing: 0.1,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
