@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart' show launchUrl, LaunchMode;
 
 import '../../../app/theme/praticase_colors.dart';
 import '../../../app/theme/praticase_motion.dart';
+import '../../../shared/ui/glow_button.dart';
 import '../data/store_controller.dart';
 import '../domain/store_product.dart';
 
@@ -558,32 +559,14 @@ class _PurchaseButton extends StatelessWidget {
         : product!.isSubscription
         ? 'Aboneliği başlat'
         : 'Satın al';
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: disabled ? null : onTap,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: PratiCaseColors.teal,
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: PratiCaseColors.teal.withValues(alpha: 0.4),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
-          minimumSize: const Size.fromHeight(54),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        ),
-        child: busy
-            ? const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.4,
-                  color: Colors.white,
-                ),
-              )
-            : Text(label),
-      ),
+    return GlowButton(
+      label: label,
+      onPressed: disabled ? null : onTap,
+      loading: busy,
+      pulse: !disabled,
+      height: 56,
+      icon: disabled ? null : Icons.shopping_bag_rounded,
+      semanticIdentifier: 'cta.paywall-purchase',
     );
   }
 }

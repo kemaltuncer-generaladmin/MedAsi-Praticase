@@ -1195,7 +1195,29 @@ class _ContinuedCaseCard extends StatelessWidget {
         onTap: onOpenCase,
         child: Container(
           padding: const EdgeInsets.all(16),
-          decoration: _cardDecoration(),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                PratiCaseColors.white,
+                PratiCaseColors.teal.withValues(alpha: 0.03),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
+            border: Border.all(
+              color: PratiCaseColors.teal.withValues(alpha: 0.18),
+            ),
+            boxShadow: [
+              ...PratiCaseShadows.card,
+              BoxShadow(
+                color: PratiCaseColors.teal.withValues(alpha: 0.05),
+                blurRadius: 16,
+                spreadRadius: -4,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
           child: Row(
             children: [
               _SoftIcon(
@@ -1756,18 +1778,52 @@ class _BadgePanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: PratiCaseColors.surfaceContainerLow,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            PratiCaseColors.surfaceContainerLow,
+            PratiCaseColors.gold.withValues(alpha: 0.06),
+          ],
+        ),
         borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-        border: Border.all(color: PratiCaseColors.teal.withValues(alpha: 0.12)),
+        border: Border.all(color: PratiCaseColors.gold.withValues(alpha: 0.22)),
+        boxShadow: [
+          BoxShadow(
+            color: PratiCaseColors.gold.withValues(alpha: 0.06),
+            blurRadius: 18,
+            spreadRadius: -4,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 340;
           final content = Row(
             children: [
-              _SoftIcon(
-                icon: Icons.verified_user_rounded,
-                color: PratiCaseColors.teal,
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      PratiCaseColors.gold.withValues(alpha: 0.24),
+                      PratiCaseColors.gold.withValues(alpha: 0.12),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: PratiCaseColors.gold.withValues(alpha: 0.30),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.workspace_premium_rounded,
+                  color: PratiCaseColors.gold,
+                  size: 28,
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -1800,14 +1856,12 @@ class _BadgePanel extends StatelessWidget {
               ),
             ],
           );
-          final action = FilledButton.icon(
+          final action = GlowButton(
+            label: summary!.actionLabel,
+            icon: Icons.arrow_forward_rounded,
+            height: 48,
             onPressed: onOpenBadges,
-            icon: const Icon(Icons.workspace_premium_rounded, size: 18),
-            label: Text(summary!.actionLabel),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size(0, 48),
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-            ),
+            accentOverride: PratiCaseColors.gold,
           );
           if (compact) {
             return Column(
