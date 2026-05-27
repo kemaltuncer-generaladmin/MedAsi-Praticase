@@ -1,50 +1,20 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { Buffer } from "node:buffer";
-import { X509Certificate } from "node:crypto";
-
-// Supabase Edge Runtime (Deno node-compat) ships an X509Certificate where
-// `toString()` is an unimplemented stub. Apple's app-store-server-library
-// calls it while building the certificate chain and the whole verifier
-// blows up with "Not implemented: crypto.X509Certificate.prototype.toString".
-// Polyfill it from the DER bytes that `raw` already exposes — equivalent to
-// what Node does — BEFORE importing the Apple library so its first touch of
-// the prototype hits our implementation.
-installX509ToStringPolyfill();
-
-import {
-  Environment,
-  SignedDataVerifier,
-  VerificationException,
-  VerificationStatus,
-} from "npm:@apple/app-store-server-library@3.1.0";
+import { compactVerify } from "npm:jose@5.9.6";
+import { X509Certificate as PeculiarX509 } from "npm:@peculiar/x509@1.12.3";
 import { defaultAppleRootCertificates } from "../_shared/apple_root_certificates.ts";
 import { corsHeaders, isAllowedOrigin, jsonResponse } from "../_shared/cors.ts";
 
-function installX509ToStringPolyfill() {
-  try {
-    const proto = (X509Certificate as unknown as {
-      prototype: { toString: (this: { raw?: Uint8Array }) => string };
-    }).prototype;
-    proto.toString = function (this: { raw?: Uint8Array }): string {
-      const der = this.raw;
-      if (!der || der.length === 0) return "[X509Certificate]";
-      let binary = "";
-      for (const byte of der) binary += String.fromCharCode(byte);
-      const base64 = btoa(binary);
-      const lines = base64.match(/.{1,64}/g) ?? [base64];
-      return `-----BEGIN CERTIFICATE-----\n${
-        lines.join("\n")
-      }\n-----END CERTIFICATE-----`;
-    };
-  } catch (error) {
-    console.warn(
-      "X509Certificate.prototype.toString polyfill could not be installed:",
-      error,
-    );
-  }
-}
+// Apple'in resmi `app-store-server-library`'si node:crypto'nun X509Certificate
+// sınıfını kullanıyor; Supabase Edge Runtime'da (Deno node-compat) `raw`,
+// `toString`, `verify` gibi metotlar "Not implemented" stub'u. Bu yüzden
+// kütüphaneyi terk edip JWS doğrulamasını jose (imza) + @peculiar/x509
+// (sertifika zinciri) ile elden yapıyoruz; her ikisi de saf JS ve Web Crypto
+// üstünde çalışır.
 
 type JsonMap = Record<string, unknown>;
+
+type AppleEnvironment = "production" | "sandbox";
 
 const activeSubscriptionPurchaseMessage =
   "Aktif aboneliğinin süresi bitmeden aynı abonelik tekrar alınamaz. Haftalıktan aylığa yükseltme yapabilirsin.";
@@ -880,22 +850,25 @@ async function handleAppStoreNotification(
   origin: string | null,
 ): Promise<Response> {
   try {
-    const verified = await verifyNotificationPayload(signedPayload);
-    const notificationType = stringValue(
-      verified.notification.notificationType,
-    );
+    const verifierConfig = loadVerifierConfiguration();
+    const notification = await verifyNotificationPayload(signedPayload);
+    const notificationType = stringValue(notification.notificationType);
     if (notificationType === "TEST") {
       return jsonResponse({ status: "ok" }, 200, origin);
     }
+    const notificationUuid = stringValue(notification.notificationUUID);
+    const notificationData =
+      (notification.data as JsonMap | undefined) ?? {};
 
     const signedTransaction = stringValue(
-      verified.notification.data?.signedTransactionInfo,
+      notificationData.signedTransactionInfo,
     );
     if (!signedTransaction) {
       return jsonResponse({ status: "ignored" }, 200, origin);
     }
-    const transaction = await verified.verifier.verifyAndDecodeTransaction(
+    const transaction = await verifyAndDecodeAppleJws(
       signedTransaction,
+      verifierConfig,
     );
     const storeProductId = stringValue(transaction.productId);
     const originalTransactionId = stringValue(
@@ -916,12 +889,11 @@ async function handleAppStoreNotification(
     if (!link) return jsonResponse({ status: "ignored" }, 200, origin);
 
     let willAutoRenew = true;
-    const signedRenewal = stringValue(
-      verified.notification.data?.signedRenewalInfo,
-    );
+    const signedRenewal = stringValue(notificationData.signedRenewalInfo);
     if (signedRenewal) {
-      const renewal = await verified.verifier.verifyAndDecodeRenewalInfo(
+      const renewal = await verifyAndDecodeAppleJws(
         signedRenewal,
+        verifierConfig,
       );
       willAutoRenew = renewal.autoRenewStatus !== 0;
     }
@@ -955,7 +927,7 @@ async function handleAppStoreNotification(
           originalTransactionId,
         willAutoRenew: false,
         expiresAt: dateFromMilliseconds(transaction.expiresDate),
-        notificationUuid: stringValue(verified.notification.notificationUUID),
+        notificationUuid,
       });
     } else if (activeTypes.has(notificationType)) {
       const transactionId = stringValue(transaction.transactionId);
@@ -977,7 +949,7 @@ async function handleAppStoreNotification(
             app_key: "praticase",
             feature_attribution: "storekit_subscription_notification",
             event: notificationType,
-            notification_uuid: verified.notification.notificationUUID,
+            notification_uuid: notificationUuid,
             store_product_id: storeProductId,
             original_transaction_id: originalTransactionId,
           },
@@ -994,7 +966,7 @@ async function handleAppStoreNotification(
         latestPurchaseId: purchaseIdFromGrant(grantResult),
         willAutoRenew,
         expiresAt,
-        notificationUuid: stringValue(verified.notification.notificationUUID),
+        notificationUuid,
       });
     } else {
       await saveSubscriptionLink(admin, {
@@ -1005,7 +977,7 @@ async function handleAppStoreNotification(
           originalTransactionId,
         willAutoRenew,
         expiresAt: dateFromMilliseconds(transaction.expiresDate),
-        notificationUuid: stringValue(verified.notification.notificationUUID),
+        notificationUuid,
       });
     }
     return jsonResponse({ status: "ok" }, 200, origin);
@@ -1224,12 +1196,53 @@ function readPrivateKeyEnv(base64Name: string, rawName: string): string {
   return (Deno.env.get(rawName)?.trim() ?? "").replace(/\\n/g, "\n");
 }
 
+async function verifyPurchase(
+  signedTransaction: string,
+  transactionId: string,
+  expectedProductId: string,
+): Promise<AppleReceipt> {
+  try {
+    return await verifySignedTransaction(signedTransaction, expectedProductId);
+  } catch (signedError) {
+    recordEvent("signed_transaction_verify_failed", {
+      productId: expectedProductId,
+      message: deepErrorMessage(signedError),
+    });
+    return await verifyWithAppStoreServerApi(transactionId, expectedProductId);
+  }
+}
+
+async function verifySignedTransaction(
+  signedTransaction: string,
+  expectedProductId: string,
+): Promise<AppleReceipt> {
+  const config = loadVerifierConfiguration();
+  try {
+    const payload = await verifyAndDecodeAppleJws(signedTransaction, config);
+    return receiptFromTransactionPayload(
+      payload,
+      expectedProductId,
+      config.bundleId,
+    );
+  } catch (error) {
+    recordEvent("signed_transaction_diagnostic", {
+      expectedBundle: config.bundleId,
+      expectedAppAppleId: config.appAppleId,
+      rootCertCount: config.rootCertificates.length,
+      error: deepErrorMessage(error),
+      jws: describeJwsForDiagnostics(signedTransaction),
+    });
+    throw error;
+  }
+}
+
 async function verifyWithAppStoreServerApi(
   transactionId: string,
   expectedProductId: string,
 ): Promise<AppleReceipt> {
   if (!transactionId) throw new Error("Missing transaction identifier");
   const configs = loadServerApiConfigurations();
+  const verifierConfig = loadVerifierConfiguration();
   const failures: string[] = [];
 
   for (const config of configs) {
@@ -1237,9 +1250,10 @@ async function verifyWithAppStoreServerApi(
     try {
       return await verifyTransactionInEnvironment(
         config,
+        verifierConfig,
         transactionId,
         expectedProductId,
-        Environment.PRODUCTION,
+        "production",
       );
     } catch (error) {
       productionError = error;
@@ -1247,9 +1261,10 @@ async function verifyWithAppStoreServerApi(
     try {
       return await verifyTransactionInEnvironment(
         config,
+        verifierConfig,
         transactionId,
         expectedProductId,
-        Environment.SANDBOX,
+        "sandbox",
       );
     } catch (sandboxError) {
       failures.push(
@@ -1262,72 +1277,78 @@ async function verifyWithAppStoreServerApi(
   throw new Error(`Apple transaction lookup failed (${failures.join("; ")})`);
 }
 
-async function verifyPurchase(
-  signedTransaction: string,
-  transactionId: string,
-  expectedProductId: string,
-): Promise<AppleReceipt> {
-  try {
-    return await verifySignedTransaction(signedTransaction, expectedProductId);
-  } catch (signedError) {
-    recordEvent("signed_transaction_verify_failed", {
-      productId: expectedProductId,
-      message: errorMessage(signedError),
-    });
-    return await verifyWithAppStoreServerApi(transactionId, expectedProductId);
+/// Verify any Apple-signed JWS by walking the embedded x5c chain back to a
+/// trusted Apple root, then verifying the JWS signature with the leaf key.
+/// Returns the decoded payload JSON; caller is responsible for checking
+/// bundleId / productId / appAppleId since the payload schema differs between
+/// transactions, notifications, and renewal info.
+async function verifyAndDecodeAppleJws(
+  jws: string,
+  config: AppleVerifierConfiguration,
+): Promise<JsonMap> {
+  const parts = jws.split(".");
+  if (parts.length !== 3) {
+    throw new Error("Malformed JWS: expected 3 segments");
   }
+  const header = JSON.parse(b64UrlDecode(parts[0])) as {
+    alg?: string;
+    x5c?: unknown;
+  };
+  if (header.alg !== "ES256") {
+    throw new Error(`Unsupported JWS algorithm: ${header.alg}`);
+  }
+  if (!Array.isArray(header.x5c) || header.x5c.length === 0) {
+    throw new Error("JWS header missing x5c certificate chain");
+  }
+  const chain = (header.x5c as string[]).map((b64) => {
+    const der = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    return new PeculiarX509(der);
+  });
+
+  // 1) Each cert must be signed by the next in the chain
+  for (let i = 0; i < chain.length - 1; i++) {
+    const child = chain[i];
+    const parent = chain[i + 1];
+    const ok = await child.verify({ publicKey: await parent.publicKey.export() });
+    if (!ok) {
+      throw new Error(`Chain link ${i} is not signed by the next certificate`);
+    }
+  }
+
+  // 2) The final cert must byte-equal one of the Apple root anchors we ship
+  const rootDer = new Uint8Array(chain[chain.length - 1].rawData);
+  const trusted = config.rootCertificates.some((apple) =>
+    bytesEqual(rootDer, new Uint8Array(apple))
+  );
+  if (!trusted) {
+    throw new Error(
+      "Certificate chain does not terminate at a trusted Apple root",
+    );
+  }
+
+  // 3) Verify the JWS itself with the leaf certificate's public key
+  const leafKey = await chain[0].publicKey.export();
+  let payloadBytes: Uint8Array;
+  try {
+    const result = await compactVerify(jws, leafKey, {
+      algorithms: ["ES256"],
+    });
+    payloadBytes = result.payload;
+  } catch (error) {
+    throw new Error(
+      `JWS signature failed leaf verification: ${errorMessage(error)}`,
+    );
+  }
+
+  return JSON.parse(new TextDecoder().decode(payloadBytes)) as JsonMap;
 }
 
-async function verifySignedTransaction(
-  signedTransaction: string,
-  expectedProductId: string,
-): Promise<AppleReceipt> {
-  const config = loadVerifierConfiguration();
-  let productionError: unknown;
-  try {
-    const verifier = signedDataVerifier(config, Environment.PRODUCTION);
-    const transaction = await verifier.verifyAndDecodeTransaction(
-      signedTransaction,
-    );
-    return receiptFromTransaction(
-      transaction,
-      expectedProductId,
-      Environment.PRODUCTION,
-    );
-  } catch (error) {
-    productionError = error;
+function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
   }
-  try {
-    const verifier = signedDataVerifier(config, Environment.SANDBOX);
-    const transaction = await verifier.verifyAndDecodeTransaction(
-      signedTransaction,
-    );
-    return receiptFromTransaction(
-      transaction,
-      expectedProductId,
-      Environment.SANDBOX,
-    );
-  } catch (sandboxError) {
-    // Diagnostic: kütüphanenin sadece status enum'unu vermesi yetmiyor.
-    // JWS başlığı/payload'undaki bundle/app id ile bizim config'i kıyaslayıp
-    // logla — sır içermez, hata daraltmaya yarar.
-    const jwsClaims = describeJwsForDiagnostics(signedTransaction);
-    recordEvent("signed_transaction_diagnostic", {
-      expectedBundle: config.bundleId,
-      expectedAppAppleId: config.appAppleId,
-      rootCertCount: config.rootCertificates.length,
-      productionStatus: verificationFailureCode(productionError),
-      productionMessage: deepErrorMessage(productionError),
-      sandboxStatus: verificationFailureCode(sandboxError),
-      sandboxMessage: deepErrorMessage(sandboxError),
-      jws: jwsClaims,
-    });
-    throw new Error(
-      `Apple signed transaction validation failed (production=${
-        verificationFailureCode(productionError)
-      }, sandbox=${verificationFailureCode(sandboxError)})`,
-    );
-  }
+  return true;
 }
 
 function describeJwsForDiagnostics(signedTransaction: string): JsonMap {
@@ -1375,28 +1396,19 @@ function deepErrorMessage(error: unknown): string {
   return String(error);
 }
 
-async function verifyNotificationPayload(signedPayload: string) {
+async function verifyNotificationPayload(
+  signedPayload: string,
+): Promise<JsonMap> {
   const config = loadVerifierConfiguration();
-  try {
-    const verifier = signedDataVerifier(config, Environment.PRODUCTION);
-    const notification = await verifier.verifyAndDecodeNotification(
-      signedPayload,
-    );
-    return { notification, verifier };
-  } catch (_) {
-    const verifier = signedDataVerifier(config, Environment.SANDBOX);
-    const notification = await verifier.verifyAndDecodeNotification(
-      signedPayload,
-    );
-    return { notification, verifier };
-  }
+  return await verifyAndDecodeAppleJws(signedPayload, config);
 }
 
 async function verifyTransactionInEnvironment(
   config: AppStoreServerConfiguration,
+  verifierConfig: AppleVerifierConfiguration,
   transactionId: string,
   expectedProductId: string,
-  environment: Environment,
+  environment: AppleEnvironment,
 ): Promise<AppleReceipt> {
   const response = await fetchAppStoreTransaction(
     config,
@@ -1406,19 +1418,23 @@ async function verifyTransactionInEnvironment(
   if (!response.signedTransactionInfo) {
     throw new Error("Apple transaction information is missing");
   }
-  const verifier = signedDataVerifier(config, environment);
-  const transaction = await verifier.verifyAndDecodeTransaction(
+  const payload = await verifyAndDecodeAppleJws(
     response.signedTransactionInfo,
+    verifierConfig,
   );
-  return receiptFromTransaction(transaction, expectedProductId, environment);
+  return receiptFromTransactionPayload(
+    payload,
+    expectedProductId,
+    verifierConfig.bundleId,
+  );
 }
 
 async function fetchAppStoreTransaction(
   config: AppStoreServerConfiguration,
   transactionId: string,
-  environment: Environment,
+  environment: AppleEnvironment,
 ): Promise<{ signedTransactionInfo?: string }> {
-  const host = environment === Environment.PRODUCTION
+  const host = environment === "production"
     ? "https://api.storekit.itunes.apple.com"
     : "https://api.storekit-sandbox.itunes.apple.com";
   const token = await createAppStoreServerJwt(config);
@@ -1490,57 +1506,44 @@ function base64UrlBytes(value: Uint8Array): string {
   );
 }
 
-function receiptFromTransaction(
-  transaction: {
-    productId?: unknown;
-    revocationDate?: unknown;
-    transactionId?: unknown;
-    originalTransactionId?: unknown;
-    expiresDate?: unknown;
-    purchaseDate?: unknown;
-  },
+function receiptFromTransactionPayload(
+  payload: JsonMap,
   expectedProductId: string,
-  environment: Environment,
+  expectedBundleId: string,
 ): AppleReceipt {
+  const bundleId = stringValue(payload.bundleId);
+  if (bundleId && expectedBundleId && bundleId !== expectedBundleId) {
+    throw new Error(
+      `Apple transaction bundle mismatch: expected ${expectedBundleId} got ${bundleId}`,
+    );
+  }
   if (
-    transaction.productId !== expectedProductId ||
-    transaction.revocationDate != null
+    stringValue(payload.productId) !== expectedProductId ||
+    payload.revocationDate != null
   ) {
     throw new Error("Apple transaction does not match the selected product");
   }
-
-  const transactionValue = stringValue(transaction.transactionId);
-  const originalTransactionValue = stringValue(
-    transaction.originalTransactionId ?? transaction.transactionId,
+  const transactionId = stringValue(payload.transactionId);
+  const originalTransactionId = stringValue(
+    payload.originalTransactionId ?? payload.transactionId,
   );
-  if (!transactionValue || !originalTransactionValue) {
+  if (!transactionId || !originalTransactionId) {
     throw new Error("Apple transaction identifier is missing");
   }
-  const expiresAt = dateFromMilliseconds(transaction.expiresDate);
+  const expiresAt = dateFromMilliseconds(payload.expiresDate);
+  const environment: AppleEnvironment =
+    stringValue(payload.environment).toLowerCase() === "sandbox"
+      ? "sandbox"
+      : "production";
   return {
     status: 0,
-    environment: environment === Environment.PRODUCTION
-      ? "production"
-      : "sandbox",
-    transactionId: transactionValue,
-    originalTransactionId: originalTransactionValue,
+    environment,
+    transactionId,
+    originalTransactionId,
     expiresAt,
-    periodStartedAt: dateFromMilliseconds(transaction.purchaseDate),
+    periodStartedAt: dateFromMilliseconds(payload.purchaseDate),
     autoRenew: expiresAt != null,
   };
-}
-
-function signedDataVerifier(
-  config: AppleVerifierConfiguration,
-  environment: Environment,
-) {
-  return new SignedDataVerifier(
-    config.rootCertificates,
-    false,
-    environment,
-    config.bundleId,
-    environment === Environment.PRODUCTION ? config.appAppleId : undefined,
-  );
 }
 
 function dateFromMilliseconds(value: unknown): Date | null {
@@ -1548,13 +1551,6 @@ function dateFromMilliseconds(value: unknown): Date | null {
   return Number.isFinite(milliseconds) && milliseconds > 0
     ? new Date(milliseconds)
     : null;
-}
-
-function verificationFailureCode(error: unknown): string {
-  if (error instanceof VerificationException) {
-    return VerificationStatus[error.status] ?? `status_${error.status}`;
-  }
-  return error instanceof Error && error.message ? error.message : "unknown";
 }
 
 function verificationPayloadShape(value: string): string {
