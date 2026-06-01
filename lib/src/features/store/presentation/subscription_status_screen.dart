@@ -517,7 +517,7 @@ class _ActionsCard extends StatelessWidget {
               subtitle: Text(
                 usesAppStore
                     ? 'Aylık, yıllık veya yaşam boyu planlardan birini seç.'
-                    : 'Banka transferi sonrası dekont onayı ile hakların tanımlanır.',
+                    : 'Ödeme sayfasında kart veya IBAN seçerek haklarını tanımlarsın.',
               ),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: onUpgrade,
@@ -599,13 +599,13 @@ class _FaqList extends StatelessWidget {
         : const <(String, String)>[
             (
               'Ödeme nasıl alınır?',
-              'Seçtiğiniz paket için banka transferi yapar ve ödeme sayfasına '
-                  'dekont yüklersiniz. Onaydan sonra hakkınız cüzdanınıza işlenir.',
+              'Seçtiğiniz paket için ödeme sayfasına geçer, kart veya IBAN '
+                  'seçeneklerinden biriyle işlemi tamamlarsınız.',
             ),
             (
               'Abonelik otomatik yenilenir mi?',
-              'Hayır. Banka transferiyle alınan süreli paket bitince devam etmek '
-                  'için yeni ödeme ve dekont onayı gerekir.',
+              'Hayır. Ödeme sayfasıyla alınan süreli paket bitince devam etmek '
+                  'için yeni ödeme gerekir.',
             ),
             (
               'Ödeme durumunu nereden görürüm?',

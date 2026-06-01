@@ -1184,7 +1184,9 @@ class _WalletPackageCard extends StatelessWidget {
                         ]
                       : [
                           Text(
-                            externalCheckout ? 'IBAN ile öde' : 'Satın Al',
+                            externalCheckout
+                                ? 'Ödeme sayfasına geç'
+                                : 'Satın Al',
                             style: const TextStyle(
                               color: PratiCaseColors.teal,
                               fontWeight: FontWeight.w900,
@@ -1194,7 +1196,7 @@ class _WalletPackageCard extends StatelessWidget {
                           const SizedBox(width: 4),
                           Icon(
                             externalCheckout
-                                ? Icons.account_balance_outlined
+                                ? Icons.open_in_new_rounded
                                 : Icons.shopping_bag_rounded,
                             color: PratiCaseColors.teal,
                             size: 18,

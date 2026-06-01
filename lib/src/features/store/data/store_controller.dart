@@ -122,7 +122,7 @@ class StoreController extends ChangeNotifier {
   Future<void> _openPaymentCheckout(PratiCaseStoreProduct product) async {
     _setBusy(true);
     _errorMessage = null;
-    _statusMessage = 'Banka transferi ödeme sayfası hazırlanıyor.';
+    _statusMessage = 'Ödeme sayfası hazırlanıyor.';
     try {
       final uri = await _repo.createPaymentCheckout(
         productCode: product.code,
@@ -141,7 +141,7 @@ class StoreController extends ChangeNotifier {
           code: 'checkout_launch_failed',
         );
       }
-      _statusMessage = 'Dekont yüklemen için ödeme sayfası açıldı.';
+      _statusMessage = 'Ödeme sayfası açıldı.';
     } on StorePurchaseException catch (error) {
       _errorMessage = PratiCaseUserMessage.purchase(error.message);
     } on Object {

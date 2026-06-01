@@ -144,7 +144,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                           widget.subtitleOverride ??
                           (controller.supportsExternalCheckout
                               ? 'Medasi ekosistemindeki ortak Coin ve soru haklarını '
-                                    'banka transferi ve dekont onayıyla yönet.'
+                                    'ödeme sayfası üzerinden yönet.'
                               : 'Medasi ekosistemindeki ortak Coin ve soru haklarını '
                                     'App Store üzerinden güvenle yönet.'),
                     ),
@@ -669,7 +669,7 @@ class _RenewalDisclosure extends StatelessWidget {
     final days = product?.durationDays ?? 0;
     final validity = days > 0 ? ' $days gün geçerlidir.' : '';
     return 'Tek seferlik satın alımdır; otomatik yenilenmez.$validity '
-        'Banka transferi ve dekont onayı tamamlandığında haklar Medasi '
+        'Ödeme sayfasındaki işlem tamamlandığında haklar Medasi '
         'Cüzdanınıza eklenir.';
   }
 
@@ -677,9 +677,9 @@ class _RenewalDisclosure extends StatelessWidget {
     final days = product.durationDays > 0
         ? '${product.durationDays} gün'
         : product.periodLabel;
-    return 'Bu paket onaylanan her banka transferi için $days geçerlidir. '
-        'Otomatik yenileme yapılmaz; devam etmek için yeni ödeme onayı gerekir. '
-        'Dekont onaylandığında haklar Medasi Cüzdanınıza eklenir.';
+    return 'Bu paket ödeme sayfasında tamamlanan her işlem için $days geçerlidir. '
+        'Otomatik yenileme yapılmaz; devam etmek için yeni ödeme gerekir. '
+        'Ödeme onaylandığında haklar Medasi Cüzdanınıza eklenir.';
   }
 
   String _renewalText(PratiCaseStoreProduct product) {
