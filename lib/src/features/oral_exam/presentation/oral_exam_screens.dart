@@ -414,7 +414,7 @@ class _FormatPicker extends StatelessWidget {
             icon: Icons.groups_2_rounded,
             title: 'Komite (3 Hoca)',
             subtitle:
-                'Komite sınavı — üç hocadan kısa soru ve ayrı karne yorumu.',
+                'Komite sınavı — hocalar sırayla konuşur, karne komite yorumu verir.',
             badge: 'YENİ',
             onTap: () => onChanged(OralExamFormat.panel),
           ),
@@ -2046,6 +2046,14 @@ class _PanelBanner extends StatelessWidget {
         const order = {'lead': 0, 'second': 1, 'observer': 2};
         return (order[a.panelRole] ?? 9).compareTo(order[b.panelRole] ?? 9);
       });
+    OralExamPersona? activePersona;
+    for (final persona in ordered) {
+      if (persona.id == activePersonaId) {
+        activePersona = persona;
+        break;
+      }
+    }
+    activePersona ??= ordered.isNotEmpty ? ordered.first : null;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(12, 10, 8, 12),
@@ -2088,13 +2096,35 @@ class _PanelBanner extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Komite birlikte değerlendirir; yanıtını aktif hocaya ver.',
+            'Komite sırayla değerlendirir; bu turda yalnız aktif hoca konuşur.',
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.72),
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
           ),
+          if (activePersona != null) ...[
+            const SizedBox(height: 8),
+            AnimatedSwitcher(
+              duration: PratiCaseDurations.emphasized,
+              switchInCurve: PratiCaseCurves.overshoot,
+              switchOutCurve: PratiCaseCurves.exit,
+              transitionBuilder: (child, animation) {
+                final slide = Tween<Offset>(
+                  begin: const Offset(0.08, 0),
+                  end: Offset.zero,
+                ).animate(animation);
+                return FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(position: slide, child: child),
+                );
+              },
+              child: _ActivePanelistStrip(
+                key: ValueKey(activePersona.id),
+                persona: activePersona,
+              ),
+            ),
+          ],
           const SizedBox(height: 6),
           Row(
             children: [
@@ -2134,6 +2164,135 @@ class _PanelBanner extends StatelessWidget {
   }
 }
 
+class _ActivePanelistStrip extends StatelessWidget {
+  const _ActivePanelistStrip({required this.persona, super.key});
+
+  final OralExamPersona persona;
+
+  Color get _accent {
+    switch (persona.panelRole) {
+      case 'lead':
+        return PratiCaseColors.errorRed;
+      case 'second':
+        return PratiCaseColors.gold;
+      case 'observer':
+        return PratiCaseColors.successGreen;
+      default:
+        return PratiCaseColors.tealBright;
+    }
+  }
+
+  String get _roleLabel {
+    switch (persona.panelRole) {
+      case 'lead':
+        return 'Komite Başkanı';
+      case 'second':
+        return 'Klinik Akıl Hocası';
+      case 'observer':
+        return 'Gözlemci Hoca';
+      default:
+        return 'Aktif Hoca';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _accent.withValues(alpha: 0.60)),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 34,
+            height: 34,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                _PanelActivePulse(color: _accent, size: 34),
+                CircleAvatar(
+                  radius: 14,
+                  backgroundColor: _accent.withValues(alpha: 0.30),
+                  child: const Icon(
+                    Icons.record_voice_over_rounded,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  persona.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  'Şu an aktif • $_roleLabel',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.72),
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.keyboard_voice_rounded, color: _accent, size: 18),
+        ],
+      ),
+    );
+  }
+}
+
+class _PanelActivePulse extends StatelessWidget {
+  const _PanelActivePulse({required this.color, required this.size});
+
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: PratiCaseDurations.showcase,
+      curve: PratiCaseCurves.smooth,
+      builder: (context, value, _) {
+        return Center(
+          child: Container(
+            width: size * (0.68 + value * 0.30),
+            height: size * (0.68 + value * 0.30),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color.withValues(alpha: 0.10 + value * 0.10),
+              border: Border.all(
+                color: color.withValues(alpha: 0.25 + value * 0.30),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _PanelistAvatar extends StatelessWidget {
   const _PanelistAvatar({required this.persona, required this.active});
   final OralExamPersona persona;
@@ -2154,83 +2313,98 @@ class _PanelistAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
+    return AnimatedScale(
+      scale: active ? 1.035 : 1,
       duration: PratiCaseDurations.standard,
       curve: PratiCaseCurves.standard,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      decoration: BoxDecoration(
-        color: active
-            ? PratiCaseColors.tealBright.withValues(alpha: 0.18)
-            : Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
+      child: AnimatedContainer(
+        duration: PratiCaseDurations.standard,
+        curve: PratiCaseCurves.standard,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        decoration: BoxDecoration(
           color: active
-              ? PratiCaseColors.tealBright
-              : Colors.white.withValues(alpha: 0.06),
-          width: active ? 1.4 : 0.5,
+              ? PratiCaseColors.tealBright.withValues(alpha: 0.18)
+              : Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: active
+                ? PratiCaseColors.tealBright
+                : Colors.white.withValues(alpha: 0.06),
+            width: active ? 1.4 : 0.5,
+          ),
         ),
-      ),
-      child: Column(
-        children: [
-          Stack(
-            alignment: Alignment.bottomRight,
-            clipBehavior: Clip.none,
-            children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: active
-                    ? PratiCaseColors.tealBright.withValues(alpha: 0.30)
-                    : Colors.white.withValues(alpha: 0.10),
-                child: Icon(
-                  Icons.person_rounded,
-                  color: active
-                      ? Colors.white
-                      : Colors.white.withValues(alpha: 0.66),
-                  size: 22,
-                ),
-              ),
-              Positioned(
-                bottom: -2,
-                right: -2,
-                child: Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: _accent,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: PratiCaseColors.navy, width: 2),
+        child: Column(
+          children: [
+            Stack(
+              alignment: Alignment.bottomRight,
+              clipBehavior: Clip.none,
+              children: [
+                SizedBox(
+                  width: 42,
+                  height: 42,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      if (active) _PanelActivePulse(color: _accent, size: 42),
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundColor: active
+                            ? PratiCaseColors.tealBright.withValues(alpha: 0.30)
+                            : Colors.white.withValues(alpha: 0.10),
+                        child: Icon(
+                          Icons.person_rounded,
+                          color: active
+                              ? Colors.white
+                              : Colors.white.withValues(alpha: 0.66),
+                          size: 22,
+                        ),
+                      ),
+                    ],
                   ),
+                ),
+                Positioned(
+                  bottom: 1,
+                  right: 1,
+                  child: Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: _accent,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: PratiCaseColors.navy, width: 2),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              persona.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: active
+                    ? Colors.white
+                    : Colors.white.withValues(alpha: 0.7),
+                fontSize: 10.5,
+                fontWeight: active ? FontWeight.w900 : FontWeight.w600,
+              ),
+            ),
+            if (active) ...[
+              const SizedBox(height: 2),
+              const Text(
+                'SORU SORUYOR',
+                style: TextStyle(
+                  color: PratiCaseColors.tealBright,
+                  fontSize: 7,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.6,
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            persona.title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: active
-                  ? Colors.white
-                  : Colors.white.withValues(alpha: 0.7),
-              fontSize: 10.5,
-              fontWeight: active ? FontWeight.w900 : FontWeight.w600,
-            ),
-          ),
-          if (active) ...[
-            const SizedBox(height: 2),
-            const Text(
-              'SORU SORUYOR',
-              style: TextStyle(
-                color: PratiCaseColors.tealBright,
-                fontSize: 7,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0.6,
-              ),
-            ),
           ],
-        ],
+        ),
       ),
     );
   }

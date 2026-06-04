@@ -1168,39 +1168,41 @@ void main() {
     expect(find.text('Karşındaki Komite'), findsOneWidget);
   });
 
-  testWidgets('committee turn shows all three examiners after one answer', (
-    tester,
-  ) async {
-    await _setViewport(tester, const Size(390, 1100));
-    final repository = _CommitteeOralExamRepository();
+  testWidgets(
+    'committee turn shows only the active examiner after one answer',
+    (tester) async {
+      await _setViewport(tester, const Size(390, 1100));
+      final repository = _CommitteeOralExamRepository();
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: OralExamRoomScreen(
-          repository: repository,
-          session: repository.panelSession,
-          voiceAdapter: _FakeVoiceExamAdapter(),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: OralExamRoomScreen(
+            repository: repository,
+            session: repository.panelSession,
+            voiceAdapter: _FakeVoiceExamAdapter(),
+          ),
         ),
-      ),
-    );
-    await tester.pump();
+      );
+      await tester.pump();
 
-    await tester.enterText(
-      find.byType(TextField),
-      'Akut koroner sendrom düşünürüm.',
-    );
-    await tester.testTextInput.receiveAction(TextInputAction.send);
-    await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byType(TextField),
+        'Akut koroner sendrom düşünürüm.',
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.send);
+      await tester.pump(const Duration(milliseconds: 600));
 
-    expect(repository.submittedAnswer, 'Akut koroner sendrom düşünürüm.');
-    expect(find.text('Akut koroner sendrom düşünürüm.'), findsOneWidget);
-    expect(find.text('Önceliklendirme doğru.'), findsOneWidget);
-    expect(find.text('Gerekçeniz eksik kalıyor.'), findsOneWidget);
-    expect(find.text('İlk isteyeceğiniz tetkik nedir?'), findsOneWidget);
+      expect(repository.submittedAnswer, 'Akut koroner sendrom düşünürüm.');
+      expect(find.text('Akut koroner sendrom düşünürüm.'), findsOneWidget);
+      expect(find.text('İlk isteyeceğiniz tetkik nedir?'), findsOneWidget);
+      expect(find.text('Şu an aktif • Klinik Akıl Hocası'), findsOneWidget);
+      expect(find.text('Önceliklendirme doğru.'), findsNothing);
+      expect(find.text('Gerekçeniz eksik kalıyor.'), findsNothing);
 
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pumpAndSettle();
-  });
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+    },
+  );
 
   testWidgets('solo oral voice mode does not speak persona prefix', (
     tester,
@@ -1980,18 +1982,6 @@ class _CommitteeOralExamRepository extends Fake implements OralExamRepository {
     return const OralExamTurnResult(
       mentorMessage: 'İlk isteyeceğiniz tetkik nedir?',
       mentorMessages: [
-        OralExamMessage(
-          speaker: 'mentor',
-          message: 'Önceliklendirme doğru.',
-          personaId: 'lead',
-          personaTitle: 'Sert Profesör',
-        ),
-        OralExamMessage(
-          speaker: 'mentor',
-          message: 'Gerekçeniz eksik kalıyor.',
-          personaId: 'observer',
-          personaTitle: 'Sabırlı Asistan',
-        ),
         OralExamMessage(
           speaker: 'mentor',
           message: 'İlk isteyeceğiniz tetkik nedir?',
