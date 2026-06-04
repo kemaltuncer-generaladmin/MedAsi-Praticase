@@ -84,14 +84,14 @@ abstract final class PratiCaseGradients {
   static const LinearGradient hero = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF073844), Color(0xFF006A72)],
+    colors: [PratiCaseColors.gradientStart, PratiCaseColors.gradientEnd],
   );
 
   /// Birincil aksiyon butonu gradienti.
   static const LinearGradient action = LinearGradient(
     begin: Alignment.centerLeft,
     end: Alignment.centerRight,
-    colors: [Color(0xFF087D74), Color(0xFF00A090)],
+    colors: [PratiCaseColors.actionStart, PratiCaseColors.actionEnd],
   );
 
   /// Yumuşak yüzey dokusu — beyaz arka plan üzerinde sezilmeyecek
@@ -99,13 +99,13 @@ abstract final class PratiCaseGradients {
   static const LinearGradient mutedSurface = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFFFFFFFF), Color(0xFFF7F9FC)],
+    colors: [PratiCaseColors.white, PratiCaseColors.mutedSurfaceEnd],
   );
 
   /// Başarı / pozitif durum vurgusu için ince yeşil-teal wash.
   static const LinearGradient successWash = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFFE9F7F1), Color(0xFFEEF6F5)],
+    colors: [PratiCaseColors.successWashStart, PratiCaseColors.successWashEnd],
   );
 }

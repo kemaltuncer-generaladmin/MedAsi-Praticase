@@ -253,6 +253,43 @@ class ResultCategoryScore {
   final int maxScore;
 }
 
+class ResultChecklistItem {
+  const ResultChecklistItem({
+    required this.label,
+    required this.status,
+    this.evidence = '',
+    this.note = '',
+  });
+
+  final String label;
+  final String status;
+  final String evidence;
+  final String note;
+
+  bool get isCovered => status == 'covered';
+  bool get isPartial => status == 'partial';
+  bool get isMissed => status == 'missed';
+}
+
+class ResultChecklistSection {
+  const ResultChecklistSection({
+    required this.title,
+    required this.key,
+    required this.coveredCount,
+    required this.totalCount,
+    required this.items,
+  });
+
+  final String title;
+  final String key;
+  final int coveredCount;
+  final int totalCount;
+  final List<ResultChecklistItem> items;
+
+  int get missedCount => totalCount - coveredCount;
+  bool get hasItems => items.isNotEmpty;
+}
+
 class ExamResultSummary {
   const ExamResultSummary({
     required this.sessionId,
@@ -269,6 +306,7 @@ class ExamResultSummary {
     required this.missedHistory,
     required this.missedPhysicalExam,
     required this.idealApproach,
+    this.checklistSections = const [],
   });
 
   final String sessionId;
@@ -285,6 +323,7 @@ class ExamResultSummary {
   final List<String> missedHistory;
   final List<String> missedPhysicalExam;
   final String idealApproach;
+  final List<ResultChecklistSection> checklistSections;
 }
 
 class LabResultDetail {

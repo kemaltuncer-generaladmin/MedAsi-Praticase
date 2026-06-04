@@ -40,7 +40,7 @@ class StoreKitService {
         }
       },
       onError: (Object error, StackTrace stackTrace) {
-        debugPrint('StoreKit purchase stream error: $error');
+        _controller.addError(error, stackTrace);
       },
     );
     return true;

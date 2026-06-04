@@ -196,6 +196,35 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   Future<void> signOut() => _client.auth.signOut();
 
+  @override
+  Future<void> deleteAccount() async {
+    try {
+      final response = await _client.functions.invoke(
+        'praticase-delete-account',
+        body: const {'confirmation': 'DELETE_ACCOUNT'},
+      );
+      final data = response.data is Map
+          ? Map<String, dynamic>.from(response.data as Map)
+          : const <String, dynamic>{};
+      final error = (data['error'] ?? '').toString().trim();
+      if (error.isNotEmpty) {
+        throw AuthFailure(error);
+      }
+      await _client.auth.signOut();
+      await _authStorage?.removePersistedSession();
+    } on AuthFailure {
+      rethrow;
+    } on FunctionException catch (error) {
+      throw AuthFailure(_functionErrorMessage(error));
+    } on AuthException catch (error) {
+      throw AuthFailure(_friendlyMessage(error.message));
+    } on Object {
+      throw const AuthFailure(
+        'Hesap silme işlemi şu anda tamamlanamadı. Lütfen tekrar dene.',
+      );
+    }
+  }
+
   Future<User?> _activeUser() async {
     final session = _client.auth.currentSession;
     if (session == null) return null;
@@ -316,6 +345,17 @@ class SupabaseAuthRepository implements AuthRepository {
       return 'Doğrulama kodunu kontrol et.';
     }
     return 'İşlem tamamlanamadı. Lütfen tekrar dene.';
+  }
+
+  String _functionErrorMessage(FunctionException error) {
+    final details = error.details;
+    if (details is Map) {
+      final message = (details['error'] ?? details['message'])?.toString();
+      if (message != null && message.trim().isNotEmpty) return message.trim();
+    }
+    final message = details?.toString().trim();
+    if (message != null && message.isNotEmpty) return message;
+    return 'Hesap silme işlemi şu anda tamamlanamadı. Lütfen tekrar dene.';
   }
 }
 

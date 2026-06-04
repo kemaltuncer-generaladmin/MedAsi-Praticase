@@ -677,17 +677,16 @@ class SupabaseCasesRepository implements CasesRepository {
   }
 
   Future<ExamResultSummary?> _loadResultCard(String sessionId) async {
-    final row = await _client
-        .schema('praticase')
-        .from('session_result_cards')
-        .select(
-          'session_id,case_title,total_score,max_score,percentage,'
-          'category_scores,strong_points,improvement_points,'
-          'critical_mistakes,unnecessary_tests,missed_history,'
-          'missed_physical_exam,missed_tests,ideal_approach',
-        )
-        .eq('session_id', sessionId)
-        .maybeSingle();
+    Map<String, dynamic>? row;
+    try {
+      row = await _loadResultCardRow(sessionId, includeChecklistSections: true);
+    } on PostgrestException catch (error) {
+      if (!_isMissingColumn(error)) rethrow;
+      row = await _loadResultCardRow(
+        sessionId,
+        includeChecklistSections: false,
+      );
+    }
     if (row == null) return null;
     final deterministic = ExamResultSummary(
       sessionId: _string(row, 'session_id'),
@@ -704,6 +703,7 @@ class SupabaseCasesRepository implements CasesRepository {
       missedHistory: _stringList(row['missed_history']),
       missedPhysicalExam: _stringList(row['missed_physical_exam']),
       idealApproach: _string(row, 'ideal_approach'),
+      checklistSections: _checklistSections(row['checklist_sections']),
     );
     try {
       final enrichment = await _client
@@ -722,6 +722,35 @@ class SupabaseCasesRepository implements CasesRepository {
       if (_isMissingRelation(error)) return deterministic;
       rethrow;
     }
+  }
+
+  Future<Map<String, dynamic>?> _loadResultCardRow(
+    String sessionId, {
+    required bool includeChecklistSections,
+  }) {
+    final fields = [
+      'session_id',
+      'case_title',
+      'total_score',
+      'max_score',
+      'percentage',
+      'category_scores',
+      'strong_points',
+      'improvement_points',
+      'critical_mistakes',
+      'unnecessary_tests',
+      'missed_history',
+      'missed_physical_exam',
+      'missed_tests',
+      'ideal_approach',
+      if (includeChecklistSections) 'checklist_sections',
+    ].join(',');
+    return _client
+        .schema('praticase')
+        .from('session_result_cards')
+        .select(fields)
+        .eq('session_id', sessionId)
+        .maybeSingle();
   }
 
   Future<void> _requestAiEnrichment(String sessionId) async {
@@ -746,7 +775,10 @@ class SupabaseCasesRepository implements CasesRepository {
 
   bool _needsAiFeedback(ExamResultSummary result) {
     final text = result.idealApproach.trim().toLowerCase();
-    return text.isEmpty || text.contains('hazırlanamadı');
+    return text.isEmpty ||
+        text.contains('hazırlanamadı') ||
+        text.startsWith('ideal yaklaşım; yapılandırılmış') ||
+        result.checklistSections.isEmpty;
   }
 
   ExamResultSummary _withClinicalFallback(ExamResultSummary result) {
@@ -770,6 +802,7 @@ class SupabaseCasesRepository implements CasesRepository {
           'başlat; istediğin her tetkiki klinik gerekçeyle ilişkilendir. '
           'Ön tanını güvenli ilk yaklaşım ve gerekli konsültasyon adımlarıyla '
           'tamamla.',
+      checklistSections: result.checklistSections,
     );
   }
 
@@ -788,6 +821,9 @@ class SupabaseCasesRepository implements CasesRepository {
     }
 
     final idealApproach = _string(feedback, 'idealApproach').trim();
+    final checklistSections = _checklistSections(
+      feedback['checklistSections'] ?? feedback['checklist_sections'],
+    );
     return ExamResultSummary(
       sessionId: deterministic.sessionId,
       caseTitle: deterministic.caseTitle,
@@ -817,6 +853,9 @@ class SupabaseCasesRepository implements CasesRepository {
       idealApproach: idealApproach.isEmpty
           ? deterministic.idealApproach
           : idealApproach,
+      checklistSections: checklistSections.isEmpty
+          ? deterministic.checklistSections
+          : checklistSections,
     );
   }
 
@@ -1108,6 +1147,79 @@ class SupabaseCasesRepository implements CasesRepository {
     ];
   }
 
+  List<ResultChecklistSection> _checklistSections(Object? value) {
+    final rows = value is List ? value : const [];
+    return [
+      for (final item in rows)
+        if (item is Map) _checklistSection(Map<String, dynamic>.from(item)),
+    ].where((section) => section.hasItems).toList(growable: false);
+  }
+
+  ResultChecklistSection _checklistSection(Map<String, dynamic> row) {
+    final items = _checklistItems(row['items']);
+    final parsedTotal = _intAny(row, const ['totalCount', 'total_count']);
+    final parsedCovered = _intAny(row, const ['coveredCount', 'covered_count']);
+    final totalCount = parsedTotal > 0 ? parsedTotal : items.length;
+    final coveredCount = parsedCovered > 0
+        ? parsedCovered
+        : items.where((item) => item.isCovered).length;
+    return ResultChecklistSection(
+      title: _stringAny(row, const ['title', 'label', 'name']).isEmpty
+          ? 'Checklist'
+          : _stringAny(row, const ['title', 'label', 'name']),
+      key: _stringAny(row, const ['key', 'categoryKey', 'category_key']),
+      coveredCount: coveredCount.clamp(0, totalCount),
+      totalCount: totalCount,
+      items: items,
+    );
+  }
+
+  List<ResultChecklistItem> _checklistItems(Object? value) {
+    final rows = value is List ? value : const [];
+    return [
+      for (final item in rows)
+        if (item is Map) _checklistItem(Map<String, dynamic>.from(item)),
+    ].where((item) => item.label.isNotEmpty).toList(growable: false);
+  }
+
+  ResultChecklistItem _checklistItem(Map<String, dynamic> row) {
+    return ResultChecklistItem(
+      label: _stringAny(row, const ['label', 'title', 'item', 'question']),
+      status: _checklistStatus(row),
+      evidence: _stringAny(row, const ['evidence', 'askedEvidence']),
+      note: _stringAny(row, const ['note', 'feedback', 'reason']),
+    );
+  }
+
+  String _checklistStatus(Map<String, dynamic> row) {
+    if (row['covered'] == true || row['isCovered'] == true) return 'covered';
+    if (row['covered'] == false || row['isCovered'] == false) return 'missed';
+    final raw = _stringAny(row, const [
+      'status',
+      'state',
+      'result',
+    ]).toLowerCase();
+    if (raw.contains('partial') ||
+        raw.contains('kısmi') ||
+        raw.contains('eksik')) {
+      return 'partial';
+    }
+    if (raw.contains('covered') ||
+        raw.contains('asked') ||
+        raw.contains('done') ||
+        raw.contains('soruldu') ||
+        raw.contains('tamam')) {
+      return 'covered';
+    }
+    if (raw.contains('miss') ||
+        raw.contains('not') ||
+        raw.contains('sorulmad') ||
+        raw.contains('yok')) {
+      return 'missed';
+    }
+    return 'missed';
+  }
+
   List<LabParameter> _labParameters(Object? value) {
     final rows = value is List ? value : const [];
     return [
@@ -1158,6 +1270,28 @@ class SupabaseCasesRepository implements CasesRepository {
     return _int(row, key);
   }
 
+  int _intAny(Map<String, dynamic> row, List<String> keys) {
+    for (final key in keys) {
+      if (row[key] == null) continue;
+      final value = row[key];
+      if (value is int) return value;
+      if (value is num) return value.round();
+      final parsed = int.tryParse(value.toString());
+      if (parsed != null) return parsed;
+    }
+    return 0;
+  }
+
+  String _stringAny(Map<String, dynamic> row, List<String> keys) {
+    for (final key in keys) {
+      final value = row[key];
+      if (value == null) continue;
+      final text = value.toString().trim();
+      if (text.isNotEmpty) return text;
+    }
+    return '';
+  }
+
   String _message(PostgrestException error) {
     if (_isMissingRelation(error) || _isMissingFunction(error)) {
       return 'Vaka verisi şu anda hazırlanıyor. Lütfen daha sonra tekrar deneyin.';
@@ -1171,6 +1305,15 @@ class SupabaseCasesRepository implements CasesRepository {
     return message.contains('does not exist') ||
         message.contains('schema cache') ||
         message.contains('not found in the schema');
+  }
+
+  bool _isMissingColumn(PostgrestException error) {
+    if (error.code == '42703' || error.code == 'PGRST204') return true;
+    final message = error.message.toLowerCase();
+    return message.contains('column') &&
+        (message.contains('does not exist') ||
+            message.contains('schema cache') ||
+            message.contains('not found'));
   }
 
   bool _isMissingFunction(PostgrestException error) {

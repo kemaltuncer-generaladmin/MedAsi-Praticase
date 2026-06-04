@@ -21,22 +21,22 @@ class AuthStatusCard extends StatelessWidget {
     final colors = switch (tone) {
       AuthStatusTone.success => (
         PratiCaseColors.teal,
-        const Color(0xFFEAF7F3),
+        PratiCaseColors.successSurface,
         Icons.check_circle_outline_rounded,
       ),
       AuthStatusTone.warning => (
         PratiCaseColors.gold,
-        const Color(0xFFFFF6E7),
+        PratiCaseColors.warningSurface,
         Icons.warning_amber_rounded,
       ),
       AuthStatusTone.error => (
-        const Color(0xFFD44747),
-        const Color(0xFFFFEFEE),
+        PratiCaseColors.errorRed,
+        PratiCaseColors.errorSurface,
         Icons.error_outline_rounded,
       ),
       AuthStatusTone.info => (
         PratiCaseColors.teal,
-        const Color(0xFFEDF8F8),
+        PratiCaseColors.infoSurface,
         Icons.info_outline_rounded,
       ),
     };

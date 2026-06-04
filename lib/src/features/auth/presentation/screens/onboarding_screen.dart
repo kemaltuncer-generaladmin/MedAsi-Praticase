@@ -48,7 +48,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       tag: 'SÖZLÜ SINAV',
       title: 'Hoca Karşısı\nProvayı Şimdi Yap',
       subtitle:
-          'AI panel üyeleri seni sözlü sınav tonunda dinler, takip sorularıyla zorlar.',
+          'Recall odakların sözlü sınav provasını takip sorularıyla kişiselleştirir.',
       icon: Icons.record_voice_over_rounded,
       accentTone: _AccentTone.navy,
     ),
@@ -174,8 +174,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       AnimatedBuilder(
                         animation: _introController,
                         builder: (context, child) {
-                          final t = Curves.easeOutCubic
-                              .transform(_introController.value);
+                          final t = Curves.easeOutCubic.transform(
+                            _introController.value,
+                          );
                           return Opacity(
                             opacity: t,
                             child: Transform.translate(
@@ -265,9 +266,9 @@ class _OnboardingSlide {
       case _AccentTone.teal:
         return PratiCaseColors.tealBright;
       case _AccentTone.navy:
-        return const Color(0xFF6A85A8);
+        return PratiCaseColors.navyBright;
       case _AccentTone.gold:
-        return const Color(0xFFFFC55C);
+        return PratiCaseColors.goldBright;
     }
   }
 }
@@ -288,8 +289,9 @@ class _OnboardingTopBar extends StatelessWidget {
     return AnimatedBuilder(
       animation: introController,
       builder: (context, _) {
-        final t =
-            Curves.easeOutCubic.transform(introController.value).clamp(0.0, 1.0);
+        final t = Curves.easeOutCubic
+            .transform(introController.value)
+            .clamp(0.0, 1.0);
         return Opacity(
           opacity: t,
           child: Transform.translate(
@@ -331,7 +333,9 @@ class _OnboardingTopBar extends StatelessWidget {
                     style: TextButton.styleFrom(
                       foregroundColor: PratiCaseColors.muted,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 6),
+                        horizontal: 14,
+                        vertical: 6,
+                      ),
                       textStyle: const TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: 13,
@@ -372,7 +376,8 @@ class _OnboardingPage extends StatelessWidget {
           animation: pageController,
           builder: (context, _) {
             // Parallax: aktif sayfada 0, kayarken ±1.
-            final page = pageController.hasClients &&
+            final page =
+                pageController.hasClients &&
                     pageController.position.haveDimensions
                 ? pageController.page ?? pageController.initialPage.toDouble()
                 : pageController.initialPage.toDouble();
@@ -381,8 +386,9 @@ class _OnboardingPage extends StatelessWidget {
               animation: introController,
               builder: (context, _) {
                 // Intro phase ilk renderda; sonra delta'ya göre güncellenir.
-                final intro =
-                    Curves.easeOutCubic.transform(introController.value);
+                final intro = Curves.easeOutCubic.transform(
+                  introController.value,
+                );
                 return _PageContent(
                   slide: slide,
                   delta: delta,
@@ -447,8 +453,7 @@ class _PageContent extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(22, 20, 22, 22),
                     surfaceOpacity: 0.86,
                     tint: PratiCaseColors.white,
-                    borderColor:
-                        slide.accent.withValues(alpha: 0.16),
+                    borderColor: slide.accent.withValues(alpha: 0.16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
@@ -458,11 +463,14 @@ class _PageContent extends StatelessWidget {
                           intro: intro,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 5),
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
                             decoration: BoxDecoration(
                               color: slide.accent.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(
-                                  PratiCaseRadius.pill),
+                                PratiCaseRadius.pill,
+                              ),
                             ),
                             child: Text(
                               slide.tag,
@@ -585,7 +593,8 @@ class _HeroIllustrationState extends State<_HeroIllustration>
             ),
             child: Center(
               child: Transform.scale(
-                scale: 0.85 + Curves.easeOutCubic.transform(widget.intro) * 0.15,
+                scale:
+                    0.85 + Curves.easeOutCubic.transform(widget.intro) * 0.15,
                 child: GlassCardDark(
                   padding: const EdgeInsets.all(22),
                   radius: 32,
@@ -623,10 +632,7 @@ class _HeroPainter extends CustomPainter {
     // Outer soft glow halo.
     final haloPaint = Paint()
       ..shader = RadialGradient(
-        colors: [
-          accent.withValues(alpha: 0.35),
-          accent.withValues(alpha: 0),
-        ],
+        colors: [accent.withValues(alpha: 0.35), accent.withValues(alpha: 0)],
       ).createShader(Rect.fromCircle(center: center, radius: radius));
     canvas.drawCircle(center, radius, haloPaint);
 
@@ -662,9 +668,7 @@ class _HeroPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _HeroPainter old) {
-    return old.orbit != orbit ||
-        old.accent != accent ||
-        old.bright != bright;
+    return old.orbit != orbit || old.accent != accent || old.bright != bright;
   }
 }
 

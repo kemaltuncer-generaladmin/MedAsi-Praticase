@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../../app/navigation/praticase_routes.dart';
 import '../../../app/theme/praticase_colors.dart';
 import '../../../app/theme/praticase_motion.dart';
 import '../../../app/theme/praticase_tokens.dart';
 import '../../../shared/ui/ui.dart';
 import '../../cases/data/cases_repository.dart';
-import '../../cases/presentation/cases_screen.dart';
 import '../data/home_repository.dart';
 import '../domain/home_dashboard.dart';
+import '../domain/recall_summary.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
@@ -91,6 +93,13 @@ class _HomeScreenState extends State<HomeScreen> {
             onMiniOsce: widget.onOpenExams,
             onTheoreticalExam: widget.onOpenTheoreticalExam,
           ),
+          if (dashboard.recallSummary != null) ...[
+            const SizedBox(height: 12),
+            _RecallTodayCard(
+              summary: dashboard.recallSummary!,
+              onOpenRecall: _openRecall,
+            ),
+          ],
           const SizedBox(height: 22),
           if (dashboard.stats != null) ...[
             _SectionHeader(
@@ -167,9 +176,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 FadeSlideIn(
                   // İlk 8 element progressive stagger; sonrası sabit gecikme
                   // → uzun listelerde alt elementler aşırı geç kalmıyor.
-                  delay: Duration(
-                    milliseconds: 22 * (index < 8 ? index : 8),
-                  ),
+                  delay: Duration(milliseconds: 22 * (index < 8 ? index : 8)),
                   child: sections[index],
                 ),
             ],
@@ -180,13 +187,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _openCaseDetail(String caseId) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => CaseDetailScreen(
-          repository: widget.casesRepository,
-          caseId: caseId,
-        ),
-      ),
+    PratiCaseRoutes.openCaseDetail(
+      context,
+      repository: widget.casesRepository,
+      caseId: caseId,
     );
   }
 
@@ -208,6 +212,13 @@ class _HomeScreenState extends State<HomeScreen> {
       default:
         widget.onOpenCases?.call();
         return;
+    }
+  }
+
+  Future<void> _openRecall() async {
+    final uri = Uri.parse('https://recall.medasi.com.tr');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 }
@@ -640,7 +651,10 @@ class _StatsHub extends StatelessWidget {
           runSpacing: spacing,
           children: [
             for (final tile in tiles)
-              SizedBox(width: width, child: _StatTile(data: tile)),
+              SizedBox(
+                width: width,
+                child: _StatTile(data: tile),
+              ),
           ],
         );
       },
@@ -689,8 +703,8 @@ class _StatTile extends StatelessWidget {
     final deltaColor = !hasDelta
         ? PratiCaseColors.muted
         : positive
-            ? PratiCaseColors.successGreen
-            : PratiCaseColors.errorRed;
+        ? PratiCaseColors.successGreen
+        : PratiCaseColors.errorRed;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -717,8 +731,10 @@ class _StatTile extends StatelessWidget {
               const Spacer(),
               if (hasDelta)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: deltaColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
@@ -855,8 +871,10 @@ class _WeeklyActivityChart extends StatelessWidget {
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: PratiCaseColors.teal.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
@@ -864,8 +882,11 @@ class _WeeklyActivityChart extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: const [
-                    Icon(Icons.bolt_rounded,
-                        size: 13, color: PratiCaseColors.teal),
+                    Icon(
+                      Icons.bolt_rounded,
+                      size: 13,
+                      color: PratiCaseColors.teal,
+                    ),
                     SizedBox(width: 4),
                     Text(
                       'Bu hafta',
@@ -911,8 +932,9 @@ class _WeeklyActivityChart extends StatelessWidget {
                           ? PratiCaseColors.navy
                           : PratiCaseColors.muted,
                       fontSize: 11,
-                      fontWeight:
-                          i == todayIndex ? FontWeight.w900 : FontWeight.w700,
+                      fontWeight: i == todayIndex
+                          ? FontWeight.w900
+                          : FontWeight.w700,
                     ),
                   ),
                 ),
@@ -959,8 +981,7 @@ class _WeeklyBarsPainter extends CustomPainter {
       // i=0 0.0-0.7 arasında büyür, sonuncusu 0.3-1.0 arasında.
       final start = i / count * 0.30;
       final end = start + 0.70;
-      final localGrowth =
-          ((growth - start) / (end - start)).clamp(0.0, 1.0);
+      final localGrowth = ((growth - start) / (end - start)).clamp(0.0, 1.0);
       final eased = Curves.easeOutCubic.transform(localGrowth);
 
       final isToday = i == todayIndex;
@@ -988,9 +1009,7 @@ class _WeeklyBarsPainter extends CustomPainter {
 
       if (isToday && eased > 0.9) {
         final dotPaint = Paint()
-          ..color = PratiCaseColors.gold.withValues(
-            alpha: (eased - 0.9) * 10,
-          );
+          ..color = PratiCaseColors.gold.withValues(alpha: (eased - 0.9) * 10);
         canvas.drawCircle(Offset(left + barWidth / 2, top - 6), 3, dotPaint);
       }
     }
@@ -1322,10 +1341,9 @@ class _RecommendedCases extends StatelessWidget {
           final columns = width >= 1100
               ? 4
               : width >= 880
-                  ? 3
-                  : 2;
-          final cardWidth =
-              (width - spacing * (columns - 1)) / columns;
+              ? 3
+              : 2;
+          final cardWidth = (width - spacing * (columns - 1)) / columns;
           return Wrap(
             spacing: spacing,
             runSpacing: spacing,
@@ -1584,6 +1602,243 @@ class _QuickActions extends StatelessWidget {
   }
 }
 
+class _RecallTodayCard extends StatelessWidget {
+  const _RecallTodayCard({required this.summary, required this.onOpenRecall});
+
+  final RecallSummary summary;
+  final VoidCallback onOpenRecall;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context).textTheme;
+    final isDisabled = summary.hasError || !summary.isAuthenticated;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 15, 14, 15),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: PratiCaseColors.border),
+        boxShadow: PratiCaseShadows.card,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: PratiCaseColors.teal.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: const Icon(
+                  Icons.history_edu_rounded,
+                  color: PratiCaseColors.teal,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Recall bugün',
+                      style: TextStyle(
+                        color: PratiCaseColors.navy,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _statusText(summary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: PratiCaseColors.muted,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              _RecallCountPill(count: summary.todayTotal),
+            ],
+          ),
+          const SizedBox(height: 13),
+          if (summary.isEmpty)
+            const Text(
+              'Bugün PratiCase için bekleyen Recall tekrarı yok.',
+              style: TextStyle(
+                color: PratiCaseColors.ink,
+                fontSize: 14,
+                height: 1.35,
+                fontWeight: FontWeight.w700,
+              ),
+            )
+          else if (summary.hasError)
+            Text(
+              summary.errorMessage!,
+              style: const TextStyle(
+                color: PratiCaseColors.muted,
+                fontSize: 14,
+                height: 1.35,
+                fontWeight: FontWeight.w700,
+              ),
+            )
+          else ...[
+            if (summary.weaknesses.isNotEmpty) ...[
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final weakness in summary.weaknesses.take(3))
+                    _RecallWeaknessChip(weakness: weakness),
+                ],
+              ),
+              const SizedBox(height: 11),
+            ],
+            Text(
+              summary.guidance.displayText,
+              style: theme.bodyMedium?.copyWith(
+                color: PratiCaseColors.ink,
+                height: 1.42,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (summary.action.trim().isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                summary.action,
+                style: const TextStyle(
+                  color: PratiCaseColors.teal,
+                  fontSize: 13,
+                  height: 1.35,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ],
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton.icon(
+              onPressed: isDisabled ? null : onOpenRecall,
+              icon: const Icon(Icons.open_in_new_rounded, size: 18),
+              label: const Text('Recall’a git'),
+              style: FilledButton.styleFrom(
+                backgroundColor: PratiCaseColors.teal,
+                foregroundColor: PratiCaseColors.white,
+                disabledBackgroundColor:
+                    PratiCaseColors.surfaceContainerHighest,
+                disabledForegroundColor: PratiCaseColors.muted,
+                visualDensity: VisualDensity.compact,
+                textStyle: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _statusText(RecallSummary summary) {
+    if (!summary.isAuthenticated) return 'Oturum yenilenince tekrar bakılır';
+    if (summary.hasError) return 'Sessizce tekrar denenecek';
+    if (summary.todayTotal == 0) return 'Bekleyen tekrar yok';
+    return '${summary.todayTotal} PratiCase tekrarı bekliyor';
+  }
+}
+
+class _RecallCountPill extends StatelessWidget {
+  const _RecallCountPill({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 54, minHeight: 34),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.gold.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: PratiCaseColors.gold.withValues(alpha: 0.28)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '$count',
+            style: const TextStyle(
+              color: PratiCaseColors.navy,
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const Text(
+            'tekrar',
+            style: TextStyle(
+              color: PratiCaseColors.muted,
+              fontSize: 9.5,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RecallWeaknessChip extends StatelessWidget {
+  const _RecallWeaknessChip({required this.weakness});
+
+  final RecallWeakness weakness;
+
+  @override
+  Widget build(BuildContext context) {
+    final risk = weakness.riskLevel.toLowerCase();
+    final color = risk.contains('high') || risk.contains('yüksek')
+        ? PratiCaseColors.errorRed
+        : risk.contains('low') || risk.contains('düşük')
+        ? PratiCaseColors.successGreen
+        : PratiCaseColors.gold;
+    final label = weakness.title.isNotEmpty ? weakness.title : weakness.topic;
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 260),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.24)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.priority_high_rounded, size: 15, color: color),
+          const SizedBox(width: 5),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: PratiCaseColors.ink,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Premium quick action tile:
 /// - Yumuşak diagonal yüzey gradient'i + ince teal-tinted border
 /// - Soft accent shadow → tıklanabilir hissi pekişir
@@ -1626,11 +1881,17 @@ class _QuickActionCardState extends State<_QuickActionCard>
     final content = widget.horizontal
         ? Row(
             children: [
-              _SoftIcon(icon: widget.icon, color: PratiCaseColors.teal, size: 50),
+              _SoftIcon(
+                icon: widget.icon,
+                color: PratiCaseColors.teal,
+                size: 50,
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: _QuickActionText(
-                    title: widget.title, subtitle: widget.subtitle),
+                  title: widget.title,
+                  subtitle: widget.subtitle,
+                ),
               ),
               const Icon(
                 Icons.arrow_forward_rounded,
@@ -1641,7 +1902,11 @@ class _QuickActionCardState extends State<_QuickActionCard>
         : Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _SoftIcon(icon: widget.icon, color: PratiCaseColors.teal, size: 54),
+              _SoftIcon(
+                icon: widget.icon,
+                color: PratiCaseColors.teal,
+                size: 54,
+              ),
               const SizedBox(height: 14),
               _QuickActionText(
                 title: widget.title,
@@ -1664,7 +1929,7 @@ class _QuickActionCardState extends State<_QuickActionCard>
                   end: Alignment.bottomRight,
                   colors: [
                     PratiCaseColors.white,
-                    Color(0xFFFBFCFD),
+                    PratiCaseColors.elevatedSurface,
                   ],
                 ),
                 borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
@@ -1695,8 +1960,9 @@ class _QuickActionCardState extends State<_QuickActionCard>
                               end: Alignment(shift, 0.6),
                               colors: [
                                 Colors.transparent,
-                                PratiCaseColors.tealBright
-                                    .withValues(alpha: 0.18),
+                                PratiCaseColors.tealBright.withValues(
+                                  alpha: 0.18,
+                                ),
                                 Colors.transparent,
                               ],
                               stops: const [0.35, 0.5, 0.65],
@@ -1933,29 +2199,15 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(
-              color: PratiCaseColors.navy,
-              fontSize: 19,
-              fontWeight: FontWeight.w900,
+    return SectionHeader(
+      title: title,
+      trailing: onViewAll == null
+          ? null
+          : TextButton.icon(
+              onPressed: onViewAll,
+              icon: const Icon(Icons.chevron_right_rounded),
+              label: const Text('Tümünü Gör'),
             ),
-          ),
-        ),
-        if (onViewAll != null)
-          TextButton.icon(
-            onPressed: onViewAll,
-            icon: const Icon(Icons.chevron_right_rounded),
-            label: const Text('Tümünü Gör'),
-            style: TextButton.styleFrom(
-              foregroundColor: PratiCaseColors.teal,
-              textStyle: const TextStyle(fontWeight: FontWeight.w900),
-            ),
-          ),
-      ],
     );
   }
 }
@@ -2046,8 +2298,11 @@ class _SearchPill extends StatelessWidget {
                   color: PratiCaseColors.teal.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.search_rounded,
-                    color: PratiCaseColors.teal, size: 20),
+                child: const Icon(
+                  Icons.search_rounded,
+                  color: PratiCaseColors.teal,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 12),
               const Expanded(
@@ -2063,18 +2318,19 @@ class _SearchPill extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: PratiCaseColors.surfaceContainerLow,
-                  borderRadius:
-                      BorderRadius.circular(PratiCaseRadius.pill),
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.tune_rounded,
-                        size: 12, color: PratiCaseColors.slateBlue),
+                    Icon(
+                      Icons.tune_rounded,
+                      size: 12,
+                      color: PratiCaseColors.slateBlue,
+                    ),
                     SizedBox(width: 4),
                     Text(
                       'Filtre',
@@ -2269,9 +2525,7 @@ class _ClinicalIllustrationState extends State<_ClinicalIllustration>
               child: child,
             );
           },
-          child: Center(
-            child: _PulsingIconBadge(controller: _ctrl),
-          ),
+          child: Center(child: _PulsingIconBadge(controller: _ctrl)),
         ),
       ),
     );
@@ -2300,8 +2554,9 @@ class _PulsingIconBadge extends StatelessWidget {
               height: 76 + pulse * 10,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: PratiCaseColors.white
-                    .withValues(alpha: 0.04 + pulse * 0.06),
+                color: PratiCaseColors.white.withValues(
+                  alpha: 0.04 + pulse * 0.06,
+                ),
               ),
             ),
             // Icon container
@@ -2395,11 +2650,9 @@ class _MedicalGridPainter extends CustomPainter {
 }
 
 BoxDecoration _cardDecoration() {
-  return BoxDecoration(
-    color: PratiCaseColors.white,
-    borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
-    border: Border.all(color: PratiCaseColors.border),
-    boxShadow: PratiCaseShadows.card,
+  return PratiCaseCardDecorations.card(
+    borderColor: PratiCaseColors.border,
+    radius: PratiCaseRadius.xl,
   );
 }
 

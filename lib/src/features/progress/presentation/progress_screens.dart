@@ -7,6 +7,7 @@ import '../../../app/theme/praticase_accent.dart';
 import '../../../app/theme/praticase_colors.dart';
 import '../../../app/theme/praticase_tokens.dart';
 import '../../../shared/data/user_facing_error.dart';
+import '../../../shared/ui/clinical_card.dart';
 import '../../../shared/ui/praticase_visuals.dart';
 import '../../../shared/ui/responsive.dart';
 import '../../auth/data/auth_repository.dart';
@@ -361,7 +362,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  static const _appVersion = 'v1.0.2';
+  static const _appVersion = 'v1.0.3';
   late Future<ProfileCard> _profileFuture;
 
   @override
@@ -424,6 +425,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         builder: (_) => AccountSecurityScreen(
                           authRepository: widget.authRepository,
                           profile: snapshot.requireData,
+                          onAccountDeleted: widget.onSignOut,
                         ),
                       ),
                     ),
@@ -718,11 +720,13 @@ class AccountSecurityScreen extends StatefulWidget {
   const AccountSecurityScreen({
     required this.authRepository,
     required this.profile,
+    this.onAccountDeleted,
     super.key,
   });
 
   final AuthRepository authRepository;
   final ProfileCard profile;
+  final Future<void> Function()? onAccountDeleted;
 
   @override
   State<AccountSecurityScreen> createState() => _AccountSecurityScreenState();
@@ -752,6 +756,19 @@ class _AccountSecurityScreenState extends State<AccountSecurityScreen> {
     } finally {
       if (mounted) setState(() => _sendingReset = false);
     }
+  }
+
+  void _openAccountDeletion() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) => AccountDeletionScreen(
+          authRepository: widget.authRepository,
+          email: widget.profile.email,
+          onDeleted: widget.onAccountDeleted,
+        ),
+      ),
+    );
   }
 
   @override
@@ -793,7 +810,241 @@ class _AccountSecurityScreenState extends State<AccountSecurityScreen> {
             ),
           ],
         ),
+        const SizedBox(height: 16),
+        _SettingsSection(
+          title: 'Hesap Silme',
+          rows: [
+            _SettingsRow(
+              Icons.delete_forever_outlined,
+              'Hesabı Kalıcı Olarak Sil',
+              value: 'Geri alınamaz',
+              onTap: _openAccountDeletion,
+            ),
+          ],
+        ),
       ],
+    );
+  }
+}
+
+class AccountDeletionScreen extends StatefulWidget {
+  const AccountDeletionScreen({
+    required this.authRepository,
+    required this.email,
+    this.onDeleted,
+    super.key,
+  });
+
+  final AuthRepository authRepository;
+  final String email;
+  final Future<void> Function()? onDeleted;
+
+  @override
+  State<AccountDeletionScreen> createState() => _AccountDeletionScreenState();
+}
+
+class _AccountDeletionScreenState extends State<AccountDeletionScreen> {
+  bool _understood = false;
+  bool _deleting = false;
+
+  Future<void> _confirmAndDelete() async {
+    if (_deleting || !_understood) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hesap kalıcı olarak silinsin mi?'),
+        content: Text(
+          '${widget.email} hesabı, profil bilgileri ve PratiCase çalışma '
+          'verileri silinir. Bu işlem geri alınamaz.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Vazgeç'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: PratiCaseColors.errorRed,
+            ),
+            child: const Text('Kalıcı Sil'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _deleting = true);
+    try {
+      await widget.authRepository.deleteAccount();
+      await widget.onDeleted?.call();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Hesap silme işlemi tamamlandı.')),
+      );
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } on AuthFailure catch (error) {
+      if (!mounted) return;
+      setState(() => _deleting = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } on Object {
+      if (!mounted) return;
+      setState(() => _deleting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Hesap silme işlemi şu anda tamamlanamadı. Lütfen tekrar dene.',
+          ),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _ProgressPage(
+      title: 'Hesabı Sil',
+      children: [
+        _InfoCard(
+          icon: Icons.delete_forever_outlined,
+          title: 'Kalıcı Hesap Silme',
+          body:
+              'Bu akış PratiCase hesabını ve hesabına bağlı çalışma verilerini '
+              'silmek için kullanılır.',
+        ),
+        const SizedBox(height: 16),
+        _DeletionImpactCard(email: widget.email),
+        const SizedBox(height: 16),
+        Container(
+          decoration: _cardDecoration(),
+          child: Material(
+            type: MaterialType.transparency,
+            child: CheckboxListTile(
+              value: _understood,
+              onChanged: _deleting
+                  ? null
+                  : (value) => setState(() => _understood = value ?? false),
+              controlAffinity: ListTileControlAffinity.leading,
+              activeColor: PratiCaseColors.errorRed,
+              title: const Text(
+                'Bu işlemin geri alınamayacağını anladım.',
+                style: TextStyle(
+                  color: PratiCaseColors.navy,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              subtitle: const Text(
+                'Devam edersen hesap geçici olarak kapatılmaz; kalıcı silme '
+                'işlemi başlatılır.',
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 18),
+        Semantics(
+          identifier: 'account.delete',
+          child: FilledButton.icon(
+            onPressed: _understood && !_deleting ? _confirmAndDelete : null,
+            icon: _deleting
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.delete_forever_rounded),
+            label: Text(
+              _deleting ? 'Hesap Siliniyor' : 'Hesabımı Kalıcı Olarak Sil',
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: PratiCaseColors.errorRed,
+              minimumSize: const Size.fromHeight(52),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        const Text(
+          'Aktif App Store aboneliğin varsa, yenilemeyi Apple Kimliği '
+          'abonelik ayarlarından ayrıca yönetebilirsin.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: PratiCaseColors.muted,
+            height: 1.4,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DeletionImpactCard extends StatelessWidget {
+  const _DeletionImpactCard({required this.email});
+
+  final String email;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Silinecekler',
+            style: TextStyle(
+              color: PratiCaseColors.navy,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _DeletionImpactRow(icon: Icons.alternate_email_rounded, text: email),
+          const _DeletionImpactRow(
+            icon: Icons.person_remove_outlined,
+            text: 'Profil ve hedef bilgileri',
+          ),
+          const _DeletionImpactRow(
+            icon: Icons.assignment_outlined,
+            text: 'Sınav oturumları, notlar ve gelişim verileri',
+          ),
+          const _DeletionImpactRow(
+            icon: Icons.notifications_off_outlined,
+            text: 'PratiCase bildirimleri ve kişisel ayarlar',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DeletionImpactRow extends StatelessWidget {
+  const _DeletionImpactRow({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: PratiCaseColors.errorRed, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                color: PratiCaseColors.muted,
+                height: 1.35,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -4157,14 +4408,16 @@ class _AccentPickerCardState extends State<_AccentPickerCard> {
                     height: 36,
                     decoration: BoxDecoration(
                       color: current.primary.withValues(alpha: 0.12),
-                      borderRadius:
-                          BorderRadius.circular(PratiCaseRadius.md),
+                      borderRadius: BorderRadius.circular(PratiCaseRadius.md),
                       border: Border.all(
                         color: current.primary.withValues(alpha: 0.14),
                       ),
                     ),
-                    child: Icon(Icons.palette_outlined,
-                        color: current.primary, size: 19),
+                    child: Icon(
+                      Icons.palette_outlined,
+                      color: current.primary,
+                      size: 19,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   const Expanded(
@@ -4202,8 +4455,7 @@ class _AccentPickerCardState extends State<_AccentPickerCard> {
                       child: _AccentSwatch(
                         option: option,
                         selected: option == current,
-                        onTap: () =>
-                            PratiCaseAccent.instance.setOption(option),
+                        onTap: () => PratiCaseAccent.instance.setOption(option),
                       ),
                     ),
                     if (option != PratiCaseAccentOption.values.last)
@@ -4277,8 +4529,11 @@ class _AccentSwatch extends StatelessWidget {
                     : null,
               ),
               child: selected
-                  ? const Icon(Icons.check_rounded,
-                      color: Colors.white, size: 16)
+                  ? const Icon(
+                      Icons.check_rounded,
+                      color: Colors.white,
+                      size: 16,
+                    )
                   : null,
             ),
             const SizedBox(height: 6),
@@ -5157,11 +5412,9 @@ class _MenuItem {
 }
 
 BoxDecoration _cardDecoration() {
-  return BoxDecoration(
-    color: PratiCaseColors.white,
-    borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
-    border: Border.all(color: PratiCaseColors.border.withValues(alpha: 0.88)),
-    boxShadow: PratiCaseShadows.card,
+  return PratiCaseCardDecorations.card(
+    borderColor: PratiCaseColors.border.withValues(alpha: 0.88),
+    radius: PratiCaseRadius.xl,
   );
 }
 

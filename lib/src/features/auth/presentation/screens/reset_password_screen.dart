@@ -105,7 +105,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               'Yeni şifreni belirle ve hesabına güvenle devam et.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: const Color(0xFF465872),
+                color: PratiCaseColors.slateBlue,
                 fontSize: 17,
                 height: 1.42,
               ),
@@ -194,7 +194,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             'Şifren başarıyla güncellendi.\nGiriş yaparak devam edebilirsin.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: const Color(0xFF465872),
+              color: PratiCaseColors.slateBlue,
               fontSize: 18,
               height: 1.5,
             ),

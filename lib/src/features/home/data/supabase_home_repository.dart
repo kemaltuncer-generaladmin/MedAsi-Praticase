@@ -3,13 +3,19 @@ import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../domain/home_dashboard.dart';
+import '../domain/recall_summary.dart';
 import 'home_repository.dart';
+import 'recall_repository.dart';
 
 class SupabaseHomeRepository implements HomeRepository {
-  const SupabaseHomeRepository({required SupabaseClient client})
-    : _client = client;
+  const SupabaseHomeRepository({
+    required SupabaseClient client,
+    RecallRepository? recallRepository,
+  }) : _client = client,
+       _recallRepository = recallRepository;
 
   final SupabaseClient _client;
+  final RecallRepository? _recallRepository;
 
   @override
   Future<HomeDashboard> loadDashboard() async {
@@ -28,6 +34,7 @@ class SupabaseHomeRepository implements HomeRepository {
       final recommendations = await _loadRecommendations(authUser.id);
       final badge = await _loadBadgeSummary(authUser.id);
       final unreadNotifications = await _loadUnreadNotificationCount();
+      final recallSummary = await _loadRecallSummary();
 
       return HomeDashboard(
         user: HomeUser(
@@ -42,10 +49,23 @@ class SupabaseHomeRepository implements HomeRepository {
           for (final row in recommendations) _recommendedFromRow(row),
         ],
         badgeSummary: badge == null ? null : _badgeFromRow(badge),
+        recallSummary: recallSummary,
         unreadNotificationCount: unreadNotifications,
       );
     } on PostgrestException catch (error) {
       throw HomeDataUnavailable(_friendlyDatabaseMessage(error));
+    }
+  }
+
+  Future<RecallSummary?> _loadRecallSummary() async {
+    final repository = _recallRepository;
+    if (repository == null) return null;
+    try {
+      return await repository.loadSummary();
+    } on Object {
+      return const RecallSummary.error(
+        'Recall özeti şu anda alınamadı. Ana çalışma akışın etkilenmez.',
+      );
     }
   }
 

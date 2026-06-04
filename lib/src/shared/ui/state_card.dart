@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app/theme/praticase_colors.dart';
+import '../../app/theme/praticase_typography.dart';
 import 'clinical_card.dart';
 
 class StateCard extends StatelessWidget {
@@ -78,24 +79,13 @@ class StateCard extends StatelessWidget {
           Text(
             title,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: PratiCaseColors.navy,
-              fontSize: 17,
-              height: 1.25,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.1,
-            ),
+            style: PratiCaseTextStyles.cardTitle,
           ),
           const SizedBox(height: 6),
           Text(
             body,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: PratiCaseColors.muted,
-              fontSize: 13,
-              height: 1.45,
-              fontWeight: FontWeight.w600,
-            ),
+            style: PratiCaseTextStyles.sectionSubtitle,
           ),
           if (action != null) ...[const SizedBox(height: 18), action!],
         ],

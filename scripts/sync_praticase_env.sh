@@ -6,6 +6,17 @@ ENV_FILE="${PRATICASE_ENV_FILE:-$ROOT_DIR/.env.praticase}"
 DEFINE_FILE="$ROOT_DIR/.dart_tool/praticase_env.json"
 IOS_XCCONFIG="$ROOT_DIR/ios/Flutter/PratiCaseEnv.xcconfig"
 MACOS_XCCONFIG="$ROOT_DIR/macos/Flutter/PratiCaseEnv.xcconfig"
+WRITE_APPLE_CONFIG=true
+
+if [[ "${1:-}" == "--dart-defines-only" ]]; then
+  WRITE_APPLE_CONFIG=false
+  shift
+fi
+
+if [[ "$#" -ne 0 ]]; then
+  echo "Usage: scripts/sync_praticase_env.sh [--dart-defines-only]" >&2
+  exit 2
+fi
 
 if [[ ! -f "$ENV_FILE" ]]; then
   echo "Missing $ENV_FILE. Create it from .env.praticase.example or sync it from Coolify." >&2
@@ -32,9 +43,12 @@ if [[ -z "${AUTH_REDIRECT_URL:-}" ]]; then
   exit 1
 fi
 
-mkdir -p "$ROOT_DIR/.dart_tool" "$(dirname "$IOS_XCCONFIG")" "$(dirname "$MACOS_XCCONFIG")"
+mkdir -p "$ROOT_DIR/.dart_tool"
+if [[ "$WRITE_APPLE_CONFIG" == true ]]; then
+  mkdir -p "$(dirname "$IOS_XCCONFIG")" "$(dirname "$MACOS_XCCONFIG")"
+fi
 
-python3 - "$DEFINE_FILE" "$IOS_XCCONFIG" "$MACOS_XCCONFIG" <<'PY'
+python3 - "$DEFINE_FILE" "$IOS_XCCONFIG" "$MACOS_XCCONFIG" "$WRITE_APPLE_CONFIG" <<'PY'
 import base64
 import json
 import os
@@ -44,6 +58,7 @@ import sys
 define_file = pathlib.Path(sys.argv[1])
 ios_xcconfig = pathlib.Path(sys.argv[2])
 macos_xcconfig = pathlib.Path(sys.argv[3])
+write_apple_config = sys.argv[4] == "true"
 
 keys = [
     "SUPABASE_URL",
@@ -73,12 +88,15 @@ xcconfig = (
     "DART_DEFINES = $(inherited),$(PRATICASE_DART_DEFINES)\n"
 )
 
-for path in (ios_xcconfig, macos_xcconfig):
-    path.write_text(xcconfig, encoding="utf-8")
-    path.chmod(0o600)
+if write_apple_config:
+    for path in (ios_xcconfig, macos_xcconfig):
+        path.write_text(xcconfig, encoding="utf-8")
+        path.chmod(0o600)
 PY
 
 echo "PratiCase env synced:"
 echo "  .dart_tool/praticase_env.json"
-echo "  ios/Flutter/PratiCaseEnv.xcconfig"
-echo "  macos/Flutter/PratiCaseEnv.xcconfig"
+if [[ "$WRITE_APPLE_CONFIG" == true ]]; then
+  echo "  ios/Flutter/PratiCaseEnv.xcconfig"
+  echo "  macos/Flutter/PratiCaseEnv.xcconfig"
+fi

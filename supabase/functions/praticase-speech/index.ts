@@ -1,45 +1,28 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders, isAllowedOrigin, jsonResponse } from "../_shared/cors.ts";
 import {
-  generateVertexSpeech,
+  generateOpenAiSpeech,
+  openAiConfigured,
   ttsModel,
-  vertexConfigured,
-} from "../_shared/vertex_ai.ts";
+} from "../_shared/openai_ai.ts";
 import { chargeAiCoins } from "../_shared/medasi_coin.ts";
 
 type VoiceRole = "patient" | "mentor";
 
 const allowedVoices = new Set([
-  "Achernar",
-  "Achird",
-  "Algenib",
-  "Algieba",
-  "Alnilam",
-  "Aoede",
-  "Autonoe",
-  "Callirrhoe",
-  "Charon",
-  "Despina",
-  "Enceladus",
-  "Erinome",
-  "Fenrir",
-  "Gacrux",
-  "Iapetus",
-  "Kore",
-  "Laomedeia",
-  "Leda",
-  "Orus",
-  "Pulcherrima",
-  "Puck",
-  "Rasalgethi",
-  "Sadachbia",
-  "Sadaltager",
-  "Schedar",
-  "Sulafat",
-  "Umbriel",
-  "Vindemiatrix",
-  "Zephyr",
-  "Zubenelgenubi",
+  "alloy",
+  "ash",
+  "ballad",
+  "cedar",
+  "coral",
+  "echo",
+  "fable",
+  "marin",
+  "nova",
+  "onyx",
+  "sage",
+  "shimmer",
+  "verse",
 ]);
 
 Deno.serve(async (request) => {
@@ -111,9 +94,9 @@ Deno.serve(async (request) => {
     );
   }
 
-  if (!vertexConfigured()) {
+  if (!openAiConfigured()) {
     return jsonResponse(
-      { error: "Gemini ses motoru şu anda yapılandırılmamış." },
+      { error: "OpenAI ses motoru şu anda yapılandırılmamış." },
       503,
       origin,
     );
@@ -121,12 +104,11 @@ Deno.serve(async (request) => {
 
   try {
     const voiceName = voiceNameFor(role, String(body.voiceName ?? ""));
-    const generated = await generateVertexSpeech({
+    const generated = await generateOpenAiSpeech({
       model: ttsModel(),
-      text: buildSpeechPrompt({ role, text }),
-      languageCode: "tr-TR",
+      text,
+      instructions: speechInstructions(role),
       voiceName,
-      temperature: role === "mentor" ? 1.0 : 1.25,
     });
     await chargeAiCoins({
       admin,
@@ -140,10 +122,13 @@ Deno.serve(async (request) => {
         voice_role: role,
       },
     });
+    const isPcm = generated.mimeType === "audio/pcm";
     return jsonResponse(
       {
-        audioContent: wavBase64FromPcmBase64(generated.audioBase64),
-        mimeType: "audio/wav",
+        audioContent: isPcm
+          ? wavBase64FromPcmBase64(generated.audioBase64)
+          : generated.audioBase64,
+        mimeType: isPcm ? "audio/wav" : generated.mimeType,
         engine: generated.model,
         voiceName,
       },
@@ -153,24 +138,21 @@ Deno.serve(async (request) => {
   } catch (error) {
     console.error("praticase_speech_failed", errorMessage(error));
     return jsonResponse(
-      { error: "Gemini ses üretimi şu anda alınamadı." },
+      { error: "OpenAI ses üretimi şu anda alınamadı." },
       502,
       origin,
     );
   }
 });
 
-function buildSpeechPrompt(options: { role: VoiceRole; text: string }): string {
-  const style = options.role === "mentor"
+function speechInstructions(role: VoiceRole): string {
+  const style = role === "mentor"
     ? "Style: Read only SPEECH_TEXT in Turkish as a calm OSCE examiner. Use clear diction, measured pace, and a professional but human tone."
     : "Style: Read only SPEECH_TEXT in Turkish as a real patient. Sound natural, short-breathed, mildly concerned, and conversational. Do not sound like a teacher or narrator.";
   return [
     "You are a Turkish text-to-speech voice director.",
-    "Do not read these instructions aloud.",
+    "Do not add medical advice or extra words.",
     style,
-    "Preserve the meaning exactly; do not add medical advice or extra words.",
-    "SPEECH_TEXT:",
-    options.text,
   ].join("\n");
 }
 
@@ -191,9 +173,9 @@ function voiceRole(value: string): VoiceRole {
 }
 
 function voiceNameFor(role: VoiceRole, requested: string): string {
-  const normalized = requested.trim();
+  const normalized = requested.trim().toLowerCase();
   if (allowedVoices.has(normalized)) return normalized;
-  return role === "mentor" ? "Charon" : "Achird";
+  return role === "mentor" ? "onyx" : "alloy";
 }
 
 function wavBase64FromPcmBase64(

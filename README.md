@@ -34,11 +34,11 @@ Coolify domain target: `praticase.medasi.com.tr`.
 
 ## Self-Hosted Supabase And Edge Functions
 
-PratiCase uses Supabase Edge Functions for live AI. Patient anamnesis turns use
-`gemini-2.5-flash`, voice playback uses Gemini TTS, and final OSCE scoring uses
-`gemini-3.5-flash`.
+PratiCase uses Supabase Edge Functions for live AI. Patient anamnesis turns,
+oral exam moderation, recall guidance, and final OSCE scoring use OpenAI
+`gpt-4o-mini`. Voice playback uses OpenAI `gpt-4o-mini-tts`.
 The Flutter build receives only `SUPABASE_URL`, `FLUTTER_SUPABASE_URL`,
-`SUPABASE_ANON_KEY`, and `AUTH_REDIRECT_URL`; service-role, Vertex, and App
+`SUPABASE_ANON_KEY`, and `AUTH_REDIRECT_URL`; service-role, OpenAI, and App
 Store secrets remain in the self-hosted Edge Function runtime.
 
 Required Edge Function secrets:
@@ -48,16 +48,29 @@ SUPABASE_URL=https://qlinik.medasi.com.tr
 SUPABASE_ANON_KEY=<public anon key>
 SUPABASE_SERVICE_ROLE_KEY=<edge-runtime only service role key>
 PRATICASE_ALLOWED_ORIGINS=https://praticase.medasi.com.tr,https://www.praticase.medasi.com.tr
-VERTEX_AI_PROJECT_ID=<google cloud project id>
-VERTEX_AI_LOCATION=global
-VERTEX_AI_HISTORY_MODEL=gemini-2.5-flash
-VERTEX_AI_TTS_MODEL=gemini-2.5-flash-tts
-VERTEX_AI_EVALUATION_MODEL=gemini-3.5-flash
-GOOGLE_VERTEX_SERVICE_ACCOUNT_JSON_BASE64=<base64 encoded service account json>
+OPENAI_API_KEY=<server-side OpenAI API key>
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_TTS_MODEL=gpt-4o-mini-tts
+OPENAI_TTS_VOICE=alloy
 ```
 
-Keep the service account out of Flutter code, screenshots, logs, and committed
-files. Set it only as a Supabase secret.
+AI coin charging is OpenAI/model aware. Defaults follow standard OpenAI text
+pricing for `gpt-4o-mini`, and can be overridden from the Edge Function
+environment if pricing changes:
+
+```bash
+MEDASI_COIN_TL_VALUE=0.30
+MEDASI_AI_COIN_USAGE_MULTIPLIER=1.35
+OPENAI_GPT_4O_MINI_INPUT_USD_PER_M=0.15
+OPENAI_GPT_4O_MINI_CACHED_INPUT_USD_PER_M=0.075
+OPENAI_GPT_4O_MINI_OUTPUT_USD_PER_M=0.60
+OPENAI_GPT_4O_INPUT_USD_PER_M=2.50
+OPENAI_GPT_4O_CACHED_INPUT_USD_PER_M=1.25
+OPENAI_GPT_4O_OUTPUT_USD_PER_M=10.00
+```
+
+Keep OpenAI and service-role secrets out of Flutter code, screenshots, logs,
+and committed files. Set them only as Supabase Edge Function secrets.
 
 ## Web And Android Bank Transfer Payments
 

@@ -1,4 +1,4 @@
-import type { JsonMap } from "./vertex_ai.ts";
+import type { JsonMap } from "./openai_ai.ts";
 
 // deno-lint-ignore no-explicit-any
 type SupabaseAdmin = any;
@@ -12,24 +12,57 @@ export class InsufficientCoinBalanceError extends Error {
   constructor(
     readonly walletBalance: number,
     readonly requiredBalance: number,
+    readonly aiQuota = 0,
   ) {
-    super("MedAsi Coin balance is insufficient");
+    super("MedAsi AI credit balance is insufficient");
   }
 }
 
 export const minimumAiCreditCost = envNumber("MEDASI_AI_MIN_COIN_COST", 0.10);
 
-const GEMINI_2_5_FLASH_INPUT_USD_PER_M = envNumber(
-  "VERTEX_GEMINI_2_5_FLASH_INPUT_USD_PER_M",
-  0.30,
-);
-const GEMINI_2_5_FLASH_CACHED_INPUT_USD_PER_M = envNumber(
-  "VERTEX_GEMINI_2_5_FLASH_CACHED_INPUT_USD_PER_M",
-  0.03,
-);
-const GEMINI_2_5_FLASH_OUTPUT_USD_PER_M = envNumber(
-  "VERTEX_GEMINI_2_5_FLASH_OUTPUT_USD_PER_M",
+const OPENAI_GPT_4O_INPUT_USD_PER_M = envNumber(
+  "OPENAI_GPT_4O_INPUT_USD_PER_M",
   2.50,
+);
+const OPENAI_GPT_4O_CACHED_INPUT_USD_PER_M = envNumber(
+  "OPENAI_GPT_4O_CACHED_INPUT_USD_PER_M",
+  1.25,
+);
+const OPENAI_GPT_4O_OUTPUT_USD_PER_M = envNumber(
+  "OPENAI_GPT_4O_OUTPUT_USD_PER_M",
+  10.00,
+);
+const OPENAI_GPT_4O_2024_05_13_INPUT_USD_PER_M = envNumber(
+  "OPENAI_GPT_4O_2024_05_13_INPUT_USD_PER_M",
+  5.00,
+);
+const OPENAI_GPT_4O_2024_05_13_OUTPUT_USD_PER_M = envNumber(
+  "OPENAI_GPT_4O_2024_05_13_OUTPUT_USD_PER_M",
+  15.00,
+);
+const OPENAI_GPT_4O_MINI_INPUT_USD_PER_M = envNumber(
+  "OPENAI_GPT_4O_MINI_INPUT_USD_PER_M",
+  0.15,
+);
+const OPENAI_GPT_4O_MINI_CACHED_INPUT_USD_PER_M = envNumber(
+  "OPENAI_GPT_4O_MINI_CACHED_INPUT_USD_PER_M",
+  0.075,
+);
+const OPENAI_GPT_4O_MINI_OUTPUT_USD_PER_M = envNumber(
+  "OPENAI_GPT_4O_MINI_OUTPUT_USD_PER_M",
+  0.60,
+);
+const OPENAI_DEFAULT_INPUT_USD_PER_M = envNumber(
+  "OPENAI_DEFAULT_INPUT_USD_PER_M",
+  OPENAI_GPT_4O_MINI_INPUT_USD_PER_M,
+);
+const OPENAI_DEFAULT_CACHED_INPUT_USD_PER_M = envNumber(
+  "OPENAI_DEFAULT_CACHED_INPUT_USD_PER_M",
+  OPENAI_GPT_4O_MINI_CACHED_INPUT_USD_PER_M,
+);
+const OPENAI_DEFAULT_OUTPUT_USD_PER_M = envNumber(
+  "OPENAI_DEFAULT_OUTPUT_USD_PER_M",
+  OPENAI_GPT_4O_MINI_OUTPUT_USD_PER_M,
 );
 const DEFAULT_USD_TRY = envNumber("MEDASI_USD_TRY_FALLBACK", 45.35);
 
@@ -40,8 +73,13 @@ export async function ensureAiCoinBalance(
   if (!admin || !userId) return;
   const profile = await loadEffectiveWalletProfile(admin, userId);
   const walletBalance = numberValue(profile.wallet_balance);
-  if (walletBalance < minimumAiCreditCost) {
-    throw new InsufficientCoinBalanceError(walletBalance, minimumAiCreditCost);
+  const aiQuota = numberValue(profile.ai_quota);
+  if (availableAiCreditBalance(profile) < minimumAiCreditCost) {
+    throw new InsufficientCoinBalanceError(
+      walletBalance,
+      minimumAiCreditCost,
+      aiQuota,
+    );
   }
 }
 
@@ -58,10 +96,22 @@ export async function chargeAiCoins(options: {
   }
   const admin = options.admin;
 
-  const chargedCoinAmount = aiCreditCostFromUsage(options.usageMetadata);
+  const chargedCoinAmount = aiCreditCostFromUsage(
+    options.usageMetadata,
+    options.model,
+  );
   if (chargedCoinAmount <= 0) {
     await logAiUsageEvent({ ...options, admin, chargedCoinAmount: 0 });
     return { chargedCoinAmount: 0, walletBalance: null };
+  }
+
+  const profile = await loadEffectiveWalletProfile(admin, options.userId);
+  if (availableAiCreditBalance(profile) < chargedCoinAmount) {
+    throw new InsufficientCoinBalanceError(
+      numberValue(profile.wallet_balance),
+      chargedCoinAmount,
+      numberValue(profile.ai_quota),
+    );
   }
 
   const { data, error } = await admin.rpc("consume_ai_credits", {
@@ -69,7 +119,15 @@ export async function chargeAiCoins(options: {
     p_amount: chargedCoinAmount,
   });
   if (error) {
-    throw new InsufficientCoinBalanceError(0, chargedCoinAmount);
+    const latestProfile = await loadEffectiveWalletProfile(
+      admin,
+      options.userId,
+    );
+    throw new InsufficientCoinBalanceError(
+      numberValue(latestProfile.wallet_balance),
+      chargedCoinAmount,
+      numberValue(latestProfile.ai_quota),
+    );
   }
 
   await logAiUsageEvent({ ...options, admin, chargedCoinAmount });
@@ -145,6 +203,10 @@ function walletProfileSnapshot(
   };
 }
 
+function availableAiCreditBalance(profile: JsonMap): number {
+  return numberValue(profile.wallet_balance) + numberValue(profile.ai_quota);
+}
+
 export async function recordAiUsage(options: {
   admin: SupabaseAdmin | null;
   userId: string;
@@ -161,8 +223,11 @@ export async function recordAiUsage(options: {
   });
 }
 
-export function aiCreditCostFromUsage(usageMetadata: JsonMap): number {
-  const cost = vertexAiCostFromUsage(usageMetadata);
+export function aiCreditCostFromUsage(
+  usageMetadata: JsonMap,
+  model = "",
+): number {
+  const cost = aiCostFromUsage(usageMetadata, model);
   const totalCostTL = cost.totalCostUsd * DEFAULT_USD_TRY;
   const coinTlValue = envNumber("MEDASI_COIN_TL_VALUE", 0.30);
   const usageMultiplier = envNumber("MEDASI_AI_COIN_USAGE_MULTIPLIER", 1.35);
@@ -179,7 +244,11 @@ export function aiCreditCostFromUsage(usageMetadata: JsonMap): number {
   return Number(tokenCostCredit.toFixed(4));
 }
 
-export function vertexAiCostFromUsage(usageMetadata: JsonMap) {
+export function aiCostFromUsage(usageMetadata: JsonMap, model = "") {
+  return openAiCostFromUsage(usageMetadata, model);
+}
+
+export function openAiCostFromUsage(usageMetadata: JsonMap, model = "") {
   const promptTokens = positiveInt(usageMetadata.promptTokenCount);
   const candidatesTokens = positiveInt(usageMetadata.candidatesTokenCount);
   const totalTokens = positiveInt(usageMetadata.totalTokenCount);
@@ -187,23 +256,24 @@ export function vertexAiCostFromUsage(usageMetadata: JsonMap) {
     promptTokens,
     positiveInt(usageMetadata.cachedContentTokenCount),
   );
-  const measuredThoughtsTokens = positiveInt(usageMetadata.thoughtsTokenCount);
-  const inferredThoughtsTokens = Math.max(
+  const measuredReasoningTokens = positiveInt(usageMetadata.thoughtsTokenCount);
+  const inferredReasoningTokens = Math.max(
     0,
     totalTokens - promptTokens - candidatesTokens,
   );
   const thoughtsTokens = Math.max(
-    measuredThoughtsTokens,
-    inferredThoughtsTokens,
+    measuredReasoningTokens,
+    inferredReasoningTokens,
   );
   const uncachedInputTokens = Math.max(0, promptTokens - cachedTokens);
   const billableOutputTokens = candidatesTokens + thoughtsTokens;
+  const pricing = openAiTextPricing(model);
   const inputCostUsd = (
-    uncachedInputTokens * GEMINI_2_5_FLASH_INPUT_USD_PER_M +
-    cachedTokens * GEMINI_2_5_FLASH_CACHED_INPUT_USD_PER_M
+    uncachedInputTokens * pricing.inputUsdPerMTokens +
+    cachedTokens * pricing.cachedInputUsdPerMTokens
   ) / 1000000;
   const outputCostUsd = billableOutputTokens *
-    GEMINI_2_5_FLASH_OUTPUT_USD_PER_M / 1000000;
+    pricing.outputUsdPerMTokens / 1000000;
 
   return {
     promptTokens,
@@ -227,7 +297,7 @@ async function logAiUsageEvent(options: {
   attribution?: JsonMap;
   chargedCoinAmount: number;
 }) {
-  const cost = vertexAiCostFromUsage(options.usageMetadata);
+  const cost = aiCostFromUsage(options.usageMetadata, options.model);
   const usageMetadata = {
     ...options.usageMetadata,
     app_key: praticaseAppKey,
@@ -237,10 +307,11 @@ async function logAiUsageEvent(options: {
       ...(options.attribution ?? {}),
     },
   };
+  const provider = stringValue(options.usageMetadata.provider) || "openai";
   const { error } = await query(options.admin.from("ai_usage_events")).insert({
     user_id: options.userId,
     feature: options.feature,
-    provider: "vertex_ai",
+    provider,
     model: options.model,
     prompt_token_count: cost.promptTokens,
     candidates_token_count: cost.candidatesTokens,
@@ -272,6 +343,40 @@ function envNumber(name: string, fallback: number): number {
 function positiveInt(value: unknown): number {
   const number = Number(value ?? 0);
   return Number.isFinite(number) && number > 0 ? Math.round(number) : 0;
+}
+
+function openAiTextPricing(model: string) {
+  const normalized = model.trim().toLowerCase();
+  if (normalized === "gpt-4o-2024-05-13") {
+    return {
+      inputUsdPerMTokens: OPENAI_GPT_4O_2024_05_13_INPUT_USD_PER_M,
+      cachedInputUsdPerMTokens: OPENAI_GPT_4O_2024_05_13_INPUT_USD_PER_M,
+      outputUsdPerMTokens: OPENAI_GPT_4O_2024_05_13_OUTPUT_USD_PER_M,
+    };
+  }
+  if (normalized.startsWith("gpt-4o-mini")) {
+    return {
+      inputUsdPerMTokens: OPENAI_GPT_4O_MINI_INPUT_USD_PER_M,
+      cachedInputUsdPerMTokens: OPENAI_GPT_4O_MINI_CACHED_INPUT_USD_PER_M,
+      outputUsdPerMTokens: OPENAI_GPT_4O_MINI_OUTPUT_USD_PER_M,
+    };
+  }
+  if (normalized.startsWith("gpt-4o")) {
+    return {
+      inputUsdPerMTokens: OPENAI_GPT_4O_INPUT_USD_PER_M,
+      cachedInputUsdPerMTokens: OPENAI_GPT_4O_CACHED_INPUT_USD_PER_M,
+      outputUsdPerMTokens: OPENAI_GPT_4O_OUTPUT_USD_PER_M,
+    };
+  }
+  return {
+    inputUsdPerMTokens: OPENAI_DEFAULT_INPUT_USD_PER_M,
+    cachedInputUsdPerMTokens: OPENAI_DEFAULT_CACHED_INPUT_USD_PER_M,
+    outputUsdPerMTokens: OPENAI_DEFAULT_OUTPUT_USD_PER_M,
+  };
+}
+
+function stringValue(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function nullableNumberValue(value: unknown): number | null {

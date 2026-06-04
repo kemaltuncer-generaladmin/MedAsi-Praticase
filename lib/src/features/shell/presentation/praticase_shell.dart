@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../app/theme/praticase_colors.dart';
 import '../../../app/theme/praticase_motion.dart';
 import '../../../app/theme/praticase_tokens.dart';
+import '../../../app/navigation/praticase_routes.dart';
 import '../../../shared/data/user_facing_error.dart';
 import '../../../shared/ui/ui.dart';
 import '../../auth/data/auth_repository.dart';
@@ -14,14 +15,13 @@ import '../../cases/presentation/cases_screen.dart';
 import '../../home/data/home_repository.dart';
 import '../../home/presentation/home_screen.dart';
 import '../../oral_exam/data/oral_exam_repository.dart';
-import '../../oral_exam/presentation/oral_exam_screens.dart';
 import '../../progress/data/progress_repository.dart';
 import '../../progress/domain/progress_models.dart';
 import '../../progress/presentation/progress_screens.dart';
 import '../../store/data/store_controller.dart';
 import '../../store/presentation/wallet_screen.dart';
 import '../../theoretical_exam/data/theoretical_exam_repository.dart';
-import '../../theoretical_exam/presentation/theoretical_exam_screen.dart';
+import 'shell_navigation.dart';
 
 class PratiCaseShell extends StatefulWidget {
   const PratiCaseShell({
@@ -109,33 +109,27 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
   }
 
   Future<void> _openNotifications() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => NotificationsScreen(
-          repository: widget.progressRepository,
-          onChanged: _refreshUnreadNotificationCount,
-        ),
-      ),
+    await PratiCaseRoutes.openNotifications(
+      context,
+      repository: widget.progressRepository,
+      onChanged: _refreshUnreadNotificationCount,
     );
     await _refreshUnreadNotificationCount();
   }
 
   void _openCases({CasesScreenMode mode = CasesScreenMode.library}) {
     unawaited(
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => CasesScreen(
-            repository: widget.casesRepository,
-            mode: mode,
-            unreadNotificationCount: _unreadNotificationCount ?? 0,
-            onOpenNotifications: _openNotifications,
-            onOpenProfile: _openProfile,
-            onOpenHome: () {
-              Navigator.of(context).popUntil((route) => route.isFirst);
-              _selectTab(0);
-            },
-          ),
-        ),
+      PratiCaseRoutes.openCases(
+        context,
+        repository: widget.casesRepository,
+        mode: mode,
+        unreadNotificationCount: _unreadNotificationCount ?? 0,
+        onOpenNotifications: _openNotifications,
+        onOpenProfile: _openProfile,
+        onOpenHome: () {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+          _selectTab(0);
+        },
       ),
     );
   }
@@ -151,27 +145,21 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
         casesRepository: widget.casesRepository,
         onOpenCases: _openCases,
         onOpenExams: () => _selectTab(2),
-        onOpenTheoreticalExam: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => TheoreticalExamSetupScreen(
-              repository: widget.theoreticalExamRepository,
-            ),
-          ),
+        onOpenTheoreticalExam: () => PratiCaseRoutes.openTheoreticalExam(
+          context,
+          repository: widget.theoreticalExamRepository,
         ),
-        onOpenOralExam: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) =>
-                OralExamSetupScreen(repository: widget.oralExamRepository),
-          ),
+        onOpenOralExam: () => PratiCaseRoutes.openOralExam(
+          context,
+          repository: widget.oralExamRepository,
         ),
         onOpenProgress: () => _selectTab(3),
         unreadNotificationCount: _unreadNotificationCount,
         onOpenNotifications: _openNotifications,
         onOpenProfile: _openProfile,
-        onOpenBadges: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => BadgesScreen(repository: widget.progressRepository),
-          ),
+        onOpenBadges: () => PratiCaseRoutes.openBadges(
+          context,
+          repository: widget.progressRepository,
         ),
       ),
       _walletTabMounted
@@ -216,7 +204,7 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
         child: useSideNavigation
             ? Row(
                 children: [
-                  _PratiCaseSideNavigation(
+                  PratiCaseSideNavigation(
                     selectedIndex: _selectedIndex,
                     onSelected: _selectTab,
                   ),
@@ -234,7 +222,7 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
       ),
       bottomNavigationBar: useSideNavigation
           ? null
-          : _PratiCaseBottomNav(
+          : PratiCaseBottomNav(
               selectedIndex: _selectedIndex,
               onSelected: _selectTab,
             ),
@@ -248,306 +236,6 @@ class _WalletDormantScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const SizedBox.shrink();
-  }
-}
-
-class _PratiCaseSideNavigation extends StatelessWidget {
-  const _PratiCaseSideNavigation({
-    required this.selectedIndex,
-    required this.onSelected,
-  });
-
-  final int selectedIndex;
-  final ValueChanged<int> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final extended = PratiCaseResponsive.isDesktop(context);
-    return NavigationRail(
-      selectedIndex: selectedIndex,
-      onDestinationSelected: onSelected,
-      extended: extended,
-      minWidth: 88,
-      minExtendedWidth: 224,
-      groupAlignment: -0.72,
-      backgroundColor: PratiCaseColors.white,
-      indicatorColor: PratiCaseColors.teal.withValues(alpha: 0.12),
-      selectedIconTheme: const IconThemeData(color: PratiCaseColors.teal),
-      unselectedIconTheme: const IconThemeData(color: PratiCaseColors.muted),
-      selectedLabelTextStyle: const TextStyle(
-        color: PratiCaseColors.teal,
-        fontWeight: FontWeight.w900,
-      ),
-      unselectedLabelTextStyle: const TextStyle(
-        color: PratiCaseColors.muted,
-        fontWeight: FontWeight.w700,
-      ),
-      labelType: extended
-          ? NavigationRailLabelType.none
-          : NavigationRailLabelType.all,
-      leading: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 20, 18, 26),
-        child: _RailBrand(extended: extended),
-      ),
-      destinations: const [
-        NavigationRailDestination(
-          icon: Icon(Icons.home_outlined),
-          selectedIcon: Icon(Icons.home_rounded),
-          label: Text('Ana Sayfa'),
-        ),
-        NavigationRailDestination(
-          icon: Icon(Icons.account_balance_wallet_outlined),
-          selectedIcon: Icon(Icons.account_balance_wallet_rounded),
-          label: Text('Cüzdan'),
-        ),
-        NavigationRailDestination(
-          icon: Icon(Icons.assignment_outlined),
-          selectedIcon: Icon(Icons.assignment_rounded),
-          label: Text('Sınavlar'),
-        ),
-        NavigationRailDestination(
-          icon: Icon(Icons.trending_up_outlined),
-          selectedIcon: Icon(Icons.trending_up_rounded),
-          label: Text('Gelişim'),
-        ),
-        NavigationRailDestination(
-          icon: Icon(Icons.person_outline_rounded),
-          selectedIcon: Icon(Icons.person_rounded),
-          label: Text('Profilim'),
-        ),
-      ],
-    );
-  }
-}
-
-class _RailBrand extends StatelessWidget {
-  const _RailBrand({required this.extended});
-
-  final bool extended;
-
-  @override
-  Widget build(BuildContext context) {
-    final logo = ClipRRect(
-      borderRadius: BorderRadius.circular(PratiCaseRadius.md),
-      child: Image.asset(
-        'assets/auth/praticase_icon.png',
-        width: 42,
-        height: 42,
-        fit: BoxFit.cover,
-      ),
-    );
-    if (!extended) return logo;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        logo,
-        const SizedBox(width: 10),
-        const Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(text: 'Prati'),
-              TextSpan(
-                text: 'Case',
-                style: TextStyle(color: PratiCaseColors.teal),
-              ),
-            ],
-          ),
-          style: TextStyle(
-            color: PratiCaseColors.navy,
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PratiCaseBottomNav extends StatelessWidget {
-  const _PratiCaseBottomNav({
-    required this.selectedIndex,
-    required this.onSelected,
-  });
-
-  final int selectedIndex;
-  final ValueChanged<int> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final compact = PratiCaseResponsive.isCompactPhone(context);
-    final navHeight = PratiCaseResponsive.bottomNavigationHeightForWidth(width);
-    final horizontalInset = compact ? 10.0 : 16.0;
-    final bottomInset =
-        PratiCaseResponsive.bottomNavigationOuterPaddingForWidth(width);
-    return SafeArea(
-      top: false,
-      minimum: const EdgeInsets.only(bottom: 6),
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          horizontalInset,
-          0,
-          horizontalInset,
-          bottomInset,
-        ),
-        child: Container(
-          height: navHeight,
-          padding: EdgeInsets.symmetric(horizontal: compact ? 5 : 7),
-          decoration: BoxDecoration(
-            color: PratiCaseColors.white,
-            borderRadius: BorderRadius.circular(PratiCaseRadius.xxl),
-            border: Border.all(
-              color: PratiCaseColors.border.withValues(alpha: 0.60),
-            ),
-            boxShadow: PratiCaseShadows.floating,
-          ),
-          child: Row(
-            children: [
-              _NavItem(
-                identifier: 'nav.home',
-                selected: selectedIndex == 0,
-                icon: Icons.home_rounded,
-                label: 'Ana Sayfa',
-                onTap: () => onSelected(0),
-              ),
-              _NavItem(
-                identifier: 'nav.wallet',
-                selected: selectedIndex == 1,
-                icon: selectedIndex == 1
-                    ? Icons.account_balance_wallet_rounded
-                    : Icons.account_balance_wallet_outlined,
-                label: 'Cüzdan',
-                onTap: () => onSelected(1),
-              ),
-              _NavItem(
-                identifier: 'nav.exams',
-                selected: selectedIndex == 2,
-                icon: Icons.assignment_rounded,
-                label: 'Sınavlar',
-                onTap: () => onSelected(2),
-              ),
-              _NavItem(
-                identifier: 'nav.progress',
-                selected: selectedIndex == 3,
-                icon: Icons.trending_up_rounded,
-                label: 'Gelişim',
-                onTap: () => onSelected(3),
-              ),
-              _NavItem(
-                identifier: 'nav.profile',
-                selected: selectedIndex == 4,
-                icon: selectedIndex == 4
-                    ? Icons.person_rounded
-                    : Icons.person_outline_rounded,
-                label: 'Profilim',
-                onTap: () => onSelected(4),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  const _NavItem({
-    required this.identifier,
-    required this.selected,
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final String identifier;
-  final bool selected;
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = selected ? PratiCaseColors.teal : PratiCaseColors.muted;
-    final compact = PratiCaseResponsive.isCompactPhone(context);
-    final itemHeight =
-        (PratiCaseResponsive.bottomNavigationHeightForWidth(
-                  MediaQuery.sizeOf(context).width,
-                ) -
-                20)
-            .clamp(54.0, 62.0)
-            .toDouble();
-    return Expanded(
-      child: Semantics(
-        identifier: identifier,
-        selected: selected,
-        button: true,
-        label: label,
-        child: InkWell(
-          onTap: () {
-            if (!selected) PratiCaseHaptics.selection();
-            onTap();
-          },
-          borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
-          child: AnimatedContainer(
-            duration: PratiCaseDurations.fast,
-            curve: PratiCaseCurves.standard,
-            height: itemHeight,
-            margin: EdgeInsets.symmetric(horizontal: compact ? 1 : 2),
-            decoration: BoxDecoration(
-              color: selected
-                  ? PratiCaseColors.teal.withValues(alpha: 0.11)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-              border: selected
-                  ? Border.all(
-                      color: PratiCaseColors.teal.withValues(alpha: 0.10),
-                    )
-                  : null,
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                AnimatedSwitcher(
-                  duration: PratiCaseDurations.fast,
-                  switchInCurve: PratiCaseCurves.standard,
-                  switchOutCurve: PratiCaseCurves.exit,
-                  transitionBuilder: (child, animation) {
-                    return FadeTransition(
-                      opacity: animation,
-                      child: ScaleTransition(
-                        scale: Tween<double>(
-                          begin: 0.86,
-                          end: 1,
-                        ).animate(animation),
-                        child: child,
-                      ),
-                    );
-                  },
-                  child: Icon(
-                    icon,
-                    key: ValueKey(selected),
-                    color: color,
-                    size: compact ? 22 : 24,
-                  ),
-                ),
-                SizedBox(height: compact ? 3 : PratiCaseSpacing.xs),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      color: color,
-                      fontSize: compact ? 10.5 : 11,
-                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
   }
 }
 
@@ -652,32 +340,25 @@ class _ExamsScreenState extends State<_ExamsScreen> {
   void _openExamMode(BuildContext context, String actionKey) {
     switch (actionKey) {
       case 'weak_areas':
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) =>
-                WeakAreaAnalysisScreen(repository: widget.progressRepository),
-          ),
+        PratiCaseRoutes.openWeakAreaAnalysis(
+          context,
+          repository: widget.progressRepository,
         );
         return;
       case 'theoretical_exam':
       case 'kuramsal_sinav':
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => TheoreticalExamSetupScreen(
-              repository: widget.theoreticalExamRepository,
-            ),
-          ),
+        PratiCaseRoutes.openTheoreticalExam(
+          context,
+          repository: widget.theoreticalExamRepository,
         );
         return;
       case 'oral_exam':
       case 'sozlu_sinav':
       case 'oral_exam_committee':
       case 'komite_sinav':
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) =>
-                OralExamSetupScreen(repository: widget.oralExamRepository),
-          ),
+        PratiCaseRoutes.openOralExam(
+          context,
+          repository: widget.oralExamRepository,
         );
         return;
       case 'single_station':
@@ -972,19 +653,23 @@ class _ExamFocusHeroState extends State<_ExamFocusHero>
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: PratiCaseColors.white
-                              .withValues(alpha: 0.14 + pulse * 0.06),
-                          borderRadius:
-                              BorderRadius.circular(PratiCaseRadius.md),
+                          color: PratiCaseColors.white.withValues(
+                            alpha: 0.14 + pulse * 0.06,
+                          ),
+                          borderRadius: BorderRadius.circular(
+                            PratiCaseRadius.md,
+                          ),
                           border: Border.all(
-                            color: PratiCaseColors.tealBright
-                                .withValues(alpha: 0.30 + pulse * 0.30),
+                            color: PratiCaseColors.tealBright.withValues(
+                              alpha: 0.30 + pulse * 0.30,
+                            ),
                             width: 1.0 + pulse * 0.4,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: PratiCaseColors.tealBright
-                                  .withValues(alpha: pulse * 0.20),
+                              color: PratiCaseColors.tealBright.withValues(
+                                alpha: pulse * 0.20,
+                              ),
                               blurRadius: 14,
                               spreadRadius: -2,
                             ),
@@ -1168,15 +853,15 @@ class _ExamHeroPatternPainter extends CustomPainter {
       // Yatay hafif drift (sin dalgası).
       final drift = math.sin((localT + p.phase) * 2 * math.pi) * 5;
       final x = size.width * p.xRatio + drift;
-      paint.color = PratiCaseColors.tealBright
-          .withValues(alpha: 0.45 * alpha.clamp(0.0, 1.0));
+      paint.color = PratiCaseColors.tealBright.withValues(
+        alpha: 0.45 * alpha.clamp(0.0, 1.0),
+      );
       canvas.drawCircle(Offset(x, y), p.sizeR, paint);
     }
   }
 
   @override
-  bool shouldRepaint(covariant _ExamHeroPatternPainter old) =>
-      old.time != time;
+  bool shouldRepaint(covariant _ExamHeroPatternPainter old) => old.time != time;
 }
 
 class _Particle {
@@ -1389,9 +1074,7 @@ class _QuickStartCardState extends State<_QuickStartCard>
                   ],
                 ),
                 borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-                border: Border.all(
-                  color: accent.withValues(alpha: 0.24),
-                ),
+                border: Border.all(color: accent.withValues(alpha: 0.24)),
                 boxShadow: [
                   ...PratiCaseShadows.card,
                   BoxShadow(
@@ -1417,9 +1100,7 @@ class _QuickStartCardState extends State<_QuickStartCard>
                         ],
                       ),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: accent.withValues(alpha: 0.18),
-                      ),
+                      border: Border.all(color: accent.withValues(alpha: 0.18)),
                     ),
                     child: Icon(widget.item.icon, color: accent, size: 22),
                   ),
@@ -2488,31 +2169,24 @@ class _ProgressSummaryLayout extends StatelessWidget {
         icon: Icons.track_changes_rounded,
         title: 'Zayıf Alan Analizi',
         subtitle: 'Eksik başlıkları ve tekrar gerektiren vakaları gör.',
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => WeakAreaAnalysisScreen(repository: repository),
-          ),
+        onTap: () => PratiCaseRoutes.openWeakAreaAnalysis(
+          context,
+          repository: repository,
         ),
       ),
       _ExamModeCard(
         icon: Icons.history_rounded,
         title: 'Vaka Geçmişi',
         subtitle: 'Başlattığın ve tamamladığın istasyonları incele.',
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => CaseHistoryScreen(repository: repository),
-          ),
-        ),
+        onTap: () =>
+            PratiCaseRoutes.openCaseHistory(context, repository: repository),
       ),
       _ExamModeCard(
         icon: Icons.leaderboard_outlined,
         title: 'Sıralamayı Gör',
         subtitle: 'Toplam puan ve çözülen vaka durumunu karşılaştır.',
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => LeaderboardScreen(repository: repository),
-          ),
-        ),
+        onTap: () =>
+            PratiCaseRoutes.openLeaderboard(context, repository: repository),
       ),
     ];
 

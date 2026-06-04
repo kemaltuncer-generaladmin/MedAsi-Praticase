@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { recordRecallEventInBackground } from "../_shared/recall.ts";
 import { loadEffectiveWalletProfile } from "../_shared/medasi_coin.ts";
 
 type JsonMap = Record<string, unknown>;
@@ -123,7 +124,7 @@ Deno.serve(async (request) => {
     );
     if (rateLimit) return withOrigin(rateLimit, origin);
     return withOrigin(
-      await submitAttempt(admin, authData.user.id, body),
+      await submitAttempt(admin, authData.user.id, body, authorization),
       origin,
     );
   }
@@ -445,7 +446,12 @@ async function enforceQuestionRateLimit(
   return null;
 }
 
-async function submitAttempt(admin: any, userId: string, body: JsonMap) {
+async function submitAttempt(
+  admin: any,
+  userId: string,
+  body: JsonMap,
+  authorization: string,
+) {
   const rawAnswers = Array.isArray(body.answers) ? body.answers : [];
   const elapsedSeconds = clampNumber(body.elapsedSeconds, 0, 24 * 60 * 60, 0);
   let syncedCount = 0;
@@ -524,6 +530,14 @@ async function submitAttempt(admin: any, userId: string, body: JsonMap) {
           result: row,
         });
         if (recorded) learningEventCount += 1;
+        recordTheoreticalRecallEvent(authorization, {
+          question: question as JsonMap,
+          outcome: "incorrect",
+          elapsedSeconds,
+          selectedIndex,
+          attemptId,
+          result: row,
+        });
       }
     }
     results.push({ questionId, result: row });
@@ -542,6 +556,14 @@ async function submitAttempt(admin: any, userId: string, body: JsonMap) {
       result: {},
     });
     if (recorded) learningEventCount += 1;
+    recordTheoreticalRecallEvent(authorization, {
+      question: question as JsonMap,
+      outcome: "omitted",
+      elapsedSeconds,
+      selectedIndex: null,
+      attemptId: "",
+      result: {},
+    });
     omittedCount += 1;
   }
 
@@ -562,6 +584,75 @@ async function submitAttempt(admin: any, userId: string, body: JsonMap) {
       ? ""
       : "Bazı yanıtlar ilerleme kaydına işlenemedi.",
   };
+}
+
+function recordTheoreticalRecallEvent(
+  authorization: string,
+  options: {
+    question: JsonMap;
+    outcome: "incorrect" | "omitted";
+    elapsedSeconds: number;
+    selectedIndex: number | null;
+    attemptId: string;
+    result: JsonMap;
+  },
+) {
+  const question = options.question;
+  const questionId = stringValue(question.id);
+  if (!questionId) return;
+
+  const tags = stringArray(question.tags);
+  const metadata = isJsonMap(question.metadata) ? question.metadata : {};
+  const subject = stringValue(question.subject) || "PratiCase";
+  const topic = stringValue(question.topic) || "Teorik sınav";
+  const subtopic = metadataValue(metadata, tags, "subtopic") || topic;
+  const questionType = metadataValue(metadata, tags, "question_type");
+  const cognitiveLevel = metadataValue(metadata, tags, "cognitive_level");
+  const difficulty = stringValue(question.difficulty);
+
+  recordRecallEventInBackground(
+    authorization,
+    {
+      source_app: "praticase",
+      event_type: "clinical_weakness",
+      title: compactJoin([
+        "Teorik sınav",
+        subject,
+        subtopic,
+        options.outcome === "omitted" ? "boş bırakıldı" : "yanlış cevap",
+      ]),
+      subject,
+      topic,
+      subtopic,
+      source_ref: {
+        type: options.attemptId
+          ? "question_attempt"
+          : "theoretical_exam_question",
+        id: options.attemptId || questionId,
+        question_id: questionId,
+      },
+      payload: {
+        exam_kind: "theoretical",
+        outcome: options.outcome,
+        difficulty,
+        question_type: questionType,
+        cognitive_level: cognitiveLevel,
+        selected_index: options.selectedIndex,
+        elapsed_seconds: options.elapsedSeconds,
+        selected_correct: false,
+      },
+      occurred_at: new Date().toISOString(),
+    },
+    "praticase_theoretical_exam",
+  );
+}
+
+function compactJoin(values: string[]) {
+  return values
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .filter((value, index, array) => array.indexOf(value) === index)
+    .join(" - ");
 }
 
 async function recordTheoreticalLearningEvent(

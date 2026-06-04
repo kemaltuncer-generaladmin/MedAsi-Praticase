@@ -37,6 +37,8 @@ abstract interface class AuthRepository {
 
   Future<AuthUser> completeProfile(ProfileSetup setup);
 
+  Future<void> deleteAccount();
+
   Future<void> signOut();
 }
 

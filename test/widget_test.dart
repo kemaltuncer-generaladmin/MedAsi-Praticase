@@ -22,6 +22,7 @@ import 'package:praticase/src/features/cases/domain/osce_case.dart';
 import 'package:praticase/src/features/cases/presentation/cases_screen.dart';
 import 'package:praticase/src/features/home/data/home_repository.dart';
 import 'package:praticase/src/features/home/domain/home_dashboard.dart';
+import 'package:praticase/src/features/home/domain/recall_summary.dart';
 import 'package:praticase/src/features/home/presentation/home_screen.dart';
 import 'package:praticase/src/features/progress/data/progress_repository.dart';
 import 'package:praticase/src/features/progress/domain/progress_models.dart';
@@ -134,6 +135,36 @@ void main() {
     expect(catalog.products.single.name, 'Aylık');
   });
 
+  test('recall summary sends only compact guidance context', () {
+    const summary = RecallSummary(
+      todayTotal: 6,
+      weaknesses: [
+        RecallWeakness(
+          title: 'Akut batın - Ayırıcı tanı',
+          riskLevel: 'high',
+          topic: 'Akut batın',
+        ),
+      ],
+      guidance: RecallGuidance(
+        sentence: 'Önce akut batın ayrımını kısaca toparla.',
+        action: 'Tek istasyon çöz.',
+      ),
+      action: 'Tek istasyon çöz.',
+    );
+
+    expect(summary.toSanitizedGuidanceInput(), {
+      'source': 'recall_praticase_summary',
+      'today_total': 6,
+      'weaknesses': [
+        {
+          'title': 'Akut batın - Ayırıcı tanı',
+          'risk_level': 'high',
+          'topic': 'Akut batın',
+        },
+      ],
+    });
+  });
+
   testWidgets('wallet surfaces shared balance and live MC consumption', (
     tester,
   ) async {
@@ -216,6 +247,41 @@ void main() {
     expect(find.textContaining('Klinik Akıl Yürütmeni'), findsOneWidget);
     expect(find.text('Devam'), findsOneWidget);
     expect(find.text('Giriş Yap'), findsOneWidget);
+  });
+
+  testWidgets('late auth state opens authenticated shell', (tester) async {
+    await _setIPhone14Viewport(tester);
+    final authRepository = _StreamingAuthRepository();
+    addTearDown(authRepository.dispose);
+
+    await tester.pumpWidget(
+      PratiCaseApp(
+        authRepository: authRepository,
+        homeRepository: _EmptyLiveHomeRepository(),
+        casesRepository: _FakeCasesRepository(),
+        progressRepository: _FakeProgressRepository(),
+        theoreticalExamRepository: _FakeTheoreticalExamRepository(),
+        oralExamRepository: _FakeOralExamRepository(),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Giriş Yap'), findsOneWidget);
+
+    authRepository.emit(
+      const AuthUser(
+        id: 'test-user',
+        email: 'ayse@example.com',
+        emailVerified: true,
+        profileCompleted: true,
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('Ana Sayfa'), findsWidgets);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 1));
   });
 
   testWidgets('register requires explicit legal consent', (tester) async {
@@ -448,6 +514,60 @@ void main() {
       find.text('Şifre sıfırlama kodu ayse@example.com adresine gönderildi.'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('account security completes account deletion flow on iPhone 14', (
+    tester,
+  ) async {
+    await _setIPhone14Viewport(tester);
+    final repository = _RecordingAuthRepository();
+    var accountDeleted = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AccountSecurityScreen(
+          authRepository: repository,
+          profile: const ProfileCard(
+            displayName: 'Ayse Yilmaz',
+            email: 'ayse@example.com',
+            classLevel: '5',
+            target: 'OSCE - Genel Cerrahi',
+            totalPoints: 120,
+            solvedCaseCount: 4,
+            correctDiagnosisRate: 75,
+            dailyStreak: 3,
+            successRatePercent: 82,
+            settings: AppSettings(
+              displayMode: 'Açık',
+              language: 'Türkçe',
+              textSize: 'Orta',
+              soundAndHaptics: true,
+              dataUsage: 'Standart',
+              offlineMode: false,
+              caseDownloadsEnabled: false,
+            ),
+          ),
+          onAccountDeleted: () async => accountDeleted = true,
+        ),
+      ),
+    );
+
+    await tester.scrollUntilVisible(find.text('Hesabı Kalıcı Olarak Sil'), 160);
+    await tester.tap(find.text('Hesabı Kalıcı Olarak Sil'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(CheckboxListTile));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Hesabımı Kalıcı Olarak Sil'),
+      160,
+    );
+    await tester.tap(find.text('Hesabımı Kalıcı Olarak Sil'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Kalıcı Sil'));
+    await tester.pumpAndSettle();
+
+    expect(repository.deletedAccount, isTrue);
+    expect(accountDeleted, isTrue);
   });
 
   testWidgets('profile screen keeps long email compact on iPhone 14', (
@@ -718,6 +838,14 @@ void main() {
     await tester.tap(find.text('Hemogram'));
     await tester.pumpAndSettle();
 
+    // Tapping queues the test in the basket; results only arrive after a bulk
+    // fetch (sepet checkout).
+    expect(repository.requested, isEmpty);
+    expect(find.text('Seçilenleri Getir (1)'), findsOneWidget);
+
+    await tester.tap(find.text('Seçilenleri Getir (1)'));
+    await tester.pumpAndSettle();
+
     expect(repository.requested, contains('hemogram'));
     expect(find.text('Tetkik Sonucu'), findsOneWidget);
     expect(
@@ -820,7 +948,7 @@ void main() {
     );
   });
 
-  testWidgets('result AI support screen renders a focused study plan', (
+  testWidgets('result Recall support screen renders a focused study plan', (
     tester,
   ) async {
     await _setIPhone14Viewport(tester);
@@ -830,8 +958,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('AI Destek'), findsOneWidget);
-    expect(find.text('Kişisel çalışma desteği'), findsOneWidget);
+    expect(find.text('Recall Planı'), findsOneWidget);
+    expect(find.text('Recall çalışma yönlendirmesi'), findsOneWidget);
     expect(find.text('Öncelikli Çalışma Alanı'), findsOneWidget);
     expect(find.text('Hemen Çalışılacak Başlıklar'), findsOneWidget);
     await tester.scrollUntilVisible(
@@ -846,6 +974,31 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     expect(find.text('Detaylı Raporu Aç'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('case report renders graded checklist table', (tester) async {
+    await _setIPhone14Viewport(tester);
+
+    await tester.pumpWidget(
+      MaterialApp(home: CaseReportScreen(result: _supportResultSummary)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Vaka Raporu'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Checklist Tablosu'),
+      320,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Tam / Yarım / Sorulmadı'), findsOneWidget);
+    expect(find.text('Tam: 1/3 · Yarım: 1 · Sorulmadı: 1'), findsOneWidget);
+    expect(find.text('Ağrının başlangıcı'), findsOneWidget);
+    expect(find.text('Ağrı yayılımı'), findsOneWidget);
+    expect(find.text('İştahsızlık'), findsOneWidget);
+    expect(find.text('Tam'), findsOneWidget);
+    expect(find.text('Yarım'), findsOneWidget);
+    expect(find.text('Sorulmadı'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -871,6 +1024,9 @@ void main() {
     expect(find.text('Batın USG'), findsOneWidget);
 
     await tester.tap(find.text('Batın USG'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Seçilenleri Getir (1)'));
     await tester.pumpAndSettle();
 
     expect(repository.requested, contains('usg'));
@@ -933,6 +1089,51 @@ void main() {
     await tester.tap(find.text('Teorik Sınav'));
 
     expect(openedTheoreticalExam, isTrue);
+  });
+
+  testWidgets('home shows Recall today guidance when summary is available', (
+    tester,
+  ) async {
+    await _setIPhone14Viewport(tester);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: HomeScreen(
+            repository: _RecallHomeRepository(),
+            casesRepository: _FakeCasesRepository(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Recall bugün'), findsOneWidget);
+    expect(find.text('3 PratiCase tekrarı bekliyor'), findsOneWidget);
+    expect(find.text('Akut batın - Ayırıcı tanı'), findsOneWidget);
+    expect(find.text('Recall’a git'), findsOneWidget);
+  });
+
+  testWidgets('home shows Recall empty state quietly', (tester) async {
+    await _setIPhone14Viewport(tester);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: HomeScreen(
+            repository: _RecallEmptyHomeRepository(),
+            casesRepository: _FakeCasesRepository(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Recall bugün'), findsOneWidget);
+    expect(
+      find.text('Bugün PratiCase için bekleyen Recall tekrarı yok.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('oral exam offers committee as an optional format', (
@@ -1424,7 +1625,7 @@ class _WalletStoreRepository extends StoreKitRepository {
         PratiCaseStoreProduct(
           code: 'mc_10',
           name: '10 MC',
-          description: 'AI işlemleri için Medasi Coin.',
+          description: 'Recall işlemleri için Medasi Coin.',
           priceCents: 4000,
           currency: 'TRY',
           appStoreProductId: 'com.medasi.qlinik.mc.10',
@@ -2096,6 +2297,7 @@ class _FakeVoiceExamAdapter implements VoiceExamAdapter {
   final spokenTexts = <String>[];
   VoiceExamState _state = const VoiceExamState();
   bool initialized = false;
+  bool _finalDelivered = false;
 
   @override
   VoiceExamState get state => _state;
@@ -2116,8 +2318,13 @@ class _FakeVoiceExamAdapter implements VoiceExamAdapter {
   }) async {
     await initialize();
     _emit(_state.copyWith(listening: true));
-    onPartialText('Ağrınız');
-    onFinalText('Ağrınız ne zaman başladı?');
+    // Model a single spoken utterance: hands-free auto-resume reopens the mic,
+    // but the simulated user only speaks once (further opens stay silent).
+    if (!_finalDelivered) {
+      _finalDelivered = true;
+      onPartialText('Ağrınız');
+      onFinalText('Ağrınız ne zaman başladı?');
+    }
     _emit(_state.copyWith(listening: false, partialText: ''));
   }
 
@@ -2550,6 +2757,61 @@ class _EmptyLiveHomeRepository extends Fake implements HomeRepository {
   }
 }
 
+class _RecallHomeRepository extends Fake implements HomeRepository {
+  @override
+  Future<HomeDashboard> loadDashboard() async {
+    return const HomeDashboard(
+      user: HomeUser(
+        id: 'test-user',
+        email: 'kemal.tuncer@medasi.com.tr',
+        fullName: 'Kemal Tuncer',
+      ),
+      banners: [],
+      stats: null,
+      recommendedCases: [],
+      recallSummary: RecallSummary(
+        todayTotal: 3,
+        weaknesses: [
+          RecallWeakness(
+            title: 'Akut batın - Ayırıcı tanı',
+            riskLevel: 'high',
+            topic: 'Akut batın',
+          ),
+        ],
+        guidance: RecallGuidance(
+          sentence: 'Önce akut batın ayrımını toparla.',
+          action: 'Tek istasyon çöz.',
+        ),
+        action: 'Tek istasyon çöz.',
+      ),
+      unreadNotificationCount: 0,
+    );
+  }
+}
+
+class _RecallEmptyHomeRepository extends Fake implements HomeRepository {
+  @override
+  Future<HomeDashboard> loadDashboard() async {
+    return const HomeDashboard(
+      user: HomeUser(
+        id: 'test-user',
+        email: 'kemal.tuncer@medasi.com.tr',
+        fullName: 'Kemal Tuncer',
+      ),
+      banners: [],
+      stats: null,
+      recommendedCases: [],
+      recallSummary: RecallSummary(
+        todayTotal: 0,
+        weaknesses: [],
+        guidance: RecallGuidance.empty(),
+        action: '',
+      ),
+      unreadNotificationCount: 0,
+    );
+  }
+}
+
 const _supportedDeviceViewports = <String, Size>{
   'iPhone 11': Size(414, 896),
   'iPhone 17 Pro': Size(402, 874),
@@ -2594,6 +2856,27 @@ const _supportResultSummary = ExamResultSummary(
   missedPhysicalExam: ['Rebound ve defans'],
   idealApproach:
       'Ağrı özellikleri, eşlik eden bulgular ve hedefe yönelik batın muayenesiyle ilerle.',
+  checklistSections: [
+    ResultChecklistSection(
+      title: 'Anamnez',
+      key: 'history',
+      coveredCount: 1,
+      totalCount: 3,
+      items: [
+        ResultChecklistItem(
+          label: 'Ağrının başlangıcı',
+          status: 'covered',
+          evidence: 'Ne zaman başladı diye sordu.',
+        ),
+        ResultChecklistItem(
+          label: 'Ağrı yayılımı',
+          status: 'partial',
+          note: 'Yeri soruldu, yayılım derinleştirilmedi.',
+        ),
+        ResultChecklistItem(label: 'İştahsızlık', status: 'missed'),
+      ],
+    ),
+  ],
 );
 
 Finder _textFormFieldAt(int index) => find.byType(TextFormField).at(index);
@@ -2669,12 +2952,16 @@ class _TestAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<void> deleteAccount() async {}
+
+  @override
   Future<void> signOut() async {}
 }
 
 class _RecordingAuthRepository extends _TestAuthRepository {
   ProfileSetup? completedProfile;
   String? resetEmail;
+  bool deletedAccount = false;
 
   @override
   Future<void> sendPasswordResetCode(String email) async {
@@ -2686,6 +2973,22 @@ class _RecordingAuthRepository extends _TestAuthRepository {
     completedProfile = setup;
     return super.completeProfile(setup);
   }
+
+  @override
+  Future<void> deleteAccount() async {
+    deletedAccount = true;
+  }
+}
+
+class _StreamingAuthRepository extends _TestAuthRepository {
+  final _controller = StreamController<AuthUser?>.broadcast();
+
+  @override
+  Stream<AuthUser?> authStateChanges() => _controller.stream;
+
+  void emit(AuthUser? user) => _controller.add(user);
+
+  void dispose() => _controller.close();
 }
 
 class _PendingThenUnavailableAuthRepository extends _TestAuthRepository {

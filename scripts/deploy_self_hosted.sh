@@ -79,6 +79,8 @@ scp -o BatchMode=yes -r \
   "$ROOT_DIR/supabase/functions/praticase-theoretical-exam" \
   "$ROOT_DIR/supabase/functions/praticase-storekit-verify" \
   "$ROOT_DIR/supabase/functions/praticase-oral-exam" \
+  "$ROOT_DIR/supabase/functions/praticase-delete-account" \
+  "$ROOT_DIR/supabase/functions/praticase-recall-guidance" \
   "$DEPLOY_HOST:$REMOTE_FUNCTIONS/"
 
 log "Publishing Edge Functions"
@@ -90,6 +92,8 @@ cp -R '$REMOTE_FUNCTIONS/praticase-complete-session' '$REMOTE_FUNCTIONS_DIR/'
 cp -R '$REMOTE_FUNCTIONS/praticase-theoretical-exam' '$REMOTE_FUNCTIONS_DIR/'
 cp -R '$REMOTE_FUNCTIONS/praticase-storekit-verify' '$REMOTE_FUNCTIONS_DIR/'
 cp -R '$REMOTE_FUNCTIONS/praticase-oral-exam' '$REMOTE_FUNCTIONS_DIR/'
+cp -R '$REMOTE_FUNCTIONS/praticase-delete-account' '$REMOTE_FUNCTIONS_DIR/'
+cp -R '$REMOTE_FUNCTIONS/praticase-recall-guidance' '$REMOTE_FUNCTIONS_DIR/'
 docker restart '$EDGE_CONTAINER' >/dev/null
 docker ps --filter name='$EDGE_CONTAINER' --format '{{.Names}}\t{{.Status}}'"
 

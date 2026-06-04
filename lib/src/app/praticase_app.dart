@@ -85,10 +85,6 @@ class _PratiCaseAppState extends State<PratiCaseApp> {
       return;
     }
 
-    if (!_restoringSession && _gate == _SessionGate.loggedOut) {
-      return;
-    }
-
     _applySessionUser(user, restoringSession: false);
   }
 
@@ -128,18 +124,7 @@ class _PratiCaseAppState extends State<PratiCaseApp> {
       _applySessionUser(null, restoringSession: false);
       return;
     }
-    _applySessionUser(
-      user.profileCompleted
-          ? user
-          : AuthUser(
-              id: user.id,
-              email: user.email,
-              fullName: user.fullName,
-              emailVerified: user.emailVerified,
-              profileCompleted: true,
-            ),
-      restoringSession: false,
-    );
+    _applySessionUser(user, restoringSession: false);
   }
 
   @override

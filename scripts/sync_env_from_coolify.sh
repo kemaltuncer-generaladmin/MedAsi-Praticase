@@ -24,12 +24,10 @@ curl -fsS \
           "FLUTTER_SUPABASE_URL",
           "SUPABASE_ANON_KEY",
           "AUTH_REDIRECT_URL",
-          "VERTEX_AI_LOCATION",
-          "VERTEX_AI_PROJECT_ID",
-          "VERTEX_AI_HISTORY_MODEL",
-          "VERTEX_AI_TTS_MODEL",
-          "VERTEX_AI_EVALUATION_MODEL",
-          "GOOGLE_VERTEX_SERVICE_ACCOUNT_JSON_BASE64"
+          "OPENAI_API_KEY",
+          "OPENAI_MODEL",
+          "OPENAI_TTS_MODEL",
+          "OPENAI_TTS_VOICE"
         ))
       | "\(.key)=\(.real_value // .value)"
     ' > "$ENV_FILE"

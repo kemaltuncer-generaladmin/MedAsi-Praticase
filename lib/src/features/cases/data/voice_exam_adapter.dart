@@ -87,8 +87,8 @@ abstract interface class VoiceSpeechService {
   });
 }
 
-class SupabaseGeminiVoiceSpeechService implements VoiceSpeechService {
-  const SupabaseGeminiVoiceSpeechService({required SupabaseClient client})
+class SupabaseOpenAiVoiceSpeechService implements VoiceSpeechService {
+  const SupabaseOpenAiVoiceSpeechService({required SupabaseClient client})
     : _client = client;
 
   final SupabaseClient _client;
@@ -224,7 +224,7 @@ class NativeVoiceExamAdapter implements VoiceExamAdapter {
     await initialize();
     final generation = ++_speechGeneration;
     await _audioPlayer.stop();
-    await _speakWithGemini(clean, generation);
+    await _speakWithOpenAi(clean, generation);
   }
 
   @override
@@ -249,13 +249,13 @@ class NativeVoiceExamAdapter implements VoiceExamAdapter {
     unawaited(_controller.close());
   }
 
-  Future<void> _speakWithGemini(String text, int generation) async {
+  Future<void> _speakWithOpenAi(String text, int generation) async {
     final speechService = _speechService;
     if (speechService == null) {
       _emit(
         _state.copyWith(
           speaking: false,
-          errorMessage: 'Gemini ses motoru şu anda başlatılamadı.',
+          errorMessage: 'OpenAI ses motoru şu anda başlatılamadı.',
         ),
       );
       return;
@@ -279,7 +279,7 @@ class NativeVoiceExamAdapter implements VoiceExamAdapter {
       _emit(
         _state.copyWith(
           speaking: false,
-          errorMessage: 'Gemini ses üretimi şu anda alınamadı.',
+          errorMessage: 'OpenAI ses üretimi şu anda alınamadı.',
         ),
       );
     }
@@ -326,7 +326,7 @@ class NativeVoiceExamAdapter implements VoiceExamAdapter {
 
   static VoiceSpeechService? _defaultSpeechService() {
     try {
-      return SupabaseGeminiVoiceSpeechService(client: Supabase.instance.client);
+      return SupabaseOpenAiVoiceSpeechService(client: Supabase.instance.client);
     } on Object {
       return null;
     }
@@ -339,5 +339,5 @@ String _functionMessage(Object? details) {
     if (message is String && message.trim().isNotEmpty) return message.trim();
   }
   if (details is String && details.trim().isNotEmpty) return details.trim();
-  return 'Gemini ses üretimi şu anda alınamadı.';
+  return 'OpenAI ses üretimi şu anda alınamadı.';
 }

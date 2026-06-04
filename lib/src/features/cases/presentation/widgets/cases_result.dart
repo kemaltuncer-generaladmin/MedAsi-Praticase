@@ -269,8 +269,8 @@ class _ResultActions extends StatelessWidget {
           height: 52,
           child: FilledButton.icon(
             onPressed: onSupport,
-            icon: const Icon(Icons.auto_awesome_rounded),
-            label: const Text('AI Destek Al'),
+            icon: const Icon(Icons.history_edu_rounded),
+            label: const Text('Recall Planı Al'),
           ),
         ),
         const SizedBox(height: 10),
@@ -391,6 +391,296 @@ class _FeedbackCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ChecklistReportCard extends StatelessWidget {
+  const _ChecklistReportCard({required this.sections});
+
+  final List<ResultChecklistSection> sections;
+
+  @override
+  Widget build(BuildContext context) {
+    if (sections.isEmpty) {
+      return const _SectionCard(
+        title: 'Checklist Tablosu',
+        child: Text(
+          'Detaylı kontrol listesi hazırlanıyor; eksik anamnez, muayene ve tetkik başlıkları yukarıdaki karne alanlarına yansıtıldı.',
+          style: TextStyle(
+            color: PratiCaseColors.slateBlue,
+            fontWeight: FontWeight.w700,
+            height: 1.45,
+          ),
+        ),
+      );
+    }
+
+    final covered = sections.fold<int>(
+      0,
+      (sum, section) => sum + section.coveredCount,
+    );
+    final total = sections.fold<int>(
+      0,
+      (sum, section) => sum + section.totalCount,
+    );
+    final partial = sections.fold<int>(
+      0,
+      (sum, section) =>
+          sum + section.items.where((item) => item.isPartial).length,
+    );
+    final missed = sections.fold<int>(
+      0,
+      (sum, section) =>
+          sum + section.items.where((item) => item.isMissed).length,
+    );
+    final progress = total == 0 ? 0.0 : (covered / total).clamp(0.0, 1.0);
+
+    return _SectionCard(
+      title: 'Checklist Tablosu',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _SoftIcon(
+                icon: Icons.fact_check_outlined,
+                color: PratiCaseColors.teal,
+                size: 42,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Tam / Yarım / Sorulmadı',
+                      style: TextStyle(
+                        color: PratiCaseColors.navy,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      'Tam: $covered/$total · Yarım: $partial · Sorulmadı: $missed',
+                      style: const TextStyle(
+                        color: PratiCaseColors.muted,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 8,
+              backgroundColor: PratiCaseColors.border,
+              color: progress >= 0.75
+                  ? PratiCaseColors.successGreen
+                  : progress >= 0.5
+                  ? PratiCaseColors.gold
+                  : PratiCaseColors.errorRed,
+            ),
+          ),
+          const SizedBox(height: 16),
+          for (final section in sections) ...[
+            _ChecklistSectionBlock(section: section),
+            if (section != sections.last) const SizedBox(height: 12),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ChecklistSectionBlock extends StatelessWidget {
+  const _ChecklistSectionBlock({required this.section});
+
+  final ResultChecklistSection section;
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = section.totalCount == 0
+        ? 0.0
+        : (section.coveredCount / section.totalCount).clamp(0.0, 1.0);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.softSurface,
+        borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+        border: Border.all(color: PratiCaseColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  section.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: PratiCaseColors.navy,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _ChecklistCountPill(
+                text: '${section.coveredCount}/${section.totalCount}',
+                progress: progress,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          for (final item in section.items) ...[
+            _ChecklistItemRow(item: item),
+            if (item != section.items.last) const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ChecklistCountPill extends StatelessWidget {
+  const _ChecklistCountPill({required this.text, required this.progress});
+
+  final String text;
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = progress >= 0.75
+        ? PratiCaseColors.successGreen
+        : progress >= 0.5
+        ? PratiCaseColors.gold
+        : PratiCaseColors.errorRed;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+        border: Border.all(color: color.withValues(alpha: 0.28)),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _ChecklistItemRow extends StatelessWidget {
+  const _ChecklistItemRow({required this.item});
+
+  final ResultChecklistItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _checklistStatusColor(item);
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.white,
+        borderRadius: BorderRadius.circular(PratiCaseRadius.sm),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Icon(_checklistStatusIcon(item), color: color, size: 18),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.label,
+                  style: const TextStyle(
+                    color: PratiCaseColors.ink,
+                    fontWeight: FontWeight.w800,
+                    height: 1.3,
+                  ),
+                ),
+                if (item.evidence.isNotEmpty || item.note.isNotEmpty) ...[
+                  const SizedBox(height: 5),
+                  Text(
+                    item.evidence.isNotEmpty ? item.evidence : item.note,
+                    style: const TextStyle(
+                      color: PratiCaseColors.muted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          _ChecklistStatusPill(item: item),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChecklistStatusPill extends StatelessWidget {
+  const _ChecklistStatusPill({required this.item});
+
+  final ResultChecklistItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _checklistStatusColor(item);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+      ),
+      child: Text(
+        _checklistStatusLabel(item),
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+Color _checklistStatusColor(ResultChecklistItem item) {
+  if (item.isCovered) return PratiCaseColors.successGreen;
+  if (item.isPartial) return PratiCaseColors.gold;
+  return PratiCaseColors.errorRed;
+}
+
+IconData _checklistStatusIcon(ResultChecklistItem item) {
+  if (item.isCovered) return Icons.check_circle_rounded;
+  if (item.isPartial) return Icons.pending_actions_rounded;
+  return Icons.cancel_rounded;
+}
+
+String _checklistStatusLabel(ResultChecklistItem item) {
+  if (item.isCovered) return 'Tam';
+  if (item.isPartial) return 'Yarım';
+  return 'Sorulmadı';
 }
 
 class _IdealApproachCard extends StatelessWidget {

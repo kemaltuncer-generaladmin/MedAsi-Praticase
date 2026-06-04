@@ -120,6 +120,7 @@ class _WalletScreenState extends State<WalletScreen>
     final products = controller.products;
     final loading = controller.busy && products.isEmpty;
     final error = controller.errorMessage;
+    final status = controller.statusMessage;
 
     return RefreshIndicator(
       onRefresh: _refresh,
@@ -175,6 +176,9 @@ class _WalletScreenState extends State<WalletScreen>
             if (error != null) ...[
               const SizedBox(height: 18),
               _WalletInlineError(message: error, onRetry: _refresh),
+            ] else if (status != null) ...[
+              const SizedBox(height: 18),
+              _WalletInlineStatus(message: status),
             ],
             const SizedBox(height: 22),
             const _WalletSectionHeader(
@@ -563,7 +567,15 @@ class _WalletStatsRow extends StatelessWidget {
             label: 'Kullanılabilir MC',
             value: hidden ? '••••' : _formatMetricMc(wallet.walletCoinBalance),
             unit: 'MC',
-            sublabel: 'AI işlemlerinde ortak bakiye',
+            sublabel: 'YZ işlemlerinde ortak bakiye',
+          ),
+          _WalletStatCard(
+            icon: Icons.bolt_outlined,
+            accent: PratiCaseColors.gold,
+            label: 'YZ hakkı',
+            value: hidden ? '••••' : '${wallet.aiQuota}',
+            unit: 'kalan',
+            sublabel: 'Hasta yanıtı ve karne için',
           ),
         ];
         if (wide) {
@@ -572,11 +584,19 @@ class _WalletStatsRow extends StatelessWidget {
               Expanded(child: tiles[0]),
               const SizedBox(width: 12),
               Expanded(child: tiles[1]),
+              const SizedBox(width: 12),
+              Expanded(child: tiles[2]),
             ],
           );
         }
         return Column(
-          children: [tiles[0], const SizedBox(height: 12), tiles[1]],
+          children: [
+            tiles[0],
+            const SizedBox(height: 12),
+            tiles[1],
+            const SizedBox(height: 12),
+            tiles[2],
+          ],
         );
       },
     );
@@ -833,8 +853,8 @@ class _WalletConsumptionCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 5),
                 const Text(
-                  'Sanal hasta, AI karne ve sözlü sınav işlemlerinde '
-                  'kullanım kadar MC düşer. En düşük AI tüketimi 0,10 MC.',
+                  'Sanal hasta, Recall planı ve sözlü sınav işlemlerinde '
+                  'kullanım kadar MC düşer. En düşük tüketim 0,10 MC.',
                   style: TextStyle(
                     color: PratiCaseColors.muted,
                     fontSize: 12,
@@ -877,29 +897,15 @@ class _WalletSectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(
-              color: PratiCaseColors.navy,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
+    return SectionHeader(
+      title: title,
+      trailing: actionLabel == null || onAction == null
+          ? null
+          : TextButton.icon(
+              onPressed: onAction,
+              icon: const Icon(Icons.chevron_right_rounded),
+              label: Text(actionLabel!),
             ),
-          ),
-        ),
-        if (actionLabel != null && onAction != null)
-          TextButton.icon(
-            onPressed: onAction,
-            icon: const Icon(Icons.chevron_right_rounded),
-            label: Text(actionLabel!),
-            style: TextButton.styleFrom(
-              foregroundColor: PratiCaseColors.teal,
-              textStyle: const TextStyle(fontWeight: FontWeight.w900),
-            ),
-          ),
-      ],
     );
   }
 }
@@ -1601,6 +1607,45 @@ class _WalletTrustNote extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _WalletInlineStatus extends StatelessWidget {
+  const _WalletInlineStatus({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.teal.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+        border: Border.all(color: PratiCaseColors.teal.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.info_outline_rounded,
+            color: PratiCaseColors.teal,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: PratiCaseColors.navy,
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

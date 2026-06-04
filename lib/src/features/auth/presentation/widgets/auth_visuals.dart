@@ -393,7 +393,7 @@ class _AuthBackgroundPainter extends CustomPainter {
       ..close();
     canvas.drawPath(
       softWave,
-      Paint()..color = const Color(0xFFEAF4F3).withValues(alpha: 0.72),
+      Paint()..color = PratiCaseColors.authWave.withValues(alpha: 0.72),
     );
 
     final darkWave = Path()
@@ -430,7 +430,7 @@ class _AuthBackgroundPainter extends CustomPainter {
     final linePaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.6
-      ..color = const Color(0xFFD9E7E7).withValues(alpha: 0.58);
+      ..color = PratiCaseColors.authWaveLine.withValues(alpha: 0.58);
     for (var i = 0; i < 8; i++) {
       final y = waveTop + 10 + i * 7;
       final p = Path()
@@ -495,7 +495,7 @@ class _EnvelopePainter extends CustomPainter {
     final line = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2
-      ..color = const Color(0xFFD5DAE1);
+      ..color = PratiCaseColors.authIllustrationStroke;
     final flap = Path()
       ..moveTo(0, 0)
       ..lineTo(size.width / 2, size.height * 0.58)

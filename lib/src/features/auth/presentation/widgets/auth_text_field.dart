@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/theme/praticase_colors.dart';
-import '../../../../app/theme/praticase_tokens.dart';
+import '../../../../app/theme/praticase_typography.dart';
 
 class AuthTextField extends StatefulWidget {
   const AuthTextField({
@@ -39,12 +39,8 @@ class _AuthTextFieldState extends State<AuthTextField> {
       children: [
         Text(
           widget.label,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: PratiCaseColors.muted,
-            fontSize: 11,
+          style: PratiCaseTextStyles.caption.copyWith(
             fontWeight: FontWeight.w800,
-            letterSpacing: 0.2,
-            height: 1.2,
           ),
         ),
         const SizedBox(height: 7),
@@ -54,25 +50,9 @@ class _AuthTextFieldState extends State<AuthTextField> {
           textInputAction: widget.textInputAction,
           validator: widget.validator,
           obscureText: _obscured,
-          style: const TextStyle(
-            color: PratiCaseColors.ink,
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            height: 1.5,
-          ),
+          style: PratiCaseTextStyles.body.copyWith(fontSize: 16),
           decoration: InputDecoration(
             hintText: widget.hintText,
-            hintStyle: const TextStyle(
-              color: PratiCaseColors.muted,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
-            filled: true,
-            fillColor: PratiCaseColors.white,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: PratiCaseSpacing.xl,
-              vertical: 18,
-            ),
             prefixIcon: widget.icon == null
                 ? null
                 : Icon(widget.icon, color: PratiCaseColors.slateBlue, size: 22),
@@ -88,37 +68,6 @@ class _AuthTextFieldState extends State<AuthTextField> {
                     ),
                   )
                 : null,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-              borderSide: const BorderSide(color: PratiCaseColors.border),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-              borderSide: const BorderSide(color: PratiCaseColors.border),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-              borderSide: const BorderSide(
-                color: PratiCaseColors.teal,
-                width: 1.5,
-              ),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-              borderSide: const BorderSide(color: PratiCaseColors.errorRed),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-              borderSide: const BorderSide(
-                color: PratiCaseColors.errorRed,
-                width: 1.5,
-              ),
-            ),
-            errorStyle: const TextStyle(
-              color: PratiCaseColors.errorRed,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
           ),
         ),
       ],

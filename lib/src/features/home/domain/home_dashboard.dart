@@ -1,3 +1,5 @@
+import 'recall_summary.dart';
+
 enum CaseDifficulty {
   easy('Kolay'),
   medium('Orta'),
@@ -28,6 +30,7 @@ class HomeDashboard {
     required this.unreadNotificationCount,
     this.continuedCase,
     this.badgeSummary,
+    this.recallSummary,
   });
 
   final HomeUser user;
@@ -36,6 +39,7 @@ class HomeDashboard {
   final ContinuedCase? continuedCase;
   final List<RecommendedCase> recommendedCases;
   final BadgeSummary? badgeSummary;
+  final RecallSummary? recallSummary;
   final int unreadNotificationCount;
 }
 

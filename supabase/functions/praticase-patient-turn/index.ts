@@ -1,10 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders, isAllowedOrigin, jsonResponse } from "../_shared/cors.ts";
 import {
-  generateVertexContent,
+  generateOpenAiContent,
   historyModel,
-  vertexConfigured,
-} from "../_shared/vertex_ai.ts";
+  openAiConfigured,
+} from "../_shared/openai_ai.ts";
 import {
   chargeAiCoins,
   ensureAiCoinBalance,
@@ -93,13 +93,13 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: "Bu sınav oturumu bulunamadı." }, 404, origin);
   }
 
-  if (!vertexConfigured()) {
+  if (!openAiConfigured()) {
     const fallback = await recordRuleBasedPatientTurn({
       supabase,
       sessionId,
       message,
       origin,
-      reason: "vertex_not_configured",
+      reason: "openai_not_configured",
     });
     if (fallback) return fallback;
     return jsonResponse(
@@ -116,8 +116,9 @@ Deno.serve(async (request) => {
       return jsonResponse(
         {
           error:
-            "MedAsi Coin bakiyen yeterli değil. Cüzdandan coin yükleyip kaldığın yerden devam edebilirsin.",
+            "YZ kullanım hakkın veya Medasi Coin bakiyen yeterli değil. Cüzdandan paket alıp kaldığın yerden devam edebilirsin.",
           wallet_balance: error.walletBalance,
+          ai_quota: error.aiQuota,
           required_balance: error.requiredBalance,
         },
         402,
@@ -150,6 +151,10 @@ Deno.serve(async (request) => {
     supabase,
     String(session.case_id ?? ""),
   );
+  const responseRules = await loadPatientResponseRules(
+    supabase,
+    String(session.case_id ?? ""),
+  );
   const mergedCaseData = mergeCaseChecklistContext(caseData ?? {}, checklists);
   const patientProfile = mergedCaseData.patient_profile ?? {};
   const history = (previousMessages ?? []).reverse().map((item) => ({
@@ -163,7 +168,7 @@ Deno.serve(async (request) => {
     candidatePrompt: stringValue(mergedCaseData.candidate_prompt),
     openingLineAlreadyShown: true,
     patientProfile: patientProfileContext(patientProfile),
-    patientHistoryFacts: safePatientFacts(mergedCaseData.expected_history),
+    patientResponseRules: responseRules,
     boundaries: [
       "Hasta tanı, ayırıcı tanı, ideal yaklaşım, rubrik, puan, checklist, tetkik sonucu veya yönetim planı bilmez.",
       "Hasta yalnız kendi şikayetini, hislerini, geçmişini ve sorulan günlük bilgileri anlatır.",
@@ -190,6 +195,8 @@ Deno.serve(async (request) => {
       "DİL: Türkçe, doğal halk diliyle, 1-3 kısa cümleyle yanıt ver. Uzun paragraf, monolog veya teknik açıklama yapma. Yanıtı eksiksiz bir cümleyle bitir.",
       "JARGON REDDİ: Tıbbi terim (dispne, disüri, senkop, palpasyon, anamnez, hemoptizi, parestezi vb.) bilmezsin. Aday böyle bir kelime kullanırsa anlamadığını belirt ve halk diliyle netleştirme iste. Örnek: 'Disüri ne demek doktor hanım? İdrarda yanmayı mı kastediyorsanız evet var.' Tıbbi terimi kendin başlatma.",
       "",
+      "YANIT KAYNAĞI: Gizli bağlamdaki patientResponseRules aday sorusuna yakınsa, o response değerini doğal hasta cümlesi olarak temel al. matchTerms kelimelerini veya kural mantığını açıklama. Hiçbir kural yakın değilse hasta profili dışına çıkma; bilmediğin veya anlamadığın noktada kısa netleştirme iste.",
+      "",
       "KATMANLI İFŞA: Tüm öyküyü tek soruda dökme. 'Şikayetin nedir?' sorusuna sadece ana şikayetini söyle. Ağrı yayılımı, eşlik eden semptomlar (bulantı, terleme, nefes darlığı vb.), tetikleyici/rahatlatıcı faktörler, süre, karakter, geçmiş hastalıklar, ilaçlar, sosyal öykü ancak ADAY SPESİFİK SORARSA açılır. Sorulmamış kritik bilgiyi kendiliğinden verme.",
       "",
       "BİLGİ SINIRI: Kendi tanın, ayırıcı tanın, ideal tedavi, rubrik, puan, checklist, beklenen cevap, kritik hata veya yönetim planı hakkında HİÇBİR fikrin yok. 'Bende apandisit/kalp krizi/zatürre olabilir', 'Bana şunu sormanız gerekirdi', 'Doğru tanı şudur' gibi cümleler kesinlikle yasak. Sana verilen gizli profilde olmayan semptomu uydurma; bilmediğin şeye 'bilmiyorum', 'hatırlamıyorum', 'dikkat etmedim' de.",
@@ -209,18 +216,18 @@ Deno.serve(async (request) => {
       ...history,
       { role: "user" as const, parts: [{ text: message }] },
     ];
-    let generated = await generateVertexContent({
+    let generated = await generateOpenAiContent({
       model,
       systemInstruction,
       contents,
-      temperature: 0.45,
-      maxOutputTokens: 420,
+      temperature: 0.28,
+      maxOutputTokens: 320,
     });
     if (
       generated.finishReason === "MAX_TOKENS" ||
       looksIncompletePatientReply(generated.text)
     ) {
-      generated = await generateVertexContent({
+      generated = await generateOpenAiContent({
         model,
         systemInstruction,
         contents: [
@@ -234,8 +241,27 @@ Deno.serve(async (request) => {
             }],
           },
         ],
-        temperature: 0.25,
-        maxOutputTokens: 700,
+        temperature: 0.18,
+        maxOutputTokens: 360,
+      });
+    }
+    if (needsPatientReplyRepair(generated.text)) {
+      generated = await generateOpenAiContent({
+        model,
+        systemInstruction,
+        contents: [
+          ...contents,
+          { role: "model", parts: [{ text: generated.text.trim() }] },
+          {
+            role: "user",
+            parts: [{
+              text:
+                "Önceki cevap hasta rolünden çıktı. Aynı soruya sıradan hasta gibi, tanı/rubrik/checklist/öğretmen yorumu kullanmadan 1-2 kısa cümleyle yeniden cevap ver.",
+            }],
+          },
+        ],
+        temperature: 0.12,
+        maxOutputTokens: 260,
       });
     }
     aiResponse = sanitizePatientReply(generated.text);
@@ -244,7 +270,7 @@ Deno.serve(async (request) => {
     model = generated.model;
   } catch (error) {
     console.error(
-      "praticase_patient_turn_vertex_failed",
+      "praticase_patient_turn_openai_failed",
       error instanceof Error ? error.message : String(error),
     );
     const fallback = await recordRuleBasedPatientTurn({
@@ -252,7 +278,7 @@ Deno.serve(async (request) => {
       sessionId,
       message,
       origin,
-      reason: "vertex_error",
+      reason: "openai_error",
     });
     if (fallback) return fallback;
     return jsonResponse(
@@ -284,8 +310,9 @@ Deno.serve(async (request) => {
       return jsonResponse(
         {
           error:
-            "MedAsi Coin bakiyen yeterli değil. Cüzdandan coin yükleyip kaldığın yerden devam edebilirsin.",
+            "YZ kullanım hakkın veya Medasi Coin bakiyen yeterli değil. Cüzdandan paket alıp kaldığın yerden devam edebilirsin.",
           wallet_balance: error.walletBalance,
+          ai_quota: error.aiQuota,
           required_balance: error.requiredBalance,
         },
         402,
@@ -375,6 +402,40 @@ async function recordRuleBasedPatientTurn(options: {
   );
 }
 
+async function loadPatientResponseRules(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  caseId: string,
+): Promise<Array<Record<string, unknown>>> {
+  if (!caseId) return [];
+  const { data, error } = await supabase
+    .schema("praticase")
+    .from("case_patient_response_rules")
+    .select("match_terms,response,sort_order")
+    .eq("case_id", caseId)
+    .order("sort_order", { ascending: true })
+    .limit(24);
+
+  if (error || !Array.isArray(data)) {
+    if (error) {
+      console.error("praticase_patient_rules_load_failed", error.message);
+    }
+    return [];
+  }
+
+  return data
+    .map((row: unknown) => {
+      const item = isRecord(row) ? row : {};
+      return {
+        matchTerms: Array.isArray(item.match_terms)
+          ? item.match_terms.map(stringValue).filter(Boolean).slice(0, 8)
+          : [],
+        response: stringValue(item.response).slice(0, 260),
+      };
+    })
+    .filter((item) => item.response);
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -408,55 +469,22 @@ function patientProfileContext(value: unknown): Record<string, unknown> {
   return profile;
 }
 
-function safePatientFacts(value: unknown): unknown[] {
-  if (!Array.isArray(value)) return [];
-  return value
-    .slice(0, 18)
-    .map((item) => stripScoringFields(item))
-    .filter((item) => item !== null && item !== "");
-}
-
-function stripScoringFields(value: unknown): unknown {
-  if (typeof value === "string") return value.slice(0, 220);
-  if (typeof value === "number" || typeof value === "boolean") return value;
-  if (Array.isArray(value)) return value.slice(0, 8).map(stripScoringFields);
-  if (!isRecord(value)) return null;
-  const blocked = new Set([
-    "points",
-    "score",
-    "maxScore",
-    "rubric",
-    "weight",
-    "critical",
-    "criticalMistake",
-    "critical_mistake",
-    "ideal",
-    "idealAnswer",
-    "ideal_answer",
-    "management",
-    "expectedTests",
-    "expected_tests",
-    "unnecessaryTests",
-    "unnecessary_tests",
-    "differentials",
-    "expectedDifferentials",
-    "expected_differentials",
-  ]);
-  const cleaned: Record<string, unknown> = {};
-  for (const [key, nested] of Object.entries(value)) {
-    if (blocked.has(key)) continue;
-    cleaned[key] = stripScoringFields(nested);
-  }
-  return cleaned;
-}
-
 function sanitizePatientReply(value: string): string {
-  const text = value.trim().replace(/\s+/g, " ");
+  const text = value
+    .trim()
+    .replace(/^hasta\s*:\s*/i, "")
+    .replace(/\s+/g, " ");
   if (!text) return "";
-  if (looksUnsafePatientDisclosure(text)) {
+  if (needsPatientReplyRepair(text)) {
     return "Bunu bilemiyorum hocam; ben sadece şikayetimi ve nasıl hissettiğimi anlatabilirim.";
   }
   return completeAtSentenceBoundary(text, 560);
+}
+
+function needsPatientReplyRepair(text: string): boolean {
+  return looksIncompletePatientReply(text) ||
+    looksUnsafePatientDisclosure(text) ||
+    looksLikeEvaluatorReply(text);
 }
 
 function completeAtSentenceBoundary(text: string, maxLength: number): string {
@@ -480,6 +508,8 @@ function looksUnsafePatientDisclosure(text: string): boolean {
     /[{[\]}]/.test(text) ||
     /(sistem talimat|system prompt|gizli bağlam|json|rubrik|checklist|puan kırılım|beklenen cevap|ideal yaklaşım|kritik hata)/i
       .test(normalized) ||
+    /(anamnezde|öyküde|sorulması gereken|sorman gerek|sormalıyd|eksik bırakt|değerlendirme kriter)/i
+      .test(normalized) ||
     /(ön tanı listesi|ayırıcı tanı listesi|yönetim planı|gereksiz tetkik)/i
       .test(normalized) ||
     /(bende\s+(galiba|sanırım|muhtemelen)?\s*(apandisit|miyokart|enfarktüs|kalp krizi|zatürre|pnömoni|menenjit|inme|stroke|emboli|tromboz|kolesistit|pankreatit|ülser))/i
@@ -488,6 +518,18 @@ function looksUnsafePatientDisclosure(text: string): boolean {
       .test(normalized) ||
     /(ral|ronk[üu]s|üfürüm|rebound|defans|murphy|blumberg|babinski|kernig|brudzinski)/i
       .test(normalized)
+  );
+}
+
+function looksLikeEvaluatorReply(text: string): boolean {
+  const normalized = text.toLocaleLowerCase("tr");
+  return (
+    /^(\s*[-*•]|\s*\d+[.)])/.test(text) ||
+    /(öğrenci|aday|doktorun sorması|hekim şunu|bu durumda yapılması)/i
+      .test(normalized) ||
+    /(tanıya götür|klinik olarak|düşünülmeli|ayırt edilmeli|puanlanır)/i
+      .test(normalized) ||
+    text.split(/[.!?…]+/).filter((part) => part.trim().length > 0).length > 4
   );
 }
 

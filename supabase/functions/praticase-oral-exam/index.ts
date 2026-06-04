@@ -2,10 +2,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders, isAllowedOrigin, jsonResponse } from "../_shared/cors.ts";
 import {
   evaluationModel,
-  generateVertexContent,
+  generateOpenAiContent,
   historyModel,
-  vertexConfigured,
-} from "../_shared/vertex_ai.ts";
+  openAiConfigured,
+} from "../_shared/openai_ai.ts";
 import {
   chargeAiCoins,
   ensureAiCoinBalance,
@@ -145,7 +145,7 @@ Deno.serve(async (request) => {
     auth: { persistSession: false },
   });
 
-  if (!vertexConfigured()) {
+  if (!openAiConfigured()) {
     return jsonResponse(
       {
         error: "Sözlü sınav işlemi şu anda tamamlanamadı. Lütfen tekrar dene.",
@@ -300,7 +300,7 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
     caseBrief = stringValue(scenario.case_brief);
     moderationContext = buildScenarioModerationContext(branch, scenario);
     try {
-      const opening = await generateVertexContentWithFallback({
+      const opening = await generateOpenAiContentWithFallback({
         model: historyModel(),
         systemInstruction: `${persona.system_prompt}\n\n` +
           `ROL VE KİMLİK: Sen PratiCase Sözlü Sınavı'nda Komite Başkanı Sert Profesör tonunda ` +
@@ -342,9 +342,11 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
           exam_format: examFormat,
           scenario_id: scenarioId || null,
         },
-      }).catch((e) => console.error("praticase_oral_charge_failed", e?.message ?? e));
+      }).catch((e) =>
+        console.error("praticase_oral_charge_failed", e?.message ?? e)
+      );
     } catch (error) {
-      console.error("praticase_oral_start_vertex_failed", errorMessage(error));
+      console.error("praticase_oral_start_openai_failed", errorMessage(error));
       mentorMessage =
         `${caseBrief} Öncelikle bu hastaya yaklaşımını nasıl başlatırsın?`;
     }
@@ -352,7 +354,7 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
     // Senaryo seçilmedi: AI vaka brifi üretir; aynı anda gizli moderasyon
     // bağlamını yapılandırır ki sonraki turlar tutarlı puanlanabilsin.
     try {
-      const opening = await generateVertexContentWithFallback({
+      const opening = await generateOpenAiContentWithFallback({
         model: historyModel(),
         systemInstruction: `${persona.system_prompt}\n\n` +
           `ROL VE KİMLİK: Sen PratiCase Sözlü Sınavı için Baş Senarist ve Klinik Vaka ` +
@@ -411,9 +413,11 @@ async function startSession(admin: any, userId: string, body: JsonMap) {
           exam_format: examFormat,
           scenario_id: null,
         },
-      }).catch((e) => console.error("praticase_oral_charge_failed", e?.message ?? e));
+      }).catch((e) =>
+        console.error("praticase_oral_charge_failed", e?.message ?? e)
+      );
     } catch (error) {
-      console.error("praticase_oral_start_vertex_failed", errorMessage(error));
+      console.error("praticase_oral_start_openai_failed", errorMessage(error));
       caseBrief =
         `${branch.title} birimine klinik değerlendirme için başvuran bir hasta.`;
       moderationContext = {
@@ -619,15 +623,17 @@ async function takeTurn(admin: any, userId: string, body: JsonMap) {
       `6) Sınav bir SORU-CEVAP DİYALOĞUDUR: her tur yeni sorular getirir, her cevap yeni soruları tetikler.\n` +
       `7) Her hocanın asks_question alanı true olabilir — soru sormak doğaldır ve beklenen davranıştır.\n` +
       `8) Aday tek seferde 3 soruyla boğulmasın: her hoca EN FAZLA 1 soru sorsun, toplamda max 2-3 soru.\n` +
-      `9) Tüm hocaların persona_id değerlerini doğru kullan: ${panel.map((p: any) => `"${p.id}"`).join(", ")}.`
+      `9) Tüm hocaların persona_id değerlerini doğru kullan: ${
+        panel.map((p: any) => `"${p.id}"`).join(", ")
+      }.`
     : "";
 
   let parsed: JsonMap = {};
   let response:
-    | Awaited<ReturnType<typeof generateVertexContent>>
+    | Awaited<ReturnType<typeof generateOpenAiContent>>
     | null = null;
   try {
-    response = await generateVertexContentWithFallback({
+    response = await generateOpenAiContentWithFallback({
       model: historyModel(),
       systemInstruction: `${activePersona.system_prompt}\n` +
         `ÜST KURAL: Bu bir tıp fakültesi sözlü sınav moderasyonudur; görünen mesajda koçluk, ipucu, ideal cevap, ` +
@@ -685,7 +691,7 @@ async function takeTurn(admin: any, userId: string, body: JsonMap) {
     });
     parsed = safeParse(response.text);
   } catch (error) {
-    console.error("praticase_oral_turn_vertex_failed", errorMessage(error));
+    console.error("praticase_oral_turn_openai_failed", errorMessage(error));
   }
   const mentorMessage = safeOralMentorMessage(parsed.mentor_message) ||
     `Devam edelim, lütfen son cevabını klinik gerekçenle biraz daha açar mısın?`;
@@ -718,7 +724,9 @@ async function takeTurn(admin: any, userId: string, body: JsonMap) {
         session_id: sessionId,
         exam_format: session.exam_format,
       },
-    }).catch((e) => console.error("praticase_oral_charge_failed", e?.message ?? e));
+    }).catch((e) =>
+      console.error("praticase_oral_charge_failed", e?.message ?? e)
+    );
   }
 
   await admin.schema("praticase").from("oral_exam_turns").insert(
@@ -784,10 +792,10 @@ async function skipQuestion(admin: any, userId: string, body: JsonMap) {
 
   let parsed: JsonMap = {};
   let response:
-    | Awaited<ReturnType<typeof generateVertexContent>>
+    | Awaited<ReturnType<typeof generateOpenAiContent>>
     | null = null;
   try {
-    response = await generateVertexContentWithFallback({
+    response = await generateOpenAiContentWithFallback({
       model: historyModel(),
       systemInstruction: `${activePersona?.system_prompt ?? ""}\n\n` +
         `ROL VE KİMLİK: Sen PratiCase Sözlü Sınav Komitesi'nin aktif sorgulayıcı ` +
@@ -812,7 +820,9 @@ async function skipQuestion(admin: any, userId: string, body: JsonMap) {
           ? `KOMİSYON MODU: Üç hoca da pas geçilmesine tepki verir ve yeni soru sorar. ` +
             `Her hoca kendi karakteriyle kısa yorum + soru sorar (asks_question=true). ` +
             `"Değerlendirmeye aldık" gibi pasif klişeler KESİNLİKLE YASAK. ` +
-            `Her hoca farklı klinik açıdan soru sorsun. Persona ID'ler: ${panel.map((p: any) => `"${p.id}"`).join(", ")}.`
+            `Her hoca farklı klinik açıdan soru sorsun. Persona ID'ler: ${
+              panel.map((p: any) => `"${p.id}"`).join(", ")
+            }.`
           : `SOLO MOD: mentor_message alanına tepkiyi + tek yeni soruyu yaz.`),
       contents: [{
         role: "user",
@@ -828,7 +838,7 @@ async function skipQuestion(admin: any, userId: string, body: JsonMap) {
     });
     parsed = safeParse(response.text);
   } catch (error) {
-    console.error("praticase_oral_skip_vertex_failed", errorMessage(error));
+    console.error("praticase_oral_skip_openai_failed", errorMessage(error));
   }
   const mentorMessage = safeOralMentorMessage(parsed.mentor_message) ||
     `Bu soruyu atlıyoruz. Bu hastada ilk ayırıcı tanı yaklaşımını nasıl kurarsın?`;
@@ -854,7 +864,9 @@ async function skipQuestion(admin: any, userId: string, body: JsonMap) {
         session_id: sessionId,
         exam_format: session.exam_format,
       },
-    }).catch((e) => console.error("praticase_oral_charge_failed", e?.message ?? e));
+    }).catch((e) =>
+      console.error("praticase_oral_charge_failed", e?.message ?? e)
+    );
   }
 
   await admin.schema("praticase").from("oral_exam_turns").insert(
@@ -927,11 +939,11 @@ async function finalize(admin: any, userId: string, body: JsonMap) {
   );
 
   let evaluation:
-    | Awaited<ReturnType<typeof generateVertexContent>>
+    | Awaited<ReturnType<typeof generateOpenAiContent>>
     | null = null;
   let parsed: JsonMap = {};
   try {
-    evaluation = await generateVertexContentWithFallback({
+    evaluation = await generateOpenAiContentWithFallback({
       model: evaluationModel(),
       systemInstruction:
         `Sen tıp fakültesi sözlü sınav değerlendiricisisin. Adayın TÜM transcripti veriliyor. ` +
@@ -969,7 +981,7 @@ async function finalize(admin: any, userId: string, body: JsonMap) {
     });
     parsed = safeParse(evaluation.text);
   } catch (error) {
-    console.error("praticase_oral_finalize_vertex_failed", errorMessage(error));
+    console.error("praticase_oral_finalize_openai_failed", errorMessage(error));
   }
   if (
     numberValue(parsed.total_score) === null &&
@@ -992,7 +1004,9 @@ async function finalize(admin: any, userId: string, body: JsonMap) {
         session_id: sessionId,
         exam_format: session.exam_format,
       },
-    }).catch((e) => console.error("praticase_oral_charge_failed", e?.message ?? e));
+    }).catch((e) =>
+      console.error("praticase_oral_charge_failed", e?.message ?? e)
+    );
   }
 
   const reasoning = clamp(numberValue(parsed.reasoning_score) ?? 0, 0, 40);
@@ -1347,20 +1361,20 @@ function looksUnsafeOralCoaching(message: string) {
     .test(normalized);
 }
 
-async function generateVertexContentWithFallback(
-  options: Parameters<typeof generateVertexContent>[0],
+async function generateOpenAiContentWithFallback(
+  options: Parameters<typeof generateOpenAiContent>[0],
 ) {
   try {
-    const generated = await generateVertexContent(options);
+    const generated = await generateOpenAiContent(options);
     if (generated.finishReason !== "MAX_TOKENS") return generated;
-    return await generateVertexContent({
+    return await generateOpenAiContent({
       ...options,
       maxOutputTokens: Math.max(options.maxOutputTokens ?? 0, 2400),
       temperature: Math.min(options.temperature ?? 0.4, 0.35),
     });
   } catch (error) {
     if (!errorMessage(error).includes("empty response")) throw error;
-    return await generateVertexContent({
+    return await generateOpenAiContent({
       ...options,
       model: historyModel(),
       maxOutputTokens: Math.max(options.maxOutputTokens ?? 0, 2400),

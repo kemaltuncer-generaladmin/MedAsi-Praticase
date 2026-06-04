@@ -56,7 +56,15 @@ class StoreController extends ChangeNotifier {
   Future<void> initialize() async {
     if (_initialized) return;
     await _service.initialize();
-    _subscription = _service.purchaseUpdates.listen(_handlePurchase);
+    _subscription = _service.purchaseUpdates.listen(
+      _handlePurchase,
+      onError: (Object _) {
+        _statusMessage = null;
+        _errorMessage =
+            'App Store satın alma durumu izlenemedi. Lütfen tekrar dene.';
+        _setBusy(false);
+      },
+    );
     _initialized = true;
   }
 
@@ -101,9 +109,9 @@ class StoreController extends ChangeNotifier {
       await _openPaymentCheckout(product);
       return;
     }
-    _setBusy(true);
     _errorMessage = null;
-    _statusMessage = 'App Store ödeme onayı bekleniyor.';
+    _statusMessage = 'Ödemeniz alınıyor. App Store onayı bekleniyor.';
+    _setBusy(true);
     try {
       final started = await _service.buy(product);
       if (!started) {
@@ -120,9 +128,9 @@ class StoreController extends ChangeNotifier {
   }
 
   Future<void> _openPaymentCheckout(PratiCaseStoreProduct product) async {
-    _setBusy(true);
     _errorMessage = null;
-    _statusMessage = 'Ödeme sayfası hazırlanıyor.';
+    _statusMessage = 'Ödemeniz alınıyor. Ödeme sayfası hazırlanıyor.';
+    _setBusy(true);
     try {
       final uri = await _repo.createPaymentCheckout(
         productCode: product.code,
@@ -141,7 +149,8 @@ class StoreController extends ChangeNotifier {
           code: 'checkout_launch_failed',
         );
       }
-      _statusMessage = 'Ödeme sayfası açıldı.';
+      _statusMessage =
+          'Ödeme sayfası açıldı. İşlemini kart veya IBAN ile tamamlayabilirsin.';
     } on StorePurchaseException catch (error) {
       _errorMessage = PratiCaseUserMessage.purchase(error.message);
     } on Object {

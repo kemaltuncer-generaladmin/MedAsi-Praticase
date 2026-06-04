@@ -8,7 +8,12 @@ import '../../features/theoretical_exam/data/theoretical_exam_repository.dart';
 import '../../features/theoretical_exam/domain/theoretical_exam_models.dart';
 
 const _repositoryTimeout = Duration(seconds: 25);
-const _resultRepositoryTimeout = Duration(seconds: 90);
+
+/// AI-generative calls go through OpenAI and can run well past the standard
+/// timeout on cold starts. Used by the patient turn and the end-of-case result
+/// generation so a slow-but-successful answer is not dropped client-side
+/// (which would desync the saved conversation).
+const _aiRepositoryTimeout = Duration(seconds: 90);
 
 extension _TimeoutFuture<T> on Future<T> {
   Future<T> withRepositoryTimeout() => timeout(_repositoryTimeout);
@@ -67,7 +72,7 @@ class TimeoutCasesRepository implements CasesRepository {
     required String message,
   }) => _delegate
       .sendPatientQuestion(sessionId: sessionId, message: message)
-      .withRepositoryTimeout();
+      .timeout(_aiRepositoryTimeout);
 
   @override
   Future<List<PhysicalExamGroup>> loadPhysicalExamGroups(String caseId) =>
@@ -167,7 +172,7 @@ class TimeoutCasesRepository implements CasesRepository {
 
   @override
   Future<ExamResultSummary> loadResult(String sessionId) =>
-      _delegate.loadResult(sessionId).timeout(_resultRepositoryTimeout);
+      _delegate.loadResult(sessionId).timeout(_aiRepositoryTimeout);
 
   @override
   Future<LabResultDetail?> loadLabResult(String testOptionId) =>

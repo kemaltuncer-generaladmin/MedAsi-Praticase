@@ -28,7 +28,7 @@ class PasswordStrengthIndicator extends StatelessWidget {
                 Icon(
                   Icons.check_rounded,
                   color: item.$2
-                      ? const Color(0xFF16A36C)
+                      ? PratiCaseColors.successGreen
                       : PratiCaseColors.teal,
                   size: 30,
                 ),
@@ -37,7 +37,7 @@ class PasswordStrengthIndicator extends StatelessWidget {
                   child: Text(
                     item.$1,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: const Color(0xFF23364F),
+                      color: PratiCaseColors.slateBlue,
                       fontSize: 17,
                     ),
                   ),

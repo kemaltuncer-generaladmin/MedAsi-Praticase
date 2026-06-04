@@ -1676,6 +1676,7 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
 
   Future<void> _skip() async {
     if (_sending || _finalizing) return;
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
       _sending = true;
       _messages.add(
@@ -1708,6 +1709,7 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
 
   Future<void> _finalize() async {
     if (_finalizing) return;
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() => _finalizing = true);
     try {
       final result = await widget.repository.finalizeSession(widget.session.id);
@@ -3454,7 +3456,7 @@ class _OralExamResultScreenState extends State<OralExamResultScreen> {
               delay: const Duration(milliseconds: 220),
               child: _FeedbackBlock(
                 title: 'Kritik Hatalar',
-                color: const Color(0xFFB91C1C),
+                color: PratiCaseColors.errorRed,
                 icon: Icons.warning_amber_rounded,
                 items: r.criticalErrors,
               ),

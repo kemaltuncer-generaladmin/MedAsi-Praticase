@@ -608,6 +608,8 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
   bool _voiceExamMode = false;
   String? _pendingCandidateMessage;
   VoiceExamState _voiceState = const VoiceExamState();
+  bool _wasSpeaking = false;
+  String? _shownVoiceError;
 
   @override
   void initState() {
@@ -616,9 +618,37 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
     _voiceState = _voiceAdapter.state;
     _voiceSubscription = _voiceAdapter.states.listen((state) {
       if (!mounted) return;
+      // Detect the moment the patient finishes speaking so a hands-free voice
+      // exam can reopen the microphone automatically (the user just keeps
+      // talking, no tap required).
+      final finishedSpeaking = _wasSpeaking && !state.speaking;
+      _wasSpeaking = state.speaking;
       setState(() => _voiceState = state);
+      _surfaceVoiceError(state);
+      if (finishedSpeaking) _maybeAutoResumeListening();
     });
     _bundleFuture = _load();
+  }
+
+  /// Surfaces a voice error (mic unavailable, speech synthesis failed, …) once,
+  /// so spoken-mode failures are never silent. Re-arms when the error clears.
+  void _surfaceVoiceError(VoiceExamState state) {
+    final error = state.errorMessage?.trim();
+    if (error == null || error.isEmpty) {
+      _shownVoiceError = null;
+      return;
+    }
+    if (error == _shownVoiceError || !mounted) return;
+    _shownVoiceError = error;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+  }
+
+  /// Reopens the microphone after the patient's reply finishes playing so the
+  /// candidate can continue the anamnesis entirely by voice.
+  void _maybeAutoResumeListening() {
+    if (!_voiceExamMode || _voiceState.muted || !_voiceState.available) return;
+    if (_sending || _voiceState.listening || _voiceState.speaking) return;
+    unawaited(_beginListening());
   }
 
   @override
@@ -645,6 +675,8 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
     FocusManager.instance.primaryFocus?.unfocus();
+    final currentBundle = await _bundleFuture;
+    final previousPatientReplies = _patientReplyCount(currentBundle.messages);
     setState(() {
       _sending = true;
       _pendingCandidateMessage = text;
@@ -656,33 +688,36 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
         sessionId: widget.sessionId,
         message: text,
       );
-      final bundle = await _bundleFuture;
       final messages = await widget.repository.loadMessages(widget.sessionId);
       final sortedMessages = _chronologicalMessages(messages);
       setState(
         () => _bundleFuture = Future.value(
-          bundle.copyWith(messages: sortedMessages),
+          currentBundle.copyWith(messages: sortedMessages),
         ),
       );
       await _bundleFuture;
-      unawaited(_speakLatestPatient(bundle.copyWith(messages: sortedMessages)));
+      unawaited(
+        _speakLatestPatient(currentBundle.copyWith(messages: sortedMessages)),
+      );
       _scheduleScrollToBottom();
-    } on CasesDataUnavailable catch (error) {
+    } on Object catch (error) {
+      // A long AI patient turn can complete on the server even when the HTTP
+      // call fails client-side (slow/dropped connection). Re-fetch before
+      // surfacing an error so a slow-but-successful reply is never lost and the
+      // question is not duplicated on retry.
+      final recovered = await _recoverAfterFailedSend(
+        currentBundle,
+        previousPatientReplies,
+      );
+      if (recovered || !mounted) return;
       _restoreFailedMessage(text);
       if (!mounted) return;
+      final message = error is CasesDataUnavailable
+          ? error.message
+          : 'Hasta yanıtı alınamadı. Bağlantını kontrol edip tekrar dene.';
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
-    } on Object {
-      _restoreFailedMessage(text);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Hasta yanıtı alınamadı. Bağlantını kontrol edip tekrar dene.',
-          ),
-        ),
-      );
+      ).showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) {
         setState(() {
@@ -692,6 +727,45 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
         _scheduleScrollToBottom();
       }
     }
+  }
+
+  int _patientReplyCount(List<ChatMessage> messages) =>
+      messages.where((message) => !message.fromCandidate).length;
+
+  /// After a failed send, the server may still have recorded the patient reply.
+  /// Re-fetch (with one short delayed retry for replies that land moments later)
+  /// and adopt the conversation if a new patient turn appeared. Returns true
+  /// when recovery succeeded, so the caller can skip the error path.
+  Future<bool> _recoverAfterFailedSend(
+    _ChatBundle base,
+    int previousPatientReplies,
+  ) async {
+    for (var attempt = 0; attempt < 2 && mounted; attempt++) {
+      if (attempt > 0) {
+        await Future<void>.delayed(const Duration(seconds: 3));
+        if (!mounted) return false;
+      }
+      try {
+        final messages = await widget.repository.loadMessages(widget.sessionId);
+        final sortedMessages = _chronologicalMessages(messages);
+        if (_patientReplyCount(sortedMessages) <= previousPatientReplies) {
+          continue;
+        }
+        if (!mounted) return true;
+        setState(
+          () => _bundleFuture = Future.value(
+            base.copyWith(messages: sortedMessages),
+          ),
+        );
+        await _bundleFuture;
+        unawaited(_speakLatestPatient(base.copyWith(messages: sortedMessages)));
+        _scheduleScrollToBottom();
+        return true;
+      } on Object {
+        // Reload failed too; fall through to retry or give up.
+      }
+    }
+    return false;
   }
 
   Future<void> _next() async {
@@ -742,6 +816,13 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
       await _voiceAdapter.stopListening();
       return;
     }
+    // Tapping the mic while the patient is still speaking interrupts playback
+    // (barge-in) so the candidate can jump straight back in.
+    if (_voiceState.speaking) await _voiceAdapter.stopSpeaking();
+    await _beginListening();
+  }
+
+  Future<void> _beginListening() async {
     await _voiceAdapter.startListening(
       onPartialText: (text) {
         if (!mounted || text.trim().isEmpty) return;
@@ -1033,7 +1114,14 @@ class _PhysicalExamScreenState extends State<PhysicalExamScreen> {
                 child: ListView(
                   padding: _flowListPadding(context, top: 16),
                   children: [
-                    const _PhaseTabs(activeStep: 2),
+                    _PhaseTabs(
+                      activeStep: 2,
+                      onStepSelected: (step) => _popBackToExamPhase(
+                        context,
+                        activeStep: 2,
+                        step: step,
+                      ),
+                    ),
                     const SizedBox(height: 16),
                     _PatientBanner(session: bundle.session),
                     const SizedBox(height: 18),
@@ -1115,6 +1203,8 @@ class _TestsScreenState extends State<TestsScreen> {
   late Future<_TestsBundle> _bundleFuture;
   String? _selectedGroupId;
   TestOption? _activeResult;
+  final Set<String> _basket = <String>{};
+  List<TestOption> _fetchedResults = const <TestOption>[];
   var _phaseReady = false;
   var _requesting = false;
   var _navigating = false;
@@ -1139,25 +1229,49 @@ class _TestsScreenState extends State<TestsScreen> {
     return _TestsBundle(session: session, groups: groups, options: options);
   }
 
-  Future<void> _request(String optionId) async {
-    if (_requesting) return;
+  void _toggleBasket(String optionId) {
+    setState(() {
+      if (!_basket.remove(optionId)) _basket.add(optionId);
+    });
+  }
+
+  /// Requests every test queued in the basket in one go, then reveals all of
+  /// the freshly returned results together (a "sepet" checkout for tetkikler).
+  Future<void> _fetchBasket() async {
+    if (_requesting || _basket.isEmpty) return;
     setState(() => _requesting = true);
+    final ids = _basket.toList();
+    final failed = <String>{};
     try {
       final bundle = await _bundleFuture;
-      final option = bundle.options.firstWhere((item) => item.id == optionId);
-      await widget.repository.requestTest(
-        sessionId: widget.sessionId,
-        optionId: optionId,
-      );
+      final fetched = <TestOption>[];
+      for (final id in ids) {
+        try {
+          await widget.repository.requestTest(
+            sessionId: widget.sessionId,
+            optionId: id,
+          );
+          fetched.add(bundle.options.firstWhere((item) => item.id == id));
+        } on CasesDataUnavailable {
+          failed.add(id);
+        }
+      }
+      if (!mounted) return;
       setState(() {
-        _activeResult = option;
+        _basket
+          ..clear()
+          ..addAll(failed);
+        _fetchedResults = fetched;
+        _activeResult = null;
         _bundleFuture = _load();
       });
-    } on CasesDataUnavailable catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
+      if (failed.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Bazı tetkikler getirilemedi. Tekrar dene.'),
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _requesting = false);
     }
@@ -1225,6 +1339,9 @@ class _TestsScreenState extends State<TestsScreen> {
           final selectedCount = bundle.options
               .where((item) => item.isSelected)
               .length;
+          final basketOptions = bundle.options
+              .where((item) => _basket.contains(item.id))
+              .toList();
           return Column(
             children: [
               _ExamTopBar(
@@ -1238,14 +1355,30 @@ class _TestsScreenState extends State<TestsScreen> {
                 child: ListView(
                   padding: _flowListPadding(context, top: 16),
                   children: [
-                    const _PhaseTabs(activeStep: 3),
+                    _PhaseTabs(
+                      activeStep: 3,
+                      onStepSelected: (step) => _popBackToExamPhase(
+                        context,
+                        activeStep: 3,
+                        step: step,
+                      ),
+                    ),
                     const SizedBox(height: 18),
                     _SelectionSummary(
                       text: 'İstem Listem ($selectedCount)',
                       subtext: selectedCount == 0
-                          ? 'Henüz tetkik istenmedi'
-                          : '$selectedCount tetkik istendi',
+                          ? 'Henüz tetkik getirilmedi'
+                          : '$selectedCount tetkik getirildi',
                     ),
+                    if (basketOptions.isNotEmpty) ...[
+                      const SizedBox(height: 14),
+                      _TestBasketCard(
+                        options: basketOptions,
+                        requesting: _requesting,
+                        onRemove: _toggleBasket,
+                        onFetch: _fetchBasket,
+                      ),
+                    ],
                     const SizedBox(height: 18),
                     if (bundle.groups.isEmpty)
                       const _CenteredState(
@@ -1278,14 +1411,19 @@ class _TestsScreenState extends State<TestsScreen> {
                       _TestOptionsCard(
                         title: '${selectedGroup.title} Tetkikleri',
                         options: visible,
-                        onRequest: _request,
+                        basket: _basket,
+                        onToggleBasket: _toggleBasket,
                         onOpenDetail: (option) =>
                             setState(() => _activeResult = option),
                       ),
-                      if (_activeResult != null) ...[
-                        const SizedBox(height: 14),
-                        _InlineTestResultCard(option: _activeResult!),
-                      ],
+                    ],
+                    if (_fetchedResults.isNotEmpty) ...[
+                      const SizedBox(height: 18),
+                      _FetchedResultsSection(results: _fetchedResults),
+                    ],
+                    if (_activeResult != null) ...[
+                      const SizedBox(height: 14),
+                      _InlineTestResultCard(option: _activeResult!),
                     ],
                   ],
                 ),
@@ -1511,7 +1649,14 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
                       ScrollViewKeyboardDismissBehavior.onDrag,
                   padding: _flowListPadding(context, top: 16, bottom: 130),
                   children: [
-                    const _PhaseTabs(activeStep: 4),
+                    _PhaseTabs(
+                      activeStep: 4,
+                      onStepSelected: (step) => _popBackToExamPhase(
+                        context,
+                        activeStep: 4,
+                        step: step,
+                      ),
+                    ),
                     const SizedBox(height: 18),
                     _InputBlock(
                       label: 'Ön Tanı',
@@ -1737,7 +1882,14 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
                       ScrollViewKeyboardDismissBehavior.onDrag,
                   padding: _flowListPadding(context, top: 16, bottom: 130),
                   children: [
-                    const _PhaseTabs(activeStep: 5),
+                    _PhaseTabs(
+                      activeStep: 5,
+                      onStepSelected: (step) => _popBackToExamPhase(
+                        context,
+                        activeStep: 5,
+                        step: step,
+                      ),
+                    ),
                     const SizedBox(height: 18),
                     _InputBlock(
                       label: 'Ön Tanı',
@@ -1888,8 +2040,13 @@ class _ResultScreenState extends State<ResultScreen> {
   }
 
   void _scheduleFeedbackRefresh(ExamResultSummary result) {
-    if (_feedbackRefreshScheduled ||
-        !result.idealApproach.startsWith('İstasyonu yapılandırılmış')) {
+    if (_feedbackRefreshScheduled) {
+      return;
+    }
+    final hasFallbackApproach = result.idealApproach.startsWith(
+      'İstasyonu yapılandırılmış',
+    );
+    if (!hasFallbackApproach && result.checklistSections.isNotEmpty) {
       return;
     }
     _feedbackRefreshScheduled = true;
@@ -2097,7 +2254,7 @@ class ResultAiSupportScreen extends StatelessWidget {
       body: ListView(
         padding: _flowListPadding(context, bottom: 40),
         children: [
-          const _StepTopBar(title: 'AI Destek'),
+          const _StepTopBar(title: 'Recall Planı'),
           const SizedBox(height: 18),
           _AiSupportHero(result: result),
           const SizedBox(height: 14),
@@ -2108,7 +2265,7 @@ class ResultAiSupportScreen extends StatelessWidget {
           const SizedBox(height: 14),
           _FeedbackCard(
             title: 'Hemen Çalışılacak Başlıklar',
-            icon: Icons.auto_awesome_rounded,
+            icon: Icons.history_edu_rounded,
             color: PratiCaseColors.teal,
             items: supportTopics,
           ),
@@ -2186,7 +2343,7 @@ class _AiSupportHero extends StatelessWidget {
                   ),
                 ),
                 child: const Icon(
-                  Icons.auto_awesome_rounded,
+                  Icons.history_edu_rounded,
                   color: PratiCaseColors.tealBright,
                 ),
               ),
@@ -2196,7 +2353,7 @@ class _AiSupportHero extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Kişisel çalışma desteği',
+                      'Recall çalışma yönlendirmesi',
                       style: TextStyle(
                         color: PratiCaseColors.tealBright,
                         fontSize: 12,
@@ -2393,6 +2550,8 @@ class CaseReportScreen extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           _ScoreGrid(scores: result.categoryScores),
+          const SizedBox(height: 14),
+          _ChecklistReportCard(sections: result.checklistSections),
           const SizedBox(height: 14),
           _FeedbackCard(
             title: 'Güçlü Yönlerin',
@@ -3104,30 +3263,7 @@ class _PageTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            color: PratiCaseColors.navy,
-            fontSize: 32,
-            fontWeight: FontWeight.w900,
-            height: 1.1,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          subtitle,
-          style: const TextStyle(
-            color: PratiCaseColors.muted,
-            fontSize: 15,
-            height: 1.45,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
+    return PageTitle(title: title, subtitle: subtitle);
   }
 }
 
@@ -3146,37 +3282,12 @@ class _SearchBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    return PratiCaseSearchField(
       controller: controller,
-      onChanged: (_) => onChanged(),
-      onSubmitted: (_) => onSubmitted(),
-      textInputAction: TextInputAction.search,
-      decoration: InputDecoration(
-        hintText: 'İstasyon ara...',
-        prefixIcon: const Padding(
-          padding: EdgeInsets.only(left: 8, right: 4),
-          child: Icon(Icons.search_rounded, color: PratiCaseColors.navy),
-        ),
-        suffixIcon: controller.text.trim().isEmpty
-            ? null
-            : IconButton(
-                tooltip: 'Aramayı temizle',
-                onPressed: onClear,
-                icon: const Icon(Icons.close_rounded),
-              ),
-        prefixIconConstraints: const BoxConstraints(minWidth: 50),
-        filled: true,
-        fillColor: PratiCaseColors.white,
-        contentPadding: const EdgeInsets.symmetric(vertical: 22),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
-          borderSide: const BorderSide(color: PratiCaseColors.border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
-          borderSide: const BorderSide(color: PratiCaseColors.border),
-        ),
-      ),
+      hintText: 'İstasyon ara...',
+      onChanged: onChanged,
+      onSubmitted: onSubmitted,
+      onClear: onClear,
     );
   }
 }
@@ -3788,9 +3899,13 @@ class _TimerBadgeState extends State<_TimerBadge>
 }
 
 class _PhaseTabs extends StatelessWidget {
-  const _PhaseTabs({required this.activeStep});
+  const _PhaseTabs({required this.activeStep, this.onStepSelected});
 
   final int activeStep;
+
+  /// When provided, already-completed (earlier) phases become tappable so the
+  /// candidate can step back — e.g. return to Tetkik to request more labs.
+  final ValueChanged<int>? onStepSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -3818,6 +3933,9 @@ class _PhaseTabs extends StatelessWidget {
                 label: labels[index],
                 active: index + 1 == activeStep,
                 complete: index + 1 < activeStep,
+                onTap: (index + 1 < activeStep && onStepSelected != null)
+                    ? () => onStepSelected!(index + 1)
+                    : null,
               ),
             ),
             if (index != labels.length - 1)
@@ -3844,19 +3962,21 @@ class _PhaseStep extends StatelessWidget {
     required this.label,
     required this.active,
     required this.complete,
+    this.onTap,
   });
 
   final IconData icon;
   final String label;
   final bool active;
   final bool complete;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final color = active || complete
         ? PratiCaseColors.teal
         : PratiCaseColors.muted;
-    return Column(
+    final content = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         AnimatedContainer(
@@ -3901,6 +4021,33 @@ class _PhaseStep extends StatelessWidget {
         ),
       ],
     );
+    if (onTap == null) return content;
+    return Semantics(
+      button: true,
+      enabled: true,
+      label: '$label aşamasına dön',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: content,
+        ),
+      ),
+    );
+  }
+}
+
+void _popBackToExamPhase(
+  BuildContext context, {
+  required int activeStep,
+  required int step,
+}) {
+  if (step >= activeStep) return;
+  final navigator = Navigator.of(context);
+  for (var popCount = activeStep - step; popCount > 0; popCount--) {
+    if (!navigator.canPop()) return;
+    navigator.pop();
   }
 }
 
@@ -4929,13 +5076,15 @@ class _TestOptionsCard extends StatelessWidget {
   const _TestOptionsCard({
     required this.title,
     required this.options,
-    required this.onRequest,
+    required this.basket,
+    required this.onToggleBasket,
     required this.onOpenDetail,
   });
 
   final String title;
   final List<TestOption> options;
-  final ValueChanged<String> onRequest;
+  final Set<String> basket;
+  final ValueChanged<String> onToggleBasket;
   final ValueChanged<TestOption> onOpenDetail;
 
   @override
@@ -4950,7 +5099,8 @@ class _TestOptionsCard extends StatelessWidget {
             for (final item in options) ...[
               _TestOptionTile(
                 item: item,
-                onRequest: () => onRequest(item.id),
+                inBasket: basket.contains(item.id),
+                onToggleBasket: () => onToggleBasket(item.id),
                 onOpenDetail: () => onOpenDetail(item),
               ),
               const SizedBox(height: 10),
@@ -4964,39 +5114,41 @@ class _TestOptionsCard extends StatelessWidget {
 class _TestOptionTile extends StatelessWidget {
   const _TestOptionTile({
     required this.item,
-    required this.onRequest,
+    required this.inBasket,
+    required this.onToggleBasket,
     required this.onOpenDetail,
   });
 
   final TestOption item;
-  final VoidCallback onRequest;
+  final bool inBasket;
+  final VoidCallback onToggleBasket;
   final VoidCallback onOpenDetail;
 
   @override
   Widget build(BuildContext context) {
+    final requested = item.isSelected;
+    final highlighted = requested || inBasket;
+    final accent = requested
+        ? PratiCaseColors.successGreen
+        : PratiCaseColors.teal;
     return Container(
       decoration: BoxDecoration(
-        color: item.isSelected
-            ? PratiCaseColors.teal.withValues(alpha: 0.06)
+        color: highlighted
+            ? accent.withValues(alpha: 0.06)
             : PratiCaseColors.white,
         borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-        border: item.isSelected
-            ? Border.all(
-                color: PratiCaseColors.teal.withValues(alpha: 0.45),
-                width: 1.4,
-              )
+        border: highlighted
+            ? Border.all(color: accent.withValues(alpha: 0.45), width: 1.4)
             : Border.all(color: PratiCaseColors.border),
         boxShadow: PratiCaseShadows.card,
       ),
       child: Material(
         type: MaterialType.transparency,
         child: ListTile(
-          onTap: item.isSelected ? onOpenDetail : onRequest,
+          onTap: requested ? onOpenDetail : onToggleBasket,
           leading: _SoftIcon(
             icon: Icons.science_outlined,
-            color: item.isSelected
-                ? PratiCaseColors.successGreen
-                : PratiCaseColors.teal,
+            color: accent,
             size: 42,
           ),
           title: Text(
@@ -5008,18 +5160,206 @@ class _TestOptionTile extends StatelessWidget {
               fontWeight: FontWeight.w800,
             ),
           ),
-          subtitle: item.isSelected
-              ? const Text('Sonuç alttaki kutuda gösteriliyor.')
-              : null,
+          subtitle: Text(
+            requested
+                ? 'Sonuç alttaki kutuda gösteriliyor.'
+                : inBasket
+                ? 'Sepette — Getir ile sonucu al.'
+                : 'İstem sepetine ekle.',
+            style: const TextStyle(
+              color: PratiCaseColors.muted,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           isThreeLine: false,
           trailing: Icon(
-            item.isSelected
+            requested
                 ? Icons.visibility_outlined
+                : inBasket
+                ? Icons.check_circle_rounded
                 : Icons.add_circle_outline_rounded,
-            color: PratiCaseColors.teal,
+            color: accent,
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Cart-style summary of queued tetkikler with a single bulk "Getir" action.
+class _TestBasketCard extends StatelessWidget {
+  const _TestBasketCard({
+    required this.options,
+    required this.requesting,
+    required this.onRemove,
+    required this.onFetch,
+  });
+
+  final List<TestOption> options;
+  final bool requesting;
+  final ValueChanged<String> onRemove;
+  final Future<void> Function() onFetch;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            PratiCaseColors.white,
+            PratiCaseColors.teal.withValues(alpha: 0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+        border: Border.all(color: PratiCaseColors.teal.withValues(alpha: 0.30)),
+        boxShadow: PratiCaseShadows.card,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.shopping_basket_rounded,
+                color: PratiCaseColors.teal,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'İstem Sepeti (${options.length})',
+                style: const TextStyle(
+                  color: PratiCaseColors.navy,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 15,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final option in options)
+                _BasketChip(
+                  label: option.title,
+                  onRemove: () => onRemove(option.id),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: requesting ? null : () => onFetch(),
+              icon: requesting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.download_rounded),
+              label: Text(
+                requesting
+                    ? 'Getiriliyor...'
+                    : 'Seçilenleri Getir (${options.length})',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BasketChip extends StatelessWidget {
+  const _BasketChip({required this.label, required this.onRemove});
+
+  final String label;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 220),
+      padding: const EdgeInsets.fromLTRB(12, 7, 8, 7),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.teal.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+        border: Border.all(color: PratiCaseColors.teal.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: PratiCaseColors.navy,
+                fontWeight: FontWeight.w700,
+                fontSize: 12.5,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          InkWell(
+            onTap: onRemove,
+            borderRadius: BorderRadius.circular(20),
+            child: const Icon(
+              Icons.close_rounded,
+              size: 16,
+              color: PratiCaseColors.teal,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shows every result returned by the latest basket fetch together.
+class _FetchedResultsSection extends StatelessWidget {
+  const _FetchedResultsSection({required this.results});
+
+  final List<TestOption> results;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(
+              Icons.fact_check_rounded,
+              color: PratiCaseColors.teal,
+              size: 19,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Getirilen Sonuçlar (${results.length})',
+              style: const TextStyle(
+                color: PratiCaseColors.navy,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        for (final option in results) ...[
+          _InlineTestResultCard(option: option),
+          const SizedBox(height: 12),
+        ],
+      ],
     );
   }
 }
@@ -5192,60 +5532,11 @@ class _BottomAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
+    return PratiCaseFlowActionButton(
       identifier: identifier,
-      button: true,
       label: label,
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 180),
-        opacity: onPressed == null ? 0.55 : 1,
-        child: PressableScale(
-          scale: 0.96,
-          onTap: onPressed,
-          child: SizedBox(
-            height: 52,
-            width: double.infinity,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: onPressed == null ? null : PratiCaseGradients.action,
-                color: onPressed == null ? PratiCaseColors.border : null,
-                borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
-                boxShadow: onPressed == null
-                    ? null
-                    : [
-                        BoxShadow(
-                          color: PratiCaseColors.teal.withValues(alpha: 0.22),
-                          blurRadius: 22,
-                          spreadRadius: -7,
-                          offset: const Offset(0, 14),
-                        ),
-                      ],
-              ),
-              child: FilledButton.icon(
-                onPressed: onPressed,
-                label: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                icon: Icon(icon),
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  disabledBackgroundColor: Colors.transparent,
-                  foregroundColor: PratiCaseColors.white,
-                  disabledForegroundColor: PratiCaseColors.muted,
-                  textStyle: const TextStyle(fontWeight: FontWeight.w900),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
-                  ),
-                  elevation: 0,
-                  shadowColor: Colors.transparent,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
+      icon: icon,
+      onPressed: onPressed,
     );
   }
 }
@@ -6120,11 +6411,9 @@ class _ManagementOptionTile extends StatelessWidget {
 }
 
 BoxDecoration _cardDecoration({double radius = PratiCaseRadius.xl}) {
-  return BoxDecoration(
-    color: PratiCaseColors.white,
-    borderRadius: BorderRadius.circular(radius),
-    border: Border.all(color: PratiCaseColors.border.withValues(alpha: 0.88)),
-    boxShadow: PratiCaseShadows.card,
+  return PratiCaseCardDecorations.card(
+    borderColor: PratiCaseColors.border.withValues(alpha: 0.88),
+    radius: radius,
   );
 }
 

@@ -307,7 +307,7 @@ class _BenefitList extends StatelessWidget {
     (
       Icons.savings_outlined,
       'Medasi Coin',
-      'Sanal hasta, AI karne ve sözlü sınav işlemlerinde kullanılır.',
+      'Sanal hasta, Recall planı ve sözlü sınav işlemlerinde kullanılır.',
     ),
     (
       Icons.menu_book_outlined,
@@ -396,6 +396,18 @@ String _formatPrice(int cents) {
   return '₺$formatted';
 }
 
+String _displayPrice(PratiCaseStoreProduct product) {
+  final localized = product.localizedPrice?.trim();
+  if (localized != null && localized.isNotEmpty) return localized;
+  return _formatPrice(product.priceCents);
+}
+
+String _displayDescription(PratiCaseStoreProduct product) {
+  final localized = product.localizedDescription?.trim();
+  if (localized != null && localized.isNotEmpty) return localized;
+  return product.description;
+}
+
 class _ProductCard extends StatelessWidget {
   const _ProductCard({
     required this.product,
@@ -410,7 +422,7 @@ class _ProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final periodLabel = product.periodLabel;
-    final priceText = _formatPrice(product.priceCents);
+    final priceText = _displayPrice(product);
     final originalPriceText = product.originalPriceCents == null
         ? null
         : _formatPrice(product.originalPriceCents!);
@@ -503,7 +515,7 @@ class _ProductCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  product.description,
+                  _displayDescription(product),
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -575,7 +587,7 @@ class _PurchaseButton extends StatelessWidget {
     final label = product == null
         ? 'Bir paket seçin'
         : externalCheckout
-        ? 'Banka transferi ile öde'
+        ? 'Kart veya IBAN ile öde'
         : !product!.canPurchaseInPratiCase
         ? 'Satın alma bu uygulamada hazır değil'
         : product!.isSubscription
@@ -585,6 +597,7 @@ class _PurchaseButton extends StatelessWidget {
       label: label,
       onPressed: disabled ? null : onTap,
       loading: busy,
+      loadingLabel: 'Ödemeniz alınıyor...',
       pulse: !disabled,
       height: 56,
       icon: disabled ? null : Icons.shopping_bag_rounded,
@@ -683,7 +696,7 @@ class _RenewalDisclosure extends StatelessWidget {
   }
 
   String _renewalText(PratiCaseStoreProduct product) {
-    final price = _formatPrice(product.priceCents);
+    final price = _displayPrice(product);
     final period = product.periodLabel.isNotEmpty
         ? product.periodLabel
         : '${product.durationDays} gün';

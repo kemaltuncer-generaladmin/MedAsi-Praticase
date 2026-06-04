@@ -6,6 +6,7 @@ import '../../../app/theme/praticase_colors.dart';
 import '../../../app/theme/praticase_motion.dart';
 import '../../../app/theme/praticase_tokens.dart';
 import '../../../shared/data/user_facing_error.dart';
+import '../../../shared/ui/clinical_card.dart';
 import '../../../shared/ui/praticase_visuals.dart';
 import '../../../shared/ui/responsive.dart';
 import '../data/theoretical_exam_repository.dart';
@@ -1580,11 +1581,9 @@ class _StateView extends StatelessWidget {
 }
 
 BoxDecoration _cardDecoration() {
-  return BoxDecoration(
-    color: PratiCaseColors.white,
-    borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
-    border: Border.all(color: PratiCaseColors.border),
-    boxShadow: PratiCaseShadows.card,
+  return PratiCaseCardDecorations.card(
+    borderColor: PratiCaseColors.border,
+    radius: PratiCaseRadius.xl,
   );
 }
 

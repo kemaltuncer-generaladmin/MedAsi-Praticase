@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart' show launchUrl, LaunchMode;
 
+import '../../../app/praticase_legal.dart';
 import '../../../app/theme/praticase_colors.dart';
 import '../../../app/theme/praticase_tokens.dart';
 import '../data/store_controller.dart';
@@ -51,6 +52,11 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
 
   Future<void> _openSubscriptionsSettings() async {
     final uri = Uri.parse(_manageUrl);
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _openLegalUrl(String url) async {
+    final uri = Uri.parse(url);
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
@@ -113,10 +119,60 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
                   isError: false,
                 ),
               const SizedBox(height: 16),
+              _LegalFooter(
+                onOpenEula: () => _openLegalUrl(PratiCaseLegal.termsUrl),
+                onOpenPrivacy: () =>
+                    _openLegalUrl(PratiCaseLegal.privacyPolicyUrl),
+              ),
+              const SizedBox(height: 16),
               _FaqList(usesAppStore: usesAppStore),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _LegalFooter extends StatelessWidget {
+  const _LegalFooter({required this.onOpenEula, required this.onOpenPrivacy});
+
+  final VoidCallback onOpenEula;
+  final VoidCallback onOpenPrivacy;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+        border: Border.all(color: PratiCaseColors.border),
+      ),
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 8,
+        runSpacing: 2,
+        children: [
+          const Text(
+            'Abonelikler için',
+            style: TextStyle(color: PratiCaseColors.muted),
+          ),
+          TextButton(
+            onPressed: onOpenEula,
+            child: const Text('Kullanım Şartları (EULA)'),
+          ),
+          const Text('ve', style: TextStyle(color: PratiCaseColors.muted)),
+          TextButton(
+            onPressed: onOpenPrivacy,
+            child: const Text('Gizlilik Politikası'),
+          ),
+          const Text(
+            'geçerlidir.',
+            style: TextStyle(color: PratiCaseColors.muted),
+          ),
+        ],
       ),
     );
   }

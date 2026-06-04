@@ -107,7 +107,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               'E-posta adresini gir, şifre sıfırlama kodunu gönderelim.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: const Color(0xFF465872),
+                color: PratiCaseColors.slateBlue,
                 fontSize: 17,
                 height: 1.45,
               ),
@@ -169,7 +169,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             'Şifre sıfırlama kodunu içeren bir e-posta gönderdik. Kodu sonraki ekranda kullanacaksın.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: const Color(0xFF465872),
+              color: PratiCaseColors.slateBlue,
               fontSize: 17,
               height: 1.36,
             ),
@@ -178,7 +178,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: const Color(0xFFEAF8F7),
+              color: PratiCaseColors.infoSurface,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
@@ -211,7 +211,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       Text(
                         'Spam / Gereksiz klasörünü kontrol edebilir veya tekrar deneyebilirsin.',
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: const Color(0xFF23364F),
+                          color: PratiCaseColors.slateBlue,
                           height: 1.38,
                         ),
                       ),

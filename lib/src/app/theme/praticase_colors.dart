@@ -16,6 +16,21 @@ abstract final class PratiCaseColors {
   static const slateBlue = Color(0xFF405168);
   static const errorRed = Color(0xFFE04F5F);
   static const successGreen = Color(0xFF2AA765);
+  static const elevatedSurface = Color(0xFFFBFCFD);
+  static const successSurface = Color(0xFFEAF7F3);
+  static const warningSurface = Color(0xFFFFF6E7);
+  static const errorSurface = Color(0xFFFFEFEE);
+  static const infoSurface = Color(0xFFEDF8F8);
+  static const authWave = Color(0xFFEAF4F3);
+  static const authWaveLine = Color(0xFFD9E7E7);
+  static const authIllustrationStroke = Color(0xFFD5DAE1);
+  static const navyBright = Color(0xFF6A85A8);
+  static const goldBright = Color(0xFFFFC55C);
   static const gradientStart = Color(0xFF063443);
   static const gradientEnd = Color(0xFF006A72);
+  static const actionStart = Color(0xFF087D74);
+  static const actionEnd = Color(0xFF00A090);
+  static const mutedSurfaceEnd = Color(0xFFF7F9FC);
+  static const successWashStart = Color(0xFFE9F7F1);
+  static const successWashEnd = Color(0xFFEEF6F5);
 }

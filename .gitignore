@@ -11,6 +11,7 @@
 .svn/
 .swiftpm/
 .claude/
+.codex/
 artifacts/
 WEB_QA_REPORT.json
 migrate_working_dir/

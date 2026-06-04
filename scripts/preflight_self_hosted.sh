@@ -78,7 +78,11 @@ for file in \
   "$ROOT_DIR/supabase/functions/praticase-theoretical-exam/index.ts" \
   "$ROOT_DIR/supabase/functions/praticase-oral-exam/index.ts" \
   "$ROOT_DIR/supabase/functions/praticase-storekit-verify/index.ts" \
+  "$ROOT_DIR/supabase/functions/praticase-delete-account/index.ts" \
+  "$ROOT_DIR/supabase/functions/praticase-recall-guidance/index.ts" \
   "$ROOT_DIR/supabase/functions/_shared/apple_root_certificates.ts" \
+  "$ROOT_DIR/supabase/functions/_shared/openai_ai.ts" \
+  "$ROOT_DIR/supabase/functions/_shared/recall.ts" \
   "$ROOT_DIR/supabase/migrations/202605240011_praticase_release_copy_hardening.sql" \
   "$ROOT_DIR/supabase/migrations/202605240012_praticase_store_product_mappings.sql"; do
   if [[ -f "$file" ]]; then
@@ -105,6 +109,8 @@ if command -v deno >/dev/null 2>&1; then
     "$ROOT_DIR/supabase/functions/praticase-theoretical-exam/index.ts" \
     "$ROOT_DIR/supabase/functions/praticase-oral-exam/index.ts" \
     "$ROOT_DIR/supabase/functions/praticase-storekit-verify/index.ts" \
+    "$ROOT_DIR/supabase/functions/praticase-delete-account/index.ts" \
+    "$ROOT_DIR/supabase/functions/praticase-recall-guidance/index.ts" \
     >/dev/null; then
     pass "Edge Functions pass deno check"
   else
@@ -145,23 +151,12 @@ for key in "${required_secrets[@]}"; do
     missing=1
   fi
 done
-check_any() {
-  local label="$1"
-  shift
-  local key
-  for key in "$@"; do
-    if docker exec "$edge_container" sh -lc "test -n \"\${$key:-}\""; then
-      printf 'ok    %s is configured through %s\n' "$label" "$key"
-      return
-    fi
-  done
-  printf 'FAIL  %s is missing\n' "$label" >&2
+if docker exec "$edge_container" sh -lc "test -n \"\${OPENAI_API_KEY:-}\""; then
+  printf 'ok    OpenAI API key is configured\n'
+else
+  printf 'FAIL  OpenAI API key is missing\n' >&2
   missing=1
-}
-check_any "Vertex service account" \
-  GOOGLE_VERTEX_SERVICE_ACCOUNT_JSON_BASE64 \
-  VERTEX_AI_SERVICE_ACCOUNT_JSON_BASE64 \
-  GOOGLE_SERVICE_ACCOUNT_JSON_BASE64
+fi
 required_praticase_store_secrets=(
   PRATICASE_APP_STORE_BUNDLE_ID
   PRATICASE_APP_STORE_APP_ID
@@ -183,7 +178,9 @@ for function_name in \
   praticase-complete-session \
   praticase-theoretical-exam \
   praticase-oral-exam \
-  praticase-storekit-verify; do
+  praticase-storekit-verify \
+  praticase-delete-account \
+  praticase-recall-guidance; do
   if test -f "$functions_dir/$function_name/index.ts"; then
     printf 'ok    Function %s is published\n' "$function_name"
   else

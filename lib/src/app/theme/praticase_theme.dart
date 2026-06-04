@@ -4,6 +4,7 @@ import 'praticase_accent.dart';
 import 'praticase_colors.dart';
 import 'praticase_motion.dart';
 import 'praticase_tokens.dart';
+import 'praticase_typography.dart';
 
 abstract final class PratiCaseTheme {
   /// Aktif accent rengine göre tema üretir. `accent` verilmezse
@@ -74,8 +75,9 @@ abstract final class PratiCaseTheme {
           backgroundColor: primary,
           foregroundColor: PratiCaseColors.white,
           disabledBackgroundColor: primary.withValues(alpha: 0.35),
-          disabledForegroundColor:
-              PratiCaseColors.white.withValues(alpha: 0.85),
+          disabledForegroundColor: PratiCaseColors.white.withValues(
+            alpha: 0.85,
+          ),
           minimumSize: const Size.fromHeight(54),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
@@ -105,8 +107,24 @@ abstract final class PratiCaseTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
+          backgroundColor: PratiCaseColors.white,
           foregroundColor: primary,
-          textStyle: const TextStyle(fontWeight: FontWeight.w800),
+          disabledForegroundColor: PratiCaseColors.muted.withValues(
+            alpha: 0.65,
+          ),
+          minimumSize: const Size(0, 38),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          visualDensity: VisualDensity.compact,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          side: BorderSide(color: primary.withValues(alpha: 0.22)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+          ),
+          textStyle: const TextStyle(
+            fontWeight: FontWeight.w900,
+            fontSize: 13,
+            letterSpacing: 0.1,
+          ),
         ),
       ),
       iconButtonTheme: IconButtonThemeData(
@@ -152,13 +170,17 @@ abstract final class PratiCaseTheme {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-          borderSide:
-              const BorderSide(color: PratiCaseColors.errorRed, width: 1.2),
+          borderSide: const BorderSide(
+            color: PratiCaseColors.errorRed,
+            width: 1.2,
+          ),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
-          borderSide:
-              const BorderSide(color: PratiCaseColors.errorRed, width: 1.6),
+          borderSide: const BorderSide(
+            color: PratiCaseColors.errorRed,
+            width: 1.6,
+          ),
         ),
         errorStyle: const TextStyle(
           color: PratiCaseColors.errorRed,
@@ -202,30 +224,10 @@ abstract final class PratiCaseTheme {
         showDragHandle: true,
       ),
       textTheme: const TextTheme(
-        displayLarge: TextStyle(
-          color: PratiCaseColors.navy,
-          fontSize: 44,
-          height: 42 / 44,
-          fontWeight: FontWeight.w800,
-        ),
-        headlineLarge: TextStyle(
-          color: PratiCaseColors.navy,
-          fontSize: 24,
-          height: 32 / 24,
-          fontWeight: FontWeight.w800,
-        ),
-        headlineMedium: TextStyle(
-          color: PratiCaseColors.navy,
-          fontSize: 24,
-          height: 32 / 24,
-          fontWeight: FontWeight.w800,
-        ),
-        headlineSmall: TextStyle(
-          color: PratiCaseColors.navy,
-          fontSize: 17,
-          height: 24 / 17,
-          fontWeight: FontWeight.w800,
-        ),
+        displayLarge: PratiCaseTextStyles.pageTitle,
+        headlineLarge: PratiCaseTextStyles.pageTitle,
+        headlineMedium: PratiCaseTextStyles.sectionTitle,
+        headlineSmall: PratiCaseTextStyles.cardTitle,
         titleLarge: TextStyle(
           color: PratiCaseColors.navy,
           fontWeight: FontWeight.w800,

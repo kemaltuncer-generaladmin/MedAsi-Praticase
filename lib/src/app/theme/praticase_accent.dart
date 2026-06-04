@@ -10,7 +10,7 @@ enum PratiCaseAccentOption {
   teal('Teal', PratiCaseColors.teal, PratiCaseColors.tealBright),
   navy('Navy', PratiCaseColors.navy, PratiCaseColors.slateBlue),
   slate('Slate', PratiCaseColors.slateBlue, PratiCaseColors.surfaceContainer),
-  gold('Gold', PratiCaseColors.gold, Color(0xFFFFC55C));
+  gold('Gold', PratiCaseColors.gold, PratiCaseColors.goldBright);
 
   const PratiCaseAccentOption(this.label, this.primary, this.bright);
 

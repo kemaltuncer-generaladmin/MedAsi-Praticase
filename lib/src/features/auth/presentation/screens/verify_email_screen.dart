@@ -145,7 +145,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
             ),
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: const Color(0xFF465872),
+              color: PratiCaseColors.slateBlue,
               fontSize: 17,
               height: 1.45,
             ),

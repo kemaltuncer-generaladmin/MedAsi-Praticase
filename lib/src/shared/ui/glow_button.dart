@@ -22,6 +22,7 @@ class GlowButton extends StatefulWidget {
     required this.onPressed,
     this.icon,
     this.loading = false,
+    this.loadingLabel,
     this.expand = true,
     this.height = 56,
     this.pulse = false,
@@ -34,6 +35,7 @@ class GlowButton extends StatefulWidget {
   final VoidCallback? onPressed;
   final IconData? icon;
   final bool loading;
+  final String? loadingLabel;
   final bool expand;
   final double height;
 
@@ -46,8 +48,7 @@ class GlowButton extends StatefulWidget {
   State<GlowButton> createState() => _GlowButtonState();
 }
 
-class _GlowButtonState extends State<GlowButton>
-    with TickerProviderStateMixin {
+class _GlowButtonState extends State<GlowButton> with TickerProviderStateMixin {
   late final AnimationController _press = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 180),
@@ -105,8 +106,7 @@ class _GlowButtonState extends State<GlowButton>
 
   @override
   Widget build(BuildContext context) {
-    final accent =
-        widget.accentOverride ?? PratiCaseAccent.instance.primary;
+    final accent = widget.accentOverride ?? PratiCaseAccent.instance.primary;
     final bright = widget.accentOverride == null
         ? PratiCaseAccent.instance.bright
         : accent;
@@ -129,8 +129,10 @@ class _GlowButtonState extends State<GlowButton>
             // Scale: 1.0 idle → 0.965 fully pressed.
             final scale = 1.0 - press * 0.035;
             // Glow alpha: pulse adds gentle baseline; press boosts.
-            final glowAlpha = (0.18 + press * 0.20 + pulse * 0.10)
-                .clamp(0.0, 0.55);
+            final glowAlpha = (0.18 + press * 0.20 + pulse * 0.10).clamp(
+              0.0,
+              0.55,
+            );
 
             return Transform.scale(
               scale: scale,
@@ -139,8 +141,7 @@ class _GlowButtonState extends State<GlowButton>
                 height: widget.height,
                 width: widget.expand ? double.infinity : null,
                 decoration: BoxDecoration(
-                  borderRadius:
-                      BorderRadius.circular(PratiCaseRadius.pill),
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
                   gradient: _enabled
                       ? LinearGradient(
                           begin: Alignment.topLeft,
@@ -165,24 +166,50 @@ class _GlowButtonState extends State<GlowButton>
                   duration: PratiCaseDurations.fast,
                   switchInCurve: PratiCaseCurves.standard,
                   child: widget.loading
-                      ? const SizedBox.square(
+                      ? Row(
                           key: ValueKey('loading'),
-                          dimension: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.4,
-                            color: PratiCaseColors.white,
-                          ),
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const SizedBox.square(
+                              dimension: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.4,
+                                color: PratiCaseColors.white,
+                              ),
+                            ),
+                            if (widget.loadingLabel?.trim().isNotEmpty ??
+                                false) ...[
+                              const SizedBox(width: 10),
+                              Flexible(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    widget.loadingLabel!.trim(),
+                                    maxLines: 1,
+                                    style: const TextStyle(
+                                      color: PratiCaseColors.white,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 0.1,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         )
                       : Row(
                           key: ValueKey('label-${widget.label}'),
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             if (widget.icon != null) ...[
-                              Icon(widget.icon,
-                                  color: _enabled
-                                      ? PratiCaseColors.white
-                                      : PratiCaseColors.muted,
-                                  size: 20),
+                              Icon(
+                                widget.icon,
+                                color: _enabled
+                                    ? PratiCaseColors.white
+                                    : PratiCaseColors.muted,
+                                size: 20,
+                              ),
                               const SizedBox(width: 8),
                             ],
                             Flexible(

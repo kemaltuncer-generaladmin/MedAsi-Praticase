@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../app/theme/praticase_colors.dart';
+import '../../app/theme/praticase_typography.dart';
 
 class SectionHeader extends StatelessWidget {
   const SectionHeader({
@@ -23,25 +23,12 @@ class SectionHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: PratiCaseColors.navy,
-                  fontSize: 20,
-                  height: 1.2,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
+              Text(title, style: PratiCaseTextStyles.sectionTitle),
               if (subtitle != null) ...[
                 const SizedBox(height: 4),
                 Text(
                   subtitle ?? '',
-                  style: const TextStyle(
-                    color: Color(0xFF5F6E83),
-                    fontSize: 13,
-                    height: 1.4,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: PratiCaseTextStyles.sectionSubtitle,
                 ),
               ],
             ],
@@ -64,26 +51,10 @@ class PageTitle extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: const TextStyle(
-            color: PratiCaseColors.navy,
-            fontSize: 32,
-            fontWeight: FontWeight.w900,
-            height: 1.1,
-          ),
-        ),
+        Text(title, style: PratiCaseTextStyles.pageTitle),
         if (subtitle != null) ...[
           const SizedBox(height: 10),
-          Text(
-            subtitle!,
-            style: const TextStyle(
-              color: Color(0xFF5E6D82),
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              height: 1.45,
-            ),
-          ),
+          Text(subtitle!, style: PratiCaseTextStyles.pageSubtitle),
         ],
       ],
     );
