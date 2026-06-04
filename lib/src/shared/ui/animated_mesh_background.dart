@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/theme/praticase_accent.dart';
 import '../../app/theme/praticase_colors.dart';
+import '../../app/theme/praticase_performance.dart';
 
 /// Yavaş hareket eden organik gradient mesh.
 ///
@@ -35,7 +36,15 @@ class _AnimatedMeshBackgroundState extends State<AnimatedMeshBackground>
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: Duration(milliseconds: (16000 / widget.speed).round()),
-  )..repeat();
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (!PratiCasePerformance.staticWebEffects) {
+      _controller.repeat();
+    }
+  }
 
   @override
   void dispose() {
@@ -46,13 +55,26 @@ class _AnimatedMeshBackgroundState extends State<AnimatedMeshBackground>
   @override
   Widget build(BuildContext context) {
     final accent = PratiCaseAccent.instance;
-    final palette = widget.colors ??
+    final palette =
+        widget.colors ??
         [
           accent.primary,
           accent.bright,
           PratiCaseColors.gold,
           PratiCaseColors.navy,
         ];
+    if (PratiCasePerformance.staticWebEffects) {
+      return RepaintBoundary(
+        child: CustomPaint(
+          painter: _MeshPainter(
+            time: 0.18,
+            colors: palette,
+            opacity: widget.opacity,
+          ),
+          child: const SizedBox.expand(),
+        ),
+      );
+    }
     return RepaintBoundary(
       child: AnimatedBuilder(
         animation: _controller,
@@ -134,24 +156,23 @@ class _MeshPainter extends CustomPainter {
 
     for (final blob in blobs) {
       final paint = Paint()
-        ..shader = RadialGradient(
-          colors: [
-            blob.color.withValues(alpha: blob.intensity * opacity),
-            blob.color.withValues(alpha: 0),
-          ],
-          stops: const [0.0, 1.0],
-        ).createShader(
-          Rect.fromCircle(center: blob.center, radius: blob.radius),
-        );
+        ..shader =
+            RadialGradient(
+              colors: [
+                blob.color.withValues(alpha: blob.intensity * opacity),
+                blob.color.withValues(alpha: 0),
+              ],
+              stops: const [0.0, 1.0],
+            ).createShader(
+              Rect.fromCircle(center: blob.center, radius: blob.radius),
+            );
       canvas.drawCircle(blob.center, blob.radius, paint);
     }
   }
 
   @override
   bool shouldRepaint(covariant _MeshPainter old) {
-    return old.time != time ||
-        old.colors != colors ||
-        old.opacity != opacity;
+    return old.time != time || old.colors != colors || old.opacity != opacity;
   }
 }
 

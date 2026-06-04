@@ -5,6 +5,7 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:url_launcher/url_launcher.dart' show LaunchMode, launchUrl;
 
 import '../../../shared/data/user_facing_error.dart';
+import '../domain/gift_code_redemption.dart';
 import '../domain/store_product.dart';
 import '../domain/subscription_state.dart';
 import '../domain/wallet_snapshot.dart';
@@ -124,6 +125,58 @@ class StoreController extends ChangeNotifier {
     } on Object {
       _errorMessage = PratiCaseUserMessage.purchaseFailure;
       _setBusy(false);
+    }
+  }
+
+  Future<void> redeemGiftCode(String code) async {
+    if (_busy) return;
+    final normalized = normalizeGiftCode(code);
+    if (normalized.isEmpty) {
+      _statusMessage = null;
+      _errorMessage =
+          'Hediye kodunu 16 karakterlik biçimiyle tekrar kontrol edelim.';
+      notifyListeners();
+      return;
+    }
+
+    _errorMessage = null;
+    _statusMessage = 'Hediye kodu kontrol ediliyor.';
+    _setBusy(true);
+    try {
+      final redemption = await _repo.redeemGiftCode(normalized);
+      _walletSnapshot = redemption.walletSnapshot;
+      _statusMessage = 'Hediye kodu işlendi. Hakların güncellendi.';
+      await _reloadAfterEntitlementChange();
+    } on StorePurchaseException catch (error) {
+      _statusMessage = null;
+      _errorMessage = PratiCaseUserMessage.store(error.message);
+    } on Object {
+      _statusMessage = null;
+      _errorMessage =
+          'Hediye kodu şu an işlenemedi. Biraz sonra tekrar deneyelim.';
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  Future<void> _reloadAfterEntitlementChange() async {
+    try {
+      final catalog = await _repo.loadWalletCatalog();
+      _products = await _service.attachStoreKitMetadata(catalog.products);
+      _walletSnapshot = catalog.snapshot;
+      _blockedProductCodes = catalog.blockedProductCodes;
+    } on Object {
+      // Redeem sonucu güncel bakiyeyi taşır; katalog yenileme best-effort.
+    }
+    try {
+      _subscriptionState = await _repo.loadSubscriptionState();
+    } on Object {
+      _subscriptionState = SubscriptionState.empty;
+    }
+    try {
+      _transactions = await _repo.loadWalletTransactions();
+    } on Object {
+      _transactions = const [];
     }
   }
 

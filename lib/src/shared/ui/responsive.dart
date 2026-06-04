@@ -1,7 +1,9 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
+import '../../app/theme/praticase_performance.dart';
 import '../../app/theme/praticase_tokens.dart';
 
 abstract final class PratiCaseBreakpoints {
@@ -210,6 +212,9 @@ class PratiCaseResponsiveListView extends StatelessWidget {
           controller: controller,
           keyboardDismissBehavior: keyboardDismissBehavior,
           physics: physics,
+          scrollCacheExtent: PratiCasePerformance.web
+              ? const ScrollCacheExtent.pixels(900)
+              : null,
           padding: EdgeInsets.only(
             top: resolvedPadding.top,
             bottom: resolvedPadding.bottom,

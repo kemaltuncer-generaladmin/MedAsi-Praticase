@@ -155,6 +155,7 @@ class NativeVoiceExamAdapter implements VoiceExamAdapter {
   late final StreamSubscription<PlayerState> _audioStateSubscription;
   VoiceExamState _state = const VoiceExamState();
   int _speechGeneration = 0;
+  bool _preparingSpeech = false;
 
   @override
   VoiceExamState get state => _state;
@@ -187,7 +188,7 @@ class NativeVoiceExamAdapter implements VoiceExamAdapter {
     required void Function(String text) onPartialText,
   }) async {
     await initialize();
-    if (!_state.available || _state.listening) return;
+    if (!_state.available || _state.listening || _state.speaking) return;
     _emit(_state.copyWith(listening: true, partialText: '', clearError: true));
     await _speech.listen(
       listenOptions: SpeechListenOptions(
@@ -223,13 +224,29 @@ class NativeVoiceExamAdapter implements VoiceExamAdapter {
     if (clean.isEmpty || _state.muted) return;
     await initialize();
     final generation = ++_speechGeneration;
+    _preparingSpeech = true;
+    await _cancelListeningBeforePlayback();
     await _audioPlayer.stop();
+    if (generation != _speechGeneration || _state.muted) {
+      _preparingSpeech = false;
+      _emit(_state.copyWith(speaking: false));
+      return;
+    }
+    _emit(
+      _state.copyWith(
+        listening: false,
+        speaking: true,
+        partialText: '',
+        clearError: true,
+      ),
+    );
     await _speakWithOpenAi(clean, generation);
   }
 
   @override
   Future<void> stopSpeaking() async {
     _speechGeneration++;
+    _preparingSpeech = false;
     await _audioPlayer.stop();
     _emit(_state.copyWith(speaking: false));
   }
@@ -252,6 +269,7 @@ class NativeVoiceExamAdapter implements VoiceExamAdapter {
   Future<void> _speakWithOpenAi(String text, int generation) async {
     final speechService = _speechService;
     if (speechService == null) {
+      _preparingSpeech = false;
       _emit(
         _state.copyWith(
           speaking: false,
@@ -263,6 +281,7 @@ class NativeVoiceExamAdapter implements VoiceExamAdapter {
     try {
       final audio = await _speechAudioFor(text, speechService);
       if (generation != _speechGeneration || _state.muted) {
+        _preparingSpeech = false;
         _emit(_state.copyWith(speaking: false));
         return;
       }
@@ -272,9 +291,11 @@ class NativeVoiceExamAdapter implements VoiceExamAdapter {
       );
       return;
     } on VoiceSpeechUnavailable catch (error) {
+      _preparingSpeech = false;
       await _audioPlayer.stop();
       _emit(_state.copyWith(speaking: false, errorMessage: error.message));
     } on Object {
+      _preparingSpeech = false;
       await _audioPlayer.stop();
       _emit(
         _state.copyWith(
@@ -283,6 +304,12 @@ class NativeVoiceExamAdapter implements VoiceExamAdapter {
         ),
       );
     }
+  }
+
+  Future<void> _cancelListeningBeforePlayback() async {
+    if (!_speech.isListening && !_state.listening) return;
+    await _speech.cancel();
+    _emit(_state.copyWith(listening: false, partialText: ''));
   }
 
   Future<VoiceSpeechAudio> _speechAudioFor(
@@ -312,8 +339,11 @@ class NativeVoiceExamAdapter implements VoiceExamAdapter {
 
   void _handleAudioPlayerState(PlayerState state) {
     if (state == PlayerState.playing) {
+      _preparingSpeech = false;
       _emit(_state.copyWith(speaking: true));
+      return;
     }
+    if (_preparingSpeech) return;
     if (state == PlayerState.completed || state == PlayerState.stopped) {
       _emit(_state.copyWith(speaking: false));
     }

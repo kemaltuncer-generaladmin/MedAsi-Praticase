@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../../app/theme/praticase_colors.dart';
+import '../../app/theme/praticase_performance.dart';
 import '../../app/theme/praticase_tokens.dart';
 
 /// Premium glassmorphism kart.
@@ -40,28 +41,41 @@ class GlassCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final base = tint ?? PratiCaseColors.white;
+    final decoration = BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          base.withValues(alpha: surfaceOpacity),
+          base.withValues(alpha: surfaceOpacity * 0.78),
+        ],
+      ),
+      border: Border.all(
+        color: borderColor ?? PratiCaseColors.white.withValues(alpha: 0.55),
+        width: 1.1,
+      ),
+      boxShadow: elevated ? PratiCaseShadows.card : null,
+    );
+
+    if (PratiCasePerformance.lightweightWebPaint) {
+      return RepaintBoundary(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(radius),
+          child: DecoratedBox(
+            decoration: decoration,
+            child: Padding(padding: padding, child: child),
+          ),
+        ),
+      );
+    }
+
     return RepaintBoundary(
       child: ClipRRect(
         borderRadius: BorderRadius.circular(radius),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
           child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  base.withValues(alpha: surfaceOpacity),
-                  base.withValues(alpha: surfaceOpacity * 0.78),
-                ],
-              ),
-              border: Border.all(
-                color: borderColor ??
-                    PratiCaseColors.white.withValues(alpha: 0.55),
-                width: 1.1,
-              ),
-              boxShadow: elevated ? PratiCaseShadows.card : null,
-            ),
+            decoration: decoration,
             child: Padding(padding: padding, child: child),
           ),
         ),
@@ -88,26 +102,40 @@ class GlassCardDark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final decoration = BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          PratiCaseColors.white.withValues(alpha: 0.16),
+          PratiCaseColors.white.withValues(alpha: 0.08),
+        ],
+      ),
+      border: Border.all(
+        color: PratiCaseColors.white.withValues(alpha: 0.22),
+        width: 1.2,
+      ),
+    );
+
+    if (PratiCasePerformance.lightweightWebPaint) {
+      return RepaintBoundary(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(radius),
+          child: DecoratedBox(
+            decoration: decoration,
+            child: Padding(padding: padding, child: child),
+          ),
+        ),
+      );
+    }
+
     return RepaintBoundary(
       child: ClipRRect(
         borderRadius: BorderRadius.circular(radius),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
           child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  PratiCaseColors.white.withValues(alpha: 0.16),
-                  PratiCaseColors.white.withValues(alpha: 0.08),
-                ],
-              ),
-              border: Border.all(
-                color: PratiCaseColors.white.withValues(alpha: 0.22),
-                width: 1.2,
-              ),
-            ),
+            decoration: decoration,
             child: Padding(padding: padding, child: child),
           ),
         ),

@@ -31,6 +31,7 @@ import 'package:praticase/src/features/shell/presentation/praticase_shell.dart';
 import 'package:praticase/src/features/store/data/store_controller.dart';
 import 'package:praticase/src/features/store/data/storekit_repository.dart';
 import 'package:praticase/src/features/store/data/storekit_service.dart';
+import 'package:praticase/src/features/store/domain/gift_code_redemption.dart';
 import 'package:praticase/src/features/store/domain/store_product.dart';
 import 'package:praticase/src/features/store/domain/subscription_state.dart';
 import 'package:praticase/src/features/store/domain/wallet_snapshot.dart';
@@ -165,6 +166,12 @@ void main() {
     expect(catalog.products.single.name, 'Aylık');
   });
 
+  test('gift code normalization matches AdminPanel and Qlinik redeem', () {
+    expect(normalizeGiftCode('pc25-abcd-1234-efgh'), 'PC25ABCD1234EFGH');
+    expect(formatGiftCodeInput('pc25abcd1234efgh'), 'PC25-ABCD-1234-EFGH');
+    expect(normalizeGiftCode('eksik'), isEmpty);
+  });
+
   test('recall summary sends only compact guidance context', () {
     const summary = RecallSummary(
       todayTotal: 6,
@@ -259,6 +266,32 @@ void main() {
     expect(controller.walletSnapshot.walletCoinBalance, 125);
     expect(controller.walletSnapshot.questionQuota, 50);
   });
+
+  test(
+    'PratiCase redeems AdminPanel gift code through shared wallet',
+    () async {
+      final repository = _GiftCodeStoreRepository();
+      final controller = StoreController(
+        repository: repository,
+        service: _WalletStoreService(),
+      );
+      addTearDown(controller.dispose);
+
+      await controller.initialize();
+      await controller.refresh();
+      await controller.redeemGiftCode('pc25-abcd-1234-efgh');
+
+      expect(repository.redeemedCode, 'PC25ABCD1234EFGH');
+      expect(controller.walletSnapshot.walletCoinBalance, 125);
+      expect(controller.walletSnapshot.questionQuota, 60);
+      expect(controller.walletSnapshot.aiQuota, 3);
+      expect(
+        controller.statusMessage,
+        'Hediye kodu işlendi. Hakların güncellendi.',
+      );
+      expect(controller.transactions.single.productName, 'Hediye kodu');
+    },
+  );
 
   testWidgets('PratiCase auth onboarding renders', (tester) async {
     await tester.pumpWidget(
@@ -782,6 +815,36 @@ void main() {
     expect(find.text('Dün akşam başladı, giderek arttı.'), findsOneWidget);
   });
 
+  testWidgets(
+    'voice anamnesis waits for patient speech before auto-listening',
+    (tester) async {
+      await _setViewport(tester, const Size(390, 1040));
+      final repository = _ChatFlowCasesRepository();
+      final voice = _InterruptedPlaybackVoiceExamAdapter();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PatientChatScreen(
+            repository: repository,
+            sessionId: 'session-1',
+            voiceAdapter: voice,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Sesli Sınav'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 260));
+
+      expect(voice.listenStarts, 0);
+
+      await tester.pump(const Duration(milliseconds: 900));
+
+      expect(voice.listenStarts, 1);
+    },
+  );
+
   testWidgets('physical exam asks for system before showing findings', (
     tester,
   ) async {
@@ -921,6 +984,37 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('diagnosis can advance without differential count or reasoning', (
+    tester,
+  ) async {
+    await _setIPhone14Viewport(tester);
+    final repository = _DiagnosisManagementCasesRepository()
+      ..savedDiagnosis = const DiagnosisAnswer(
+        primaryDiagnosis: '',
+        reasoning: '',
+        selectedOptionIds: [],
+      );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DiagnosisScreen(
+          repository: repository,
+          sessionId: 'session-1',
+          caseId: 'case-1',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final button = find.widgetWithText(FilledButton, 'Yönetim Planına Geç');
+    expect(tester.widget<FilledButton>(button).onPressed, isNull);
+
+    await tester.enterText(find.byType(TextField).first, 'Akut apandisit');
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<FilledButton>(button).onPressed, isNotNull);
+  });
+
   testWidgets('management requires an actual plan before result', (
     tester,
   ) async {
@@ -962,10 +1056,7 @@ void main() {
       isNull,
     );
 
-    await tester.enterText(
-      find.byType(TextField).last,
-      'Acil stabilizasyon, sıvı tedavisi ve cerrahi değerlendirme planlandı.',
-    );
+    await tester.enterText(find.byType(TextField).last, 'Sıvı');
     await tester.pumpAndSettle();
 
     expect(
@@ -1856,6 +1947,86 @@ class _RecordingStoreKitRepository extends StoreKitRepository {
   }
 }
 
+class _GiftCodeStoreRepository extends StoreKitRepository {
+  _GiftCodeStoreRepository()
+    : super(
+        client: SupabaseClient(
+          'https://example.supabase.co',
+          'anon',
+          authOptions: const AuthClientOptions(autoRefreshToken: false),
+        ),
+      );
+
+  String? redeemedCode;
+  bool _redeemed = false;
+
+  @override
+  Future<WalletCatalog> loadWalletCatalog() async {
+    return WalletCatalog(
+      products: const [],
+      snapshot: _redeemed
+          ? const WalletSnapshot(
+              walletCoinBalance: 125,
+              questionQuota: 60,
+              aiQuota: 3,
+            )
+          : const WalletSnapshot(walletCoinBalance: 100, questionQuota: 50),
+    );
+  }
+
+  @override
+  Future<SubscriptionState> loadSubscriptionState() async {
+    return const SubscriptionState(
+      hasActiveSubscription: false,
+      productCode: '',
+      productName: '',
+      expiresAt: null,
+      periodStartedAt: null,
+      willAutoRenew: false,
+      environment: '',
+      transactionId: '',
+      originalTransactionId: '',
+    );
+  }
+
+  @override
+  Future<List<WalletTransaction>> loadWalletTransactions() async {
+    if (!_redeemed) return const [];
+    return [
+      WalletTransaction.fromMap({
+        'id': 'gift-code-1',
+        'kind': 'gift',
+        'product_code': 'gift_code',
+        'product_name': 'Hediye kodu',
+        'coin_amount': 25,
+        'question_amount': 10,
+        'remaining_coin_amount': 25,
+        'remaining_question_amount': 10,
+        'status': 'active',
+        'expired': false,
+        'occurred_at': '2026-06-04T12:00:00Z',
+      }),
+    ];
+  }
+
+  @override
+  Future<GiftCodeRedemption> redeemGiftCode(String code) async {
+    redeemedCode = normalizeGiftCode(code);
+    _redeemed = true;
+    return const GiftCodeRedemption(
+      title: 'AdminPanel Hediye Kodu',
+      coinAmount: 25,
+      questionAmount: 10,
+      aiQuestionAmount: 3,
+      walletSnapshot: WalletSnapshot(
+        walletCoinBalance: 125,
+        questionQuota: 60,
+        aiQuota: 3,
+      ),
+    );
+  }
+}
+
 class _RecordingStoreKitService extends StoreKitService {
   final _updates = StreamController<PurchaseDetails>.broadcast();
   final completedPurchases = <String>[];
@@ -2467,6 +2638,68 @@ class _FakeVoiceExamAdapter implements VoiceExamAdapter {
   Future<void> speak(String text) async {
     spokenTexts.add(text);
     _emit(_state.copyWith(speaking: true));
+    _emit(_state.copyWith(speaking: false));
+  }
+
+  @override
+  Future<void> stopSpeaking() async {
+    _emit(_state.copyWith(speaking: false));
+  }
+
+  @override
+  Future<void> setMuted(bool muted) async {
+    _emit(_state.copyWith(muted: muted));
+  }
+
+  @override
+  void dispose() {
+    unawaited(_controller.close());
+  }
+
+  void _emit(VoiceExamState state) {
+    _state = state;
+    if (!_controller.isClosed) _controller.add(state);
+  }
+}
+
+class _InterruptedPlaybackVoiceExamAdapter implements VoiceExamAdapter {
+  final _controller = StreamController<VoiceExamState>.broadcast();
+  VoiceExamState _state = const VoiceExamState();
+  int listenStarts = 0;
+
+  @override
+  VoiceExamState get state => _state;
+
+  @override
+  Stream<VoiceExamState> get states => _controller.stream;
+
+  @override
+  Future<void> initialize() async {
+    _emit(const VoiceExamState(available: true, initialized: true));
+  }
+
+  @override
+  Future<void> startListening({
+    required void Function(String text) onFinalText,
+    required void Function(String text) onPartialText,
+  }) async {
+    listenStarts++;
+    _emit(_state.copyWith(listening: true));
+  }
+
+  @override
+  Future<void> stopListening() async {
+    _emit(_state.copyWith(listening: false));
+  }
+
+  @override
+  Future<void> speak(String text) async {
+    _emit(_state.copyWith(speaking: true));
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    _emit(_state.copyWith(speaking: false));
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    _emit(_state.copyWith(speaking: true));
+    await Future<void>.delayed(const Duration(milliseconds: 360));
     _emit(_state.copyWith(speaking: false));
   }
 

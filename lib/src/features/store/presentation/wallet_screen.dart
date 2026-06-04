@@ -5,6 +5,7 @@ import '../../../app/theme/praticase_motion.dart';
 import '../../../app/theme/praticase_tokens.dart';
 import '../../../shared/ui/ui.dart';
 import '../data/store_controller.dart';
+import '../domain/gift_code_redemption.dart';
 import '../domain/store_product.dart';
 import '../domain/subscription_state.dart';
 import '../domain/wallet_snapshot.dart';
@@ -104,6 +105,141 @@ class _WalletScreenState extends State<WalletScreen>
     _lastRefresh = DateTime.now();
   }
 
+  void _openGiftCodeSheet() {
+    final codeController = TextEditingController();
+    var submitting = false;
+    String? sheetError;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      useSafeArea: true,
+      backgroundColor: PratiCaseColors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            Future<void> submit() async {
+              final normalized = normalizeGiftCode(codeController.text);
+              if (submitting) return;
+              if (normalized.isEmpty) {
+                setSheetState(() {
+                  sheetError = 'Hediye kodu 16 harf/rakam olmalı.';
+                });
+                return;
+              }
+              FocusManager.instance.primaryFocus?.unfocus();
+              setSheetState(() {
+                submitting = true;
+                sheetError = null;
+              });
+              await widget.controller.redeemGiftCode(normalized);
+              if (!sheetContext.mounted) return;
+              if (widget.controller.errorMessage == null) {
+                Navigator.of(sheetContext).pop();
+                return;
+              }
+              setSheetState(() {
+                submitting = false;
+                sheetError = widget.controller.errorMessage;
+              });
+            }
+
+            final normalizedLength = codeController.text
+                .toUpperCase()
+                .replaceAll(RegExp('[^A-Z0-9]'), '')
+                .length
+                .clamp(0, 16);
+
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                4,
+                20,
+                MediaQuery.of(sheetContext).viewInsets.bottom + 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(
+                        Icons.redeem_rounded,
+                        color: PratiCaseColors.teal,
+                        size: 24,
+                      ),
+                      SizedBox(width: 10),
+                      Text(
+                        'Hediye Kodu',
+                        style: TextStyle(
+                          color: PratiCaseColors.navy,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: codeController,
+                    enabled: !submitting,
+                    autofocus: true,
+                    autocorrect: false,
+                    textCapitalization: TextCapitalization.characters,
+                    textInputAction: TextInputAction.done,
+                    decoration: InputDecoration(
+                      labelText: '16 haneli Medasi kodu',
+                      hintText: 'XXXX-XXXX-XXXX-XXXX',
+                      prefixIcon: const Icon(Icons.card_giftcard_rounded),
+                      suffixText: '$normalizedLength/16',
+                      errorText: sheetError,
+                    ),
+                    onChanged: (value) {
+                      final formatted = formatGiftCodeInput(value);
+                      if (formatted != value) {
+                        codeController.value = TextEditingValue(
+                          text: formatted,
+                          selection: TextSelection.collapsed(
+                            offset: formatted.length,
+                          ),
+                        );
+                      }
+                      if (sheetError != null) {
+                        setSheetState(() => sheetError = null);
+                      } else {
+                        setSheetState(() {});
+                      }
+                    },
+                    onSubmitted: (_) => submit(),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: submitting ? null : submit,
+                      icon: submitting
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.redeem_rounded),
+                      label: Text(submitting ? 'İşleniyor' : 'Kodu kullan'),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    ).whenComplete(codeController.dispose);
+  }
+
   void _openSubscriptionStatus() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -148,6 +284,11 @@ class _WalletScreenState extends State<WalletScreen>
             _WalletStatsRow(wallet: wallet, hidden: _balanceHidden),
             const SizedBox(height: 10),
             _WalletConsumptionCard(transactions: controller.transactions),
+            const SizedBox(height: 10),
+            _WalletGiftCodeCard(
+              busy: controller.busy,
+              onTap: _openGiftCodeSheet,
+            ),
             const SizedBox(height: 18),
             if (state.hasActiveSubscription) ...[
               _WalletSubscriptionCard(
@@ -569,14 +710,6 @@ class _WalletStatsRow extends StatelessWidget {
             unit: 'MC',
             sublabel: 'YZ işlemlerinde ortak bakiye',
           ),
-          _WalletStatCard(
-            icon: Icons.bolt_outlined,
-            accent: PratiCaseColors.gold,
-            label: 'YZ hakkı',
-            value: hidden ? '••••' : '${wallet.aiQuota}',
-            unit: 'kalan',
-            sublabel: 'Hasta yanıtı ve karne için',
-          ),
         ];
         if (wide) {
           return Row(
@@ -584,8 +717,6 @@ class _WalletStatsRow extends StatelessWidget {
               Expanded(child: tiles[0]),
               const SizedBox(width: 12),
               Expanded(child: tiles[1]),
-              const SizedBox(width: 12),
-              Expanded(child: tiles[2]),
             ],
           );
         }
@@ -594,8 +725,6 @@ class _WalletStatsRow extends StatelessWidget {
             tiles[0],
             const SizedBox(height: 12),
             tiles[1],
-            const SizedBox(height: 12),
-            tiles[2],
           ],
         );
       },
@@ -877,6 +1006,97 @@ class _WalletConsumptionCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _WalletGiftCodeCard extends StatelessWidget {
+  const _WalletGiftCodeCard({required this.busy, required this.onTap});
+
+  final bool busy;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 480;
+          final content = Row(
+            children: const [
+              _WalletGiftIcon(),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Hediye Kodu',
+                      style: TextStyle(
+                        color: PratiCaseColors.navy,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Medasi cüzdan haklarını buradan yükle.',
+                      style: TextStyle(
+                        color: PratiCaseColors.muted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+          final button = FilledButton.icon(
+            onPressed: busy ? null : onTap,
+            icon: const Icon(Icons.redeem_rounded, size: 18),
+            label: const Text('Kodu kullan'),
+          );
+
+          if (wide) {
+            return Row(
+              children: [
+                Expanded(child: content),
+                const SizedBox(width: 12),
+                button,
+              ],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [content, const SizedBox(height: 12), button],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _WalletGiftIcon extends StatelessWidget {
+  const _WalletGiftIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 42,
+      height: 42,
+      decoration: BoxDecoration(
+        color: PratiCaseColors.gold.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Icon(
+        Icons.card_giftcard_rounded,
+        color: PratiCaseColors.gold,
+        size: 21,
       ),
     );
   }
@@ -1366,6 +1586,8 @@ class _WalletTransactionTile extends StatelessWidget {
         : PratiCaseColors.slateBlue;
     final icon = transaction.isUsage
         ? Icons.remove_circle_outline_rounded
+        : transaction.isGift
+        ? Icons.card_giftcard_rounded
         : transaction.isSubscription
         ? Icons.autorenew_rounded
         : Icons.add_card_outlined;

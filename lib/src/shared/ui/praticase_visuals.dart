@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/theme/praticase_colors.dart';
 import '../../app/theme/praticase_motion.dart';
+import '../../app/theme/praticase_performance.dart';
 import '../../app/theme/praticase_tokens.dart';
 import 'responsive.dart';
 
@@ -26,9 +27,18 @@ class PratiCaseSkeletonBlock extends StatefulWidget {
 
 class _PratiCaseSkeletonBlockState extends State<PratiCaseSkeletonBlock>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))
-        ..repeat();
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1400),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (!PratiCasePerformance.staticWebEffects) {
+      _controller.repeat();
+    }
+  }
 
   @override
   void dispose() {
@@ -38,6 +48,21 @@ class _PratiCaseSkeletonBlockState extends State<PratiCaseSkeletonBlock>
 
   @override
   Widget build(BuildContext context) {
+    if (PratiCasePerformance.staticWebEffects) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(widget.radius),
+        child: SizedBox(
+          width: widget.width,
+          height: widget.height,
+          child: ColoredBox(
+            color: PratiCaseColors.surfaceContainerHighest.withValues(
+              alpha: 0.58,
+            ),
+          ),
+        ),
+      );
+    }
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(widget.radius),
       child: SizedBox(
@@ -54,16 +79,19 @@ class _PratiCaseSkeletonBlockState extends State<PratiCaseSkeletonBlock>
                   begin: Alignment(-1 + shift, 0),
                   end: Alignment(0 + shift, 0),
                   colors: [
-                    PratiCaseColors.surfaceContainerHighest
-                        .withValues(alpha: 0.55),
+                    PratiCaseColors.surfaceContainerHighest.withValues(
+                      alpha: 0.55,
+                    ),
                     PratiCaseColors.white.withValues(alpha: 0.92),
-                    PratiCaseColors.surfaceContainerHighest
-                        .withValues(alpha: 0.55),
+                    PratiCaseColors.surfaceContainerHighest.withValues(
+                      alpha: 0.55,
+                    ),
                   ],
                   stops: const [0.0, 0.5, 1.0],
                 ),
-                color: PratiCaseColors.surfaceContainerHighest
-                    .withValues(alpha: 0.55),
+                color: PratiCaseColors.surfaceContainerHighest.withValues(
+                  alpha: 0.55,
+                ),
               ),
             );
           },
@@ -174,16 +202,10 @@ class PratiCaseScreenSkeleton extends StatelessWidget {
         const PratiCaseSkeletonBlock(width: 280, height: 14),
         if (showSearch) ...[
           const SizedBox(height: 22),
-          const PratiCaseSkeletonBlock(
-            height: 62,
-            radius: PratiCaseRadius.xl,
-          ),
+          const PratiCaseSkeletonBlock(height: 62, radius: PratiCaseRadius.xl),
         ],
         const SizedBox(height: 24),
-        PratiCaseSkeletonBlock(
-          height: heroHeight,
-          radius: PratiCaseRadius.xxl,
-        ),
+        PratiCaseSkeletonBlock(height: heroHeight, radius: PratiCaseRadius.xxl),
         const SizedBox(height: 18),
         for (var index = 0; index < cardCount; index++) ...[
           PratiCaseSkeletonCard(lines: index.isEven ? 2 : 3),
@@ -259,12 +281,9 @@ class PratiCaseGroupedSection extends StatelessWidget {
                       height: 36,
                       decoration: BoxDecoration(
                         color: PratiCaseColors.teal.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(
-                          PratiCaseRadius.md,
-                        ),
+                        borderRadius: BorderRadius.circular(PratiCaseRadius.md),
                         border: Border.all(
-                          color:
-                              PratiCaseColors.teal.withValues(alpha: 0.14),
+                          color: PratiCaseColors.teal.withValues(alpha: 0.14),
                         ),
                       ),
                       child: Icon(icon, color: PratiCaseColors.teal, size: 19),

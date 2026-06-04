@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../app/theme/praticase_accent.dart';
 import '../../app/theme/praticase_colors.dart';
 import '../../app/theme/praticase_motion.dart';
+import '../../app/theme/praticase_performance.dart';
 import '../../app/theme/praticase_tokens.dart';
 
 /// Premium birincil CTA — spring scale + altında nabız atan glow + label
@@ -63,14 +64,16 @@ class _GlowButtonState extends State<GlowButton> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    if (widget.pulse) _pulse.repeat();
+    if (widget.pulse && !PratiCasePerformance.staticWebEffects) {
+      _pulse.repeat();
+    }
   }
 
   @override
   void didUpdateWidget(covariant GlowButton old) {
     super.didUpdateWidget(old);
     if (widget.pulse != old.pulse) {
-      if (widget.pulse) {
+      if (widget.pulse && !PratiCasePerformance.staticWebEffects) {
         _pulse.repeat();
       } else {
         _pulse.stop();
@@ -110,6 +113,7 @@ class _GlowButtonState extends State<GlowButton> with TickerProviderStateMixin {
     final bright = widget.accentOverride == null
         ? PratiCaseAccent.instance.bright
         : accent;
+    final lightweightPaint = PratiCasePerformance.lightweightWebPaint;
 
     final core = RepaintBoundary(
       child: GestureDetector(
@@ -122,7 +126,7 @@ class _GlowButtonState extends State<GlowButton> with TickerProviderStateMixin {
           animation: Listenable.merge([_press, _pulse]),
           builder: (context, _) {
             final press = Curves.easeOutCubic.transform(_press.value);
-            final pulse = widget.pulse
+            final pulse = widget.pulse && !PratiCasePerformance.staticWebEffects
                 ? (1 - (_pulse.value - 0.5).abs() * 2) // 0→1→0 triangle
                 : 0.0;
 
@@ -153,10 +157,15 @@ class _GlowButtonState extends State<GlowButton> with TickerProviderStateMixin {
                   boxShadow: _enabled
                       ? [
                           BoxShadow(
-                            color: accent.withValues(alpha: glowAlpha),
-                            blurRadius: 24 + press * 6,
-                            spreadRadius: -6,
-                            offset: Offset(0, 14 - press * 6),
+                            color: accent.withValues(
+                              alpha: lightweightPaint ? 0.13 : glowAlpha,
+                            ),
+                            blurRadius: lightweightPaint ? 10 : 24 + press * 6,
+                            spreadRadius: lightweightPaint ? -2 : -6,
+                            offset: Offset(
+                              0,
+                              lightweightPaint ? 5 : 14 - press * 6,
+                            ),
                           ),
                         ]
                       : null,

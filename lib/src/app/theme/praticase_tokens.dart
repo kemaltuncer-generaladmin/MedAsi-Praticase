@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'praticase_colors.dart';
+import 'praticase_performance.dart';
 
 abstract final class PratiCaseSpacing {
   static const double xs = 4;
@@ -29,52 +30,74 @@ abstract final class PratiCaseShadows {
   /// Premium iki katmanlı kart gölgesi: yumuşak ambient + ince key.
   /// Tek katmanlı gölgeye göre belirgin biçimde daha derin görünür.
   static List<BoxShadow> get card => [
-    BoxShadow(
-      color: PratiCaseColors.navy.withValues(alpha: 0.055),
-      blurRadius: 22,
-      spreadRadius: -8,
-      offset: const Offset(0, 14),
-    ),
-    BoxShadow(
-      color: PratiCaseColors.navy.withValues(alpha: 0.025),
-      blurRadius: 3,
-      offset: const Offset(0, 1),
-    ),
+    if (PratiCasePerformance.lightweightWebPaint)
+      BoxShadow(
+        color: PratiCaseColors.navy.withValues(alpha: 0.030),
+        blurRadius: 8,
+        spreadRadius: -3,
+        offset: const Offset(0, 3),
+      )
+    else ...[
+      BoxShadow(
+        color: PratiCaseColors.navy.withValues(alpha: 0.055),
+        blurRadius: 22,
+        spreadRadius: -8,
+        offset: const Offset(0, 14),
+      ),
+      BoxShadow(
+        color: PratiCaseColors.navy.withValues(alpha: 0.025),
+        blurRadius: 3,
+        offset: const Offset(0, 1),
+      ),
+    ],
   ];
 
   /// Hafif kart yükselmesi (seçili tile, hover hissi).
   static List<BoxShadow> get soft => [
     BoxShadow(
-      color: PratiCaseColors.navy.withValues(alpha: 0.025),
-      blurRadius: 10,
-      spreadRadius: -2,
-      offset: const Offset(0, 4),
+      color: PratiCaseColors.navy.withValues(
+        alpha: PratiCasePerformance.lightweightWebPaint ? 0.018 : 0.025,
+      ),
+      blurRadius: PratiCasePerformance.lightweightWebPaint ? 5 : 10,
+      spreadRadius: PratiCasePerformance.lightweightWebPaint ? -1 : -2,
+      offset: Offset(0, PratiCasePerformance.lightweightWebPaint ? 2 : 4),
     ),
   ];
 
   /// Hero ve floating action elementleri için derin iki katmanlı gölge.
   static List<BoxShadow> get floating => [
-    BoxShadow(
-      color: PratiCaseColors.navy.withValues(alpha: 0.12),
-      blurRadius: 30,
-      spreadRadius: -8,
-      offset: const Offset(0, 18),
-    ),
-    BoxShadow(
-      color: PratiCaseColors.navy.withValues(alpha: 0.04),
-      blurRadius: 4,
-      offset: const Offset(0, 2),
-    ),
+    if (PratiCasePerformance.lightweightWebPaint)
+      BoxShadow(
+        color: PratiCaseColors.navy.withValues(alpha: 0.055),
+        blurRadius: 12,
+        spreadRadius: -4,
+        offset: const Offset(0, 6),
+      )
+    else ...[
+      BoxShadow(
+        color: PratiCaseColors.navy.withValues(alpha: 0.12),
+        blurRadius: 30,
+        spreadRadius: -8,
+        offset: const Offset(0, 18),
+      ),
+      BoxShadow(
+        color: PratiCaseColors.navy.withValues(alpha: 0.04),
+        blurRadius: 4,
+        offset: const Offset(0, 2),
+      ),
+    ],
   ];
 
   /// Birincil CTA altında ince teal glow — pahalı değil ama
   /// "tıklanabilir" hissi pekişir.
   static List<BoxShadow> get primaryCta => [
     BoxShadow(
-      color: PratiCaseColors.teal.withValues(alpha: 0.20),
-      blurRadius: 18,
-      spreadRadius: -4,
-      offset: const Offset(0, 8),
+      color: PratiCaseColors.teal.withValues(
+        alpha: PratiCasePerformance.lightweightWebPaint ? 0.12 : 0.20,
+      ),
+      blurRadius: PratiCasePerformance.lightweightWebPaint ? 8 : 18,
+      spreadRadius: PratiCasePerformance.lightweightWebPaint ? -2 : -4,
+      offset: Offset(0, PratiCasePerformance.lightweightWebPaint ? 4 : 8),
     ),
   ];
 }

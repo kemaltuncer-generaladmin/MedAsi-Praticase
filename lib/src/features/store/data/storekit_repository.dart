@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../shared/data/user_facing_error.dart';
+import '../domain/gift_code_redemption.dart';
 import '../domain/subscription_state.dart';
 import '../domain/wallet_snapshot.dart';
 import '../domain/wallet_transaction.dart';
@@ -74,6 +75,21 @@ class StoreKitRepository {
       );
     }
     return uri;
+  }
+
+  Future<GiftCodeRedemption> redeemGiftCode(String code) async {
+    final normalized = normalizeGiftCode(code);
+    if (normalized.isEmpty) {
+      throw const StorePurchaseException(
+        'Hediye kodunu 16 karakterlik biçimiyle tekrar kontrol edelim.',
+        code: 'invalid_gift_code',
+      );
+    }
+    final data = await _invoke({
+      'action': 'redeem_gift_code',
+      'code': normalized,
+    }, fallback: 'Hediye kodu şu an işlenemedi. Biraz sonra tekrar deneyelim.');
+    return GiftCodeRedemption.fromFunctionResponse(data);
   }
 
   /// `praticase-storekit-verify` fonksiyonuna istek atar.

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'praticase_accent.dart';
 import 'praticase_colors.dart';
 import 'praticase_motion.dart';
+import 'praticase_performance.dart';
 import 'praticase_tokens.dart';
 import 'praticase_typography.dart';
 
@@ -24,15 +25,15 @@ abstract final class PratiCaseTheme {
       colorScheme: colorScheme,
       scaffoldBackgroundColor: PratiCaseColors.softSurface,
       visualDensity: VisualDensity.standard,
-      splashFactory: InkSparkle.splashFactory,
-      pageTransitionsTheme: const PageTransitionsTheme(
+      splashFactory: PratiCasePerformance.web
+          ? NoSplash.splashFactory
+          : InkSparkle.splashFactory,
+      pageTransitionsTheme: PageTransitionsTheme(
         builders: <TargetPlatform, PageTransitionsBuilder>{
-          TargetPlatform.iOS: PratiCasePageTransitions(),
-          TargetPlatform.android: PratiCasePageTransitions(),
-          TargetPlatform.macOS: PratiCasePageTransitions(),
-          TargetPlatform.linux: PratiCasePageTransitions(),
-          TargetPlatform.windows: PratiCasePageTransitions(),
-          TargetPlatform.fuchsia: PratiCasePageTransitions(),
+          for (final platform in TargetPlatform.values)
+            platform: PratiCasePerformance.web
+                ? const PratiCaseWebPageTransitions()
+                : const PratiCasePageTransitions(),
         },
       ),
       appBarTheme: const AppBarTheme(

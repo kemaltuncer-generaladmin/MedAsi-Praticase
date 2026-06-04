@@ -14,6 +14,7 @@ import '../features/theoretical_exam/data/theoretical_exam_repository.dart';
 import 'theme/praticase_accent.dart';
 import 'theme/praticase_colors.dart';
 import 'theme/praticase_motion.dart';
+import 'theme/praticase_performance.dart';
 import 'theme/praticase_theme.dart';
 import 'theme/praticase_tokens.dart';
 
@@ -127,15 +128,15 @@ class _PratiCaseAppState extends State<PratiCaseApp> {
     _applySessionUser(user, restoringSession: false);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final Widget body;
-    final String bodyKey;
+  Widget _buildSessionBody({
+    AuthStep? requestedAuthStep,
+    ValueChanged<AuthUser>? onAuthenticated,
+  }) {
     if (_restoringSession) {
-      body = const _PratiCaseStartupScreen();
-      bodyKey = 'startup';
-    } else if (_gate == _SessionGate.authenticated) {
-      body = PratiCaseShell(
+      return const _PratiCaseStartupScreen();
+    }
+    if (_gate == _SessionGate.authenticated) {
+      return PratiCaseShell(
         authRepository: widget.authRepository,
         homeRepository: widget.homeRepository,
         casesRepository: widget.casesRepository,
@@ -144,19 +145,76 @@ class _PratiCaseAppState extends State<PratiCaseApp> {
         oralExamRepository: widget.oralExamRepository,
         onSignOut: _signOut,
       );
-      bodyKey = 'shell';
-    } else {
-      body = AuthFlow(
-        authRepository: widget.authRepository,
-        initialStep: _gate == _SessionGate.profilePending
-            ? AuthStep.profileSetup
-            : AuthStep.onboarding,
-        initialEmail: _initialEmail,
-        initialFullName: _initialFullName,
-        onAuthenticated: (user) => unawaited(_completeAuthentication(user)),
-      );
-      bodyKey = 'auth';
     }
+
+    return AuthFlow(
+      authRepository: widget.authRepository,
+      initialStep:
+          requestedAuthStep ??
+          (_gate == _SessionGate.profilePending
+              ? AuthStep.profileSetup
+              : AuthStep.onboarding),
+      initialEmail: _initialEmail,
+      initialFullName: _initialFullName,
+      onAuthenticated:
+          onAuthenticated ?? (user) => unawaited(_completeAuthentication(user)),
+    );
+  }
+
+  String _sessionBodyKey() {
+    if (_restoringSession) return 'startup';
+    if (_gate == _SessionGate.authenticated) return 'shell';
+    return 'auth';
+  }
+
+  Route<dynamic>? _onGenerateWebRoute(RouteSettings settings) {
+    if (!PratiCasePerformance.web) return null;
+    final step = _authStepForWebRoute(settings.name);
+    if (step == null) return null;
+    return _buildWebRoute(settings, requestedAuthStep: step);
+  }
+
+  Route<dynamic>? _onUnknownWebRoute(RouteSettings settings) {
+    if (!PratiCasePerformance.web) return null;
+    return _buildWebRoute(settings);
+  }
+
+  MaterialPageRoute<void> _buildWebRoute(
+    RouteSettings settings, {
+    AuthStep? requestedAuthStep,
+  }) {
+    return MaterialPageRoute<void>(
+      settings: settings,
+      builder: (routeContext) => _buildSessionBody(
+        requestedAuthStep: requestedAuthStep,
+        onAuthenticated: (user) {
+          unawaited(_completeAuthentication(user));
+          Navigator.of(routeContext).popUntil((route) => route.isFirst);
+        },
+      ),
+    );
+  }
+
+  AuthStep? _authStepForWebRoute(String? routeName) {
+    final raw = routeName ?? '';
+    final hashIndex = raw.indexOf('#');
+    final routed = hashIndex >= 0 ? raw.substring(hashIndex + 1) : raw;
+    final path = routed.split('?').first;
+    return switch (path) {
+      '/login' => AuthStep.login,
+      '/register' => AuthStep.register,
+      '/forgot-password' => AuthStep.forgotPassword,
+      '/reset-password' => AuthStep.resetPassword,
+      '/verify-email' => AuthStep.verifyEmail,
+      '/profile-setup' => AuthStep.profileSetup,
+      _ => null,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final body = _buildSessionBody();
+    final bodyKey = _sessionBodyKey();
 
     return ListenableBuilder(
       listenable: PratiCaseAccent.instance,
@@ -165,6 +223,8 @@ class _PratiCaseAppState extends State<PratiCaseApp> {
         debugShowCheckedModeBanner: false,
         theme: PratiCaseTheme.light(accent: PratiCaseAccent.instance.primary),
         themeMode: ThemeMode.light,
+        onGenerateRoute: PratiCasePerformance.web ? _onGenerateWebRoute : null,
+        onUnknownRoute: PratiCasePerformance.web ? _onUnknownWebRoute : null,
         home: AnimatedSwitcher(
           duration: PratiCaseDurations.emphasized,
           switchInCurve: PratiCaseCurves.emphasized,

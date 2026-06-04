@@ -50,6 +50,7 @@ class WalletTransaction {
   final DateTime? expiresAt;
 
   bool get isSubscription => kind == 'subscription';
+  bool get isGift => kind == 'gift' || productCode == 'gift_code';
   bool get isUsage => kind == 'usage' || coinAmount < 0 || questionAmount < 0;
   bool get isCredit => !isUsage && (coinAmount > 0 || questionAmount > 0);
   bool get isActive => status == 'active' && !expired;

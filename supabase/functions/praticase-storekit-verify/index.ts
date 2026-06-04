@@ -113,6 +113,10 @@ Deno.serve(async (request) => {
     return jsonResponse(payload, payload.error ? 503 : 200, origin);
   }
 
+  if (action === "redeem_gift_code") {
+    return redeemGiftCode(admin, userId, body, origin);
+  }
+
   if (action === "create_payment_checkout") {
     return createPaymentCheckout(admin, authData.user, body, origin);
   }
@@ -436,6 +440,56 @@ async function createPaymentCheckout(
   return jsonResponse({ checkout, product: snapshot }, 200, origin);
 }
 
+async function redeemGiftCode(
+  // deno-lint-ignore no-explicit-any
+  admin: any,
+  userId: string,
+  body: JsonMap,
+  origin: string | null,
+): Promise<Response> {
+  const code = normalizeGiftCode(stringValue(body.code).slice(0, 32));
+  if (!code) {
+    return jsonResponse(
+      { error: "Hediye kodunu 16 karakterlik biçimiyle tekrar kontrol edelim." },
+      400,
+      origin,
+    );
+  }
+
+  const { data, error } = await admin.rpc("redeem_gift_code", {
+    p_user_id: userId,
+    p_code: code,
+  });
+  if (error) {
+    return jsonResponse(
+      { error: friendlyGiftCodeError(error.message) },
+      400,
+      origin,
+    );
+  }
+
+  const redemption = isJsonMap(data) ? data : {};
+  const profile = await loadEffectiveWalletProfile(admin, userId);
+  return jsonResponse(
+    {
+      status: "ok",
+      redemption: {
+        ...redemption,
+        profile,
+        wallet_balance: numberValue(redemption.wallet_balance) ??
+          numberValue(profile.wallet_balance) ?? 0,
+        question_quota: numberValue(redemption.question_quota) ??
+          numberValue(profile.question_quota) ?? 0,
+        ai_quota: numberValue(redemption.ai_quota) ??
+          numberValue(profile.ai_quota) ?? 0,
+      },
+      profile,
+    },
+    200,
+    origin,
+  );
+}
+
 async function handlePaymentEntitlementWebhook(
   // deno-lint-ignore no-explicit-any
   admin: any,
@@ -639,6 +693,27 @@ function walletProfileSnapshot(
         numberValue(profile.ai_quota) ?? 0,
     ),
   };
+}
+
+function normalizeGiftCode(value: string) {
+  const code = stringValue(value).toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return code.length === 16 ? code : "";
+}
+
+function friendlyGiftCodeError(message: string) {
+  if (message.includes("already redeemed")) {
+    return "Bu hediye kodu hesabında zaten kullanılmış.";
+  }
+  if (message.includes("expired")) {
+    return "Bu hediye kodunun süresi dolmuş.";
+  }
+  if (message.includes("exhausted")) {
+    return "Bu hediye kodunun kullanım hakkı tükenmiş.";
+  }
+  if (message.includes("inactive") || message.includes("not found")) {
+    return "Bu hediye kodunu doğrulayamadık. Harf ve rakamları tekrar kontrol edelim.";
+  }
+  return "Hediye kodu şu an işlenemedi. Biraz sonra tekrar deneyelim.";
 }
 
 async function loadMappedCatalog(
@@ -862,7 +937,9 @@ async function loadWalletTransactionsPayload(
   }
   const transactions = entries.map((row) => {
     const code = stringValue(row.product_code);
-    const productName = nameMap.get(code) || code || "PratiCase paketi";
+    const productName = code === "gift_code"
+      ? "Hediye kodu"
+      : nameMap.get(code) || code || "PratiCase paketi";
     const coin = numberValue(row.original_coin_amount) ?? 0;
     const question = numberValue(row.original_question_amount) ?? 0;
     const status = stringValue(row.status) || "active";

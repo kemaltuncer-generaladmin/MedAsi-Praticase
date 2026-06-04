@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'praticase_performance.dart';
+
 /// PratiCase hareket sistemi.
 ///
 /// Tüm zamanlama ve eğri sabitleri, ekranlar arası geçişler, kart
@@ -46,16 +48,35 @@ abstract final class PratiCaseCurves {
 }
 
 abstract final class PratiCaseHaptics {
-  static Future<void> selection() async => HapticFeedback.selectionClick();
-  static Future<void> light() async => HapticFeedback.lightImpact();
-  static Future<void> medium() async => HapticFeedback.mediumImpact();
-  static Future<void> heavy() async => HapticFeedback.heavyImpact();
+  static Future<void> selection() async {
+    if (PratiCasePerformance.web) return;
+    await HapticFeedback.selectionClick();
+  }
+
+  static Future<void> light() async {
+    if (PratiCasePerformance.web) return;
+    await HapticFeedback.lightImpact();
+  }
+
+  static Future<void> medium() async {
+    if (PratiCasePerformance.web) return;
+    await HapticFeedback.mediumImpact();
+  }
+
+  static Future<void> heavy() async {
+    if (PratiCasePerformance.web) return;
+    await HapticFeedback.heavyImpact();
+  }
+
   static Future<void> success() async {
+    if (PratiCasePerformance.web) return;
     await HapticFeedback.mediumImpact();
     await Future<void>.delayed(const Duration(milliseconds: 60));
     await HapticFeedback.lightImpact();
   }
+
   static Future<void> warning() async {
+    if (PratiCasePerformance.web) return;
     await HapticFeedback.heavyImpact();
   }
 }
@@ -103,6 +124,21 @@ class PratiCasePageTransitions extends PageTransitionsBuilder {
   }
 }
 
+class PratiCaseWebPageTransitions extends PageTransitionsBuilder {
+  const PratiCaseWebPageTransitions();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    return child;
+  }
+}
+
 /// Görünüme girdiğinde tek seferlik fade + slide animasyonu çalıştıran sarmal.
 ///
 /// Ana sayfada kart koleksiyonlarını veya sonuç karnesini sahneye aldırmak
@@ -147,6 +183,10 @@ class _FadeSlideInState extends State<FadeSlideIn>
   @override
   void initState() {
     super.initState();
+    if (PratiCasePerformance.staticWebEffects) {
+      _controller.value = 1;
+      return;
+    }
     if (widget.delay == Duration.zero) {
       _controller.forward();
     } else {
@@ -164,6 +204,7 @@ class _FadeSlideInState extends State<FadeSlideIn>
 
   @override
   Widget build(BuildContext context) {
+    if (PratiCasePerformance.staticWebEffects) return widget.child;
     return FadeTransition(
       opacity: _opacity,
       child: SlideTransition(position: _offset, child: widget.child),

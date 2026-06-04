@@ -728,6 +728,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
   final _scrollController = ScrollController();
   late final VoiceExamAdapter _voiceAdapter;
   StreamSubscription<VoiceExamState>? _voiceSubscription;
+  Timer? _autoResumeTimer;
   late Future<_ChatBundle> _bundleFuture;
   bool _sending = false;
   bool _navigating = false;
@@ -736,6 +737,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
   VoiceExamState _voiceState = const VoiceExamState();
   bool _wasSpeaking = false;
   String? _shownVoiceError;
+  static const _autoResumeDelay = Duration(milliseconds: 450);
 
   @override
   void initState() {
@@ -751,7 +753,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
       _wasSpeaking = state.speaking;
       setState(() => _voiceState = state);
       _surfaceVoiceError(state);
-      if (finishedSpeaking) _maybeAutoResumeListening();
+      if (finishedSpeaking) _scheduleAutoResumeListening();
     });
     _bundleFuture = _load();
   }
@@ -771,14 +773,25 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
 
   /// Reopens the microphone after the patient's reply finishes playing so the
   /// candidate can continue the anamnesis entirely by voice.
+  void _scheduleAutoResumeListening() {
+    _autoResumeTimer?.cancel();
+    _autoResumeTimer = Timer(_autoResumeDelay, () {
+      if (!mounted) return;
+      _maybeAutoResumeListening();
+    });
+  }
+
   void _maybeAutoResumeListening() {
-    if (!_voiceExamMode || _voiceState.muted || !_voiceState.available) return;
-    if (_sending || _voiceState.listening || _voiceState.speaking) return;
+    final voiceState = _voiceAdapter.state;
+    if (!_voiceExamMode || voiceState.muted || !voiceState.available) return;
+    if (_sending || voiceState.listening || voiceState.speaking) return;
+    if (_messageController.text.trim().isNotEmpty) return;
     unawaited(_beginListening());
   }
 
   @override
   void dispose() {
+    _autoResumeTimer?.cancel();
     _voiceSubscription?.cancel();
     _voiceAdapter.dispose();
     _messageController.dispose();
@@ -933,6 +946,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
       final bundle = await _bundleFuture;
       unawaited(_speakLatestPatient(bundle));
     } else {
+      _autoResumeTimer?.cancel();
       await _voiceAdapter.stopListening();
       await _voiceAdapter.stopSpeaking();
     }
@@ -950,6 +964,9 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
   }
 
   Future<void> _beginListening() async {
+    _autoResumeTimer?.cancel();
+    final voiceState = _voiceAdapter.state;
+    if (_sending || voiceState.listening || voiceState.speaking) return;
     await _voiceAdapter.startListening(
       onPartialText: (text) {
         if (!mounted || text.trim().isEmpty) return;
@@ -981,6 +998,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
     if (!_voiceExamMode || _voiceState.muted) return;
     final text = _latestPatientText(bundle);
     if (text.trim().isEmpty) return;
+    _autoResumeTimer?.cancel();
     await _voiceAdapter.speak(text);
   }
 
@@ -1829,12 +1847,6 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
 
   bool get _canAdvanceDiagnosis {
     if (_saving || _primaryController.text.trim().isEmpty) return false;
-    final differentials = _differentialsController.text
-        .split(RegExp(r'[,;\n]'))
-        .where((item) => item.trim().isNotEmpty)
-        .length;
-    if (differentials < 2) return false;
-    if (_reasoningController.text.trim().length < 12) return false;
     return true;
   }
 
@@ -2077,7 +2089,7 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
   }
 
   bool get _hasManagementInput {
-    return _noteController.text.trim().length >= 12;
+    return _noteController.text.trim().isNotEmpty;
   }
 
   bool get _canFinalizeManagement {
