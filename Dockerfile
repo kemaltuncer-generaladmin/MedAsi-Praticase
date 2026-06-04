@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM ghcr.io/cirruslabs/flutter:3.41.9 AS build
+FROM ghcr.io/cirruslabs/flutter:3.44.0 AS build
 
 WORKDIR /app
 COPY pubspec.yaml pubspec.lock ./
@@ -16,6 +16,7 @@ ARG TERMS_URL=https://praticase.medasi.com.tr/legal/terms.html
 ARG STUDY_TERMS_URL=https://praticase.medasi.com.tr/legal/study-terms.html
 ARG PURCHASE_TERMS_URL=https://praticase.medasi.com.tr/legal/purchase-terms.html
 RUN --mount=type=secret,id=praticase_env \
+  set -eu; \
   if [ -f /run/secrets/praticase_env ]; then . /run/secrets/praticase_env; fi; \
   flutter build web --release --output build/web \
     --dart-define=SUPABASE_URL="${SUPABASE_URL:-https://qlinik.medasi.com.tr}" \
@@ -27,7 +28,9 @@ RUN --mount=type=secret,id=praticase_env \
     --dart-define=STUDY_TERMS_URL="${STUDY_TERMS_URL:-https://praticase.medasi.com.tr/legal/study-terms.html}" \
     --dart-define=PURCHASE_TERMS_URL="${PURCHASE_TERMS_URL:-https://praticase.medasi.com.tr/legal/purchase-terms.html}"; \
   cp web/flutter_service_worker.js build/web/flutter_service_worker.js; \
+  test -s build/web/main.dart.js; \
   WEB_REVISION="$(sha256sum build/web/main.dart.js | cut -c1-12)"; \
+  test -n "$WEB_REVISION"; \
   sed -i "s#flutter_bootstrap.js#flutter_bootstrap.js?v=${WEB_REVISION}#" build/web/index.html; \
   sed -i "s#main.dart.js#main.dart.js?v=${WEB_REVISION}#g" build/web/flutter_bootstrap.js; \
   sed -i "s#serviceWorkerVersion: \"\\([0-9][0-9]*\\)\"#serviceWorkerVersion: \"\\1-${WEB_REVISION}\"#" build/web/flutter_bootstrap.js
