@@ -93,10 +93,33 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
+  void _nextDesktop() {
+    if (_activeIndex >= _slides.length - 1) {
+      widget.onCreateAccount();
+      return;
+    }
+    setState(() => _activeIndex += 1);
+  }
+
+  void _selectDesktopSlide(int index) {
+    if (index == _activeIndex) return;
+    setState(() => _activeIndex = index);
+  }
+
   @override
   Widget build(BuildContext context) {
     final accent = PratiCaseAccent.instance;
     final mediaPadding = MediaQuery.paddingOf(context);
+    final size = MediaQuery.sizeOf(context);
+    if (size.width >= 980 && size.height >= 620) {
+      return _OnboardingWebScreen(
+        slides: _slides,
+        activeIndex: _activeIndex,
+        onLogin: widget.onLogin,
+        onNext: _nextDesktop,
+        onSelectSlide: _selectDesktopSlide,
+      );
+    }
     return Scaffold(
       backgroundColor: PratiCaseColors.softSurface,
       body: Stack(
@@ -229,6 +252,494 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       ),
     );
   }
+}
+
+class _OnboardingWebScreen extends StatelessWidget {
+  const _OnboardingWebScreen({
+    required this.slides,
+    required this.activeIndex,
+    required this.onNext,
+    required this.onLogin,
+    required this.onSelectSlide,
+  });
+
+  final List<_OnboardingSlide> slides;
+  final int activeIndex;
+  final VoidCallback onNext;
+  final VoidCallback onLogin;
+  final ValueChanged<int> onSelectSlide;
+
+  @override
+  Widget build(BuildContext context) {
+    final slide = slides[activeIndex];
+    return Scaffold(
+      backgroundColor: PratiCaseColors.navy,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final panelHeight = (constraints.maxHeight - 48).clamp(600.0, 720.0);
+          return Stack(
+            children: [
+              const Positioned.fill(child: _OnboardingWebBackdrop()),
+              SafeArea(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1180),
+                      child: SizedBox(
+                        height: panelHeight,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: PratiCaseColors.white.withValues(
+                              alpha: 0.90,
+                            ),
+                            borderRadius: BorderRadius.circular(34),
+                            border: Border.all(
+                              color: PratiCaseColors.white.withValues(
+                                alpha: 0.62,
+                              ),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: PratiCaseColors.navy.withValues(
+                                  alpha: 0.28,
+                                ),
+                                blurRadius: 42,
+                                spreadRadius: -16,
+                                offset: const Offset(0, 22),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(34),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  flex: 11,
+                                  child: _OnboardingWebPitch(
+                                    slide: slide,
+                                    activeIndex: activeIndex,
+                                    slideCount: slides.length,
+                                    onSelectSlide: onSelectSlide,
+                                  ),
+                                ),
+                                Expanded(
+                                  flex: 9,
+                                  child: _OnboardingWebPreview(
+                                    activeIndex: activeIndex,
+                                    isLast: activeIndex == slides.length - 1,
+                                    onLogin: onLogin,
+                                    onNext: onNext,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _OnboardingWebBackdrop extends StatelessWidget {
+  const _OnboardingWebBackdrop();
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF07151F),
+                PratiCaseColors.navy,
+                PratiCaseColors.gradientStart,
+                Color(0xFFEAF4F3),
+              ],
+              stops: [0.0, 0.42, 0.72, 1.0],
+            ),
+          ),
+          child: SizedBox.expand(),
+        ),
+        Positioned.fill(child: CustomPaint(painter: _OnboardingWebGrid())),
+      ],
+    );
+  }
+}
+
+class _OnboardingWebPitch extends StatelessWidget {
+  const _OnboardingWebPitch({
+    required this.slide,
+    required this.activeIndex,
+    required this.slideCount,
+    required this.onSelectSlide,
+  });
+
+  final _OnboardingSlide slide;
+  final int activeIndex;
+  final int slideCount;
+  final ValueChanged<int> onSelectSlide;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF081822),
+            PratiCaseColors.navy,
+            PratiCaseColors.gradientStart,
+          ],
+        ),
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(child: CustomPaint(painter: _OnboardingWebGrid())),
+          Positioned(
+            right: -70,
+            bottom: -94,
+            child: Opacity(
+              opacity: 0.18,
+              child: Image.asset(
+                'assets/auth/onboarding_clinical_tablet.png',
+                width: 420,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(42, 38, 40, 38),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: Image.asset(
+                        'assets/auth/praticase_icon.png',
+                        width: 54,
+                        height: 54,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    const Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(text: 'Prati'),
+                          TextSpan(
+                            text: 'Case',
+                            style: TextStyle(color: PratiCaseColors.tealBright),
+                          ),
+                        ],
+                      ),
+                      style: TextStyle(
+                        color: PratiCaseColors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                AnimatedSwitcher(
+                  duration: PratiCaseDurations.emphasized,
+                  switchInCurve: PratiCaseCurves.emphasized,
+                  switchOutCurve: PratiCaseCurves.exit,
+                  child: Column(
+                    key: ValueKey(slide.title),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 7,
+                        ),
+                        decoration: BoxDecoration(
+                          color: slide.accentBright.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(
+                            PratiCaseRadius.pill,
+                          ),
+                          border: Border.all(
+                            color: slide.accentBright.withValues(alpha: 0.22),
+                          ),
+                        ),
+                        child: Text(
+                          slide.tag,
+                          style: TextStyle(
+                            color: slide.accentBright,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Text(
+                        slide.title,
+                        style: const TextStyle(
+                          color: PratiCaseColors.white,
+                          fontSize: 46,
+                          height: 1.02,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        slide.subtitle,
+                        style: TextStyle(
+                          color: PratiCaseColors.white.withValues(alpha: 0.76),
+                          fontSize: 16,
+                          height: 1.48,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                Row(
+                  children: [
+                    for (var index = 0; index < slideCount; index++) ...[
+                      _OnboardingWebDot(
+                        selected: index == activeIndex,
+                        onTap: () => onSelectSlide(index),
+                      ),
+                      if (index != slideCount - 1) const SizedBox(width: 8),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OnboardingWebPreview extends StatelessWidget {
+  const _OnboardingWebPreview({
+    required this.activeIndex,
+    required this.isLast,
+    required this.onNext,
+    required this.onLogin,
+  });
+
+  final int activeIndex;
+  final bool isLast;
+  final VoidCallback onNext;
+  final VoidCallback onLogin;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: PratiCaseColors.softSurface.withValues(alpha: 0.96),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(34, 34, 34, 30),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Align(
+              alignment: Alignment.topRight,
+              child: TextButton(onPressed: onLogin, child: const Text('Atla')),
+            ),
+            Expanded(
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: RadialGradient(
+                          colors: [
+                            PratiCaseColors.tealBright.withValues(alpha: 0.18),
+                            PratiCaseColors.tealBright.withValues(alpha: 0),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Image.asset(
+                    'assets/auth/onboarding_clinical_tablet.png',
+                    width: 310,
+                    fit: BoxFit.contain,
+                  ),
+                  const Positioned(
+                    right: 10,
+                    bottom: 24,
+                    child: _OnboardingFlowCard(),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: onNext,
+                    icon: const Icon(Icons.arrow_forward_rounded),
+                    label: Text(isLast ? 'Hesap Oluştur' : 'Devam'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 128,
+                  child: OutlinedButton(
+                    onPressed: onLogin,
+                    child: const Text('Giriş Yap'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '${activeIndex + 1}/3 · OSCE simülasyon akışı',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: PratiCaseColors.muted,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OnboardingFlowCard extends StatelessWidget {
+  const _OnboardingFlowCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 230,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.white.withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: PratiCaseColors.border),
+        boxShadow: PratiCaseShadows.floating,
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Sınav akışı',
+            style: TextStyle(
+              color: PratiCaseColors.navy,
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          SizedBox(height: 12),
+          _OnboardingFlowStep(label: 'Anamnez', done: true),
+          _OnboardingFlowStep(label: 'Muayene', done: true),
+          _OnboardingFlowStep(label: 'Tetkik', done: false),
+          _OnboardingFlowStep(label: 'Karne', done: false),
+        ],
+      ),
+    );
+  }
+}
+
+class _OnboardingFlowStep extends StatelessWidget {
+  const _OnboardingFlowStep({required this.label, required this.done});
+
+  final String label;
+  final bool done;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Icon(
+            done ? Icons.check_circle_rounded : Icons.circle_outlined,
+            color: done ? PratiCaseColors.teal : PratiCaseColors.border,
+            size: 18,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: done ? PratiCaseColors.ink : PratiCaseColors.muted,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OnboardingWebDot extends StatelessWidget {
+  const _OnboardingWebDot({required this.selected, required this.onTap});
+
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        width: selected ? 34 : 10,
+        height: 10,
+        decoration: BoxDecoration(
+          color: selected
+              ? PratiCaseColors.tealBright
+              : PratiCaseColors.white.withValues(alpha: 0.28),
+          borderRadius: BorderRadius.circular(999),
+        ),
+      ),
+    );
+  }
+}
+
+class _OnboardingWebGrid extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final linePaint = Paint()
+      ..color = PratiCaseColors.white.withValues(alpha: 0.055)
+      ..strokeWidth = 1;
+    for (var x = -size.height; x < size.width + size.height; x += 42) {
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x + size.height, size.height),
+        linePaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _OnboardingWebGrid oldDelegate) => false;
 }
 
 /* ───────────────────────── Slide model ───────────────────────── */

@@ -85,25 +85,13 @@ class _BadgesScreenState extends State<BadgesScreen> {
                 body: 'Rozet ilerlemesi oluştuğunda burada görünecek.',
               )
             else
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final columns = PratiCaseResponsive.columnsForWidth(
-                    constraints.maxWidth,
-                    tablet: 3,
-                    desktop: 4,
-                  );
-                  return GridView.count(
-                    crossAxisCount: columns,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: columns >= 3 ? 0.78 : 0.72,
-                    children: [
-                      for (final badge in visible) _BadgeCardView(badge: badge),
-                    ],
-                  );
-                },
+              Column(
+                children: [
+                  for (var index = 0; index < visible.length; index++) ...[
+                    _BadgeCardView(badge: visible[index]),
+                    if (index != visible.length - 1) const SizedBox(height: 10),
+                  ],
+                ],
               ),
           ],
         );
@@ -3056,74 +3044,103 @@ class _BadgeSummaryHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final earned = badges.where((badge) => badge.earned).length;
     final total = badges.length;
+    final progress = total == 0 ? 0.0 : earned / total;
     final active = badges
         .where((badge) => !badge.earned && badge.progressCount > 0)
         .take(2)
         .toList();
     return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [PratiCaseColors.navy, PratiCaseColors.teal],
-        ),
-        borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
-        boxShadow: [
-          BoxShadow(
-            color: PratiCaseColors.navy.withValues(alpha: 0.12),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Kazanılan Toplam',
-            style: TextStyle(
-              color: PratiCaseColors.tealBright,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 6),
           Row(
             children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: PratiCaseColors.teal.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: PratiCaseColors.teal.withValues(alpha: 0.18),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.verified_outlined,
+                  color: PratiCaseColors.teal,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
               Expanded(
-                child: RichText(
-                  text: TextSpan(
-                    children: [
-                      TextSpan(
-                        text: '$earned',
-                        style: const TextStyle(
-                          color: PratiCaseColors.white,
-                          fontSize: 40,
-                          fontWeight: FontWeight.w900,
-                        ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Canlı Başarılar',
+                      style: TextStyle(
+                        color: PratiCaseColors.navy,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
                       ),
-                      TextSpan(
-                        text: ' / $total Rozet',
-                        style: TextStyle(
-                          color: PratiCaseColors.white.withValues(alpha: 0.8),
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                        ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      total == 0
+                          ? 'Sınav sonuçların geldikçe burada güncellenir.'
+                          : '$earned/$total rozet kazanıldı',
+                      style: const TextStyle(
+                        color: PratiCaseColors.muted,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
                       ),
-                    ],
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  color: PratiCaseColors.teal.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+                ),
+                child: Text(
+                  '${(progress * 100).round()}%',
+                  style: const TextStyle(
+                    color: PratiCaseColors.teal,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
-              const Icon(
-                Icons.military_tech_rounded,
-                color: PratiCaseColors.tealBright,
-                size: 42,
-              ),
             ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 6,
+              backgroundColor: PratiCaseColors.surfaceContainerHighest,
+              color: PratiCaseColors.teal,
+            ),
           ),
           if (active.isNotEmpty) ...[
             const SizedBox(height: 14),
+            const Text(
+              'Sıradaki hedefler',
+              style: TextStyle(
+                color: PratiCaseColors.navy,
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 8),
             for (final badge in active) ...[
               _BadgeProgressLine(badge: badge),
               if (badge != active.last) const SizedBox(height: 10),
@@ -3156,7 +3173,7 @@ class _BadgeProgressLine extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color: PratiCaseColors.white,
+                  color: PratiCaseColors.ink,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -3164,7 +3181,7 @@ class _BadgeProgressLine extends StatelessWidget {
             Text(
               '${badge.progressCount}/${badge.targetCount}',
               style: TextStyle(
-                color: PratiCaseColors.white.withValues(alpha: 0.8),
+                color: PratiCaseColors.muted.withValues(alpha: 0.92),
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -3176,8 +3193,8 @@ class _BadgeProgressLine extends StatelessWidget {
           child: LinearProgressIndicator(
             value: progress,
             minHeight: 6,
-            backgroundColor: PratiCaseColors.white.withValues(alpha: 0.24),
-            color: PratiCaseColors.tealBright,
+            backgroundColor: PratiCaseColors.surfaceContainerHighest,
+            color: PratiCaseColors.teal,
           ),
         ),
       ],
@@ -3197,49 +3214,63 @@ class _BadgeCardView extends StatelessWidget {
         : (badge.progressCount / badge.targetCount).clamp(0.0, 1.0);
     final color = _tierColor(badge.tier);
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: _cardDecoration(),
+      padding: const EdgeInsets.all(12),
+      decoration: PratiCaseCardDecorations.card(
+        borderColor: badge.earned
+            ? color.withValues(alpha: 0.26)
+            : PratiCaseColors.border.withValues(alpha: 0.88),
+        radius: PratiCaseRadius.lg,
+      ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _MedalIcon(color: color, earned: badge.earned),
-          const SizedBox(height: 12),
-          Text(
-            badge.title,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: PratiCaseColors.navy,
-              fontWeight: FontWeight.w900,
-            ),
+          Row(
+            children: [
+              _MedalIcon(color: color, earned: badge.earned),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      badge.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: PratiCaseColors.navy,
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      badge.subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: PratiCaseColors.muted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              _BadgeStatusPill(
+                label: badge.earned
+                    ? 'Kazanıldı'
+                    : '${badge.progressCount}/${badge.targetCount}',
+                color: badge.earned ? color : PratiCaseColors.muted,
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            badge.subtitle,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: PratiCaseColors.muted,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const Spacer(),
+          const SizedBox(height: 10),
           LinearProgressIndicator(
             value: progress,
             backgroundColor: PratiCaseColors.surfaceContainerHighest,
             color: color,
-            minHeight: 5,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '${badge.progressCount} / ${badge.targetCount}',
-            style: const TextStyle(
-              color: PratiCaseColors.muted,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-            ),
+            minHeight: 4,
           ),
         ],
       ),
@@ -5257,17 +5288,49 @@ class _MedalIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 76,
-      height: 76,
+      width: 38,
+      height: 38,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: color.withValues(alpha: earned ? 0.18 : 0.08),
-        border: Border.all(color: color, width: earned ? 4 : 2),
+        color: color.withValues(alpha: earned ? 0.16 : 0.07),
+        border: Border.all(
+          color: color.withValues(alpha: earned ? 0.72 : 0.22),
+          width: 1.3,
+        ),
       ),
       child: Icon(
-        Icons.star_rounded,
+        earned ? Icons.check_rounded : Icons.star_border_rounded,
         color: earned ? color : color.withValues(alpha: 0.45),
-        size: 44,
+        size: 20,
+      ),
+    );
+  }
+}
+
+class _BadgeStatusPill extends StatelessWidget {
+  const _BadgeStatusPill({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+        ),
       ),
     );
   }

@@ -43,6 +43,7 @@ import 'package:praticase/src/features/oral_exam/data/oral_exam_repository.dart'
 import 'package:praticase/src/features/oral_exam/domain/oral_exam_models.dart';
 import 'package:praticase/src/features/oral_exam/presentation/oral_exam_screens.dart';
 import 'package:praticase/src/features/progress/presentation/store_screen.dart';
+import 'package:praticase/src/features/shell/presentation/shell_navigation.dart';
 import 'package:praticase/src/shared/data/user_facing_error.dart';
 
 void main() {
@@ -103,6 +104,35 @@ void main() {
     expect(product.appStoreProductId, 'com.medasi.qlinik.monthly');
     expect(product.canPurchaseInPratiCase, isTrue);
     expect(product.isSubscription, isTrue);
+  });
+
+  test('wallet accepts Medasi Pay checkout URL variants', () {
+    expect(
+      paymentCheckoutUriFromResponse({
+        'checkout': {'checkout_url': 'https://odeme.medasi.com.tr/c/abc'},
+      })?.toString(),
+      'https://odeme.medasi.com.tr/c/abc',
+    );
+    expect(
+      paymentCheckoutUriFromResponse({
+        'checkout': {
+          'data': {'paymentUrl': 'https://odeme.medasi.com.tr/c/nested'},
+        },
+      })?.toString(),
+      'https://odeme.medasi.com.tr/c/nested',
+    );
+    expect(
+      paymentCheckoutUriFromResponse({
+        'checkout': {'checkoutUrl': 'http://localhost:4173/c/dev'},
+      })?.toString(),
+      'http://localhost:4173/c/dev',
+    );
+    expect(
+      paymentCheckoutUriFromResponse({
+        'checkout': {'checkoutUrl': 'javascript:alert(1)'},
+      }),
+      isNull,
+    );
   });
 
   test('wallet parses live profile balances returned as text', () {
@@ -1262,9 +1292,9 @@ void main() {
     );
     await tester.pump();
     await tester.tap(find.text('Sınavı Bitir'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 350));
     await tester.tap(find.text('Bitir ve Değerlendir'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 600));
 
     expect(find.text(PratiCaseUserMessage.reportFailure), findsOneWidget);
     expect(find.text('Tekrar Dene'), findsOneWidget);
@@ -1293,7 +1323,7 @@ void main() {
     expect(find.text('Ana Sayfa'), findsWidgets);
   });
 
-  testWidgets('shell switches to navigation rail on web width', (tester) async {
+  testWidgets('shell switches to side navigation on web width', (tester) async {
     await _setViewport(tester, const Size(1200, 800));
 
     await tester.pumpWidget(
@@ -1311,7 +1341,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byType(NavigationRail), findsOneWidget);
+    expect(find.byType(PratiCaseSideNavigation), findsOneWidget);
     expect(find.text('Cüzdan'), findsOneWidget);
   });
 
@@ -1336,7 +1366,7 @@ void main() {
       expect(tester.takeException(), isNull, reason: entry.key);
       expect(find.text('Ana Sayfa'), findsWidgets, reason: entry.key);
       expect(
-        find.byType(NavigationRail),
+        find.byType(PratiCaseSideNavigation),
         entry.value.width >= 900 ||
                 (entry.value.shortestSide >= 600 && entry.value.width >= 720)
             ? findsOneWidget
@@ -1450,6 +1480,55 @@ void main() {
 
     expect(find.text('Tek İstasyon Seç'), findsOneWidget);
     expect(find.text('OSCE İstasyonları'), findsNothing);
+  });
+
+  testWidgets('mini OSCE opens a three station picker', (tester) async {
+    await _setViewport(tester, const Size(390, 1200));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PratiCaseShell(
+          authRepository: _TestAuthRepository(),
+          homeRepository: _EmptyLiveHomeRepository(),
+          casesRepository: _MiniOsceCasesRepository(),
+          progressRepository: _MiniOsceProgressRepository(),
+          theoreticalExamRepository: _FakeTheoreticalExamRepository(),
+          oralExamRepository: _FakeOralExamRepository(),
+          onSignOut: () async {},
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    await tester.tap(find.text('Sınavlar').last);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.tap(find.text('Mini OSCE').first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text('Mini OSCE Seç'), findsOneWidget);
+    expect(find.text('Tek İstasyon Seç'), findsNothing);
+    expect(find.text('0/3 istasyon seçildi'), findsOneWidget);
+
+    for (final title in const [
+      'Akut Apandisit',
+      'Ektopik Gebelik',
+      'Testis Torsiyonu',
+    ]) {
+      await tester.ensureVisible(find.text(title));
+      await tester.tap(find.text(title));
+      await tester.pump();
+    }
+
+    expect(find.text('1. İstasyon'), findsOneWidget);
+    expect(find.text('2. İstasyon'), findsOneWidget);
+    expect(find.text('3. İstasyon'), findsOneWidget);
+    expect(find.text('Mini OSCE’yi Başlat'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
   });
 
   testWidgets('theoretical setup sends selected Medasi topics', (tester) async {
@@ -1830,6 +1909,54 @@ class _FakeCasesRepository extends Fake implements CasesRepository {
   }) async => const [];
 }
 
+class _MiniOsceCasesRepository extends Fake implements CasesRepository {
+  @override
+  Future<List<OsceCaseSummary>> loadCases({
+    String query = '',
+    String? difficulty,
+  }) async => const [
+    OsceCaseSummary(
+      id: 'appendicitis',
+      title: 'Akut Apandisit',
+      branch: 'Genel Cerrahi',
+      setting: 'Acil',
+      difficulty: OsceDifficulty.medium,
+      durationMinutes: 7,
+      points: 100,
+      solvedCount: 12,
+      summary: 'Sağ alt kadran ağrısı ile başvuran hastayı değerlendir.',
+      iconKey: 'abdomen',
+      isBookmarked: false,
+    ),
+    OsceCaseSummary(
+      id: 'ectopic',
+      title: 'Ektopik Gebelik',
+      branch: 'Kadın Doğum',
+      setting: 'Acil',
+      difficulty: OsceDifficulty.hard,
+      durationMinutes: 7,
+      points: 100,
+      solvedCount: 9,
+      summary: 'Alt karın ağrısı olan hastada acil yaklaşımı planla.',
+      iconKey: 'pregnancy',
+      isBookmarked: false,
+    ),
+    OsceCaseSummary(
+      id: 'torsion',
+      title: 'Testis Torsiyonu',
+      branch: 'Üroloji',
+      setting: 'Acil',
+      difficulty: OsceDifficulty.hard,
+      durationMinutes: 7,
+      points: 100,
+      solvedCount: 7,
+      summary: 'Akut skrotum tablosunda kritik tanıyı değerlendir.',
+      iconKey: 'urology',
+      isBookmarked: false,
+    ),
+  ];
+}
+
 class _FakeProgressRepository extends Fake implements ProgressRepository {
   @override
   Stream<int> watchUnreadNotificationCount() => Stream.value(0);
@@ -1885,6 +2012,19 @@ class _SingleStationProgressRepository extends _FakeProgressRepository {
       subtitle: 'Bir vaka seç, süreli OSCE akışına gir.',
       iconKey: 'timer',
       actionKey: 'single_station',
+    ),
+  ];
+}
+
+class _MiniOsceProgressRepository extends _FakeProgressRepository {
+  @override
+  Future<List<ExamModeItem>> loadExamModes() async => const [
+    ExamModeItem(
+      id: 'mini_osce',
+      title: 'Mini OSCE',
+      subtitle: '3 istasyon seç, arka arkaya tamamla.',
+      iconKey: 'route',
+      actionKey: 'mini_osce',
     ),
   ];
 }

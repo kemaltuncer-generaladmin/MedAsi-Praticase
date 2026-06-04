@@ -19,7 +19,7 @@ abstract final class PratiCaseBreakpoints {
   static const double tabletShortestSide = 600;
 
   static const double tabletContentMaxWidth = 760;
-  static const double desktopContentMaxWidth = 1120;
+  static const double desktopContentMaxWidth = 1280;
   static const double flowContentMaxWidth = 960;
 }
 

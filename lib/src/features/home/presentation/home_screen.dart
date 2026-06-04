@@ -76,6 +76,23 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         }
         final dashboard = snapshot.requireData;
+        if (PratiCaseResponsive.isDesktop(context)) {
+          return _HomeDesktopDashboard(
+            dashboard: dashboard,
+            onRefresh: _refresh,
+            onOpenBadges: widget.onOpenBadges,
+            onOpenBannerRoute: _openBannerRoute,
+            onOpenCase: _openCaseDetail,
+            onOpenCases: widget.onOpenCases,
+            onOpenExams: widget.onOpenExams,
+            onOpenNotifications: widget.onOpenNotifications,
+            onOpenProfile: widget.onOpenProfile,
+            onOpenProgress: widget.onOpenProgress,
+            onOpenRecall: _openRecall,
+            onOpenTheoreticalExam: widget.onOpenTheoreticalExam,
+            unreadNotificationCount: widget.unreadNotificationCount,
+          );
+        }
         final sections = <Widget>[
           _HomeHeader(
             dashboard: dashboard,
@@ -216,11 +233,606 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _openRecall() async {
-    final uri = Uri.parse('https://recall.medasi.com.tr');
+    final uri = Uri.https('recall.medasi.com.tr', '/', {
+      'source_app': 'praticase',
+      'entry': 'home_today',
+    });
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
+}
+
+class _HomeDesktopDashboard extends StatelessWidget {
+  const _HomeDesktopDashboard({
+    required this.dashboard,
+    required this.onRefresh,
+    required this.onOpenCase,
+    required this.onOpenBannerRoute,
+    required this.onOpenRecall,
+    required this.onOpenNotifications,
+    required this.onOpenProfile,
+    required this.unreadNotificationCount,
+    this.onOpenCases,
+    this.onOpenExams,
+    this.onOpenTheoreticalExam,
+    this.onOpenProgress,
+    this.onOpenBadges,
+  });
+
+  final HomeDashboard dashboard;
+  final Future<void> Function() onRefresh;
+  final ValueChanged<String> onOpenCase;
+  final ValueChanged<HomeBanner> onOpenBannerRoute;
+  final VoidCallback onOpenRecall;
+  final VoidCallback? onOpenCases;
+  final VoidCallback? onOpenExams;
+  final VoidCallback? onOpenTheoreticalExam;
+  final VoidCallback? onOpenProgress;
+  final VoidCallback? onOpenBadges;
+  final VoidCallback? onOpenNotifications;
+  final VoidCallback? onOpenProfile;
+  final int? unreadNotificationCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      child: PratiCaseResponsiveListView(
+        maxWidth: 1280,
+        padding: PratiCaseResponsive.pagePadding(
+          context,
+          top: 26,
+          bottom: 34,
+          includeNavigationReserve: false,
+        ),
+        children: [
+          _HomeHeader(
+            dashboard: dashboard,
+            onOpenNotifications: onOpenNotifications,
+            onOpenProfile: onOpenProfile,
+            unreadNotificationCount: unreadNotificationCount,
+          ),
+          const SizedBox(height: 22),
+          _HomeDesktopHero(
+            dashboard: dashboard,
+            onOpenCases: onOpenCases,
+            onOpenExams: onOpenExams,
+            onOpenProgress: onOpenProgress,
+          ),
+          const SizedBox(height: 24),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 7,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const _SectionHeader(
+                      title: 'Bugünkü Çalışma',
+                      onViewAll: null,
+                    ),
+                    const SizedBox(height: 10),
+                    _QuickActions(
+                      onSingleStation: onOpenCases,
+                      onMiniOsce: onOpenExams,
+                      onTheoreticalExam: onOpenTheoreticalExam,
+                    ),
+                    if (dashboard.recallSummary != null) ...[
+                      const SizedBox(height: 18),
+                      _RecallTodayCard(
+                        summary: dashboard.recallSummary!,
+                        onOpenRecall: onOpenRecall,
+                      ),
+                    ],
+                    const SizedBox(height: 22),
+                    _SectionHeader(
+                      title: 'Genel Bakış',
+                      onViewAll: onOpenProgress,
+                    ),
+                    const SizedBox(height: 10),
+                    if (dashboard.stats != null) ...[
+                      _StatsHub(stats: dashboard.stats!),
+                      const SizedBox(height: 12),
+                      _WeeklyActivityChart(stats: dashboard.stats!),
+                    ] else
+                      _OverviewCharts(stats: dashboard.stats),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 22),
+              Expanded(
+                flex: 5,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _SectionHeader(
+                      title: dashboard.continuedCase == null
+                          ? 'Önerilen Vakalar'
+                          : 'Devam Edilen Vaka',
+                      onViewAll: onOpenCases,
+                    ),
+                    const SizedBox(height: 10),
+                    if (dashboard.continuedCase != null)
+                      _ContinuedCaseCard(
+                        continuedCase: dashboard.continuedCase,
+                        onOpenCase: () =>
+                            onOpenCase(dashboard.continuedCase!.caseId),
+                      )
+                    else
+                      _RecommendedCases(
+                        cases: dashboard.recommendedCases,
+                        onOpenCase: onOpenCase,
+                      ),
+                    if (dashboard.continuedCase != null &&
+                        dashboard.recommendedCases.isNotEmpty) ...[
+                      const SizedBox(height: 22),
+                      _SectionHeader(
+                        title: 'Önerilen Vakalar',
+                        onViewAll: onOpenCases,
+                      ),
+                      const SizedBox(height: 10),
+                      _RecommendedCases(
+                        cases: dashboard.recommendedCases,
+                        onOpenCase: onOpenCase,
+                      ),
+                    ],
+                    if (dashboard.badgeSummary != null) ...[
+                      const SizedBox(height: 22),
+                      _BadgePanel(
+                        summary: dashboard.badgeSummary,
+                        onOpenBadges: onOpenBadges,
+                      ),
+                    ],
+                    if (dashboard.banners.isNotEmpty) ...[
+                      const SizedBox(height: 22),
+                      _SectionHeader(
+                        title: 'Duyurular',
+                        onViewAll: onOpenCases,
+                      ),
+                      const SizedBox(height: 10),
+                      _BannerCarousel(
+                        banners: dashboard.banners,
+                        onCta: onOpenBannerRoute,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeDesktopHero extends StatelessWidget {
+  const _HomeDesktopHero({
+    required this.dashboard,
+    required this.onOpenCases,
+    required this.onOpenExams,
+    required this.onOpenProgress,
+  });
+
+  final HomeDashboard dashboard;
+  final VoidCallback? onOpenCases;
+  final VoidCallback? onOpenExams;
+  final VoidCallback? onOpenProgress;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 420,
+      decoration: BoxDecoration(
+        gradient: PratiCaseGradients.hero,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: PratiCaseShadows.floating,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(32),
+        child: Stack(
+          children: [
+            Positioned.fill(child: CustomPaint(painter: _HomeHeroPainter())),
+            Positioned(
+              right: -38,
+              bottom: -60,
+              child: Opacity(
+                opacity: 0.34,
+                child: Image.asset(
+                  'assets/auth/onboarding_clinical_tablet.png',
+                  width: 350,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(28),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    flex: 6,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const _HeroEyebrow(),
+                        const SizedBox(height: 22),
+                        Text(
+                          'Merhaba, ${dashboard.user.firstName}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: PratiCaseColors.white,
+                            fontSize: 44,
+                            height: 1.02,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Bugünkü OSCE pratiğini seç; hasta görüşmesi, klinik aksiyon ve karne akışını tek ekranda yönet.',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: PratiCaseColors.white.withValues(
+                              alpha: 0.78,
+                            ),
+                            fontSize: 16,
+                            height: 1.45,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 22),
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          children: [
+                            SizedBox(
+                              height: 50,
+                              child: FilledButton.icon(
+                                onPressed: onOpenCases,
+                                icon: const Icon(Icons.assignment_ind_rounded),
+                                label: const Text('Tek İstasyon'),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: PratiCaseColors.white,
+                                  foregroundColor: PratiCaseColors.navy,
+                                ),
+                              ),
+                            ),
+                            SizedBox(
+                              height: 50,
+                              child: OutlinedButton.icon(
+                                onPressed: onOpenExams,
+                                icon: const Icon(Icons.view_kanban_rounded),
+                                label: const Text('Mini OSCE'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: PratiCaseColors.white,
+                                  side: BorderSide(
+                                    color: PratiCaseColors.white.withValues(
+                                      alpha: 0.34,
+                                    ),
+                                  ),
+                                  backgroundColor: PratiCaseColors.white
+                                      .withValues(alpha: 0.08),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const Spacer(),
+                        _SearchPill(onTap: onOpenCases),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 28),
+                  Expanded(
+                    flex: 4,
+                    child: _HomeHeroScorePanel(
+                      stats: dashboard.stats,
+                      onOpenProgress: onOpenProgress,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroEyebrow extends StatelessWidget {
+  const _HeroEyebrow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: const [
+        _HeroChip(icon: Icons.timer_rounded, label: 'Süreli istasyon'),
+        _HeroChip(icon: Icons.forum_rounded, label: 'Sanal hasta'),
+        _HeroChip(icon: Icons.fact_check_rounded, label: 'Rubrik karne'),
+      ],
+    );
+  }
+}
+
+class _HeroChip extends StatelessWidget {
+  const _HeroChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.white.withValues(alpha: 0.11),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+        border: Border.all(
+          color: PratiCaseColors.white.withValues(alpha: 0.16),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: PratiCaseColors.goldBright, size: 15),
+          const SizedBox(width: 7),
+          Text(
+            label,
+            style: const TextStyle(
+              color: PratiCaseColors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeHeroScorePanel extends StatelessWidget {
+  const _HomeHeroScorePanel({
+    required this.stats,
+    required this.onOpenProgress,
+  });
+
+  final DashboardStats? stats;
+  final VoidCallback? onOpenProgress;
+
+  @override
+  Widget build(BuildContext context) {
+    final data = stats;
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.white.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: PratiCaseColors.white.withValues(alpha: 0.76),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: PratiCaseColors.navy.withValues(alpha: 0.22),
+            blurRadius: 28,
+            spreadRadius: -12,
+            offset: const Offset(0, 18),
+          ),
+        ],
+      ),
+      child: data == null
+          ? const _HomeHeroEmptyScore()
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Performans Karnesi',
+                        style: TextStyle(
+                          color: PratiCaseColors.navy,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: onOpenProgress,
+                      child: const Text('Aç'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    _ScoreRing(percent: data.successRatePercent),
+                    const SizedBox(width: 18),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          _HeroScoreLine(
+                            label: 'Çözülen',
+                            value: '${data.solvedCaseCount} vaka',
+                            color: PratiCaseColors.teal,
+                          ),
+                          const SizedBox(height: 10),
+                          _HeroScoreLine(
+                            label: 'Seri',
+                            value: '${data.dailyStreak} gün',
+                            color: PratiCaseColors.gold,
+                          ),
+                          const SizedBox(height: 10),
+                          _HeroScoreLine(
+                            label: 'Puan',
+                            value: _StatsHub._formatPoints(data.totalPoints),
+                            color: PratiCaseColors.slateBlue,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: PratiCaseColors.teal.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: PratiCaseColors.teal.withValues(alpha: 0.12),
+                    ),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(
+                        Icons.trending_up_rounded,
+                        color: PratiCaseColors.teal,
+                      ),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Anamnez, muayene, tetkik ve yönetim skorlarını gelişimde takip et.',
+                          style: TextStyle(
+                            color: PratiCaseColors.ink,
+                            fontSize: 12,
+                            height: 1.35,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+class _HomeHeroEmptyScore extends StatelessWidget {
+  const _HomeHeroEmptyScore();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.query_stats_rounded, color: PratiCaseColors.teal, size: 34),
+        SizedBox(height: 16),
+        Text(
+          'İlk karne hazır olduğunda burada görünecek',
+          style: TextStyle(
+            color: PratiCaseColors.navy,
+            fontSize: 20,
+            height: 1.2,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        SizedBox(height: 8),
+        Text(
+          'Vaka çözdükçe performans özeti ve gelişim sinyalleri bu panelde toplanır.',
+          style: TextStyle(
+            color: PratiCaseColors.muted,
+            fontSize: 13,
+            height: 1.38,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HeroScoreLine extends StatelessWidget {
+  const _HeroScoreLine({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: PratiCaseColors.muted,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: PratiCaseColors.navy,
+            fontSize: 12,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HomeHeroPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final linePaint = Paint()
+      ..color = PratiCaseColors.white.withValues(alpha: 0.055)
+      ..strokeWidth = 1;
+    for (var x = -size.height; x < size.width + size.height; x += 40) {
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x + size.height, size.height),
+        linePaint,
+      );
+    }
+    final goldPaint = Paint()
+      ..shader =
+          RadialGradient(
+            colors: [
+              PratiCaseColors.goldBright.withValues(alpha: 0.22),
+              PratiCaseColors.goldBright.withValues(alpha: 0),
+            ],
+          ).createShader(
+            Rect.fromCircle(
+              center: Offset(size.width * 0.86, size.height * 0.02),
+              radius: 260,
+            ),
+          );
+    canvas.drawCircle(
+      Offset(size.width * 0.86, size.height * 0.02),
+      260,
+      goldPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _HomeHeroPainter oldDelegate) => false;
 }
 
 class _HomeHeader extends StatelessWidget {

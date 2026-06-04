@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../shared/data/user_facing_error.dart';
@@ -65,12 +66,8 @@ class StoreKitRepository {
       'product_code': productCode,
       'channel': channel,
     }, fallback: PratiCaseUserMessage.purchaseFailure);
-    final checkout = data['checkout'];
-    final checkoutData = checkout is Map
-        ? Map<String, dynamic>.from(checkout)
-        : const <String, dynamic>{};
-    final uri = Uri.tryParse((checkoutData['checkoutUrl'] ?? '').toString());
-    if (uri == null || !uri.hasScheme) {
+    final uri = paymentCheckoutUriFromResponse(data);
+    if (uri == null) {
       throw const StorePurchaseException(
         'Ödeme sayfası şu anda açılamadı. Lütfen tekrar dene.',
         code: 'missing_checkout_url',
@@ -146,4 +143,45 @@ class StoreKitRepository {
     }
     return PratiCaseUserMessage.safe(details?.toString(), fallback: fallback);
   }
+}
+
+@visibleForTesting
+Uri? paymentCheckoutUriFromResponse(Map<String, dynamic> data) {
+  for (final candidate in _checkoutUrlCandidates(data)) {
+    final uri = _parsePaymentCheckoutUri(candidate);
+    if (uri != null) return uri;
+  }
+  return null;
+}
+
+Iterable<Object?> _checkoutUrlCandidates(Object? source) sync* {
+  if (source is! Map) return;
+  final map = Map<Object?, Object?>.from(source);
+  for (final key in const [
+    'checkoutUrl',
+    'checkout_url',
+    'paymentUrl',
+    'payment_url',
+    'redirectUrl',
+    'redirect_url',
+    'url',
+  ]) {
+    yield map[key];
+  }
+  for (final key in const ['checkout', 'session', 'data']) {
+    yield* _checkoutUrlCandidates(map[key]);
+  }
+}
+
+Uri? _parsePaymentCheckoutUri(Object? value) {
+  final text = value?.toString().trim() ?? '';
+  if (text.isEmpty) return null;
+  final uri = Uri.tryParse(text);
+  if (uri == null || !uri.hasScheme || uri.host.isEmpty) return null;
+  if (uri.scheme == 'https') return uri;
+  if (uri.scheme == 'http' &&
+      (uri.host == 'localhost' || uri.host == '127.0.0.1')) {
+    return uri;
+  }
+  return null;
 }

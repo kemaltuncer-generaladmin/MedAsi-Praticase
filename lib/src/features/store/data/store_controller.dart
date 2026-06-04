@@ -136,13 +136,18 @@ class StoreController extends ChangeNotifier {
         productCode: product.code,
         channel: kIsWeb ? 'web' : 'android',
       );
-      final launched = await launchUrl(
+      var launched = await launchUrl(
         uri,
-        mode: kIsWeb
-            ? LaunchMode.platformDefault
-            : LaunchMode.externalApplication,
-        webOnlyWindowName: kIsWeb ? '_self' : null,
+        mode: LaunchMode.externalApplication,
+        webOnlyWindowName: kIsWeb ? '_blank' : null,
       );
+      if (!launched && kIsWeb) {
+        launched = await launchUrl(
+          uri,
+          mode: LaunchMode.platformDefault,
+          webOnlyWindowName: '_self',
+        );
+      }
       if (!launched) {
         throw const StorePurchaseException(
           'Ödeme sayfası şu anda açılamadı. Lütfen tekrar dene.',

@@ -139,6 +139,7 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
   @override
   Widget build(BuildContext context) {
     final useSideNavigation = PratiCaseResponsive.usesSideNavigation(context);
+    final useDesktopShell = PratiCaseResponsive.isDesktop(context);
     final pages = [
       HomeScreen(
         repository: widget.homeRepository,
@@ -177,6 +178,7 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
         onOpenCases: _openCases,
         onOpenSingleStation: () =>
             _openCases(mode: CasesScreenMode.singleStation),
+        onOpenMiniOsce: () => _openCases(mode: CasesScreenMode.miniOsce),
         unreadNotificationCount: _unreadNotificationCount ?? 0,
         onOpenNotifications: _openNotifications,
         onOpenProfile: _openProfile,
@@ -199,27 +201,39 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
 
     return Scaffold(
       extendBody: !useSideNavigation,
-      body: SafeArea(
-        bottom: false,
-        child: useSideNavigation
-            ? Row(
-                children: [
-                  PratiCaseSideNavigation(
+      body: useSideNavigation
+          ? useDesktopShell
+                ? _DesktopShellCanvas(
                     selectedIndex: _selectedIndex,
                     onSelected: _selectTab,
-                  ),
-                  const VerticalDivider(
-                    width: 1,
-                    thickness: 1,
-                    color: PratiCaseColors.border,
-                  ),
-                  Expanded(
-                    child: IndexedStack(index: _selectedIndex, children: pages),
-                  ),
-                ],
-              )
-            : IndexedStack(index: _selectedIndex, children: pages),
-      ),
+                    pages: pages,
+                  )
+                : SafeArea(
+                    bottom: false,
+                    child: Row(
+                      children: [
+                        PratiCaseSideNavigation(
+                          selectedIndex: _selectedIndex,
+                          onSelected: _selectTab,
+                        ),
+                        const VerticalDivider(
+                          width: 1,
+                          thickness: 1,
+                          color: PratiCaseColors.border,
+                        ),
+                        Expanded(
+                          child: IndexedStack(
+                            index: _selectedIndex,
+                            children: pages,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+          : SafeArea(
+              bottom: false,
+              child: IndexedStack(index: _selectedIndex, children: pages),
+            ),
       bottomNavigationBar: useSideNavigation
           ? null
           : PratiCaseBottomNav(
@@ -228,6 +242,134 @@ class _PratiCaseShellState extends State<PratiCaseShell> {
             ),
     );
   }
+}
+
+class _DesktopShellCanvas extends StatelessWidget {
+  const _DesktopShellCanvas({
+    required this.selectedIndex,
+    required this.onSelected,
+    required this.pages,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
+  final List<Widget> pages;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(color: PratiCaseColors.softSurface),
+      child: Stack(
+        children: [
+          Positioned.fill(child: CustomPaint(painter: _DesktopShellPainter())),
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  PratiCaseSideNavigation(
+                    selectedIndex: selectedIndex,
+                    onSelected: onSelected,
+                  ),
+                  const SizedBox(width: 18),
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(30),
+                      ),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: PratiCaseColors.white.withValues(alpha: 0.76),
+                          border: Border.all(
+                            color: PratiCaseColors.white.withValues(
+                              alpha: 0.74,
+                            ),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: PratiCaseColors.navy.withValues(
+                                alpha: 0.08,
+                              ),
+                              blurRadius: 34,
+                              spreadRadius: -14,
+                              offset: const Offset(0, 18),
+                            ),
+                          ],
+                        ),
+                        child: IndexedStack(
+                          index: selectedIndex,
+                          children: pages,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DesktopShellPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final bg = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFFF8FAFB), Color(0xFFEFF6F5), Color(0xFFF8F4EA)],
+      ).createShader(Offset.zero & size);
+    canvas.drawRect(Offset.zero & size, bg);
+
+    final teal = Paint()
+      ..shader =
+          RadialGradient(
+            colors: [
+              PratiCaseColors.tealBright.withValues(alpha: 0.18),
+              PratiCaseColors.tealBright.withValues(alpha: 0),
+            ],
+          ).createShader(
+            Rect.fromCircle(
+              center: Offset(size.width * 0.18, size.height * 0.12),
+              radius: 360,
+            ),
+          );
+    canvas.drawCircle(Offset(size.width * 0.18, size.height * 0.12), 360, teal);
+
+    final gold = Paint()
+      ..shader =
+          RadialGradient(
+            colors: [
+              PratiCaseColors.gold.withValues(alpha: 0.16),
+              PratiCaseColors.gold.withValues(alpha: 0),
+            ],
+          ).createShader(
+            Rect.fromCircle(
+              center: Offset(size.width * 0.92, size.height * 0.08),
+              radius: 420,
+            ),
+          );
+    canvas.drawCircle(Offset(size.width * 0.92, size.height * 0.08), 420, gold);
+
+    final linePaint = Paint()
+      ..color = PratiCaseColors.navy.withValues(alpha: 0.035)
+      ..strokeWidth = 1;
+    for (var x = -size.height; x < size.width + size.height; x += 44) {
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x + size.height, size.height),
+        linePaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DesktopShellPainter oldDelegate) => false;
 }
 
 class _WalletDormantScreen extends StatelessWidget {
@@ -246,6 +388,7 @@ class _ExamsScreen extends StatefulWidget {
     required this.oralExamRepository,
     required this.onOpenCases,
     required this.onOpenSingleStation,
+    required this.onOpenMiniOsce,
     required this.onOpenNotifications,
     required this.onOpenProfile,
     required this.unreadNotificationCount,
@@ -256,6 +399,7 @@ class _ExamsScreen extends StatefulWidget {
   final OralExamRepository oralExamRepository;
   final VoidCallback onOpenCases;
   final VoidCallback onOpenSingleStation;
+  final VoidCallback onOpenMiniOsce;
   final VoidCallback onOpenNotifications;
   final VoidCallback onOpenProfile;
   final int unreadNotificationCount;
@@ -365,6 +509,8 @@ class _ExamsScreenState extends State<_ExamsScreen> {
         widget.onOpenSingleStation();
         return;
       case 'mini_osce':
+        widget.onOpenMiniOsce();
+        return;
       case 'branch_package':
       case 'cases':
       default:

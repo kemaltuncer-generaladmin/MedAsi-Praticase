@@ -10,19 +10,23 @@ const defaultAllowedOrigins = [
 ];
 
 const allowedOrigins = new Set(
-  (Deno.env.get("PRATICASE_ALLOWED_ORIGINS")?.split(",") ?? defaultAllowedOrigins)
+  (Deno.env.get("PRATICASE_ALLOWED_ORIGINS")?.split(",") ??
+    defaultAllowedOrigins)
     .map((origin) => origin.trim())
     .filter((origin) => origin.length > 0),
 );
 
 export function isAllowedOrigin(origin: string | null): boolean {
   if (!origin) return true;
-  return allowedOrigins.has(origin.trim());
+  const normalizedOrigin = origin.trim();
+  return allowedOrigins.has(normalizedOrigin) ||
+    isLocalDevelopmentOrigin(normalizedOrigin);
 }
 
 export function corsHeaders(origin: string | null = null): HeadersInit {
   const normalizedOrigin = origin?.trim() ?? "";
-  const allowOrigin = allowedOrigins.has(normalizedOrigin)
+  const allowOrigin = allowedOrigins.has(normalizedOrigin) ||
+      isLocalDevelopmentOrigin(normalizedOrigin)
     ? normalizedOrigin
     : defaultAllowedOrigins[0];
 
@@ -47,4 +51,15 @@ export function jsonResponse(
       "Content-Type": "application/json",
     },
   });
+}
+
+function isLocalDevelopmentOrigin(origin: string): boolean {
+  try {
+    const url = new URL(origin);
+    return url.protocol === "http:" &&
+      (url.hostname === "localhost" || url.hostname === "127.0.0.1" ||
+        url.hostname === "[::1]" || url.hostname === "::1");
+  } catch (_) {
+    return false;
+  }
 }

@@ -16,6 +16,7 @@ import {
   loadPersonalizationMemory,
   type PersonalizationMemory,
 } from "../_shared/ecosystem_memory.ts";
+import { recordRecallEventInBackground } from "../_shared/recall.ts";
 
 type JsonMap = Record<string, unknown>;
 
@@ -206,7 +207,10 @@ Deno.serve(async (request) => {
       case "skip":
         return withOrigin(await skipQuestion(admin, userId, body), origin);
       case "finalize":
-        return withOrigin(await finalize(admin, userId, body), origin);
+        return withOrigin(
+          await finalize(admin, userId, body, authorization),
+          origin,
+        );
       case "list_scenarios":
         return withOrigin(await listScenarios(admin, body), origin);
       default:
@@ -873,7 +877,12 @@ async function skipQuestion(admin: any, userId: string, body: JsonMap) {
   };
 }
 
-async function finalize(admin: any, userId: string, body: JsonMap) {
+async function finalize(
+  admin: any,
+  userId: string,
+  body: JsonMap,
+  authorization: string | null,
+) {
   const sessionId = stringValue(body.session_id);
   if (!sessionId) return { error: "session_id zorunlu." };
   const session = await loadSession(admin, sessionId, userId);
@@ -1052,6 +1061,7 @@ async function finalize(admin: any, userId: string, body: JsonMap) {
         "Karne şu anda hazırlanamadı. Yanıtların kaydedildi, tekrar deneyebilirsin.",
     };
   }
+  recordOralWeaknessToRecall(authorization, session, branch, update.data);
   return {
     result: update.data,
     panel: panel.map((p: any) => ({
@@ -1060,6 +1070,96 @@ async function finalize(admin: any, userId: string, body: JsonMap) {
       panel_role: p.panel_role,
     })),
   };
+}
+
+function recordOralWeaknessToRecall(
+  authorization: string | null,
+  session: JsonMap,
+  branch: JsonMap | null,
+  result: JsonMap,
+) {
+  const sessionId = stringValue(result.id) || stringValue(session.id);
+  if (!sessionId) return;
+
+  const totalScore = clamp(numberValue(result.total_score) ?? 0, 0, 100);
+  const maxScore = clamp(numberValue(result.max_score) ?? 100, 1, 100);
+  const branchTitle = stringValue(branch?.title) || "Sözlü Sınav";
+  const missedPoints = safeGeneratedList(result.missed_points).slice(0, 5);
+  const improvementPoints = safeGeneratedList(result.improvement_points).slice(
+    0,
+    5,
+  );
+  const criticalErrors = safeGeneratedList(result.critical_errors).slice(0, 3);
+  const weaknessLabels = [
+    ...criticalErrors.map((item) => `Kritik hata: ${item}`),
+    ...missedPoints.map((item) => `Eksik nokta: ${item}`),
+    ...improvementPoints,
+  ].slice(0, 8);
+
+  if (weaknessLabels.length === 0 && totalScore >= 80) return;
+
+  const weakestCategory = [
+    {
+      title: "Klinik akıl yürütme",
+      score: clamp(numberValue(result.reasoning_score) ?? 0, 0, 40),
+      maxScore: 40,
+    },
+    {
+      title: "Bilgi doğruluğu",
+      score: clamp(numberValue(result.knowledge_score) ?? 0, 0, 30),
+      maxScore: 30,
+    },
+    {
+      title: "İletişim",
+      score: clamp(numberValue(result.communication_score) ?? 0, 0, 15),
+      maxScore: 15,
+    },
+    {
+      title: "Soru-cevap hızı",
+      score: clamp(numberValue(result.pace_score) ?? 0, 0, 10),
+      maxScore: 10,
+    },
+    {
+      title: "Profesyonellik",
+      score: clamp(numberValue(result.professionalism_score) ?? 0, 0, 5),
+      maxScore: 5,
+    },
+  ].sort((a, b) => (a.score / a.maxScore) - (b.score / b.maxScore))[0];
+
+  recordRecallEventInBackground(
+    authorization,
+    {
+      source_app: "praticase",
+      event_type: "oral_exam_weakness",
+      title: compactJoin([
+        "Sözlü sınav",
+        branchTitle,
+        weakestCategory.title,
+        "tekrar",
+      ]),
+      subject: branchTitle,
+      topic: branchTitle,
+      subtopic: weakestCategory.title || weaknessLabels[0] || branchTitle,
+      source_ref: {
+        type: "oral_exam_session",
+        id: sessionId,
+        scenario_id: stringValue(session.scenario_id),
+      },
+      payload: {
+        exam_kind: "oral_exam",
+        exam_format: stringValue(session.exam_format),
+        total_score: totalScore,
+        max_score: maxScore,
+        weakest_category: weakestCategory,
+        missed_points: missedPoints,
+        improvement_points: improvementPoints,
+        critical_errors: criticalErrors,
+        severity: totalScore < 60 ? "high" : "medium",
+      },
+      occurred_at: new Date().toISOString(),
+    },
+    "praticase_oral_exam_finalize",
+  );
 }
 
 async function listScenarios(admin: any, body: JsonMap) {
@@ -1211,6 +1311,14 @@ function stringValue(value: unknown) {
     : value == null
     ? ""
     : String(value).trim();
+}
+
+function compactJoin(values: string[]) {
+  return values
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .filter((value, index, array) => array.indexOf(value) === index)
+    .join(" - ");
 }
 
 function safeGeneratedMessage(value: unknown) {

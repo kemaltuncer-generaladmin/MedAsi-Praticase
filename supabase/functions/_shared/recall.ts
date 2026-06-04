@@ -10,6 +10,7 @@ type RecallEvent = {
     | "case_completed"
     | "clinical_weakness"
     | "oral_exam_feedback"
+    | "oral_exam_weakness"
     | "osce_station_weakness"
     | "case_saved_for_retry";
   title?: string;

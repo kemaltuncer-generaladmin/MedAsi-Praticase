@@ -17,7 +17,45 @@ part 'widgets/cases_lab.dart';
 part 'widgets/cases_imaging.dart';
 part 'widgets/cases_result.dart';
 
-enum CasesScreenMode { library, singleStation }
+enum CasesScreenMode { library, singleStation, miniOsce }
+
+const _miniOsceStationCount = 3;
+
+class MiniOscePlan {
+  const MiniOscePlan({
+    required this.caseIds,
+    this.currentIndex = 0,
+    this.completedSessionIds = const <String>[],
+  });
+
+  final List<String> caseIds;
+  final int currentIndex;
+  final List<String> completedSessionIds;
+
+  int get stationNumber => currentIndex + 1;
+  int get totalStations => caseIds.length;
+  String get currentCaseId => caseIds[currentIndex];
+  bool get hasNext => currentIndex + 1 < caseIds.length;
+  String? get nextCaseId => hasNext ? caseIds[currentIndex + 1] : null;
+
+  MiniOscePlan completeCurrent(String sessionId) {
+    final completed = <String>[...completedSessionIds];
+    if (!completed.contains(sessionId)) completed.add(sessionId);
+    return MiniOscePlan(
+      caseIds: caseIds,
+      currentIndex: currentIndex,
+      completedSessionIds: completed,
+    );
+  }
+
+  MiniOscePlan advance() {
+    return MiniOscePlan(
+      caseIds: caseIds,
+      currentIndex: currentIndex + 1,
+      completedSessionIds: completedSessionIds,
+    );
+  }
+}
 
 class CasesScreen extends StatefulWidget {
   const CasesScreen({
@@ -43,11 +81,13 @@ class CasesScreen extends StatefulWidget {
 
 class _CasesScreenState extends State<CasesScreen> {
   final _searchController = TextEditingController();
+  final _miniSelection = <String>[];
   Timer? _searchDebounce;
   String? _branch;
   String? _difficulty;
   String? _setting;
   late Future<List<OsceCaseSummary>> _casesFuture;
+  bool _startingMiniOsce = false;
 
   @override
   void initState() {
@@ -82,6 +122,14 @@ class _CasesScreenState extends State<CasesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: PratiCaseColors.softSurface,
+      bottomNavigationBar: _isMiniOsce
+          ? _MiniOsceStartBar(
+              selectedCount: _miniSelection.length,
+              requiredCount: _miniOsceStationCount,
+              starting: _startingMiniOsce,
+              onStart: _startMiniOsce,
+            )
+          : null,
       body: SafeArea(
         bottom: false,
         child: FutureBuilder<List<OsceCaseSummary>>(
@@ -103,6 +151,13 @@ class _CasesScreenState extends State<CasesScreen> {
                   ),
                   const SizedBox(height: 34),
                   _PageTitle(title: _pageTitle, subtitle: _pageSubtitle),
+                  if (_isMiniOsce) ...[
+                    const SizedBox(height: 18),
+                    _MiniOsceSelectionNotice(
+                      selectedCount: _miniSelection.length,
+                      requiredCount: _miniOsceStationCount,
+                    ),
+                  ],
                   const SizedBox(height: 22),
                   _SearchBox(
                     controller: _searchController,
@@ -243,7 +298,16 @@ class _CasesScreenState extends State<CasesScreen> {
                     else
                       _CaseResultsGrid(
                         cases: visibleCases,
-                        onOpenCase: (item) => _openDetail(context, item.id),
+                        onOpenCase: _isMiniOsce
+                            ? _toggleMiniSelection
+                            : (item) => _openDetail(context, item.id),
+                        selectionMode: _isMiniOsce,
+                        selectionOrderFor: _isMiniOsce
+                            ? (item) => _selectionOrderFor(item.id)
+                            : null,
+                        selectionLimitReached:
+                            _isMiniOsce &&
+                            _miniSelection.length >= _miniOsceStationCount,
                       ),
                   ],
                 ],
@@ -253,6 +317,58 @@ class _CasesScreenState extends State<CasesScreen> {
         ),
       ),
     );
+  }
+
+  bool get _isMiniOsce => widget.mode == CasesScreenMode.miniOsce;
+
+  void _toggleMiniSelection(OsceCaseSummary item) {
+    setState(() {
+      if (_miniSelection.remove(item.id)) return;
+      if (_miniSelection.length < _miniOsceStationCount) {
+        _miniSelection.add(item.id);
+        return;
+      }
+    });
+    if (!_miniSelection.contains(item.id) &&
+        _miniSelection.length >= _miniOsceStationCount) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mini OSCE için 3 istasyon seçildi.')),
+      );
+    }
+  }
+
+  int _selectionOrderFor(String caseId) {
+    final index = _miniSelection.indexOf(caseId);
+    return index < 0 ? 0 : index + 1;
+  }
+
+  Future<void> _startMiniOsce() async {
+    if (_startingMiniOsce || _miniSelection.length != _miniOsceStationCount) {
+      return;
+    }
+    setState(() => _startingMiniOsce = true);
+    try {
+      final plan = MiniOscePlan(caseIds: List<String>.of(_miniSelection));
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => CaseDetailScreen(
+            repository: widget.repository,
+            caseId: plan.currentCaseId,
+            mode: CasesScreenMode.miniOsce,
+            miniPlan: plan,
+            onOpenHome: widget.onOpenHome,
+          ),
+        ),
+      );
+    } on CasesDataUnavailable catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      if (mounted) setState(() => _startingMiniOsce = false);
+    }
   }
 
   void _openDetail(BuildContext context, String caseId) {
@@ -289,6 +405,7 @@ class _CasesScreenState extends State<CasesScreen> {
   String get _pageTitle {
     return switch (widget.mode) {
       CasesScreenMode.singleStation => 'Tek İstasyon Seç',
+      CasesScreenMode.miniOsce => 'Mini OSCE Seç',
       CasesScreenMode.library => 'OSCE İstasyonları',
     };
   }
@@ -297,6 +414,8 @@ class _CasesScreenState extends State<CasesScreen> {
     return switch (widget.mode) {
       CasesScreenMode.singleStation =>
         'Bir vaka seç, yönergeyi oku ve süreli hasta görüşmesine başla.',
+      CasesScreenMode.miniOsce =>
+        '3 istasyon seç; istasyonlar arka arkaya açılır, değerlendirme en sonda gösterilir.',
       CasesScreenMode.library =>
         'Başlamak için bir istasyon seçin ve pratiğe hemen başlayın.',
     };
@@ -430,6 +549,7 @@ class CaseDetailScreen extends StatefulWidget {
     required this.repository,
     required this.caseId,
     this.mode = CasesScreenMode.library,
+    this.miniPlan,
     this.onOpenHome,
     super.key,
   });
@@ -437,6 +557,7 @@ class CaseDetailScreen extends StatefulWidget {
   final CasesRepository repository;
   final String caseId;
   final CasesScreenMode mode;
+  final MiniOscePlan? miniPlan;
   final VoidCallback? onOpenHome;
 
   @override
@@ -464,6 +585,7 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
           builder: (_) => PatientChatScreen(
             repository: widget.repository,
             sessionId: session.id,
+            miniPlan: widget.miniPlan,
             onOpenHome: widget.onOpenHome,
           ),
         ),
@@ -567,6 +689,7 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
   String get _topBarTitle {
     return switch (widget.mode) {
       CasesScreenMode.singleStation => 'Tek İstasyon',
+      CasesScreenMode.miniOsce => 'Mini OSCE',
       CasesScreenMode.library => 'Vaka Detay',
     };
   }
@@ -574,6 +697,7 @@ class _CaseDetailScreenState extends State<CaseDetailScreen> {
   String get _startLabel {
     return switch (widget.mode) {
       CasesScreenMode.singleStation => 'Sınava Başla',
+      CasesScreenMode.miniOsce => 'Mini OSCE’ye Başla',
       CasesScreenMode.library => 'Vaka Çözümüne Başla',
     };
   }
@@ -584,6 +708,7 @@ class PatientChatScreen extends StatefulWidget {
     required this.repository,
     required this.sessionId,
     this.voiceAdapter,
+    this.miniPlan,
     this.onOpenHome,
     super.key,
   });
@@ -591,6 +716,7 @@ class PatientChatScreen extends StatefulWidget {
   final CasesRepository repository;
   final String sessionId;
   final VoiceExamAdapter? voiceAdapter;
+  final MiniOscePlan? miniPlan;
   final VoidCallback? onOpenHome;
 
   @override
@@ -784,6 +910,7 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
             repository: widget.repository,
             sessionId: widget.sessionId,
             caseId: session.caseId,
+            miniPlan: widget.miniPlan,
             onOpenHome: widget.onOpenHome,
           ),
         ),
@@ -911,10 +1038,19 @@ class _PatientChatScreenState extends State<PatientChatScreen> {
             children: [
               _ExamTopBar(
                 session: bundle.session,
-                phase: 'Anamnez',
+                phase: _miniPhaseLabel('Anamnez', widget.miniPlan),
                 repository: widget.repository,
                 sessionId: widget.sessionId,
                 onOpenHome: widget.onOpenHome,
+                onFinish: widget.miniPlan == null
+                    ? null
+                    : () => _finishMiniOsceStation(
+                        context: context,
+                        repository: widget.repository,
+                        miniPlan: widget.miniPlan!,
+                        sessionId: widget.sessionId,
+                        onOpenHome: widget.onOpenHome,
+                      ),
               ),
               Expanded(
                 child: _AnamnesisWorkspace(
@@ -976,11 +1112,77 @@ List<ChatMessage> _chronologicalMessages(List<ChatMessage> messages) {
   return sorted;
 }
 
+String _miniPhaseLabel(String phase, MiniOscePlan? plan) {
+  if (plan == null) return phase;
+  return 'Mini OSCE ${plan.stationNumber}/${plan.totalStations} · $phase';
+}
+
+Future<void> _finishMiniOsceStation({
+  required BuildContext context,
+  required CasesRepository repository,
+  required MiniOscePlan miniPlan,
+  required String sessionId,
+  VoidCallback? onOpenHome,
+}) async {
+  final shouldFinish = await _confirmIncompleteFinish(context);
+  if (!shouldFinish || !context.mounted) return;
+  await repository.advanceSession(sessionId: sessionId, step: 'completed');
+  if (!context.mounted) return;
+  await _continueMiniOsceOrShowResult(
+    context: context,
+    repository: repository,
+    miniPlan: miniPlan,
+    completedSessionId: sessionId,
+    onOpenHome: onOpenHome,
+  );
+}
+
+Future<void> _continueMiniOsceOrShowResult({
+  required BuildContext context,
+  required CasesRepository repository,
+  required MiniOscePlan miniPlan,
+  required String completedSessionId,
+  VoidCallback? onOpenHome,
+}) async {
+  final completedPlan = miniPlan.completeCurrent(completedSessionId);
+  if (!completedPlan.hasNext) {
+    if (!context.mounted) return;
+    await Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(
+        builder: (_) => MiniOsceResultScreen(
+          repository: repository,
+          plan: completedPlan,
+          onOpenHome: onOpenHome,
+        ),
+      ),
+      (route) => route.isFirst,
+    );
+    return;
+  }
+
+  final nextCaseId = completedPlan.nextCaseId;
+  if (nextCaseId == null) return;
+  if (!context.mounted) return;
+  await Navigator.of(context).pushAndRemoveUntil(
+    MaterialPageRoute<void>(
+      builder: (_) => CaseDetailScreen(
+        repository: repository,
+        caseId: nextCaseId,
+        mode: CasesScreenMode.miniOsce,
+        miniPlan: completedPlan.advance(),
+        onOpenHome: onOpenHome,
+      ),
+    ),
+    (route) => route.isFirst,
+  );
+}
+
 class PhysicalExamScreen extends StatefulWidget {
   const PhysicalExamScreen({
     required this.repository,
     required this.sessionId,
     required this.caseId,
+    this.miniPlan,
     this.onOpenHome,
     super.key,
   });
@@ -988,6 +1190,7 @@ class PhysicalExamScreen extends StatefulWidget {
   final CasesRepository repository;
   final String sessionId;
   final String caseId;
+  final MiniOscePlan? miniPlan;
   final VoidCallback? onOpenHome;
 
   @override
@@ -1054,6 +1257,7 @@ class _PhysicalExamScreenState extends State<PhysicalExamScreen> {
             repository: widget.repository,
             sessionId: widget.sessionId,
             caseId: widget.caseId,
+            miniPlan: widget.miniPlan,
             onOpenHome: widget.onOpenHome,
           ),
         ),
@@ -1105,10 +1309,19 @@ class _PhysicalExamScreenState extends State<PhysicalExamScreen> {
             children: [
               _ExamTopBar(
                 session: bundle.session,
-                phase: 'Fizik Muayene',
+                phase: _miniPhaseLabel('Fizik Muayene', widget.miniPlan),
                 repository: widget.repository,
                 sessionId: widget.sessionId,
                 onOpenHome: widget.onOpenHome,
+                onFinish: widget.miniPlan == null
+                    ? null
+                    : () => _finishMiniOsceStation(
+                        context: context,
+                        repository: widget.repository,
+                        miniPlan: widget.miniPlan!,
+                        sessionId: widget.sessionId,
+                        onOpenHome: widget.onOpenHome,
+                      ),
               ),
               Expanded(
                 child: ListView(
@@ -1186,6 +1399,7 @@ class TestsScreen extends StatefulWidget {
     required this.repository,
     required this.sessionId,
     required this.caseId,
+    this.miniPlan,
     this.onOpenHome,
     super.key,
   });
@@ -1193,6 +1407,7 @@ class TestsScreen extends StatefulWidget {
   final CasesRepository repository;
   final String sessionId;
   final String caseId;
+  final MiniOscePlan? miniPlan;
   final VoidCallback? onOpenHome;
 
   @override
@@ -1292,6 +1507,7 @@ class _TestsScreenState extends State<TestsScreen> {
             repository: widget.repository,
             sessionId: widget.sessionId,
             caseId: widget.caseId,
+            miniPlan: widget.miniPlan,
             onOpenHome: widget.onOpenHome,
           ),
         ),
@@ -1346,10 +1562,19 @@ class _TestsScreenState extends State<TestsScreen> {
             children: [
               _ExamTopBar(
                 session: bundle.session,
-                phase: 'Tetkikler',
+                phase: _miniPhaseLabel('Tetkikler', widget.miniPlan),
                 repository: widget.repository,
                 sessionId: widget.sessionId,
                 onOpenHome: widget.onOpenHome,
+                onFinish: widget.miniPlan == null
+                    ? null
+                    : () => _finishMiniOsceStation(
+                        context: context,
+                        repository: widget.repository,
+                        miniPlan: widget.miniPlan!,
+                        sessionId: widget.sessionId,
+                        onOpenHome: widget.onOpenHome,
+                      ),
               ),
               Expanded(
                 child: ListView(
@@ -1445,6 +1670,7 @@ class DiagnosisScreen extends StatefulWidget {
     required this.repository,
     required this.sessionId,
     required this.caseId,
+    this.miniPlan,
     this.onOpenHome,
     super.key,
   });
@@ -1452,6 +1678,7 @@ class DiagnosisScreen extends StatefulWidget {
   final CasesRepository repository;
   final String sessionId;
   final String caseId;
+  final MiniOscePlan? miniPlan;
   final VoidCallback? onOpenHome;
 
   @override
@@ -1533,6 +1760,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
             repository: widget.repository,
             sessionId: widget.sessionId,
             caseId: widget.caseId,
+            miniPlan: widget.miniPlan,
             onOpenHome: widget.onOpenHome,
           ),
         ),
@@ -1569,15 +1797,26 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
         step: 'completed',
       );
       if (!mounted) return;
-      await Navigator.of(context).pushReplacement(
-        MaterialPageRoute<void>(
-          builder: (_) => ResultScreen(
-            repository: widget.repository,
-            sessionId: widget.sessionId,
-            onOpenHome: widget.onOpenHome,
+      final miniPlan = widget.miniPlan;
+      if (miniPlan != null) {
+        await _continueMiniOsceOrShowResult(
+          context: context,
+          repository: widget.repository,
+          miniPlan: miniPlan,
+          completedSessionId: widget.sessionId,
+          onOpenHome: widget.onOpenHome,
+        );
+      } else {
+        await Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(
+            builder: (_) => ResultScreen(
+              repository: widget.repository,
+              sessionId: widget.sessionId,
+              onOpenHome: widget.onOpenHome,
+            ),
           ),
-        ),
-      );
+        );
+      }
     } on CasesDataUnavailable catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -1637,7 +1876,7 @@ class _DiagnosisScreenState extends State<DiagnosisScreen> {
             children: [
               _ExamTopBar(
                 session: bundle.session,
-                phase: 'Tanı ve Yönetim',
+                phase: _miniPhaseLabel('Tanı ve Yönetim', widget.miniPlan),
                 repository: widget.repository,
                 sessionId: widget.sessionId,
                 onOpenHome: widget.onOpenHome,
@@ -1701,6 +1940,7 @@ class ManagementPlanScreen extends StatefulWidget {
     required this.repository,
     required this.sessionId,
     required this.caseId,
+    this.miniPlan,
     this.onOpenHome,
     super.key,
   });
@@ -1708,6 +1948,7 @@ class ManagementPlanScreen extends StatefulWidget {
   final CasesRepository repository;
   final String sessionId;
   final String caseId;
+  final MiniOscePlan? miniPlan;
   final VoidCallback? onOpenHome;
 
   @override
@@ -1796,15 +2037,26 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
         step: 'completed',
       );
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute<void>(
-          builder: (_) => ResultScreen(
-            repository: widget.repository,
-            sessionId: widget.sessionId,
-            onOpenHome: widget.onOpenHome,
+      final miniPlan = widget.miniPlan;
+      if (miniPlan != null) {
+        await _continueMiniOsceOrShowResult(
+          context: context,
+          repository: widget.repository,
+          miniPlan: miniPlan,
+          completedSessionId: widget.sessionId,
+          onOpenHome: widget.onOpenHome,
+        );
+      } else {
+        await Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(
+            builder: (_) => ResultScreen(
+              repository: widget.repository,
+              sessionId: widget.sessionId,
+              onOpenHome: widget.onOpenHome,
+            ),
           ),
-        ),
-      );
+        );
+      }
     } on CasesDataUnavailable catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -1870,7 +2122,7 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
             children: [
               _ExamTopBar(
                 session: bundle.session,
-                phase: 'Tanı ve Yönetim',
+                phase: _miniPhaseLabel('Tanı ve Yönetim', widget.miniPlan),
                 repository: widget.repository,
                 sessionId: widget.sessionId,
                 onOpenHome: widget.onOpenHome,
@@ -1991,6 +2243,478 @@ class _ManagementPlanScreenState extends State<ManagementPlanScreen> {
       ),
     );
   }
+}
+
+class MiniOsceResultScreen extends StatefulWidget {
+  const MiniOsceResultScreen({
+    required this.repository,
+    required this.plan,
+    this.onOpenHome,
+    super.key,
+  });
+
+  final CasesRepository repository;
+  final MiniOscePlan plan;
+  final VoidCallback? onOpenHome;
+
+  @override
+  State<MiniOsceResultScreen> createState() => _MiniOsceResultScreenState();
+}
+
+class _MiniOsceResultScreenState extends State<MiniOsceResultScreen> {
+  late Future<List<ExamResultSummary>> _resultsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _resultsFuture = _loadResults();
+  }
+
+  Future<List<ExamResultSummary>> _loadResults() async {
+    return Future.wait(
+      widget.plan.completedSessionIds.map(widget.repository.loadResult),
+    );
+  }
+
+  void _retry() {
+    setState(() => _resultsFuture = _loadResults());
+  }
+
+  void _goHome() {
+    final openHome = widget.onOpenHome;
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    openHome?.call();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _FlowScaffold(
+      body: FutureBuilder<List<ExamResultSummary>>(
+        future: _resultsFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const _PhaseLoadingSkeleton(activeStep: 5);
+          }
+          if (snapshot.hasError) {
+            return ListView(
+              padding: _flowListPadding(context, top: 24),
+              children: [
+                const _StepTopBar(title: 'Mini OSCE Karnesi'),
+                const SizedBox(height: 18),
+                _CenteredState(
+                  icon: Icons.cloud_off_rounded,
+                  title: 'Mini OSCE karnesi açılamadı',
+                  body: _errorText(snapshot.error),
+                ),
+                const SizedBox(height: 14),
+                FilledButton.icon(
+                  onPressed: _retry,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Tekrar Dene'),
+                ),
+              ],
+            );
+          }
+          final results = snapshot.requireData;
+          if (results.isEmpty) {
+            return ListView(
+              padding: _flowListPadding(context, top: 24),
+              children: const [
+                _StepTopBar(title: 'Mini OSCE Karnesi'),
+                SizedBox(height: 18),
+                _CenteredState(
+                  icon: Icons.assignment_outlined,
+                  title: 'Sonuç bulunamadı',
+                  body: 'Mini OSCE istasyon sonuçları henüz hazırlanamadı.',
+                ),
+              ],
+            );
+          }
+          return ListView(
+            padding: _flowListPadding(context, bottom: 120),
+            children: [
+              const _StepTopBar(title: 'Mini OSCE Karnesi'),
+              const SizedBox(height: 12),
+              _MiniOsceHero(results: results),
+              const SizedBox(height: 18),
+              _ScoreGrid(scores: _aggregateCategoryScores(results)),
+              const SizedBox(height: 18),
+              _SectionCard(
+                title: 'İstasyon Sonuçları',
+                child: Column(
+                  children: [
+                    for (var index = 0; index < results.length; index++) ...[
+                      _MiniOsceStationCard(
+                        stationNumber: index + 1,
+                        result: results[index],
+                        onReport: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) =>
+                                  CaseReportScreen(result: results[index]),
+                            ),
+                          );
+                        },
+                      ),
+                      if (index != results.length - 1)
+                        const SizedBox(height: 12),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              _FeedbackCard(
+                title: 'Mini OSCE Güçlü Yönlerin',
+                icon: Icons.verified_rounded,
+                color: PratiCaseColors.successGreen,
+                items: _aggregateFeedback(
+                  results,
+                  (result) => result.strongPoints,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _FeedbackCard(
+                title: 'Mini OSCE Gelişim Alanların',
+                icon: Icons.warning_amber_rounded,
+                color: PratiCaseColors.gold,
+                items: _aggregateFeedback(
+                  results,
+                  (result) => result.improvementPoints,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _FeedbackCard(
+                title: 'Kritik Hatalar',
+                icon: Icons.error_outline_rounded,
+                color: PratiCaseColors.errorRed,
+                items: _aggregateFeedback(
+                  results,
+                  (result) => result.criticalMistakes,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _FeedbackCard(
+                title: 'Eksik Anamnez',
+                icon: Icons.chat_bubble_outline_rounded,
+                color: PratiCaseColors.slateBlue,
+                items: _aggregateFeedback(
+                  results,
+                  (result) => result.missedHistory,
+                ),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                height: 52,
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _goHome,
+                  icon: const Icon(Icons.home_rounded),
+                  label: const Text('Ana Sayfaya Dön'),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _MiniOsceHero extends StatelessWidget {
+  const _MiniOsceHero({required this.results});
+
+  final List<ExamResultSummary> results;
+
+  @override
+  Widget build(BuildContext context) {
+    final totalScore = results.fold<int>(
+      0,
+      (sum, result) => sum + result.totalScore,
+    );
+    final maxScore = results.fold<int>(
+      0,
+      (sum, result) => sum + result.maxScore,
+    );
+    final percentage = maxScore == 0
+        ? 0
+        : ((totalScore / maxScore) * 100).round();
+    final tone = percentage >= 80
+        ? PratiCaseColors.successGreen
+        : percentage >= 60
+        ? PratiCaseColors.gold
+        : PratiCaseColors.errorRed;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: PratiCaseGradients.hero,
+        borderRadius: BorderRadius.circular(PratiCaseRadius.xxl),
+        boxShadow: PratiCaseShadows.floating,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: PratiCaseColors.white.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+                  border: Border.all(
+                    color: PratiCaseColors.white.withValues(alpha: 0.18),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.route_rounded,
+                  color: PratiCaseColors.tealBright,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '3 istasyon tamamlandı',
+                      style: TextStyle(
+                        color: PratiCaseColors.tealBright,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Mini OSCE ortalama performansın',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: PratiCaseColors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        height: 1.16,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 9,
+                ),
+                decoration: BoxDecoration(
+                  color: tone.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+                  border: Border.all(color: tone.withValues(alpha: 0.48)),
+                ),
+                child: Text(
+                  '%$percentage',
+                  style: TextStyle(
+                    color: tone,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: _MiniOsceHeroMetric(
+                  label: 'Toplam Puan',
+                  value: '$totalScore/$maxScore',
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _MiniOsceHeroMetric(
+                  label: 'İstasyon',
+                  value: '${results.length}',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniOsceHeroMetric extends StatelessWidget {
+  const _MiniOsceHeroMetric({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.white.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+        border: Border.all(
+          color: PratiCaseColors.white.withValues(alpha: 0.14),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: PratiCaseColors.tealBright,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              color: PratiCaseColors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniOsceStationCard extends StatelessWidget {
+  const _MiniOsceStationCard({
+    required this.stationNumber,
+    required this.result,
+    required this.onReport,
+  });
+
+  final int stationNumber;
+  final ExamResultSummary result;
+  final VoidCallback onReport;
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = result.percentage >= 80
+        ? PratiCaseColors.successGreen
+        : result.percentage >= 60
+        ? PratiCaseColors.gold
+        : PratiCaseColors.errorRed;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(PratiCaseRadius.lg),
+        border: Border.all(color: PratiCaseColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: tone.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+                ),
+                child: Center(
+                  child: Text(
+                    '$stationNumber',
+                    style: TextStyle(color: tone, fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      result.caseTitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: PratiCaseColors.navy,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${result.totalScore}/${result.maxScore} puan',
+                      style: const TextStyle(
+                        color: PratiCaseColors.muted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              _TinyPill(text: '%${result.percentage}'),
+            ],
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: onReport,
+            icon: const Icon(Icons.description_outlined),
+            label: const Text('Detaylı Rapor'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+List<ResultCategoryScore> _aggregateCategoryScores(
+  List<ExamResultSummary> results,
+) {
+  final order = <String>[];
+  final scores = <String, int>{};
+  final maxScores = <String, int>{};
+  for (final result in results) {
+    for (final score in result.categoryScores) {
+      if (!scores.containsKey(score.title)) order.add(score.title);
+      scores[score.title] = (scores[score.title] ?? 0) + score.score;
+      maxScores[score.title] = (maxScores[score.title] ?? 0) + score.maxScore;
+    }
+  }
+  return [
+    for (final title in order)
+      ResultCategoryScore(
+        title: title,
+        score: scores[title] ?? 0,
+        maxScore: maxScores[title] ?? 0,
+      ),
+  ];
+}
+
+List<String> _aggregateFeedback(
+  List<ExamResultSummary> results,
+  List<String> Function(ExamResultSummary result) select, {
+  int limit = 8,
+}) {
+  final items = <String>[];
+  for (final result in results) {
+    for (final raw in select(result)) {
+      final value = raw.trim();
+      if (value.isEmpty) continue;
+      final item = '${result.caseTitle}: $value';
+      if (items.contains(item)) continue;
+      items.add(item);
+      if (items.length == limit) return items;
+    }
+  }
+  return items;
 }
 
 class ResultScreen extends StatefulWidget {
@@ -3495,23 +4219,174 @@ class _FilterStrip extends StatelessWidget {
   }
 }
 
+class _MiniOsceSelectionNotice extends StatelessWidget {
+  const _MiniOsceSelectionNotice({
+    required this.selectedCount,
+    required this.requiredCount,
+  });
+
+  final int selectedCount;
+  final int requiredCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final ready = selectedCount == requiredCount;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: PratiCaseColors.white,
+        borderRadius: BorderRadius.circular(PratiCaseRadius.xl),
+        border: Border.all(
+          color: ready
+              ? PratiCaseColors.successGreen.withValues(alpha: 0.48)
+              : PratiCaseColors.teal.withValues(alpha: 0.20),
+        ),
+        boxShadow: PratiCaseShadows.card,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color:
+                  (ready ? PratiCaseColors.successGreen : PratiCaseColors.teal)
+                      .withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(PratiCaseRadius.md),
+            ),
+            child: Icon(
+              ready
+                  ? Icons.check_circle_rounded
+                  : Icons.format_list_numbered_rounded,
+              color: ready
+                  ? PratiCaseColors.successGreen
+                  : PratiCaseColors.teal,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$selectedCount/$requiredCount istasyon seçildi',
+                  style: const TextStyle(
+                    color: PratiCaseColors.navy,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  ready
+                      ? 'Hazır. Başlatınca istasyonlar seçtiğin sırayla açılır.'
+                      : 'Mini OSCE için toplam 3 istasyon seç.',
+                  style: const TextStyle(
+                    color: PratiCaseColors.muted,
+                    fontWeight: FontWeight.w700,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniOsceStartBar extends StatelessWidget {
+  const _MiniOsceStartBar({
+    required this.selectedCount,
+    required this.requiredCount,
+    required this.starting,
+    required this.onStart,
+  });
+
+  final int selectedCount;
+  final int requiredCount;
+  final bool starting;
+  final VoidCallback onStart;
+
+  @override
+  Widget build(BuildContext context) {
+    final canStart = selectedCount == requiredCount && !starting;
+    final horizontal = PratiCaseResponsive.horizontalPaddingForWidth(
+      MediaQuery.sizeOf(context).width,
+    );
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: EdgeInsets.fromLTRB(horizontal, 10, horizontal, 12),
+        decoration: BoxDecoration(
+          color: PratiCaseColors.softSurface.withValues(alpha: 0.96),
+          border: Border(
+            top: BorderSide(
+              color: PratiCaseColors.border.withValues(alpha: 0.70),
+            ),
+          ),
+        ),
+        child: PratiCaseFlowActionButton(
+          identifier: 'cta.start-mini-osce',
+          label: starting
+              ? 'Başlatılıyor...'
+              : canStart
+              ? 'Mini OSCE’yi Başlat'
+              : '$requiredCount istasyon seç',
+          icon: Icons.play_arrow_rounded,
+          onPressed: canStart ? onStart : null,
+        ),
+      ),
+    );
+  }
+}
+
 class _CaseListCard extends StatelessWidget {
-  const _CaseListCard({required this.item, required this.onTap});
+  const _CaseListCard({
+    required this.item,
+    required this.onTap,
+    this.selectionMode = false,
+    this.selectionOrder = 0,
+    this.selectionLimitReached = false,
+  });
 
   final OsceCaseSummary item;
   final VoidCallback onTap;
+  final bool selectionMode;
+  final int selectionOrder;
+  final bool selectionLimitReached;
 
   @override
   Widget build(BuildContext context) {
     final progress = item.progressPercent;
     final score = item.lastScore;
+    final selected = selectionOrder > 0;
     return Semantics(
       identifier: 'case-list-item',
       child: PressableScale(
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.all(16),
-          decoration: _cardDecoration(radius: 22),
+          decoration: BoxDecoration(
+            color: PratiCaseColors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: selected
+                  ? PratiCaseColors.teal
+                  : PratiCaseColors.border.withValues(alpha: 0.88),
+              width: selected ? 1.6 : 1,
+            ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: PratiCaseColors.teal.withValues(alpha: 0.14),
+                      blurRadius: 24,
+                      offset: const Offset(0, 12),
+                    ),
+                  ]
+                : PratiCaseShadows.card,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -3553,7 +4428,13 @@ class _CaseListCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  const _RoundArrow(),
+                  if (selectionMode)
+                    _CaseSelectionBadge(
+                      selectionOrder: selectionOrder,
+                      limitReached: selectionLimitReached,
+                    )
+                  else
+                    const _RoundArrow(),
                 ],
               ),
               const SizedBox(height: 14),
@@ -3597,10 +4478,19 @@ class _CaseListCard extends StatelessWidget {
 }
 
 class _CaseResultsGrid extends StatelessWidget {
-  const _CaseResultsGrid({required this.cases, required this.onOpenCase});
+  const _CaseResultsGrid({
+    required this.cases,
+    required this.onOpenCase,
+    this.selectionMode = false,
+    this.selectionOrderFor,
+    this.selectionLimitReached = false,
+  });
 
   final List<OsceCaseSummary> cases;
   final ValueChanged<OsceCaseSummary> onOpenCase;
+  final bool selectionMode;
+  final int Function(OsceCaseSummary item)? selectionOrderFor;
+  final bool selectionLimitReached;
 
   @override
   Widget build(BuildContext context) {
@@ -3608,7 +4498,7 @@ class _CaseResultsGrid extends StatelessWidget {
       builder: (context, constraints) {
         final columns = PratiCaseResponsive.columnsForWidth(
           constraints.maxWidth,
-          desktop: 2,
+          desktop: 3,
         );
         final spacing = columns == 1 ? 0.0 : 14.0;
         final itemWidth =
@@ -3625,12 +4515,62 @@ class _CaseResultsGrid extends StatelessWidget {
                   child: _CaseListCard(
                     item: cases[i],
                     onTap: () => onOpenCase(cases[i]),
+                    selectionMode: selectionMode,
+                    selectionOrder: selectionOrderFor?.call(cases[i]) ?? 0,
+                    selectionLimitReached: selectionLimitReached,
                   ),
                 ),
               ),
           ],
         );
       },
+    );
+  }
+}
+
+class _CaseSelectionBadge extends StatelessWidget {
+  const _CaseSelectionBadge({
+    required this.selectionOrder,
+    required this.limitReached,
+  });
+
+  final int selectionOrder;
+  final bool limitReached;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = selectionOrder > 0;
+    final text = selected
+        ? '$selectionOrder. İstasyon'
+        : limitReached
+        ? 'Dolu'
+        : 'Seç';
+    final color = selected ? PratiCaseColors.teal : PratiCaseColors.muted;
+    return Container(
+      constraints: const BoxConstraints(minWidth: 58),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: selected
+            ? PratiCaseColors.teal.withValues(alpha: 0.10)
+            : PratiCaseColors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(PratiCaseRadius.pill),
+        border: Border.all(
+          color: selected
+              ? PratiCaseColors.teal.withValues(alpha: 0.48)
+              : PratiCaseColors.border,
+        ),
+      ),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
     );
   }
 }

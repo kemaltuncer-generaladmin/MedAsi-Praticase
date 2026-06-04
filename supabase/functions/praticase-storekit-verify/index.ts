@@ -385,6 +385,7 @@ async function createPaymentCheckout(
         sku: snapshot.code,
         name: snapshot.name,
         quantity: 1,
+        unitPrice: priceCents / 100,
         priceCents,
         currency,
         entitlementType: snapshot.entitlement_kind,
@@ -421,7 +422,15 @@ async function createPaymentCheckout(
       origin,
     );
   }
-  return jsonResponse({ checkout: payload, product: snapshot }, 200, origin);
+  const checkout = normalizePaymentCheckoutPayload(payload);
+  if (!stringValue(checkout.checkoutUrl)) {
+    return jsonResponse(
+      { error: "Ödeme bağlantısı alınamadı. Lütfen tekrar dene." },
+      502,
+      origin,
+    );
+  }
+  return jsonResponse({ checkout, product: snapshot }, 200, origin);
 }
 
 async function handlePaymentEntitlementWebhook(
@@ -1115,6 +1124,64 @@ function friendlyPurchaseGrantError(message: string): string {
 
 function paymentChannel(value: unknown): string {
   return stringValue(value).toLowerCase() === "android" ? "android" : "web";
+}
+
+function normalizePaymentCheckoutPayload(payload: JsonMap): JsonMap {
+  const checkoutUrl = paymentCheckoutUrl(payload);
+  const trackingUrl = stringValue(payload.trackingUrl) ||
+    stringValue(payload.tracking_url);
+  return {
+    ...payload,
+    checkoutUrl,
+    checkout_url: checkoutUrl,
+    trackingUrl,
+    tracking_url: trackingUrl,
+  };
+}
+
+function paymentCheckoutUrl(payload: JsonMap): string {
+  const rawUrl = paymentCheckoutUrlCandidate(payload);
+  if (!rawUrl) return "";
+  try {
+    const url = new URL(rawUrl, paymentServiceUrl());
+    if (url.protocol === "https:" || isLocalHttpPaymentUrl(url)) {
+      return url.toString();
+    }
+  } catch (_) {
+    return "";
+  }
+  return "";
+}
+
+function paymentCheckoutUrlCandidate(payload: JsonMap): string {
+  for (
+    const key of [
+      "checkoutUrl",
+      "checkout_url",
+      "paymentUrl",
+      "payment_url",
+      "redirectUrl",
+      "redirect_url",
+      "url",
+    ]
+  ) {
+    const value = stringValue(payload[key]);
+    if (value) return value;
+  }
+  for (const key of ["checkout", "session", "data"]) {
+    const value = payload[key];
+    if (isJsonMap(value)) {
+      const nested = paymentCheckoutUrlCandidate(value);
+      if (nested) return nested;
+    }
+  }
+  return "";
+}
+
+function isLocalHttpPaymentUrl(url: URL): boolean {
+  return url.protocol === "http:" &&
+    (url.hostname === "localhost" || url.hostname === "127.0.0.1" ||
+      url.hostname === "[::1]" || url.hostname === "::1");
 }
 
 function paymentUnit(product: JsonMap): string {

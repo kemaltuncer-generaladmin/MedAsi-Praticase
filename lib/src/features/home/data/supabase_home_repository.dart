@@ -32,6 +32,7 @@ class SupabaseHomeRepository implements HomeRepository {
       final stats = await _loadStats(authUser.id);
       final continued = await _loadContinuedCase(authUser.id);
       final recommendations = await _loadRecommendations(authUser.id);
+      await _refreshUserBadges(authUser.id);
       final badge = await _loadBadgeSummary(authUser.id);
       final unreadNotifications = await _loadUnreadNotificationCount();
       final recallSummary = await _loadRecallSummary();
@@ -201,6 +202,18 @@ class SupabaseHomeRepository implements HomeRepository {
     } on PostgrestException catch (error) {
       if (_isOptionalSourceMissing(error)) return null;
       rethrow;
+    }
+  }
+
+  Future<void> _refreshUserBadges(String userId) async {
+    try {
+      await _client
+          .schema('praticase')
+          .rpc('refresh_user_badges', params: {'p_user_id': userId});
+    } on PostgrestException catch (error) {
+      if (_isOptionalSourceMissing(error)) return;
+    } on Object {
+      // Badge freshness is helpful, but the dashboard must stay available.
     }
   }
 
