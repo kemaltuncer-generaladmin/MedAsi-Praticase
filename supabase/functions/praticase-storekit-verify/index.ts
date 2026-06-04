@@ -114,7 +114,7 @@ Deno.serve(async (request) => {
   }
 
   if (action === "create_payment_checkout") {
-    return createPaymentCheckout(admin, authData.user, body, request, origin);
+    return createPaymentCheckout(admin, authData.user, body, origin);
   }
 
   const productCode = stringValue(body.product_code);
@@ -307,7 +307,6 @@ async function createPaymentCheckout(
   admin: any,
   user: { id: string; email?: string | null },
   body: JsonMap,
-  request: Request,
   origin: string | null,
 ): Promise<Response> {
   const productCode = stringValue(body.product_code);
@@ -375,10 +374,14 @@ async function createPaymentCheckout(
     accountId: user.id,
     customerName: name,
     customerEmail: email,
-    returnUrl: Deno.env.get("PRATICASE_PAYMENT_RETURN_URL") ??
+    returnUrl: paymentHttpsUrl(
+      Deno.env.get("PRATICASE_PAYMENT_RETURN_URL"),
       "https://praticase.medasi.com.tr/",
-    webhookUrl: Deno.env.get("PRATICASE_PAYMENT_WEBHOOK_URL") ??
-      request.url,
+    ),
+    webhookUrl: paymentHttpsUrl(
+      Deno.env.get("PRATICASE_PAYMENT_WEBHOOK_URL"),
+      "https://qlinik.medasi.com.tr/functions/v1/praticase-storekit-verify",
+    ),
     currency,
     items: [
       {
@@ -1151,6 +1154,17 @@ function paymentCheckoutUrl(payload: JsonMap): string {
     return "";
   }
   return "";
+}
+
+function paymentHttpsUrl(value: unknown, fallback: string): string {
+  const candidate = stringValue(value) || fallback;
+  try {
+    const url = new URL(candidate);
+    if (url.protocol === "https:") return url.toString();
+  } catch (_) {
+    // Use the public HTTPS fallback below.
+  }
+  return fallback;
 }
 
 function paymentCheckoutUrlCandidate(payload: JsonMap): string {
