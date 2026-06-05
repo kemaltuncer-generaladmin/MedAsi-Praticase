@@ -2,16 +2,18 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_android/billing_client_wrappers.dart'
+    show BillingResponse;
+import 'package:in_app_purchase_android/in_app_purchase_android.dart'
+    show InAppPurchaseAndroidPlatformAddition;
 
 import '../domain/store_product.dart';
 import '../domain/subscription_state.dart';
 
-/// Apple StoreKit 2 ile yerel etkileşim.
+/// Yerel mağaza ile etkileşim.
 ///
-/// Sadece iOS / macOS üzerinde gerçek satın alma akışı çalıştırır. Diğer
-/// platformlarda metotlar boş geçer ve `isSupported = false` döner.
-/// `in_app_purchase_storekit` 0.4.x sürümünden itibaren StoreKit 2
-/// varsayılan olduğu için ek konfigürasyon gerekmiyor.
+/// iOS / macOS tarafında StoreKit, Android tarafında Google Play Billing
+/// kullanılır. Web'de Medasi Pay dış checkout akışı ayrı tutulur.
 class StoreKitService {
   StoreKitService({InAppPurchase? iap, this.bundleIdentifier})
     : _iap = iap ?? InAppPurchase.instance;
@@ -21,11 +23,25 @@ class StoreKitService {
 
   StreamSubscription<List<PurchaseDetails>>? _purchaseSubscription;
   final _controller = StreamController<PurchaseDetails>.broadcast();
+  final _pendingGooglePlayConsumables = <String>{};
 
   bool get isSupported =>
       !kIsWeb &&
       (defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.macOS ||
+          defaultTargetPlatform == TargetPlatform.android);
+
+  bool get isAppleStore =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.iOS ||
           defaultTargetPlatform == TargetPlatform.macOS);
+
+  bool get isGooglePlay =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  String get storeName => isGooglePlay ? 'Google Play' : 'App Store';
+
+  String get verificationProvider => isGooglePlay ? 'google_play' : 'app_store';
 
   Stream<PurchaseDetails> get purchaseUpdates => _controller.stream;
 
@@ -78,30 +94,34 @@ class StoreKitService {
   Future<bool> buy(PratiCaseStoreProduct product) async {
     if (!isSupported) {
       throw const StorePurchaseException(
-        'Satın alma yalnızca iPhone uygulamasında yapılabilir.',
+        'Satın alma yalnızca mobil uygulamada yapılabilir.',
         code: 'unsupported_platform',
       );
     }
     if (product.appStoreProductId.isEmpty) {
-      throw const StorePurchaseException(
-        'Bu paket için App Store kimliği tanımlı değil.',
-        code: 'missing_app_store_product_id',
+      throw StorePurchaseException(
+        'Bu paket için $storeName ürün kimliği tanımlı değil.',
+        code: 'missing_store_product_id',
       );
     }
     final response = await _iap.queryProductDetails(<String>{
       product.appStoreProductId,
     });
     if (response.productDetails.isEmpty) {
-      throw const StorePurchaseException(
-        'Bu paket şu anda App Store üzerinden satın alınamıyor.',
-        code: 'app_store_product_unavailable',
+      throw StorePurchaseException(
+        'Bu paket şu anda $storeName üzerinden satın alınamıyor.',
+        code: 'store_product_unavailable',
       );
     }
     final details = response.productDetails.first;
     final param = PurchaseParam(productDetails: details);
-    return product.isSubscription
-        ? _iap.buyNonConsumable(purchaseParam: param)
-        : _iap.buyConsumable(purchaseParam: param, autoConsume: true);
+    if (product.isSubscription) {
+      return _iap.buyNonConsumable(purchaseParam: param);
+    }
+    if (isGooglePlay) {
+      _pendingGooglePlayConsumables.add(product.appStoreProductId);
+    }
+    return _iap.buyConsumable(purchaseParam: param, autoConsume: !isGooglePlay);
   }
 
   Future<void> restorePurchases() async {
@@ -110,6 +130,19 @@ class StoreKitService {
   }
 
   Future<void> completePurchase(PurchaseDetails purchase) async {
+    if (isGooglePlay &&
+        _pendingGooglePlayConsumables.remove(purchase.productID)) {
+      final result = await _iap
+          .getPlatformAddition<InAppPurchaseAndroidPlatformAddition>()
+          .consumePurchase(purchase);
+      if (result.responseCode != BillingResponse.ok) {
+        throw StorePurchaseException(
+          'Google Play satın alma teslim edildi ancak tüketim işareti tamamlanamadı.',
+          code: 'google_play_consume_failed',
+        );
+      }
+      return;
+    }
     if (purchase.pendingCompletePurchase) {
       await _iap.completePurchase(purchase);
     }

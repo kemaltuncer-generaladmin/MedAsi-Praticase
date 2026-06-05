@@ -260,12 +260,49 @@ void main() {
 
     expect(repository.verifiedProductCode, 'mc_25');
     expect(repository.verifiedAppStoreProductId, 'com.medasi.praticase.mc.25');
+    expect(repository.verifiedProvider, 'app_store');
     expect(repository.verifiedPurchaseId, 'tx-praticase-mc-25');
     expect(service.completedPurchases, ['tx-praticase-mc-25']);
     expect(controller.statusMessage, 'Satın alma doğrulandı.');
     expect(controller.walletSnapshot.walletCoinBalance, 125);
     expect(controller.walletSnapshot.questionQuota, 50);
   });
+
+  test(
+    'Android purchases use Google Play Billing with visible status',
+    () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      final repository = _RecordingStoreKitRepository();
+      final service = _RecordingGooglePlayService();
+      final controller = StoreController(
+        repository: repository,
+        service: service,
+      );
+      addTearDown(controller.dispose);
+
+      await controller.initialize();
+      await controller.refresh();
+
+      expect(controller.supportsExternalCheckout, isFalse);
+
+      await controller.purchase(repository.products.single);
+
+      for (var i = 0; i < 20 && controller.busy; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+
+      expect(repository.lastStoreProvider, 'google_play');
+      expect(repository.verifiedProvider, 'google_play');
+      expect(
+        repository.verifiedAppStoreProductId,
+        'com.medasi.praticase.mc.25',
+      );
+      expect(repository.verifiedVerificationSource, 'google_play');
+      expect(repository.verifiedServerVerificationData, 'play-token-mc-25');
+      expect(controller.statusMessage, 'Satın alma doğrulandı.');
+    },
+  );
 
   test(
     'PratiCase redeems AdminPanel gift code through shared wallet',
@@ -1366,6 +1403,44 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('committee oral voice mode does not speak persona prefix', (
+    tester,
+  ) async {
+    await _setViewport(tester, const Size(390, 1100));
+    final repository = _CommitteeOralExamRepository();
+    final voice = _FakeVoiceExamAdapter();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: OralExamRoomScreen(
+          repository: repository,
+          session: repository.panelSession,
+          voiceAdapter: voice,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.volume_off_rounded));
+    await tester.pump(const Duration(milliseconds: 250));
+
+    await tester.tap(find.text('Cevap Ver'));
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(
+      voice.spokenTexts.any((text) => text.contains('Sokratik Doçent:')),
+      isFalse,
+    );
+    expect(
+      voice.spokenTexts.any(
+        (text) => text.contains('İlk isteyeceğiniz tetkik nedir?'),
+      ),
+      isTrue,
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('oral exam finalize hides provider errors and offers retry', (
     tester,
   ) async {
@@ -1790,7 +1865,9 @@ class _WalletStoreRepository extends StoreKitRepository {
       );
 
   @override
-  Future<WalletCatalog> loadWalletCatalog() async {
+  Future<WalletCatalog> loadWalletCatalog({
+    String storeProvider = 'app_store',
+  }) async {
     return const WalletCatalog(
       snapshot: WalletSnapshot(walletCoinBalance: 100, questionQuota: 50),
       products: [
@@ -1893,15 +1970,24 @@ class _RecordingStoreKitRepository extends StoreKitRepository {
     ),
   ];
 
+  String? lastStoreProvider;
   String? verifiedProductCode;
   String? verifiedAppStoreProductId;
+  String? verifiedProvider;
   String? verifiedPurchaseId;
+  String? verifiedVerificationSource;
+  String? verifiedServerVerificationData;
 
   @override
-  Future<WalletCatalog> loadWalletCatalog() async => WalletCatalog(
-    products: products,
-    snapshot: const WalletSnapshot(walletCoinBalance: 125, questionQuota: 50),
-  );
+  Future<WalletCatalog> loadWalletCatalog({
+    String storeProvider = 'app_store',
+  }) async {
+    lastStoreProvider = storeProvider;
+    return WalletCatalog(
+      products: products,
+      snapshot: const WalletSnapshot(walletCoinBalance: 125, questionQuota: 50),
+    );
+  }
 
   @override
   Future<SubscriptionState> loadSubscriptionState() async {
@@ -1925,6 +2011,7 @@ class _RecordingStoreKitRepository extends StoreKitRepository {
   Future<SubscriptionState> verifyPurchase({
     required String productCode,
     required String appStoreProductId,
+    required String provider,
     required String purchaseId,
     required String verificationSource,
     required String localVerificationData,
@@ -1932,7 +2019,10 @@ class _RecordingStoreKitRepository extends StoreKitRepository {
   }) async {
     verifiedProductCode = productCode;
     verifiedAppStoreProductId = appStoreProductId;
+    verifiedProvider = provider;
     verifiedPurchaseId = purchaseId;
+    verifiedVerificationSource = verificationSource;
+    verifiedServerVerificationData = serverVerificationData;
     return const SubscriptionState(
       hasActiveSubscription: true,
       productCode: 'mc_25',
@@ -1961,7 +2051,9 @@ class _GiftCodeStoreRepository extends StoreKitRepository {
   bool _redeemed = false;
 
   @override
-  Future<WalletCatalog> loadWalletCatalog() async {
+  Future<WalletCatalog> loadWalletCatalog({
+    String storeProvider = 'app_store',
+  }) async {
     return WalletCatalog(
       products: const [],
       snapshot: _redeemed
@@ -2069,6 +2161,35 @@ class _RecordingStoreKitService extends StoreKitService {
   Future<void> dispose() async {
     await _updates.close();
     await super.dispose();
+  }
+}
+
+class _RecordingGooglePlayService extends _RecordingStoreKitService {
+  @override
+  bool get isSupported => true;
+
+  @override
+  String get storeName => 'Google Play';
+
+  @override
+  String get verificationProvider => 'google_play';
+
+  @override
+  Future<bool> buy(PratiCaseStoreProduct product) async {
+    _updates.add(
+      PurchaseDetails(
+        purchaseID: 'GPA.1234-5678-9012-34567',
+        productID: product.appStoreProductId,
+        verificationData: PurchaseVerificationData(
+          localVerificationData: 'play-local',
+          serverVerificationData: 'play-token-mc-25',
+          source: 'google_play',
+        ),
+        transactionDate: '1780000000000',
+        status: PurchaseStatus.purchased,
+      )..pendingCompletePurchase = true,
+    );
+    return true;
   }
 }
 

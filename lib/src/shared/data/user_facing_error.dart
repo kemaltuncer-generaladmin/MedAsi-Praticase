@@ -63,10 +63,31 @@ abstract final class PratiCaseUserMessage {
 
   static String mentorMessage(String? message, {String? fallback}) {
     return safe(
-      message,
+      _stripMentorPrefix(message),
       fallback:
           fallback ??
           'Yanıtını klinik gerekçenle birlikte bir cümle daha açar mısın?',
+    );
+  }
+
+  static String? _stripMentorPrefix(String? message) {
+    var text = message?.trim() ?? '';
+    if (text.isEmpty) return text;
+    final prefix = RegExp(
+      r'^(komite başkanı|sert profesör|sokratik doçent|klinik akıl yürütme hocası|klinik akıl hocası|asistan moderatör|sabırlı asistan|hoca|moderatör|profesör)\s*[:\-–—]\s*',
+      caseSensitive: false,
+      unicode: true,
+    );
+    while (prefix.hasMatch(text)) {
+      text = text.replaceFirst(prefix, '').trim();
+    }
+    return text.replaceFirst(
+      RegExp(
+        r'^(sayın meslektaşım|meslektaşım|hocam)\s*,\s*',
+        caseSensitive: false,
+        unicode: true,
+      ),
+      '',
     );
   }
 }

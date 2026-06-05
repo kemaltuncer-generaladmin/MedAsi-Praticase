@@ -15,6 +15,7 @@ import { corsHeaders, isAllowedOrigin, jsonResponse } from "../_shared/cors.ts";
 type JsonMap = Record<string, unknown>;
 
 type AppleEnvironment = "production" | "sandbox";
+type StoreProvider = "app_store" | "google_play";
 
 const activeSubscriptionPurchaseMessage =
   "Aktif aboneliğinin süresi bitmeden aynı abonelik tekrar alınamaz. Haftalıktan aylığa yükseltme yapabilirsin.";
@@ -99,7 +100,7 @@ Deno.serve(async (request) => {
   const userId = authData.user.id;
 
   if (action === "catalog" || action === "store") {
-    const payload = await loadCatalogPayload(admin, userId);
+    const payload = await loadCatalogPayload(admin, userId, body);
     return jsonResponse(payload, payload.error ? 503 : 200, origin);
   }
 
@@ -121,19 +122,23 @@ Deno.serve(async (request) => {
     return createPaymentCheckout(admin, authData.user, body, origin);
   }
 
+  return verifyNativePurchase(admin, userId, body, origin);
+});
+
+async function verifyNativePurchase(
+  // deno-lint-ignore no-explicit-any
+  admin: any,
+  userId: string,
+  body: JsonMap,
+  origin: string | null,
+) {
   const productCode = stringValue(body.product_code);
   const storeProductId = stringValue(body.store_product_id);
-  const provider = stringValue(body.provider) || "app_store";
+  const provider = normalizeStoreProvider(body.provider);
   const purchaseId = stringValue(body.purchase_id);
   const verification = body.verification_data as JsonMap | undefined;
 
-  if (
-    provider !== "app_store" ||
-    !productCode ||
-    !storeProductId ||
-    !purchaseId ||
-    !verification
-  ) {
+  if (!productCode || !storeProductId || !verification) {
     return jsonResponse(
       { error: "Satın alma bilgisi eksik. Lütfen tekrar dene." },
       400,
@@ -153,14 +158,6 @@ Deno.serve(async (request) => {
     );
   }
 
-  if (source !== "app_store" || !serverPayload) {
-    return jsonResponse(
-      { error: "Satın alma şu anda doğrulanamadı. Lütfen tekrar dene." },
-      400,
-      origin,
-    );
-  }
-
   const blockedSubscriptionCodes = await blockedSubscriptionProductCodes(
     admin,
     userId,
@@ -173,18 +170,42 @@ Deno.serve(async (request) => {
     );
   }
 
-  let appleResult: AppleReceipt;
-  try {
-    appleResult = await verifyPurchase(
-      serverPayload,
-      purchaseId,
-      storeProductId,
+  const product = await loadMappedProduct(
+    admin,
+    productCode,
+    storeProductId,
+    provider,
+  );
+  if (!product) {
+    return jsonResponse(
+      { error: "Seçilen paket bulunamadı." },
+      404,
+      origin,
     );
+  }
+
+  let receipt: StoreReceipt;
+  try {
+    receipt = provider === "google_play"
+      ? await verifyGooglePlayPurchase({
+        product,
+        storeProductId,
+        purchaseToken: serverPayload,
+        purchaseId,
+      })
+      : await verifyApplePurchase({
+        storeProductId,
+        purchaseId,
+        serverPayload,
+        source,
+      });
   } catch (error) {
     recordEvent("verify_failed", {
       provider,
       productCode,
-      payloadShape: verificationPayloadShape(serverPayload),
+      payloadShape: provider === "app_store"
+        ? verificationPayloadShape(serverPayload)
+        : `token:${serverPayload.length}`,
       purchaseIdPresent: purchaseId.length > 0,
       message: errorMessage(error),
     });
@@ -195,41 +216,50 @@ Deno.serve(async (request) => {
     );
   }
 
-  const product = await loadMappedProduct(admin, productCode, storeProductId);
-  if (!product) {
-    return jsonResponse(
-      { error: "Seçilen paket bulunamadı." },
-      404,
-      origin,
-    );
-  }
-
   const entitlementKind = (product.entitlement_kind ?? "subscription")
     .toString();
   const durationDays = numberValue(product.duration_days) ?? 30;
   const now = new Date();
-  const expiresAt = appleResult.expiresAt ??
+  const expiresAt = receipt.expiresAt ??
     new Date(now.getTime() + durationDays * 24 * 3600 * 1000);
-  const periodStart = appleResult.periodStartedAt ?? now;
+  const periodStart = receipt.periodStartedAt ?? now;
 
-  const { data: grantResult, error: grantError } = await admin.rpc(
-    "grant_app_store_product",
-    {
+  const rawReceipt = {
+    app: "praticase",
+    app_key: "praticase",
+    feature_attribution: receipt.provider === "google_play"
+      ? "google_play_purchase_grant"
+      : "storekit_purchase_grant",
+    product_code: product.code,
+    store_product_id: storeProductId,
+    provider: receipt.provider,
+    original_transaction_id: receipt.originalTransactionId,
+    environment: receipt.environment,
+    ...receipt.rawReceipt,
+  };
+  const grantArgs = receipt.provider === "google_play"
+    ? {
       p_user_id: userId,
       p_product_id: product.id,
-      p_provider_transaction_id: appleResult.transactionId,
-      p_raw_receipt: {
-        app: "praticase",
-        app_key: "praticase",
-        feature_attribution: "storekit_purchase_grant",
-        product_code: product.code,
-        store_product_id: storeProductId,
-        original_transaction_id: appleResult.originalTransactionId,
-        environment: appleResult.environment,
-      },
+      p_provider: "google_play",
+      p_provider_transaction_id: receipt.transactionId,
+      p_raw_receipt: rawReceipt,
       p_started_at: periodStart.toISOString(),
       p_expires_at: expiresAt.toISOString(),
-    },
+    }
+    : {
+      p_user_id: userId,
+      p_product_id: product.id,
+      p_provider_transaction_id: receipt.transactionId,
+      p_raw_receipt: rawReceipt,
+      p_started_at: periodStart.toISOString(),
+      p_expires_at: expiresAt.toISOString(),
+    };
+  const { data: grantResult, error: grantError } = await admin.rpc(
+    receipt.provider === "google_play"
+      ? "grant_store_product"
+      : "grant_app_store_product",
+    grantArgs,
   );
   if (grantError) {
     if (grantError.message.includes("Active subscription exists")) {
@@ -244,10 +274,10 @@ Deno.serve(async (request) => {
             entitlement_type: entitlementKind,
             expires_at: expiresAt.toISOString(),
             period_started_at: periodStart.toISOString(),
-            transaction_id: appleResult.transactionId,
-            original_transaction_id: appleResult.originalTransactionId,
-            environment: appleResult.environment,
-            will_auto_renew: appleResult.autoRenew,
+            transaction_id: receipt.transactionId,
+            original_transaction_id: receipt.originalTransactionId,
+            environment: receipt.environment,
+            will_auto_renew: receipt.autoRenew,
             idempotent: true,
           },
           profile,
@@ -262,14 +292,14 @@ Deno.serve(async (request) => {
       origin,
     );
   }
-  if (entitlementKind === "subscription") {
+  if (entitlementKind === "subscription" && receipt.provider === "app_store") {
     await saveSubscriptionLink(admin, {
-      originalTransactionId: appleResult.originalTransactionId,
+      originalTransactionId: receipt.originalTransactionId,
       userId,
       productCode: stringValue(product.code),
-      latestTransactionId: appleResult.transactionId,
+      latestTransactionId: receipt.transactionId,
       latestPurchaseId: purchaseIdFromGrant(grantResult),
-      willAutoRenew: appleResult.autoRenew,
+      willAutoRenew: receipt.autoRenew,
       expiresAt,
     });
   }
@@ -277,7 +307,7 @@ Deno.serve(async (request) => {
   recordEvent("verify_succeeded", {
     productCode: product.code,
     provider,
-    environment: appleResult.environment,
+    environment: receipt.environment,
   });
 
   const profile = await loadEffectiveWalletProfile(admin, userId);
@@ -292,10 +322,10 @@ Deno.serve(async (request) => {
         entitlement_type: entitlementKind,
         expires_at: expiresAt.toISOString(),
         period_started_at: periodStart.toISOString(),
-        transaction_id: appleResult.transactionId,
-        original_transaction_id: appleResult.originalTransactionId,
-        environment: appleResult.environment,
-        will_auto_renew: appleResult.autoRenew,
+        transaction_id: receipt.transactionId,
+        original_transaction_id: receipt.originalTransactionId,
+        environment: receipt.environment,
+        will_auto_renew: receipt.autoRenew,
         remaining_coin_amount: numberValue(product.coin_amount) ?? 0,
         remaining_question_amount: numberValue(product.question_amount) ?? 0,
       },
@@ -304,7 +334,7 @@ Deno.serve(async (request) => {
     200,
     origin,
   );
-});
+}
 
 async function createPaymentCheckout(
   // deno-lint-ignore no-explicit-any
@@ -450,7 +480,9 @@ async function redeemGiftCode(
   const code = normalizeGiftCode(stringValue(body.code).slice(0, 32));
   if (!code) {
     return jsonResponse(
-      { error: "Hediye kodunu 16 karakterlik biçimiyle tekrar kontrol edelim." },
+      {
+        error: "Hediye kodunu 16 karakterlik biçimiyle tekrar kontrol edelim.",
+      },
       400,
       origin,
     );
@@ -602,8 +634,12 @@ async function loadCatalogPayload(
   // deno-lint-ignore no-explicit-any
   admin: any,
   userId: string,
+  body: JsonMap = {},
 ): Promise<JsonMap> {
-  const products = await loadMappedCatalog(admin);
+  const products = await loadMappedCatalog(
+    admin,
+    normalizeStoreProvider(body.store_provider ?? body.provider),
+  );
   const blockedProductCodes = await blockedSubscriptionProductCodes(
     admin,
     userId,
@@ -719,8 +755,9 @@ function friendlyGiftCodeError(message: string) {
 async function loadMappedCatalog(
   // deno-lint-ignore no-explicit-any
   admin: any,
+  provider: StoreProvider = "app_store",
 ): Promise<JsonMap[] | null> {
-  const mappedIds = await loadAppStoreProductMappings(admin);
+  const mappedIds = await loadStoreProductMappings(admin, provider);
   const products = await loadSharedStoreProducts(admin);
   if (products == null) return null;
   return (products ?? []).map((product: JsonMap) => ({
@@ -735,11 +772,13 @@ async function loadMappedProduct(
   admin: any,
   productCode: string,
   storeProductId: string,
+  provider: StoreProvider = "app_store",
 ): Promise<JsonMap | null> {
   const mappedProduct = await loadMappedProductByOverride(
     admin,
     productCode,
     storeProductId,
+    provider,
   );
   if (mappedProduct) return mappedProduct;
 
@@ -772,13 +811,17 @@ async function loadMappedProductByOverride(
   admin: any,
   productCode: string,
   storeProductId: string,
+  provider: StoreProvider = "app_store",
 ): Promise<JsonMap | null> {
+  const storeIdColumn = provider === "google_play"
+    ? "google_play_product_id"
+    : "app_store_product_id";
   const { data: mapping, error: mappingError } = await admin
     .schema("praticase")
     .from("store_product_app_mappings")
-    .select("product_code,app_store_product_id")
+    .select(`product_code,${storeIdColumn}`)
     .eq("product_code", productCode)
-    .eq("app_store_product_id", storeProductId)
+    .eq(storeIdColumn, storeProductId)
     .eq("is_active", true)
     .maybeSingle();
   if (mappingError || !mapping) return null;
@@ -793,22 +836,33 @@ async function loadMappedProductByOverride(
   return error || !product ? null : product as JsonMap;
 }
 
-async function loadAppStoreProductMappings(
+async function loadStoreProductMappings(
   // deno-lint-ignore no-explicit-any
   admin: any,
+  provider: StoreProvider = "app_store",
 ): Promise<Map<string, string>> {
+  const storeIdColumn = provider === "google_play"
+    ? "google_play_product_id"
+    : "app_store_product_id";
   const { data: mappings, error } = await admin
     .schema("praticase")
     .from("store_product_app_mappings")
-    .select("product_code,app_store_product_id")
+    .select(`product_code,${storeIdColumn}`)
     .eq("is_active", true);
-  if (error) return new Map();
+  if (error) {
+    if (
+      provider === "google_play" && isMissingGooglePlayProductIdColumn(error)
+    ) {
+      return new Map();
+    }
+    return new Map();
+  }
   return new Map(
     ((mappings ?? []) as JsonMap[])
       .map((mapping) =>
         [
           stringValue(mapping.product_code),
-          stringValue(mapping.app_store_product_id),
+          stringValue(mapping[storeIdColumn]),
         ] as const
       )
       .filter(([code, storeId]) => code && storeId),
@@ -1597,6 +1651,301 @@ function purchaseIdFromGrant(value: unknown): string {
     : "";
 }
 
+async function verifyApplePurchase(values: {
+  storeProductId: string;
+  purchaseId: string;
+  serverPayload: string;
+  source: string;
+}): Promise<StoreReceipt> {
+  if (
+    values.source !== "app_store" ||
+    !values.serverPayload ||
+    !values.purchaseId
+  ) {
+    throw new Error("Apple purchase payload is incomplete");
+  }
+  const receipt = await verifyPurchase(
+    values.serverPayload,
+    values.purchaseId,
+    values.storeProductId,
+  );
+  return {
+    ...receipt,
+    provider: "app_store",
+    rawReceipt: {},
+  };
+}
+
+async function verifyGooglePlayPurchase(values: {
+  product: JsonMap;
+  storeProductId: string;
+  purchaseToken: string;
+  purchaseId: string;
+}): Promise<StoreReceipt> {
+  if (!values.purchaseToken) {
+    throw new Error("Google Play purchase token is missing");
+  }
+  const entitlementKind = stringValue(values.product.entitlement_kind);
+  const interval = stringValue(values.product.interval).toLowerCase();
+  const isSubscription = entitlementKind === "subscription" ||
+    ["week", "month", "year"].includes(interval);
+  return isSubscription
+    ? await verifyGooglePlaySubscription(values)
+    : await verifyGooglePlayOneTimeProduct(values);
+}
+
+async function verifyGooglePlayOneTimeProduct(values: {
+  storeProductId: string;
+  purchaseToken: string;
+  purchaseId: string;
+}): Promise<StoreReceipt> {
+  const payload = await fetchGooglePlayPublisher(
+    `purchases/products/${encodeURIComponent(values.storeProductId)}/tokens/${
+      encodeURIComponent(values.purchaseToken)
+    }`,
+  );
+  const purchaseState = numberValue(payload.purchaseState) ?? -1;
+  if (purchaseState !== 0) {
+    throw new Error(`Google Play purchase is not completed: ${purchaseState}`);
+  }
+  const tokenHash = await sha256Hex(values.purchaseToken);
+  const orderId = stringValue(payload.orderId);
+  const transactionId = orderId || values.purchaseId ||
+    `google_play:${tokenHash}`;
+  return {
+    status: 0,
+    provider: "google_play",
+    environment: googlePlayEnvironment(payload),
+    transactionId,
+    originalTransactionId: transactionId,
+    expiresAt: null,
+    periodStartedAt: dateFromMilliseconds(payload.purchaseTimeMillis),
+    autoRenew: false,
+    rawReceipt: {
+      google_play_purchase_token_hash: tokenHash,
+      order_id: orderId,
+      purchase_state: purchaseState,
+      acknowledgement_state: numberValue(payload.acknowledgementState),
+      consumption_state: numberValue(payload.consumptionState),
+      purchase_type: numberValue(payload.purchaseType),
+      region_code: stringValue(payload.regionCode),
+    },
+  };
+}
+
+async function verifyGooglePlaySubscription(values: {
+  storeProductId: string;
+  purchaseToken: string;
+  purchaseId: string;
+}): Promise<StoreReceipt> {
+  const payload = await fetchGooglePlayPublisher(
+    `purchases/subscriptionsv2/tokens/${
+      encodeURIComponent(values.purchaseToken)
+    }`,
+  );
+  const state = stringValue(payload.subscriptionState);
+  const lineItems = Array.isArray(payload.lineItems)
+    ? payload.lineItems as JsonMap[]
+    : [];
+  const matchingLine =
+    lineItems.find((line) =>
+      stringValue(line.productId) === values.storeProductId
+    ) ?? lineItems[0];
+  if (!matchingLine) {
+    throw new Error("Google Play subscription line item is missing");
+  }
+  const expiresAt = dateFromIso(stringValue(matchingLine.expiryTime));
+  const now = Date.now();
+  const hasActiveWindow = expiresAt == null || expiresAt.getTime() > now;
+  const allowedStates = new Set([
+    "SUBSCRIPTION_STATE_ACTIVE",
+    "SUBSCRIPTION_STATE_IN_GRACE_PERIOD",
+    "SUBSCRIPTION_STATE_CANCELED",
+  ]);
+  if (!allowedStates.has(state) || !hasActiveWindow) {
+    throw new Error(`Google Play subscription is not active: ${state}`);
+  }
+  const autoRenewingPlan = isJsonMap(matchingLine.autoRenewingPlan)
+    ? matchingLine.autoRenewingPlan
+    : {};
+  const tokenHash = await sha256Hex(values.purchaseToken);
+  const linkedToken = stringValue(payload.linkedPurchaseToken);
+  const linkedTokenHash = linkedToken ? await sha256Hex(linkedToken) : "";
+  const orderId = stringValue(payload.latestOrderId);
+  const transactionId = orderId || values.purchaseId ||
+    `google_play:${tokenHash}`;
+  return {
+    status: 0,
+    provider: "google_play",
+    environment: googlePlayEnvironment(payload),
+    transactionId,
+    originalTransactionId: linkedTokenHash || transactionId,
+    expiresAt,
+    periodStartedAt: dateFromIso(stringValue(payload.startTime)),
+    autoRenew: autoRenewingPlan.autoRenewEnabled === true,
+    rawReceipt: {
+      google_play_purchase_token_hash: tokenHash,
+      linked_purchase_token_hash: linkedTokenHash,
+      order_id: orderId,
+      subscription_state: state,
+      acknowledgement_state: stringValue(payload.acknowledgementState),
+      line_item_product_id: stringValue(matchingLine.productId),
+      region_code: stringValue(payload.regionCode),
+    },
+  };
+}
+
+async function fetchGooglePlayPublisher(path: string): Promise<JsonMap> {
+  const packageName = googlePlayPackageName();
+  const accessToken = await googlePlayAccessToken();
+  const response = await fetch(
+    `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${
+      encodeURIComponent(packageName)
+    }/${path}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  if (!response.ok) {
+    throw new Error(
+      `Google Play API HTTP ${response.status}: ${
+        truncateText(await response.text(), 240)
+      }`,
+    );
+  }
+  const payload = await response.json();
+  if (!isJsonMap(payload)) {
+    throw new Error("Google Play API response is not an object");
+  }
+  return payload;
+}
+
+async function googlePlayAccessToken(): Promise<string> {
+  const serviceAccount = googlePlayServiceAccount();
+  const tokenUri = serviceAccount.tokenUri ||
+    "https://oauth2.googleapis.com/token";
+  const assertion = await createGooglePlayJwt(serviceAccount, tokenUri);
+  const response = await fetch(tokenUri, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(
+      `Google Play OAuth HTTP ${response.status}: ${
+        truncateText(await response.text(), 240)
+      }`,
+    );
+  }
+  const payload = await response.json();
+  if (!isJsonMap(payload)) throw new Error("Google OAuth response is invalid");
+  const accessToken = stringValue(payload.access_token);
+  if (!accessToken) throw new Error("Google OAuth access token is missing");
+  return accessToken;
+}
+
+function googlePlayServiceAccount(): {
+  clientEmail: string;
+  privateKey: string;
+  tokenUri: string;
+} {
+  const encoded = stringValue(
+    Deno.env.get("PRATICASE_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64") ||
+      Deno.env.get("GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64"),
+  );
+  const rawJson = encoded
+    ? new TextDecoder().decode(
+      Uint8Array.from(atob(encoded.replace(/\s/g, "")), (char) =>
+        char.charCodeAt(0)),
+    )
+    : stringValue(
+      Deno.env.get("PRATICASE_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON") ||
+        Deno.env.get("GOOGLE_PLAY_SERVICE_ACCOUNT_JSON"),
+    );
+  if (!rawJson) {
+    throw new Error("Google Play service account JSON is not configured");
+  }
+  const parsed = JSON.parse(rawJson);
+  if (!isJsonMap(parsed)) {
+    throw new Error("Google Play service account JSON is invalid");
+  }
+  const clientEmail = stringValue(parsed.client_email);
+  const privateKey = stringValue(parsed.private_key).replace(/\\n/g, "\n");
+  const tokenUri = stringValue(parsed.token_uri) ||
+    "https://oauth2.googleapis.com/token";
+  if (!clientEmail || !privateKey.includes("PRIVATE KEY")) {
+    throw new Error("Google Play service account credentials are incomplete");
+  }
+  return { clientEmail, privateKey, tokenUri };
+}
+
+async function createGooglePlayJwt(
+  serviceAccount: { clientEmail: string; privateKey: string },
+  tokenUri: string,
+): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: "RS256", typ: "JWT" };
+  const payload = {
+    iss: serviceAccount.clientEmail,
+    scope: "https://www.googleapis.com/auth/androidpublisher",
+    aud: tokenUri,
+    iat: now,
+    exp: now + 3600,
+  };
+  const signingInput = `${base64UrlJson(header)}.${base64UrlJson(payload)}`;
+  const key = await crypto.subtle.importKey(
+    "pkcs8",
+    pemToDer(serviceAccount.privateKey),
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = new Uint8Array(
+    await crypto.subtle.sign(
+      "RSASSA-PKCS1-v1_5",
+      key,
+      new TextEncoder().encode(signingInput),
+    ),
+  );
+  return `${signingInput}.${base64UrlBytes(signature)}`;
+}
+
+function pemToDer(pem: string): Uint8Array {
+  const base64 = pem
+    .replace(/-----BEGIN [^-]+-----/g, "")
+    .replace(/-----END [^-]+-----/g, "")
+    .replace(/\s/g, "");
+  return Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
+}
+
+function googlePlayPackageName(): string {
+  return stringValue(Deno.env.get("PRATICASE_GOOGLE_PLAY_PACKAGE_NAME")) ||
+    "com.medasi.praticase";
+}
+
+function googlePlayEnvironment(payload: JsonMap): string {
+  return payload.testPurchase != null || numberValue(payload.purchaseType) === 0
+    ? "test"
+    : "production";
+}
+
+function dateFromIso(value: string): Date | null {
+  if (!value) return null;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? new Date(timestamp) : null;
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value),
+  );
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 type AppleReceipt = {
   status: number;
   environment: string;
@@ -1605,6 +1954,11 @@ type AppleReceipt = {
   expiresAt: Date | null;
   periodStartedAt?: Date | null;
   autoRenew: boolean;
+};
+
+type StoreReceipt = AppleReceipt & {
+  provider: StoreProvider;
+  rawReceipt: JsonMap;
 };
 
 type AppleVerifierConfiguration = {
@@ -2102,6 +2456,21 @@ function isMissingStoreProductIdColumn(error: unknown) {
       message.includes("schema cache") ||
       message.includes("does not exist") ||
       message.includes("could not find"));
+}
+
+function isMissingGooglePlayProductIdColumn(error: unknown) {
+  const message = errorMessage(error).toLowerCase();
+  return message.includes("google_play_product_id") &&
+    (message.includes("column") ||
+      message.includes("schema cache") ||
+      message.includes("does not exist") ||
+      message.includes("could not find"));
+}
+
+function normalizeStoreProvider(value: unknown): StoreProvider {
+  return stringValue(value).toLowerCase() === "google_play"
+    ? "google_play"
+    : "app_store";
 }
 
 function stringValue(value: unknown) {

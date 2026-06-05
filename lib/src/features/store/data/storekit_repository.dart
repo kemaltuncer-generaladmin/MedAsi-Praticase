@@ -17,9 +17,12 @@ class StoreKitRepository {
 
   final SupabaseClient _client;
 
-  Future<WalletCatalog> loadWalletCatalog() async {
-    final data = await _invoke(const {
+  Future<WalletCatalog> loadWalletCatalog({
+    String storeProvider = 'app_store',
+  }) async {
+    final data = await _invoke({
       'action': 'store',
+      'store_provider': storeProvider,
     }, fallback: PratiCaseUserMessage.storeFailure);
     return WalletCatalog.fromStoreResponse(data);
   }
@@ -96,6 +99,7 @@ class StoreKitRepository {
   Future<SubscriptionState> verifyPurchase({
     required String productCode,
     required String appStoreProductId,
+    required String provider,
     required String purchaseId,
     required String verificationSource,
     required String localVerificationData,
@@ -105,7 +109,7 @@ class StoreKitRepository {
       'action': 'verify',
       'product_code': productCode,
       'store_product_id': appStoreProductId,
-      'provider': 'app_store',
+      'provider': provider,
       'purchase_id': purchaseId,
       'verification_data': {
         'source': verificationSource,

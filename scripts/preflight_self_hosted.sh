@@ -172,6 +172,13 @@ for key in "${required_praticase_store_secrets[@]}"; do
     missing=1
   fi
 done
+if docker exec "$edge_container" sh -lc \
+  "test -n \"\${PRATICASE_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64:-}\" || test -n \"\${PRATICASE_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON:-}\""; then
+  printf 'ok    Google Play service account secret is configured\n'
+else
+  printf 'FAIL  Google Play service account secret is missing\n' >&2
+  missing=1
+fi
 for function_name in \
   praticase-patient-turn \
   praticase-speech \
@@ -195,15 +202,20 @@ else
   missing=1
 fi
 mapping_migration_applied=false
+google_mapping_migration_applied=false
 for version in \
   202605240011_praticase_release_copy_hardening \
-  202605240012_praticase_store_product_mappings; do
+  202605240012_praticase_store_product_mappings \
+  202606050004_praticase_google_play_product_mappings; do
   if docker exec "$db_container" psql -U supabase_admin -d postgres -Atqc \
     "select 1 from praticase.self_hosted_schema_migrations where version = '$version' limit 1;" \
     | grep -q '^1$'; then
     printf 'ok    Migration %s is applied\n' "$version"
     if [[ "$version" == "202605240012_praticase_store_product_mappings" ]]; then
       mapping_migration_applied=true
+    fi
+    if [[ "$version" == "202606050004_praticase_google_play_product_mappings" ]]; then
+      google_mapping_migration_applied=true
     fi
   else
     printf 'FAIL  Migration %s is not applied\n' "$version" >&2
@@ -218,6 +230,16 @@ if [[ "$mapping_migration_applied" == true ]]; then
   else
     printf 'FAIL  No active PratiCase App Store product mappings are configured\n' >&2
     missing=1
+  fi
+  if [[ "$google_mapping_migration_applied" == true ]]; then
+    google_mapping_count="$(docker exec "$db_container" psql -U supabase_admin -d postgres -Atqc \
+      "select count(*) from praticase.store_product_app_mappings where is_active and nullif(trim(google_play_product_id), '') is not null;")"
+    if [[ "$google_mapping_count" =~ ^[1-9][0-9]*$ ]]; then
+      printf 'ok    %s PratiCase Google Play product mapping(s) are active\n' "$google_mapping_count"
+    else
+      printf 'FAIL  No active PratiCase Google Play product mappings are configured\n' >&2
+      missing=1
+    fi
   fi
 fi
 exit "$missing"

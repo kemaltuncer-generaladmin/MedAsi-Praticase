@@ -16,7 +16,7 @@ import 'storekit_service.dart';
 /// Mağaza ekranlarının ortak state'ini tutan basit controller.
 ///
 /// Repository (Supabase) ile Service (StoreKit 2) arasındaki köprü görevi
-/// görür. Apple guideline'larına uygun şekilde tüm satın alma işlemleri
+/// görür. Native mağaza kurallarına uygun şekilde tüm satın alma işlemleri
 /// kullanıcıya geri bildirim verir.
 class StoreController extends ChangeNotifier {
   StoreController({StoreKitRepository? repository, StoreKitService? service})
@@ -49,9 +49,9 @@ class StoreController extends ChangeNotifier {
   String? get statusMessage => _statusMessage;
   String? get errorMessage => _errorMessage;
   bool get isSupported => _service.isSupported;
-  bool get supportsAppStorePurchases => _service.isSupported;
-  bool get supportsExternalCheckout =>
-      kIsWeb || defaultTargetPlatform == TargetPlatform.android;
+  bool get supportsNativeStorePurchases => _service.isSupported;
+  String get nativeStoreName => _service.storeName;
+  bool get supportsExternalCheckout => kIsWeb;
   bool get initialized => _initialized;
 
   Future<void> initialize() async {
@@ -62,7 +62,7 @@ class StoreController extends ChangeNotifier {
       onError: (Object _) {
         _statusMessage = null;
         _errorMessage =
-            'App Store satın alma durumu izlenemedi. Lütfen tekrar dene.';
+            '${_service.storeName} satın alma durumu izlenemedi. Lütfen tekrar dene.';
         _setBusy(false);
       },
     );
@@ -73,7 +73,9 @@ class StoreController extends ChangeNotifier {
     _setBusy(true);
     _errorMessage = null;
     try {
-      final catalog = await _repo.loadWalletCatalog();
+      final catalog = await _repo.loadWalletCatalog(
+        storeProvider: _service.verificationProvider,
+      );
       _products = await _service.attachStoreKitMetadata(catalog.products);
       _walletSnapshot = catalog.snapshot;
       _blockedProductCodes = catalog.blockedProductCodes;
@@ -111,12 +113,13 @@ class StoreController extends ChangeNotifier {
       return;
     }
     _errorMessage = null;
-    _statusMessage = 'Ödemeniz alınıyor. App Store onayı bekleniyor.';
+    _statusMessage =
+        'Ödemeniz alınıyor. ${_service.storeName} onayı bekleniyor.';
     _setBusy(true);
     try {
       final started = await _service.buy(product);
       if (!started) {
-        _errorMessage = 'App Store satın alma başlatılamadı.';
+        _errorMessage = '${_service.storeName} satın alma başlatılamadı.';
         _setBusy(false);
       }
     } on StorePurchaseException catch (error) {
@@ -161,7 +164,9 @@ class StoreController extends ChangeNotifier {
 
   Future<void> _reloadAfterEntitlementChange() async {
     try {
-      final catalog = await _repo.loadWalletCatalog();
+      final catalog = await _repo.loadWalletCatalog(
+        storeProvider: _service.verificationProvider,
+      );
       _products = await _service.attachStoreKitMetadata(catalog.products);
       _walletSnapshot = catalog.snapshot;
       _blockedProductCodes = catalog.blockedProductCodes;
@@ -222,7 +227,8 @@ class StoreController extends ChangeNotifier {
     if (_busy) return;
     _setBusy(true);
     _errorMessage = null;
-    _statusMessage = 'Satın almalar App Store üzerinden geri yükleniyor.';
+    _statusMessage =
+        'Satın almalar ${_service.storeName} üzerinden geri yükleniyor.';
     try {
       await _service.restorePurchases();
     } on StorePurchaseException catch (error) {
@@ -238,7 +244,7 @@ class StoreController extends ChangeNotifier {
   Future<void> _handlePurchase(PurchaseDetails purchase) async {
     switch (purchase.status) {
       case PurchaseStatus.pending:
-        _statusMessage = 'Apple ödeme onayını bekliyor.';
+        _statusMessage = '${_service.storeName} ödeme onayını bekliyor.';
         notifyListeners();
         return;
       case PurchaseStatus.canceled:
@@ -266,12 +272,13 @@ class StoreController extends ChangeNotifier {
       _setBusy(false);
       return;
     }
-    _statusMessage = 'Apple makbuzu doğrulanıyor.';
+    _statusMessage = '${_service.storeName} makbuzu doğrulanıyor.';
     notifyListeners();
     try {
       final state = await _repo.verifyPurchase(
         productCode: product.code,
         appStoreProductId: product.appStoreProductId,
+        provider: _service.verificationProvider,
         purchaseId: purchase.purchaseID ?? '',
         verificationSource: purchase.verificationData.source,
         localVerificationData: purchase.verificationData.localVerificationData,
@@ -284,7 +291,9 @@ class StoreController extends ChangeNotifier {
           : 'Satın alma doğrulandı.';
       await _service.completePurchase(purchase);
       // Katalog, bakiye ve hareket akışı ortak cüzdandan yeniden okunur.
-      final catalog = await _repo.loadWalletCatalog();
+      final catalog = await _repo.loadWalletCatalog(
+        storeProvider: _service.verificationProvider,
+      );
       _products = await _service.attachStoreKitMetadata(catalog.products);
       _walletSnapshot = catalog.snapshot;
       _blockedProductCodes = catalog.blockedProductCodes;

@@ -1797,12 +1797,7 @@ class _OralExamRoomScreenState extends State<OralExamRoomScreen> {
     if (!_voiceMode || _voiceState.muted || messages.isEmpty) return;
     final transcript = messages
         .where((message) => message.message.isNotEmpty)
-        .map(
-          (message) =>
-              widget.session.format.isPanel && message.personaTitle.isNotEmpty
-              ? '${message.personaTitle}: ${message.message}'
-              : message.message,
-        )
+        .map((message) => message.message)
         .join(' ');
     if (transcript.isEmpty) return;
     final speaker = widget.session.format.isPanel

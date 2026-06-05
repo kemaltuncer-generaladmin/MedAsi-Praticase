@@ -72,12 +72,13 @@ OPENAI_GPT_4O_OUTPUT_USD_PER_M=10.00
 Keep OpenAI and service-role secrets out of Flutter code, screenshots, logs,
 and committed files. Set them only as Supabase Edge Function secrets.
 
-## Web And Android Bank Transfer Payments
+## Web Bank Transfer And Android Google Play Payments
 
-Web and Android package selections create a MedAsi Pay checkout session and
-open `https://odeme.medasi.com.tr` for IBAN transfer and receipt upload. iOS
-continues to use StoreKit only; no bank-transfer navigation is displayed in
-the iOS purchase flow.
+Web package selections create a MedAsi Pay checkout session and open
+`https://odeme.medasi.com.tr` for IBAN transfer and receipt upload. Android
+uses Google Play Billing for in-app digital wallet packages. iOS continues to
+use StoreKit only; no bank-transfer navigation is displayed in the iOS purchase
+flow.
 
 Required Edge Function secrets for MedAsi Pay:
 
@@ -94,6 +95,13 @@ The checkout payload carries the selected live package snapshot, including
 webhook grants the same shared Medasi wallet product. A subscription uses its
 configured validity period and is not automatically renewed by bank transfer;
 a one-time purchase uses its configured validity period as well.
+
+Required Edge Function secrets for Google Play purchase verification:
+
+```bash
+PRATICASE_GOOGLE_PLAY_PACKAGE_NAME=com.medasi.praticase
+PRATICASE_GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_BASE64=<base64 service account json>
+```
 
 The deployment script applies PratiCase-owned migrations and publishes the six
 PratiCase Edge Functions. It does not replace the shared Qlinik store function

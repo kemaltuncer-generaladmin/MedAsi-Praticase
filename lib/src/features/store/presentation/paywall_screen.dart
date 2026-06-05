@@ -115,7 +115,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         actions: [
-          if (controller.supportsAppStorePurchases)
+          if (controller.supportsNativeStorePurchases)
             TextButton(
               onPressed: controller.busy ? null : _restore,
               child: const Text(
@@ -146,7 +146,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                               ? 'Medasi ekosistemindeki ortak Coin ve soru haklarını '
                                     'ödeme sayfası üzerinden yönet.'
                               : 'Medasi ekosistemindeki ortak Coin ve soru haklarını '
-                                    'App Store üzerinden güvenle yönet.'),
+                                    '${controller.nativeStoreName} üzerinden güvenle yönet.'),
                     ),
                     const SizedBox(height: 18),
                     const _BenefitList(),
@@ -181,12 +181,14 @@ class _PaywallScreenState extends State<PaywallScreen> {
                       product: _selected,
                       busy: controller.busy,
                       externalCheckout: controller.supportsExternalCheckout,
+                      nativeStoreName: controller.nativeStoreName,
                       onTap: _purchase,
                     ),
                     const SizedBox(height: 14),
                     _RenewalDisclosure(
                       product: _selected,
                       externalCheckout: controller.supportsExternalCheckout,
+                      nativeStoreName: controller.nativeStoreName,
                     ),
                     const SizedBox(height: 18),
                     _LegalLinks(
@@ -197,7 +199,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                           _openUrl(PratiCaseLegal.purchaseTermsUrl),
                     ),
                     const SizedBox(height: 12),
-                    if (controller.supportsAppStorePurchases)
+                    if (controller.supportsNativeStorePurchases)
                       Center(
                         child: TextButton(
                           onPressed: controller.busy ? null : _restore,
@@ -570,12 +572,14 @@ class _PurchaseButton extends StatelessWidget {
     required this.product,
     required this.busy,
     required this.externalCheckout,
+    required this.nativeStoreName,
     required this.onTap,
   });
 
   final PratiCaseStoreProduct? product;
   final bool busy;
   final bool externalCheckout;
+  final String nativeStoreName;
   final VoidCallback onTap;
 
   @override
@@ -591,8 +595,8 @@ class _PurchaseButton extends StatelessWidget {
         : !product!.canPurchaseInPratiCase
         ? 'Satın alma bu uygulamada hazır değil'
         : product!.isSubscription
-        ? 'Aboneliği başlat'
-        : 'Satın al';
+        ? '$nativeStoreName ile aboneliği başlat'
+        : '$nativeStoreName ile satın al';
     return GlowButton(
       label: label,
       onPressed: disabled ? null : onTap,
@@ -649,10 +653,12 @@ class _RenewalDisclosure extends StatelessWidget {
   const _RenewalDisclosure({
     required this.product,
     required this.externalCheckout,
+    required this.nativeStoreName,
   });
 
   final PratiCaseStoreProduct? product;
   final bool externalCheckout;
+  final String nativeStoreName;
 
   @override
   Widget build(BuildContext context) {
@@ -661,8 +667,8 @@ class _RenewalDisclosure extends StatelessWidget {
               ? _bankTransferSubscriptionText(product!)
               : _bankTransferOneTimeText(product)
         : product?.isSubscription == true
-        ? _renewalText(product!)
-        : _oneTimeText;
+        ? _renewalText(product!, nativeStoreName)
+        : _oneTimeText(nativeStoreName);
     return Text(
       localText,
       style: const TextStyle(
@@ -673,9 +679,9 @@ class _RenewalDisclosure extends StatelessWidget {
     );
   }
 
-  static const _oneTimeText =
+  String _oneTimeText(String nativeStoreName) =>
       'Tek seferlik satın alımdır. Otomatik yenileme yapılmaz. '
-      'Ödeme Apple kimliğinize tanımlı yönteme yansır. '
+      'Ödeme $nativeStoreName hesabınıza tanımlı yönteme yansır. '
       'Yüklenen MC veya soru hakkı Medasi Cüzdanınıza eklenir.';
 
   String _bankTransferOneTimeText(PratiCaseStoreProduct? product) {
@@ -695,15 +701,18 @@ class _RenewalDisclosure extends StatelessWidget {
         'Ödeme onaylandığında haklar Medasi Cüzdanınıza eklenir.';
   }
 
-  String _renewalText(PratiCaseStoreProduct product) {
+  String _renewalText(PratiCaseStoreProduct product, String nativeStoreName) {
     final price = _displayPrice(product);
     final period = product.periodLabel.isNotEmpty
         ? product.periodLabel
         : '${product.durationDays} gün';
+    final manageText = nativeStoreName == 'Google Play'
+        ? 'Google Play abonelik ayarlarından'
+        : 'Apple Kimliği ayarlarından';
     return 'Abonelik $price tutarında $period yenilenir. Yenileme tarihinden '
-        'en az 24 saat öncesine kadar Apple Kimliği ayarlarından iptal '
-        'edilmedikçe otomatik olarak yenilenir. Ödeme onayı sırasında Apple '
-        'kimliğinizden tahsil edilir ve cari dönem sonunda ücret yenilenir. '
+        'en az 24 saat öncesine kadar $manageText iptal edilmedikçe '
+        'otomatik olarak yenilenir. Ödeme onayı sırasında $nativeStoreName '
+        'hesabınızdan tahsil edilir ve cari dönem sonunda ücret yenilenir. '
         'Paketteki MC ve soru haklarının geçerlilik dönemi paket detayında '
         'belirtilir.';
   }

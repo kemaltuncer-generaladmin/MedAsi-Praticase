@@ -10,9 +10,8 @@ import 'paywall_screen.dart';
 
 /// Kullanıcının aktif aboneliğinin özetini ve yönetim aksiyonlarını sunar.
 ///
-/// Apple guideline:
-/// - Aboneliği iptal işlemi App Store ayarlarına yönlendirilir
-///   (`https://apps.apple.com/account/subscriptions`).
+/// Native mağaza kuralları:
+/// - Aboneliği iptal işlemi platform mağazasının abonelik yönetimine gider.
 /// - Plan değiştirme paywall ekranına yönlendirir.
 class SubscriptionStatusScreen extends StatefulWidget {
   const SubscriptionStatusScreen({required this.controller, super.key});
@@ -25,7 +24,9 @@ class SubscriptionStatusScreen extends StatefulWidget {
 }
 
 class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
-  static const _manageUrl = 'https://apps.apple.com/account/subscriptions';
+  static const _appleManageUrl = 'https://apps.apple.com/account/subscriptions';
+  static const _googlePlayManageUrl =
+      'https://play.google.com/store/account/subscriptions?package=com.medasi.praticase';
 
   @override
   void initState() {
@@ -51,7 +52,11 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
   }
 
   Future<void> _openSubscriptionsSettings() async {
-    final uri = Uri.parse(_manageUrl);
+    final uri = Uri.parse(
+      widget.controller.nativeStoreName == 'Google Play'
+          ? _googlePlayManageUrl
+          : _appleManageUrl,
+    );
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
@@ -72,7 +77,8 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
   Widget build(BuildContext context) {
     final controller = widget.controller;
     final state = controller.subscriptionState;
-    final usesAppStore = controller.supportsAppStorePurchases;
+    final usesNativeStore = controller.supportsNativeStorePurchases;
+    final nativeStoreName = controller.nativeStoreName;
     return Scaffold(
       backgroundColor: PratiCaseColors.softSurface,
       appBar: AppBar(
@@ -94,7 +100,7 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
               _StatusCard(state: state),
               const SizedBox(height: 16),
               if (state.hasActiveSubscription) ...[
-                _DetailsCard(state: state, usesAppStore: usesAppStore),
+                _DetailsCard(state: state, usesNativeStore: usesNativeStore),
                 const SizedBox(height: 16),
               ],
               if (state.warnings.isNotEmpty)
@@ -102,9 +108,10 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
               const SizedBox(height: 8),
               _ActionsCard(
                 hasActiveSubscription: state.hasActiveSubscription,
-                usesAppStore: usesAppStore,
+                usesNativeStore: usesNativeStore,
+                nativeStoreName: nativeStoreName,
                 onManage: _openSubscriptionsSettings,
-                onRestore: usesAppStore && !controller.busy
+                onRestore: usesNativeStore && !controller.busy
                     ? controller.restore
                     : null,
                 onUpgrade: _openPaywall,
@@ -125,7 +132,10 @@ class _SubscriptionStatusScreenState extends State<SubscriptionStatusScreen> {
                     _openLegalUrl(PratiCaseLegal.privacyPolicyUrl),
               ),
               const SizedBox(height: 16),
-              _FaqList(usesAppStore: usesAppStore),
+              _FaqList(
+                usesNativeStore: usesNativeStore,
+                nativeStoreName: nativeStoreName,
+              ),
             ],
           ),
         ),
@@ -343,10 +353,10 @@ class _StatusCard extends StatelessWidget {
 }
 
 class _DetailsCard extends StatelessWidget {
-  const _DetailsCard({required this.state, required this.usesAppStore});
+  const _DetailsCard({required this.state, required this.usesNativeStore});
 
   final SubscriptionState state;
-  final bool usesAppStore;
+  final bool usesNativeStore;
 
   @override
   Widget build(BuildContext context) {
@@ -373,8 +383,8 @@ class _DetailsCard extends StatelessWidget {
             value: _formatDate(state.expiresAt),
           ),
           _DetailRow(
-            label: usesAppStore ? 'Otomatik yenileme' : 'Yenileme',
-            value: usesAppStore
+            label: usesNativeStore ? 'Otomatik yenileme' : 'Yenileme',
+            value: usesNativeStore
                 ? (state.willAutoRenew ? 'Açık' : 'Kapalı')
                 : 'Yeni ödeme gerekli',
           ),
@@ -501,14 +511,16 @@ class _WarningsCard extends StatelessWidget {
 class _ActionsCard extends StatelessWidget {
   const _ActionsCard({
     required this.hasActiveSubscription,
-    required this.usesAppStore,
+    required this.usesNativeStore,
+    required this.nativeStoreName,
     required this.onManage,
     required this.onRestore,
     required this.onUpgrade,
   });
 
   final bool hasActiveSubscription;
-  final bool usesAppStore;
+  final bool usesNativeStore;
+  final String nativeStoreName;
   final VoidCallback onManage;
   final VoidCallback? onRestore;
   final VoidCallback onUpgrade;
@@ -525,7 +537,7 @@ class _ActionsCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          if (usesAppStore) ...[
+          if (usesNativeStore) ...[
             ListTile(
               leading: const Icon(
                 Icons.shopping_bag_outlined,
@@ -534,11 +546,11 @@ class _ActionsCard extends StatelessWidget {
               title: Text(
                 hasActiveSubscription
                     ? 'Aboneliği yönet / iptal et'
-                    : 'Apple aboneliklerimi aç',
+                    : '$nativeStoreName aboneliklerimi aç',
               ),
-              subtitle: const Text(
-                'App Store ayarlarına yönlendirir. İptal ve plan değişiklikleri '
-                'Apple tarafından yönetilir.',
+              subtitle: Text(
+                '$nativeStoreName abonelik yönetimine yönlendirir. İptal ve '
+                'plan değişiklikleri mağaza tarafından yönetilir.',
               ),
               trailing: const Icon(Icons.open_in_new_rounded),
               onTap: onManage,
@@ -550,28 +562,30 @@ class _ActionsCard extends StatelessWidget {
                 color: PratiCaseColors.teal,
               ),
               title: const Text('Satın almaları geri yükle'),
-              subtitle: const Text(
-                'Aynı Apple kimliğiyle yapılan tüm satın almaları yeniler.',
+              subtitle: Text(
+                'Aynı $nativeStoreName hesabıyla yapılan satın almaları yeniler.',
               ),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: onRestore,
             ),
           ],
-          if (!usesAppStore || !hasActiveSubscription) ...[
-            if (usesAppStore)
+          if (!usesNativeStore || !hasActiveSubscription) ...[
+            if (usesNativeStore)
               const Divider(height: 1, indent: 16, endIndent: 16),
             ListTile(
               leading: Icon(
-                usesAppStore
+                usesNativeStore
                     ? Icons.workspace_premium_outlined
                     : Icons.account_balance_outlined,
                 color: PratiCaseColors.gold,
               ),
               title: Text(
-                usesAppStore ? 'Premium’a yükselt' : 'Paket seç ve ödeme yap',
+                usesNativeStore
+                    ? 'Premium’a yükselt'
+                    : 'Paket seç ve ödeme yap',
               ),
               subtitle: Text(
-                usesAppStore
+                usesNativeStore
                     ? 'Aylık, yıllık veya yaşam boyu planlardan birini seç.'
                     : 'Ödeme sayfasında kart veya IBAN seçerek haklarını tanımlarsın.',
               ),
@@ -624,9 +638,13 @@ class _StatusBanner extends StatelessWidget {
 }
 
 class _FaqList extends StatelessWidget {
-  const _FaqList({required this.usesAppStore});
+  const _FaqList({
+    required this.usesNativeStore,
+    required this.nativeStoreName,
+  });
 
-  final bool usesAppStore;
+  final bool usesNativeStore;
+  final String nativeStoreName;
 
   static const _appStoreItems = <(String, String)>[
     (
@@ -650,8 +668,28 @@ class _FaqList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = usesAppStore
-        ? _appStoreItems
+    final items = usesNativeStore
+        ? nativeStoreName == 'Google Play'
+              ? <(String, String)>[
+                  (
+                    'Ödeme nasıl alınır?',
+                    'Tüm satın alma işlemleri Google Play hesabınıza tanımlı '
+                        'ödeme yöntemi üzerinden alınır. PratiCase ödeme '
+                        'bilgilerinizi kayıt etmez.',
+                  ),
+                  (
+                    'Aboneliğimi nasıl iptal ederim?',
+                    'Google Play aboneliklerim sayfasından PratiCase planını '
+                        'yönetebilirsiniz. İptal işlemi mevcut dönem sonunda '
+                        'etkin olur.',
+                  ),
+                  (
+                    'Cihaz değiştirirsem ne olur?',
+                    'Aynı Google Play hesabıyla giriş yapıp “Satın Almaları '
+                        'Geri Yükle” butonuna dokunmanız yeterlidir.',
+                  ),
+                ]
+              : _appStoreItems
         : const <(String, String)>[
             (
               'Ödeme nasıl alınır?',
