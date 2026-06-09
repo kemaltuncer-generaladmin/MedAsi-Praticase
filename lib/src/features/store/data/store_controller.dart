@@ -104,7 +104,10 @@ class StoreController extends ChangeNotifier {
     if (_blockedProductCodes.contains(product.code)) {
       _statusMessage = null;
       _errorMessage =
-          'Bu paket cüzdanında zaten aktif. Süresi bitince yeniden alabilirsin.';
+          'Bu paket şu an aktif. App Store kuralı gereği paket değişikliği hemen '
+          'yapılmaz: mevcut paketin dönem sonunda bitince yeniden alabilir veya '
+          'farklı bir paket seçebilirsin. Bitiş tarihini App Store > Abonelikler '
+          'bölümünden görebilirsin.';
       notifyListeners();
       return;
     }
