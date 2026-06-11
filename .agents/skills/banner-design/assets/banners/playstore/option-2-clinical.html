@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PratiCase - Clinical Edition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            width: 1024px;
+            height: 500px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(90deg, #1B2E4D 0%, #34B5A6 100%);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0;
+            overflow: hidden;
+            position: relative;
+        }
+        .container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 40px 60px;
+            position: relative;
+            z-index: 2;
+        }
+        .left {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            width: fit-content;
+            backdrop-filter: blur(10px);
+        }
+        h1 {
+            font-size: 52px;
+            color: white;
+            font-weight: 800;
+            line-height: 1.1;
+            margin: 0;
+        }
+        .highlight {
+            color: #F59E42;
+        }
+        p {
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.5;
+            max-width: 420px;
+        }
+        .stats {
+            display: flex;
+            gap: 30px;
+        }
+        .stat {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .stat-number {
+            font-size: 28px;
+            font-weight: 700;
+            color: #F59E42;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.8);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .cta {
+            display: inline-block;
+            background: #F59E42;
+            color: #1B2E4D;
+            padding: 14px 32px;
+            border-radius: 28px;
+            font-size: 16px;
+            font-weight: 700;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 8px 24px rgba(245, 158, 66, 0.4);
+            margin-top: 8px;
+            width: fit-content;
+        }
+        .right {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            margin-left: 40px;
+        }
+        .glow-circle {
+            width: 320px;
+            height: 320px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, rgba(245, 158, 66, 0.2), transparent);
+            position: absolute;
+            filter: blur(40px);
+        }
+        .image-placeholder {
+            width: 280px;
+            height: 280px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 1;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            font-size: 140px;
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="left">
+            <div class="badge">✓ Trusted by Medical Students</div>
+            <h1>Learn With<br><span class="highlight">Real Cases</span></h1>
+            <p>Realistic OSCE scenarios designed by medical experts. Master clinical skills with instant feedback.</p>
+            <div class="stats">
+                <div class="stat">
+                    <span class="stat-number">500+</span>
+                    <span class="stat-label">Clinical Cases</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">10K+</span>
+                    <span class="stat-label">Active Users</span>
+                </div>
+            </div>
+            <button class="cta">Get Started Free</button>
+        </div>
+        <div class="right">
+            <div class="glow-circle"></div>
+            <div class="image-placeholder">🩺</div>
+        </div>
+    </div>
+</body>
+</html>

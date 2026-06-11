@@ -148,15 +148,19 @@ Deno.serve(async (request) => {
   const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const authorization = request.headers.get("Authorization");
 
-  if (
-    !supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey ||
-    !authorization
-  ) {
+  if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
     return jsonResponse(
       {
         error: "Sözlü sınav işlemi şu anda tamamlanamadı. Lütfen tekrar dene.",
       },
-      500,
+      503,
+      origin,
+    );
+  }
+  if (!authorization) {
+    return jsonResponse(
+      { error: "Oturum doğrulanamadı. Lütfen tekrar giriş yap." },
+      401,
       origin,
     );
   }

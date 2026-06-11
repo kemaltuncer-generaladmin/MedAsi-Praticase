@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PratiCase - Bold Learning</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            width: 1024px;
+            height: 500px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: white;
+            display: flex;
+            align-items: stretch;
+            justify-content: flex-start;
+            padding: 0;
+            overflow: hidden;
+            position: relative;
+        }
+        .background-gradient {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 60%;
+            height: 100%;
+            background: linear-gradient(135deg, #34B5A6 0%, #F59E42 100%);
+            opacity: 0.08;
+            z-index: 0;
+        }
+        .container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 40px 60px;
+            position: relative;
+            z-index: 2;
+        }
+        .left {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .logo-mark {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #1B2E4D 0%, #34B5A6 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 900;
+            font-size: 28px;
+        }
+        h1 {
+            font-size: 56px;
+            color: #1B2E4D;
+            font-weight: 900;
+            line-height: 1;
+            margin: 0;
+            letter-spacing: -1px;
+        }
+        .line1 { margin-bottom: 8px; }
+        .highlight {
+            background: linear-gradient(135deg, #34B5A6 0%, #F59E42 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .subtitle {
+            font-size: 16px;
+            color: #5a6c7d;
+            font-weight: 500;
+            line-height: 1.5;
+            max-width: 380px;
+        }
+        .benefits {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 8px;
+        }
+        .benefit {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1B2E4D;
+        }
+        .benefit-icon {
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, #34B5A6 0%, #F59E42 100%);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .cta {
+            display: inline-block;
+            background: linear-gradient(135deg, #34B5A6 0%, #2a9b8c 100%);
+            color: white;
+            padding: 14px 32px;
+            border-radius: 28px;
+            font-size: 15px;
+            font-weight: 700;
+            text-decoration: none;
+            margin-top: 16px;
+            box-shadow: 0 8px 24px rgba(52, 181, 166, 0.3);
+            border: none;
+            cursor: pointer;
+            width: fit-content;
+        }
+        .right {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .shape-accent {
+            width: 300px;
+            height: 300px;
+            background: linear-gradient(135deg, #34B5A6 0%, #F59E42 100%);
+            border-radius: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 20px 60px rgba(52, 181, 166, 0.25);
+            font-size: 150px;
+            color: rgba(27, 46, 77, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="background-gradient"></div>
+    <div class="container">
+        <div class="left">
+            <div class="logo-mark">P</div>
+            <h1>
+                <div class="line1">Master OSCE</div>
+                <div><span class="highlight">Clinical Skills</span></div>
+            </h1>
+            <p class="subtitle">Realistic patient scenarios with expert feedback. Perfect your diagnosis and communication skills.</p>
+            <div class="benefits">
+                <div class="benefit">
+                    <div class="benefit-icon">✓</div>
+                    <span>500+ Interactive Cases</span>
+                </div>
+                <div class="benefit">
+                    <div class="benefit-icon">✓</div>
+                    <span>Instant Expert Feedback</span>
+                </div>
+                <div class="benefit">
+                    <div class="benefit-icon">✓</div>
+                    <span>Track Your Progress</span>
+                </div>
+            </div>
+            <button class="cta">Download Free</button>
+        </div>
+        <div class="right">
+            <div class="shape-accent">🏥</div>
+        </div>
+    </div>
+</body>
+</html>

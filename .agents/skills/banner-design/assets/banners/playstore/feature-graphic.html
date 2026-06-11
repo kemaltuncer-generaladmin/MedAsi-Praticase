@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<title>PratiCase — Google Play Feature Graphic</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#0D1B2A;
+  --teal:#0E7C7B;
+  --teal-bright:#19C2B5;
+  --amber:#F2A900;
+  --mist:#F5F6F7;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1024px;height:500px;overflow:hidden}
+body{
+  font-family:'Plus Jakarta Sans',-apple-system,'Segoe UI',sans-serif;
+  position:relative;
+  background:
+    radial-gradient(820px 620px at 12% -10%, rgba(25,194,181,.20), transparent 60%),
+    radial-gradient(760px 680px at 102% 118%, rgba(242,169,0,.22), transparent 58%),
+    radial-gradient(700px 700px at 78% 8%, rgba(14,124,123,.18), transparent 60%),
+    linear-gradient(135deg,#0a1623 0%, #0D1B2A 46%, #102b41 100%);
+}
+/* ince nokta-grid dokusu (klinik/teknolojik his) */
+.grid{
+  position:absolute;inset:0;
+  background-image:radial-gradient(rgba(255,255,255,.05) 1.1px, transparent 1.1px);
+  background-size:26px 26px;
+  -webkit-mask-image:linear-gradient(90deg, rgba(0,0,0,.9), rgba(0,0,0,.15) 70%, transparent);
+  mask-image:linear-gradient(90deg, rgba(0,0,0,.9), rgba(0,0,0,.15) 70%, transparent);
+}
+.frame{position:absolute;inset:0;display:flex;align-items:center;padding:0 64px;z-index:3}
+
+/* ---------- SOL BLOK ---------- */
+.left{width:560px;display:flex;flex-direction:column;gap:22px}
+.brandrow{display:flex;align-items:center;gap:14px}
+.brandrow img{width:54px;height:54px;border-radius:14px;
+  box-shadow:0 10px 30px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.06)}
+.brandtext .name{font-size:25px;font-weight:800;color:#fff;letter-spacing:-.3px;line-height:1}
+.brandtext .name b{color:var(--amber);font-weight:800}
+.brandtext .tag{font-size:10.5px;font-weight:600;letter-spacing:3.4px;color:#7FA8B5;margin-top:5px}
+
+h1{
+  font-size:55px;font-weight:800;color:#fff;line-height:1.04;letter-spacing:-1.4px;
+}
+h1 .accent{
+  background:linear-gradient(100deg,var(--amber) 0%, var(--teal-bright) 95%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+}
+.sub{font-size:17px;line-height:1.5;color:#AFC4CE;font-weight:500;max-width:480px}
+
+.chips{display:flex;gap:10px;margin-top:2px}
+.chip{
+  display:flex;align-items:center;gap:8px;
+  padding:9px 15px;border-radius:30px;
+  background:rgba(255,255,255,.055);
+  border:1px solid rgba(255,255,255,.10);
+  backdrop-filter:blur(8px);
+  font-size:13px;font-weight:600;color:#E8F1F3;white-space:nowrap;
+}
+.chip .ic{width:18px;height:18px;display:flex;align-items:center;justify-content:center;
+  border-radius:50%;font-size:11px;color:#0D1B2A;font-weight:800}
+.chip.t .ic{background:var(--teal-bright)}
+.chip.a .ic{background:var(--amber)}
+.chip.w .ic{background:#fff}
+
+.cta{
+  margin-top:8px;display:inline-flex;align-items:center;gap:10px;width:fit-content;
+  padding:15px 30px;border-radius:34px;
+  background:linear-gradient(100deg,var(--amber) 0%, #FFC23D 100%);
+  color:#231400;font-size:16px;font-weight:800;letter-spacing:.2px;
+  box-shadow:0 14px 34px rgba(242,169,0,.40), inset 0 1px 0 rgba(255,255,255,.5);
+}
+.cta .arr{font-size:18px;transform:translateY(.5px)}
+
+/* ---------- SAĞ BLOK ---------- */
+.right{flex:1;height:100%;position:relative}
+.halo{
+  position:absolute;top:50%;left:54%;transform:translate(-50%,-50%);
+  width:330px;height:330px;border-radius:50%;
+  background:radial-gradient(circle at 50% 45%, rgba(25,194,181,.45), rgba(242,169,0,.18) 55%, transparent 72%);
+  filter:blur(14px);
+}
+.ring{
+  position:absolute;top:50%;left:54%;transform:translate(-50%,-50%);
+  width:300px;height:300px;border-radius:50%;
+  border:1.5px solid rgba(255,255,255,.10);
+}
+.ring.r2{width:380px;height:380px;border-color:rgba(255,255,255,.05)}
+.hero{
+  position:absolute;top:50%;left:54%;transform:translate(-50%,-50%);
+  width:208px;height:208px;border-radius:50px;
+  box-shadow:0 30px 70px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.08),
+             0 0 60px rgba(25,194,181,.25);
+}
+
+/* yüzen UI kartları — uygulamanın akışını hissettirir */
+.float{
+  position:absolute;display:flex;align-items:center;gap:11px;
+  padding:11px 15px;border-radius:16px;
+  background:rgba(255,255,255,.96);
+  box-shadow:0 18px 40px rgba(0,0,0,.40);
+  font-weight:600;
+}
+.float .av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-size:16px;flex-shrink:0}
+.float .ttl{font-size:12.5px;color:#0D1B2A;font-weight:700;line-height:1.15}
+.float .desc{font-size:10.5px;color:#5b6b76;font-weight:500;margin-top:2px}
+
+.f-chat{top:74px;left:6px}
+.f-chat .av{background:rgba(242,169,0,.16);color:var(--amber)}
+.f-eval{bottom:70px;right:10px}
+.f-eval .av{background:rgba(14,124,123,.14);color:var(--teal)}
+.badge-check{
+  position:absolute;bottom:118px;left:30px;
+  width:46px;height:46px;border-radius:50%;
+  background:linear-gradient(135deg,var(--teal-bright),var(--teal));
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:800;
+  box-shadow:0 14px 30px rgba(14,124,123,.5), inset 0 1px 0 rgba(255,255,255,.4);
+}
+</style>
+</head>
+<body>
+<div class="grid"></div>
+<div class="frame">
+
+  <div class="left">
+    <div class="brandrow">
+      <img src="pc_logo.png" alt="PratiCase">
+      <div class="brandtext">
+        <div class="name">Prati<b>Case</b></div>
+        <div class="tag">OSCE PRATİK PLATFORMU</div>
+      </div>
+    </div>
+
+    <h1>Gerçek Vakalarla<br><span class="accent">OSCE Pratiği</span></h1>
+
+    <div class="sub">Sanal hastaları muayene et, klinik kararını ver,<br>anında geri bildirim al — sınava güvenle hazırlan.</div>
+
+    <div class="chips">
+      <div class="chip t"><span class="ic">+</span>Klinik Vaka</div>
+      <div class="chip a"><span class="ic">●</span>Hasta İletişimi</div>
+      <div class="chip w"><span class="ic">✓</span>Anlık Değerlendirme</div>
+    </div>
+
+    <div class="cta">Hemen Başla<span class="arr">→</span></div>
+  </div>
+
+  <div class="right">
+    <div class="halo"></div>
+    <div class="ring r2"></div>
+    <div class="ring"></div>
+    <img class="hero" src="pc_logo.png" alt="PratiCase">
+
+    <div class="float f-chat">
+      <div class="av">💬</div>
+      <div><div class="ttl">Hasta konuşuyor</div><div class="desc">"Doktor bey, göğsüm ağrıyor…"</div></div>
+    </div>
+
+    <div class="float f-eval">
+      <div class="av">📋</div>
+      <div><div class="ttl">Değerlendirme hazır</div><div class="desc">Tanı &amp; iletişim puanın</div></div>
+    </div>
+
+    <div class="badge-check">✓</div>
+  </div>
+
+</div>
+</body>
+</html>
