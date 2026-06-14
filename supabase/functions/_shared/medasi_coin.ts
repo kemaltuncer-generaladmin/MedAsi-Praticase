@@ -1,10 +1,12 @@
 import type { JsonMap } from "./openai_ai.ts";
 
-// deno-lint-ignore no-explicit-any
-type SupabaseAdmin = any;
+// Wallet charging is now served by MedAsi Core. The cost CALCULATION below is
+// kept locally (pure, identical to Core) for callers/tests, but every wallet
+// side effect (balance, consume, usage log, refund, profile) goes through Core,
+// which owns the ecosystem RPCs 1:1. Signatures are unchanged so call sites stay
+// the same. There is no local fallback: a missing MEDASI_CORE_URL fails closed.
 
-// deno-lint-ignore no-explicit-any
-type QueryBuilder = any;
+type SupabaseAdmin = unknown;
 
 export const praticaseAppKey = "praticase";
 
@@ -20,67 +22,64 @@ export class InsufficientCoinBalanceError extends Error {
 
 export const minimumAiCreditCost = envNumber("MEDASI_AI_MIN_COIN_COST", 0.10);
 
-const OPENAI_GPT_4O_INPUT_USD_PER_M = envNumber(
-  "OPENAI_GPT_4O_INPUT_USD_PER_M",
-  2.50,
-);
-const OPENAI_GPT_4O_CACHED_INPUT_USD_PER_M = envNumber(
-  "OPENAI_GPT_4O_CACHED_INPUT_USD_PER_M",
-  1.25,
-);
-const OPENAI_GPT_4O_OUTPUT_USD_PER_M = envNumber(
-  "OPENAI_GPT_4O_OUTPUT_USD_PER_M",
-  10.00,
-);
-const OPENAI_GPT_4O_2024_05_13_INPUT_USD_PER_M = envNumber(
-  "OPENAI_GPT_4O_2024_05_13_INPUT_USD_PER_M",
-  5.00,
-);
-const OPENAI_GPT_4O_2024_05_13_OUTPUT_USD_PER_M = envNumber(
-  "OPENAI_GPT_4O_2024_05_13_OUTPUT_USD_PER_M",
-  15.00,
-);
-const OPENAI_GPT_4O_MINI_INPUT_USD_PER_M = envNumber(
-  "OPENAI_GPT_4O_MINI_INPUT_USD_PER_M",
-  0.15,
-);
-const OPENAI_GPT_4O_MINI_CACHED_INPUT_USD_PER_M = envNumber(
-  "OPENAI_GPT_4O_MINI_CACHED_INPUT_USD_PER_M",
-  0.075,
-);
-const OPENAI_GPT_4O_MINI_OUTPUT_USD_PER_M = envNumber(
-  "OPENAI_GPT_4O_MINI_OUTPUT_USD_PER_M",
-  0.60,
-);
-const OPENAI_DEFAULT_INPUT_USD_PER_M = envNumber(
-  "OPENAI_DEFAULT_INPUT_USD_PER_M",
-  OPENAI_GPT_4O_MINI_INPUT_USD_PER_M,
-);
-const OPENAI_DEFAULT_CACHED_INPUT_USD_PER_M = envNumber(
-  "OPENAI_DEFAULT_CACHED_INPUT_USD_PER_M",
-  OPENAI_GPT_4O_MINI_CACHED_INPUT_USD_PER_M,
-);
-const OPENAI_DEFAULT_OUTPUT_USD_PER_M = envNumber(
-  "OPENAI_DEFAULT_OUTPUT_USD_PER_M",
-  OPENAI_GPT_4O_MINI_OUTPUT_USD_PER_M,
-);
+const OPENAI_GPT_4O_INPUT_USD_PER_M = envNumber("OPENAI_GPT_4O_INPUT_USD_PER_M", 2.50);
+const OPENAI_GPT_4O_CACHED_INPUT_USD_PER_M = envNumber("OPENAI_GPT_4O_CACHED_INPUT_USD_PER_M", 1.25);
+const OPENAI_GPT_4O_OUTPUT_USD_PER_M = envNumber("OPENAI_GPT_4O_OUTPUT_USD_PER_M", 10.00);
+const OPENAI_GPT_4O_2024_05_13_INPUT_USD_PER_M = envNumber("OPENAI_GPT_4O_2024_05_13_INPUT_USD_PER_M", 5.00);
+const OPENAI_GPT_4O_2024_05_13_OUTPUT_USD_PER_M = envNumber("OPENAI_GPT_4O_2024_05_13_OUTPUT_USD_PER_M", 15.00);
+const OPENAI_GPT_4O_MINI_INPUT_USD_PER_M = envNumber("OPENAI_GPT_4O_MINI_INPUT_USD_PER_M", 0.15);
+const OPENAI_GPT_4O_MINI_CACHED_INPUT_USD_PER_M = envNumber("OPENAI_GPT_4O_MINI_CACHED_INPUT_USD_PER_M", 0.075);
+const OPENAI_GPT_4O_MINI_OUTPUT_USD_PER_M = envNumber("OPENAI_GPT_4O_MINI_OUTPUT_USD_PER_M", 0.60);
+const OPENAI_DEFAULT_INPUT_USD_PER_M = envNumber("OPENAI_DEFAULT_INPUT_USD_PER_M", OPENAI_GPT_4O_MINI_INPUT_USD_PER_M);
+const OPENAI_DEFAULT_CACHED_INPUT_USD_PER_M = envNumber("OPENAI_DEFAULT_CACHED_INPUT_USD_PER_M", OPENAI_GPT_4O_MINI_CACHED_INPUT_USD_PER_M);
+const OPENAI_DEFAULT_OUTPUT_USD_PER_M = envNumber("OPENAI_DEFAULT_OUTPUT_USD_PER_M", OPENAI_GPT_4O_MINI_OUTPUT_USD_PER_M);
 const DEFAULT_USD_TRY = envNumber("MEDASI_USD_TRY_FALLBACK", 45.35);
+
+// --- MedAsi Core wallet client -------------------------------------------------
+
+function coreEndpoint(): { url: string; key: string } {
+  const url = (Deno.env.get("MEDASI_CORE_URL") || "").trim().replace(/\/+$/, "");
+  const key = Deno.env.get("MEDASI_CORE_KEY") || "";
+  if (!url) {
+    throw new Error("MedAsi Core wallet is not configured (MEDASI_CORE_URL).");
+  }
+  return { url, key };
+}
+
+async function coreWallet(path: string, body: JsonMap): Promise<JsonMap> {
+  const { url, key } = coreEndpoint();
+  const response = await fetch(`${url}/v1/wallet/${path}`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-medasi-app": praticaseAppKey,
+      ...(key ? { "x-medasi-core-key": key } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    const error = isJsonMap(data) && isJsonMap(data.error) ? data.error : {};
+    const details = isJsonMap(error.details) ? error.details : {};
+    if (response.status === 402 || error.code === "INSUFFICIENT_MC") {
+      throw new InsufficientCoinBalanceError(
+        numberValue(details.walletBalance),
+        numberValue(details.requiredBalance) || minimumAiCreditCost,
+        numberValue(details.aiQuota),
+      );
+    }
+    console.error("praticase_core_wallet_failed", response.status);
+    throw new Error(`MedAsi Core wallet error: ${response.status}`);
+  }
+  return isJsonMap(data) ? data : {};
+}
 
 export async function ensureAiCoinBalance(
   admin: SupabaseAdmin | null,
   userId: string,
 ): Promise<void> {
   if (!admin || !userId) return;
-  const profile = await loadEffectiveWalletProfile(admin, userId);
-  const walletBalance = numberValue(profile.wallet_balance);
-  const aiQuota = numberValue(profile.ai_quota);
-  if (availableAiCreditBalance(profile) < minimumAiCreditCost) {
-    throw new InsufficientCoinBalanceError(
-      walletBalance,
-      minimumAiCreditCost,
-      aiQuota,
-    );
-  }
+  await coreWallet("ensure-balance", { userId });
 }
 
 export async function chargeAiCoins(options: {
@@ -94,117 +93,17 @@ export async function chargeAiCoins(options: {
   if (!options.admin) {
     return { chargedCoinAmount: 0, walletBalance: null };
   }
-  const admin = options.admin;
-
-  const chargedCoinAmount = aiCreditCostFromUsage(
-    options.usageMetadata,
-    options.model,
-  );
-  if (chargedCoinAmount <= 0) {
-    await logAiUsageEvent({ ...options, admin, chargedCoinAmount: 0 });
-    return { chargedCoinAmount: 0, walletBalance: null };
-  }
-
-  const profile = await loadEffectiveWalletProfile(admin, options.userId);
-  if (availableAiCreditBalance(profile) < chargedCoinAmount) {
-    throw new InsufficientCoinBalanceError(
-      numberValue(profile.wallet_balance),
-      chargedCoinAmount,
-      numberValue(profile.ai_quota),
-    );
-  }
-
-  const { data, error } = await admin.rpc("consume_ai_credits", {
-    p_user_id: options.userId,
-    p_amount: chargedCoinAmount,
+  const data = await coreWallet("charge-ai", {
+    userId: options.userId,
+    feature: options.feature,
+    model: options.model,
+    usage: options.usageMetadata,
+    attribution: options.attribution ?? {},
   });
-  if (error) {
-    const latestProfile = await loadEffectiveWalletProfile(
-      admin,
-      options.userId,
-    );
-    throw new InsufficientCoinBalanceError(
-      numberValue(latestProfile.wallet_balance),
-      chargedCoinAmount,
-      numberValue(latestProfile.ai_quota),
-    );
-  }
-
-  await logAiUsageEvent({ ...options, admin, chargedCoinAmount });
-  await syncWalletProfile(admin, options.userId);
   return {
-    chargedCoinAmount,
-    walletBalance: nullableNumberValue(data),
+    chargedCoinAmount: numberValue(data.chargedCoinAmount),
+    walletBalance: nullableNumberValue(data.walletBalance),
   };
-}
-
-export async function syncWalletProfile(
-  admin: SupabaseAdmin | null,
-  userId: string,
-): Promise<JsonMap> {
-  if (!admin || !userId) return {};
-  try {
-    const { data, error } = await admin.rpc("sync_wallet_profile", {
-      p_user_id: userId,
-    });
-    if (error) {
-      console.error("praticase_wallet_profile_sync_failed", error.message);
-      return {};
-    }
-    return isJsonMap(data) ? data : {};
-  } catch (error) {
-    console.error("praticase_wallet_profile_sync_failed", errorMessage(error));
-    return {};
-  }
-}
-
-export async function loadEffectiveWalletProfile(
-  admin: SupabaseAdmin | null,
-  userId: string,
-): Promise<JsonMap> {
-  if (!admin || !userId) {
-    return { wallet_balance: 0, question_quota: 0 };
-  }
-
-  const syncedProfile = await syncWalletProfile(admin, userId);
-  try {
-    const { data: profile, error } = await query(admin.from("profiles"))
-      .select("wallet_balance,question_quota,ai_quota")
-      .eq("id", userId)
-      .maybeSingle();
-    if (error) {
-      console.error("wallet_profile_snapshot_failed", error.message);
-    }
-    return walletProfileSnapshot(
-      syncedProfile,
-      isJsonMap(profile) ? profile : {},
-    );
-  } catch (error) {
-    console.error("wallet_profile_snapshot_failed", errorMessage(error));
-    return walletProfileSnapshot(syncedProfile);
-  }
-}
-
-function walletProfileSnapshot(
-  syncedProfile: JsonMap,
-  profile: JsonMap = {},
-): JsonMap {
-  return {
-    wallet_balance: nullableNumberValue(syncedProfile.wallet_balance) ??
-      nullableNumberValue(profile.wallet_balance) ?? 0,
-    question_quota: Math.round(
-      nullableNumberValue(syncedProfile.question_quota) ??
-        nullableNumberValue(profile.question_quota) ?? 0,
-    ),
-    ai_quota: Math.round(
-      nullableNumberValue(syncedProfile.ai_quota) ??
-        nullableNumberValue(profile.ai_quota) ?? 0,
-    ),
-  };
-}
-
-function availableAiCreditBalance(profile: JsonMap): number {
-  return numberValue(profile.wallet_balance) + numberValue(profile.ai_quota);
 }
 
 export async function recordAiUsage(options: {
@@ -216,17 +115,46 @@ export async function recordAiUsage(options: {
   attribution?: JsonMap;
 }): Promise<void> {
   if (!options.admin) return;
-  await logAiUsageEvent({
-    ...options,
-    admin: options.admin,
-    chargedCoinAmount: 0,
+  await coreWallet("record-usage", {
+    userId: options.userId,
+    feature: options.feature,
+    model: options.model,
+    usage: options.usageMetadata,
+    attribution: options.attribution ?? {},
   });
 }
 
-export function aiCreditCostFromUsage(
-  usageMetadata: JsonMap,
-  model = "",
-): number {
+export async function syncWalletProfile(
+  admin: SupabaseAdmin | null,
+  userId: string,
+): Promise<JsonMap> {
+  if (!admin || !userId) return {};
+  try {
+    return await coreWallet("profile", { userId });
+  } catch (error) {
+    console.error("praticase_wallet_profile_sync_failed", errorMessage(error));
+    return {};
+  }
+}
+
+export async function loadEffectiveWalletProfile(
+  admin: SupabaseAdmin | null,
+  userId: string,
+): Promise<JsonMap> {
+  if (!admin || !userId) {
+    return { wallet_balance: 0, question_quota: 0, ai_quota: 0 };
+  }
+  const data = await coreWallet("profile", { userId });
+  return {
+    wallet_balance: numberValue(data.wallet_balance),
+    question_quota: Math.round(numberValue(data.question_quota)),
+    ai_quota: Math.round(numberValue(data.ai_quota)),
+  };
+}
+
+// --- Cost calculation (pure, identical to Core) --------------------------------
+
+export function aiCreditCostFromUsage(usageMetadata: JsonMap, model = ""): number {
   const cost = aiCostFromUsage(usageMetadata, model);
   const totalCostTL = cost.totalCostUsd * DEFAULT_USD_TRY;
   const coinTlValue = envNumber("MEDASI_COIN_TL_VALUE", 0.30);
@@ -235,8 +163,7 @@ export function aiCreditCostFromUsage(
 
   if (
     tokenCostCredit < minimumAiCreditCost &&
-    (cost.promptTokens > 0 || cost.candidatesTokens > 0 ||
-      cost.thoughtsTokens > 0)
+    (cost.promptTokens > 0 || cost.candidatesTokens > 0 || cost.thoughtsTokens > 0)
   ) {
     tokenCostCredit = minimumAiCreditCost;
   }
@@ -261,10 +188,7 @@ export function openAiCostFromUsage(usageMetadata: JsonMap, model = "") {
     0,
     totalTokens - promptTokens - candidatesTokens,
   );
-  const thoughtsTokens = Math.max(
-    measuredReasoningTokens,
-    inferredReasoningTokens,
-  );
+  const thoughtsTokens = Math.max(measuredReasoningTokens, inferredReasoningTokens);
   const uncachedInputTokens = Math.max(0, promptTokens - cachedTokens);
   const billableOutputTokens = candidatesTokens + thoughtsTokens;
   const pricing = openAiTextPricing(model);
@@ -279,58 +203,12 @@ export function openAiCostFromUsage(usageMetadata: JsonMap, model = "") {
     promptTokens,
     candidatesTokens,
     thoughtsTokens,
-    totalTokens: totalTokens || promptTokens + candidatesTokens +
-        thoughtsTokens,
+    totalTokens: totalTokens || promptTokens + candidatesTokens + thoughtsTokens,
     cachedTokens,
     inputCostUsd,
     outputCostUsd,
     totalCostUsd: inputCostUsd + outputCostUsd,
   };
-}
-
-async function logAiUsageEvent(options: {
-  admin: SupabaseAdmin;
-  userId: string;
-  feature: string;
-  model: string;
-  usageMetadata: JsonMap;
-  attribution?: JsonMap;
-  chargedCoinAmount: number;
-}) {
-  const cost = aiCostFromUsage(options.usageMetadata, options.model);
-  const usageMetadata = {
-    ...options.usageMetadata,
-    app_key: praticaseAppKey,
-    feature_attribution: {
-      app_key: praticaseAppKey,
-      feature: options.feature,
-      ...(options.attribution ?? {}),
-    },
-  };
-  const provider = stringValue(options.usageMetadata.provider) || "openai";
-  const { error } = await query(options.admin.from("ai_usage_events")).insert({
-    user_id: options.userId,
-    feature: options.feature,
-    provider,
-    model: options.model,
-    prompt_token_count: cost.promptTokens,
-    candidates_token_count: cost.candidatesTokens,
-    thoughts_token_count: cost.thoughtsTokens,
-    total_token_count: cost.totalTokens,
-    cached_content_token_count: cost.cachedTokens,
-    input_cost_usd: Number(cost.inputCostUsd.toFixed(6)),
-    output_cost_usd: Number(cost.outputCostUsd.toFixed(6)),
-    total_cost_usd: Number(cost.totalCostUsd.toFixed(6)),
-    charged_coin_amount: options.chargedCoinAmount,
-    usage_metadata: usageMetadata,
-  });
-  if (error) {
-    console.error("praticase_ai_usage_event_insert_failed", error.message);
-  }
-}
-
-function query(value: unknown): QueryBuilder {
-  return value as QueryBuilder;
 }
 
 function envNumber(name: string, fallback: number): number {
@@ -373,10 +251,6 @@ function openAiTextPricing(model: string) {
     cachedInputUsdPerMTokens: OPENAI_DEFAULT_CACHED_INPUT_USD_PER_M,
     outputUsdPerMTokens: OPENAI_DEFAULT_OUTPUT_USD_PER_M,
   };
-}
-
-function stringValue(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
 }
 
 function nullableNumberValue(value: unknown): number | null {

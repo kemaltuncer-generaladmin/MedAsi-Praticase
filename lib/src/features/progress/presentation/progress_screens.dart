@@ -11,6 +11,7 @@ import '../../../shared/ui/clinical_card.dart';
 import '../../../shared/ui/praticase_visuals.dart';
 import '../../../shared/ui/responsive.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../auth/presentation/screens/profile_setup_screen.dart';
 import '../../store/data/store_controller.dart';
 import '../../store/presentation/subscription_status_screen.dart';
 import '../../store/presentation/wallet_screen.dart';
@@ -366,6 +367,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _profileFuture;
   }
 
+  Future<void> _openEcosystemSetup(ProfileCard profile) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (routeContext) => ProfileSetupScreen(
+          repository: widget.authRepository,
+          fullName: profile.displayName,
+          onBack: () => Navigator.of(routeContext).maybePop(),
+          onCompleted: (_) {
+            Navigator.of(routeContext).maybePop();
+            unawaited(_refresh());
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<ProfileCard>(
@@ -402,6 +419,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           profile: snapshot.requireData,
                         ),
                       ),
+                    ),
+                  ),
+                  _SettingsRow(
+                    Icons.hub_outlined,
+                    'MedAsi Ekosistem Kurulumu',
+                    value: 'Üniversite, hedef ve ritim',
+                    onTap: () => unawaited(
+                      _openEcosystemSetup(snapshot.requireData),
                     ),
                   ),
                   _SettingsRow(

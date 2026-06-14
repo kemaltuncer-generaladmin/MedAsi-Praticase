@@ -1,5 +1,8 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders, isAllowedOrigin, jsonResponse } from "../_shared/cors.ts";
+import {
+  authErrorResponse,
+  resolvePratiCaseUser,
+} from "../_shared/medasi_core_auth.ts";
 import { generateOpenAiContent } from "../_shared/openai_ai.ts";
 
 type JsonMap = Record<string, unknown>;
@@ -22,24 +25,10 @@ Deno.serve(async (request) => {
     return jsonResponse({ error: "Method not allowed" }, 405, origin);
   }
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
-  const authorization = request.headers.get("Authorization");
-
-  if (!supabaseUrl || !supabaseAnonKey || !authorization) {
-    return jsonResponse(
-      { error: "Recall yönlendirmesi hazırlanamadı." },
-      500,
-      origin,
-    );
-  }
-
-  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: authorization } },
-  });
-  const { data: authData, error: authError } = await userClient.auth.getUser();
-  if (authError || !authData.user) {
-    return jsonResponse({ error: "Oturum doğrulanamadı." }, 401, origin);
+  try {
+    await resolvePratiCaseUser(request);
+  } catch (error) {
+    return authErrorResponse(error, origin, "Oturum doğrulanamadı.");
   }
 
   const body = await request.json().catch(() => ({})) as JsonMap;

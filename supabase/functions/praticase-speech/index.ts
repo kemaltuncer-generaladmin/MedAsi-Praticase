@@ -1,6 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders, isAllowedOrigin, jsonResponse } from "../_shared/cors.ts";
 import {
+  authErrorResponse,
+  resolvePratiCaseUser,
+} from "../_shared/medasi_core_auth.ts";
+import {
   generateOpenAiSpeech,
   openAiConfigured,
   ttsModel,
@@ -48,11 +52,21 @@ Deno.serve(async (request) => {
   const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const authorization = request.headers.get("Authorization");
 
-  if (!supabaseUrl || !supabaseAnonKey || !authorization) {
+  if (!supabaseUrl || !supabaseAnonKey) {
     return jsonResponse(
       { error: "Ses motoru şu anda başlatılamadı. Lütfen tekrar dene." },
       500,
       origin,
+    );
+  }
+  let authUser;
+  try {
+    authUser = await resolvePratiCaseUser(request);
+  } catch (error) {
+    return authErrorResponse(
+      error,
+      origin,
+      "Sesli sınav için oturum doğrulanamadı.",
     );
   }
 
@@ -78,21 +92,13 @@ Deno.serve(async (request) => {
   }
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: authorization } },
+    global: { headers: { Authorization: authorization ?? "" } },
   });
   const admin = supabaseServiceRoleKey
     ? createClient(supabaseUrl, supabaseServiceRoleKey, {
       auth: { persistSession: false },
     })
     : null;
-  const { data: userResult, error: userError } = await supabase.auth.getUser();
-  if (userError || !userResult.user) {
-    return jsonResponse(
-      { error: "Sesli sınav için oturum doğrulanamadı." },
-      401,
-      origin,
-    );
-  }
 
   if (!openAiConfigured()) {
     return jsonResponse(
@@ -112,7 +118,7 @@ Deno.serve(async (request) => {
     });
     await chargeAiCoins({
       admin,
-      userId: userResult.user.id,
+      userId: authUser.id,
       feature: "praticase-speech",
       model: generated.model,
       usageMetadata: generated.usageMetadata,

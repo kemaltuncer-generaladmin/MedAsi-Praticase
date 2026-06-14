@@ -153,7 +153,7 @@ class _PratiCaseAppState extends State<PratiCaseApp> {
           requestedAuthStep ??
           (_gate == _SessionGate.profilePending
               ? AuthStep.profileSetup
-              : AuthStep.onboarding),
+              : AuthStep.login),
       initialEmail: _initialEmail,
       initialFullName: _initialFullName,
       onAuthenticated:

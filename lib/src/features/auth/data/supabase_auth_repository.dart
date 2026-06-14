@@ -184,6 +184,7 @@ class SupabaseAuthRepository implements AuthRepository {
               'p_exam_date': setup.examDate?.toIso8601String(),
             },
           );
+      await _upsertEcosystemSetup(user: user, setup: setup);
       final refreshed = _client.auth.currentUser ?? user;
       return refreshed.toDomain(profileCompleted: true);
     } on AuthException catch (error) {
@@ -295,19 +296,52 @@ class SupabaseAuthRepository implements AuthRepository {
   }
 
   Future<bool> _profileCompleted(User user) async {
-    final metadata = user.userMetadata ?? const <String, dynamic>{};
-    if (metadata['praticase_profile_completed'] == true) return true;
     try {
-      final profile = await _client
-          .from('profiles')
-          .select('class_level,target')
-          .eq('id', user.id)
+      final setup = await _client
+          .from('user_setup_profiles')
+          .select('user_id')
+          .eq('user_id', user.id)
           .maybeSingle();
-      final classLevel = profile?['class_level'];
-      return classLevel is String && classLevel.trim().isNotEmpty;
+      return setup != null;
     } on Object {
       return false;
     }
+  }
+
+  Future<void> _upsertEcosystemSetup({
+    required User user,
+    required ProfileSetup setup,
+  }) async {
+    final metadata = user.userMetadata ?? const <String, dynamic>{};
+    final fullName =
+        setup.fullName?.trim().isNotEmpty == true
+            ? setup.fullName!.trim()
+            : (metadata['full_name'] as String? ?? '').trim();
+    await _client.from('user_setup_profiles').upsert({
+      'user_id': user.id,
+      'email': user.email,
+      'full_name': fullName.isEmpty ? null : fullName,
+      'source_app': 'praticase',
+      'last_completed_app': 'praticase',
+      'university_name': setup.universityName,
+      'university_city': setup.universityCity,
+      'university_type': setup.universityType,
+      'university_other': setup.universityOther,
+      'class_level': _classLevel(setup.grade),
+      'target_exam': setup.targetExam,
+      'exam_date': _dateOnly(setup.examDate),
+      'daily_goal': setup.dailyGoal,
+      'weekly_goal_days': setup.weeklyGoalDays,
+      'help_style': setup.helpStyle,
+      'learning_pace': setup.learningPace,
+      'feedback_tone': setup.feedbackTone,
+      'notify_morning': setup.notifyMorning,
+      'notify_evening': setup.notifyEvening,
+      'notify_critical': setup.notifyCritical,
+      'syllabus_file_name': setup.syllabusFileName,
+      'store_action': setup.storeAction,
+      'store_package_label': setup.storePackageLabel,
+    }, onConflict: 'user_id');
   }
 
   String _classLevel(String grade) {
@@ -327,6 +361,14 @@ class SupabaseAuthRepository implements AuthRepository {
         .join(', ');
     if (branches.isEmpty) return setup.targetExam;
     return '${setup.targetExam} - $branches';
+  }
+
+  String? _dateOnly(DateTime? value) {
+    if (value == null) return null;
+    final year = value.year.toString().padLeft(4, '0');
+    final month = value.month.toString().padLeft(2, '0');
+    final day = value.day.toString().padLeft(2, '0');
+    return '$year-$month-$day';
   }
 
   String _friendlyMessage(String message) {

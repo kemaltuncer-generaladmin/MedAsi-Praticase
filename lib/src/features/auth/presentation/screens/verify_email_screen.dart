@@ -2,13 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../../app/theme/praticase_colors.dart';
+import '../../../../app/theme/praticase_tokens.dart';
 import '../../data/auth_repository.dart';
 import '../widgets/auth_link_button.dart';
 import '../widgets/auth_primary_button.dart';
 import '../widgets/auth_scaffold.dart';
 import '../widgets/auth_status_card.dart';
-import '../widgets/auth_visuals.dart';
 import '../widgets/otp_input.dart';
 
 class VerifyEmailScreen extends StatefulWidget {
@@ -75,7 +74,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
 
   void _startResendCooldown() {
     _resendTimer?.cancel();
-    _resendSeconds = 45;
+    _resendSeconds = 59;
     _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
       if (_resendSeconds <= 1) {
@@ -97,114 +96,58 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
   Widget build(BuildContext context) {
     return AuthScaffold(
       onBack: widget.onBack,
-      topPadding: 30,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: AuthCard(
         children: [
-          const AuthWordmark(width: 224),
-          const SizedBox(height: 10),
-          const Text(
-            'OSCE • Sözlü • Teorik',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: PratiCaseColors.muted,
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-            ),
+          const AuthScreenHeader(
+            title: 'E-posta Doğrulama',
+            subtitle: '6 haneli doğrulama kodu gönderildi',
+            center: true,
           ),
-          const SizedBox(height: 30),
-          const Center(
-            child: AuthHeroIllustration(type: AuthHeroType.envelope, size: 124),
+          const SizedBox(height: 18),
+          AuthStatusCard(
+            title: _displayEmail,
+            message: 'Kod spam klasörünüzde olabilir.',
+            tone: AuthStatusTone.info,
           ),
           const SizedBox(height: 24),
-          Text(
-            'E-postanı doğrula',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              color: PratiCaseColors.navy,
-              fontSize: 30,
-              fontWeight: FontWeight.w900,
-            ),
+          OtpInput(onChanged: (value) => _code = value),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+            child: _error != null
+                ? Padding(
+                    padding: const EdgeInsets.only(top: PratiCaseSpacing.lg),
+                    child: AuthStatusCard(
+                      message: _error!,
+                      tone: AuthStatusTone.error,
+                    ),
+                  )
+                : const SizedBox.shrink(),
           ),
-          const SizedBox(height: 16),
-          Text.rich(
-            TextSpan(
-              children: [
-                const TextSpan(
-                  text: 'Güvenliğin için, 6 haneli doğrulama kodunu ',
-                ),
-                TextSpan(
-                  text: widget.email.isEmpty ? 'ornek@mail.com' : widget.email,
-                  style: const TextStyle(
-                    color: PratiCaseColors.teal,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const TextSpan(text: ' adresine gönderdik.'),
-              ],
-            ),
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: PratiCaseColors.slateBlue,
-              fontSize: 17,
-              height: 1.45,
-            ),
-          ),
-          const SizedBox(height: 30),
-          Container(
-            padding: const EdgeInsets.fromLTRB(18, 22, 18, 20),
-            decoration: BoxDecoration(
-              color: PratiCaseColors.white,
-              borderRadius: BorderRadius.circular(28),
-              boxShadow: [
-                BoxShadow(
-                  color: PratiCaseColors.navy.withValues(alpha: 0.07),
-                  blurRadius: 24,
-                  spreadRadius: -8,
-                  offset: const Offset(0, 16),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                AuthStatusCard(
-                  title: 'Kod gönderilen e-posta',
-                  message: widget.email.isEmpty
-                      ? 'ornek@mail.com'
-                      : widget.email,
-                  tone: AuthStatusTone.info,
-                ),
-                const SizedBox(height: 24),
-                OtpInput(onChanged: (value) => _code = value),
-                const SizedBox(height: 28),
-                AuthPrimaryButton(
-                  label: 'Doğrulamayı Tamamla',
-                  loading: _loading,
-                  onPressed: _verify,
-                ),
-                const SizedBox(height: 18),
-                Center(
-                  child: AuthLinkButton(
-                    label: _resendSeconds > 0
-                        ? 'Kodu tekrar gönder (00:${_resendSeconds.toString().padLeft(2, '0')})'
-                        : 'Kodu tekrar gönder',
-                    onPressed: _resendSeconds > 0 ? null : _resend,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: 16),
-            AuthStatusCard(message: _error!, tone: AuthStatusTone.error),
-          ],
           if (_success != null) ...[
             const SizedBox(height: 16),
             AuthStatusCard(message: _success!, tone: AuthStatusTone.success),
           ],
+          const SizedBox(height: 26),
+          AuthPrimaryButton(
+            label: 'Doğrula',
+            loading: _loading,
+            onPressed: _verify,
+          ),
+          const SizedBox(height: 12),
+          Center(
+            child: AuthLinkButton(
+              label: _resendSeconds > 0
+                  ? 'Yeniden gönder (${_resendSeconds}s)'
+                  : 'Yeniden gönder',
+              onPressed: _resendSeconds > 0 ? null : _resend,
+            ),
+          ),
         ],
       ),
     );
   }
+
+  String get _displayEmail =>
+      widget.email.isEmpty ? 'do•••@medasi.com.tr' : widget.email;
 }

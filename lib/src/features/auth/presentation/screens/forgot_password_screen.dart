@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../../../app/theme/praticase_colors.dart';
+import '../../../../app/theme/praticase_tokens.dart';
 import '../../data/auth_repository.dart';
 import '../widgets/auth_link_button.dart';
 import '../widgets/auth_primary_button.dart';
@@ -10,7 +10,6 @@ import '../widgets/auth_scaffold.dart';
 import '../widgets/auth_status_card.dart';
 import '../widgets/auth_text_field.dart';
 import '../widgets/auth_validators.dart';
-import '../widgets/auth_visuals.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({
@@ -76,177 +75,100 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_sent) return _sentView(context);
-
     return AuthScaffold(
       onBack: widget.onBack,
-      topPadding: 32,
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Center(
-              child: AuthHeroIllustration(
-                type: AuthHeroType.envelope,
-                size: 168,
-              ),
-            ),
-            const SizedBox(height: 26),
-            Text(
-              'Şifremi mi unuttum?',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: PratiCaseColors.navy,
-                fontSize: 30,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'E-posta adresini gir, şifre sıfırlama kodunu gönderelim.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: PratiCaseColors.slateBlue,
-                fontSize: 17,
-                height: 1.45,
-              ),
-            ),
-            const SizedBox(height: 32),
-            AuthTextField(
-              label: 'E-posta',
-              hintText: 'E-posta adresinizi girin',
-              controller: _email,
-              icon: Icons.mail_outline_rounded,
-              keyboardType: TextInputType.emailAddress,
-              validator: AuthValidators.email,
-            ),
-            const SizedBox(height: 28),
-            AuthPrimaryButton(
-              label: 'Gönder',
-              loading: _loading,
-              onPressed: _send,
-            ),
-            const SizedBox(height: 28),
-            Center(
-              child: AuthLinkButton(
-                label: 'Giriş ekranına dön',
-                onPressed: widget.onBack,
-              ),
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 16),
-              AuthStatusCard(message: _error!, tone: AuthStatusTone.error),
-            ],
-          ],
-        ),
-      ),
+      child: _sent ? _sentCard(context) : _requestCard(context),
     );
   }
 
-  Widget _sentView(BuildContext context) {
-    return AuthScaffold(
-      onBack: widget.onBack,
-      topPadding: 34,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Center(
-            child: AuthHeroIllustration(type: AuthHeroType.envelope, size: 170),
+  Widget _requestCard(BuildContext context) {
+    return AuthCard(
+      children: [
+        const AuthScreenHeader(
+          title: 'Şifre Sıfırlama',
+          subtitle: 'E-postanıza doğrulama kodu gönderilecek',
+        ),
+        const SizedBox(height: 26),
+        Form(
+          key: _formKey,
+          child: AuthTextField(
+            label: 'Kayıtlı E-posta Adresi',
+            hintText: 'ornek@email.com',
+            controller: _email,
+            icon: Icons.mail_outline_rounded,
+            keyboardType: TextInputType.emailAddress,
+            validator: AuthValidators.email,
           ),
-          const SizedBox(height: 26),
-          Text(
-            'E-posta gönderildi!',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              color: PratiCaseColors.navy,
-              fontSize: 30,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 18),
-          Text(
-            'Şifre sıfırlama kodunu içeren bir e-posta gönderdik. Kodu sonraki ekranda kullanacaksın.',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: PratiCaseColors.slateBlue,
-              fontSize: 17,
-              height: 1.36,
-            ),
-          ),
-          const SizedBox(height: 28),
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: PratiCaseColors.infoSurface,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 28,
-                  backgroundColor: PratiCaseColors.tealBright.withValues(
-                    alpha: 0.18,
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          child: _error != null
+              ? Padding(
+                  padding: const EdgeInsets.only(top: PratiCaseSpacing.lg),
+                  child: AuthStatusCard(
+                    message: _error!,
+                    tone: AuthStatusTone.error,
                   ),
-                  child: const Icon(
-                    Icons.mail_outline_rounded,
-                    color: PratiCaseColors.teal,
-                    size: 30,
-                  ),
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'E-posta gelmedi mi?',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: PratiCaseColors.navy,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Spam / Gereksiz klasörünü kontrol edebilir veya tekrar deneyebilirsin.',
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: PratiCaseColors.slateBlue,
-                          height: 1.38,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+                )
+              : const SizedBox.shrink(),
+        ),
+        const SizedBox(height: 26),
+        AuthPrimaryButton(
+          label: 'Kod Gönder',
+          loading: _loading,
+          onPressed: _send,
+        ),
+        const SizedBox(height: 18),
+        Center(
+          child: AuthLinkButton(
+            label: 'Giriş ekranına dön',
+            onPressed: widget.onBack,
           ),
-          const SizedBox(height: 40),
-          AuthPrimaryButton(
-            label: 'Kodu Gir',
-            onPressed: () => widget.onCodeSent(_email.text.trim()),
-          ),
-          const SizedBox(height: 12),
-          AuthPrimaryButton(
-            label: _seconds > 0
-                ? 'Tekrar Gönder (00:${_seconds.toString().padLeft(2, '0')})'
-                : 'Tekrar Gönder',
-            loading: _loading,
-            onPressed: _seconds > 0 ? null : _send,
-          ),
-          const SizedBox(height: 32),
-          Center(
-            child: AuthLinkButton(
-              label: 'Giriş ekranına dön',
-              onPressed: widget.onBack,
-            ),
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: 16),
-            AuthStatusCard(message: _error!, tone: AuthStatusTone.error),
-          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _sentCard(BuildContext context) {
+    return AuthCard(
+      children: [
+        const AuthScreenHeader(
+          title: 'Kod Doğrulama',
+          subtitle: '6 haneli doğrulama kodu gönderildi',
+          center: true,
+        ),
+        const SizedBox(height: 18),
+        AuthStatusCard(
+          title: _email.text.trim(),
+          message: 'Kod spam klasörünüzde olabilir.',
+          tone: AuthStatusTone.info,
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: 16),
+          AuthStatusCard(message: _error!, tone: AuthStatusTone.error),
         ],
-      ),
+        const SizedBox(height: 24),
+        AuthPrimaryButton(
+          label: 'Yeni Şifreye Devam Et',
+          onPressed: () => widget.onCodeSent(_email.text.trim()),
+        ),
+        const SizedBox(height: 12),
+        AuthPrimaryButton(
+          label: _seconds > 0
+              ? 'Yeniden gönder (${_seconds}s)'
+              : 'Yeniden gönder',
+          loading: _loading,
+          onPressed: _seconds > 0 ? null : _send,
+        ),
+        const SizedBox(height: 18),
+        Center(
+          child: AuthLinkButton(
+            label: 'Giriş ekranına dön',
+            onPressed: widget.onBack,
+          ),
+        ),
+      ],
     );
   }
 }

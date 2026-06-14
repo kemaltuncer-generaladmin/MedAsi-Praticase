@@ -8,16 +8,10 @@ class PasswordStrengthIndicator extends StatelessWidget {
   final String password;
 
   bool get _hasMinLength => password.length >= 8;
-  bool get _hasUppercase => RegExp('[A-ZÇĞİÖŞÜ]').hasMatch(password);
-  bool get _hasNumber => RegExp('[0-9]').hasMatch(password);
 
   @override
   Widget build(BuildContext context) {
-    final items = [
-      ('En az 8 karakter', _hasMinLength),
-      ('En az 1 büyük harf', _hasUppercase),
-      ('En az 1 rakam', _hasNumber),
-    ];
+    final items = [('Tek kriter: en az 8 karakter', _hasMinLength)];
     return Column(
       children: [
         for (final item in items)

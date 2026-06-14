@@ -1,5 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders, isAllowedOrigin, jsonResponse } from "../_shared/cors.ts";
+import {
+  authErrorResponse,
+  resolvePratiCaseUser,
+} from "../_shared/medasi_core_auth.ts";
 
 type JsonMap = Record<string, unknown>;
 
@@ -44,11 +48,9 @@ Deno.serve(async (request) => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const authorization = request.headers.get("Authorization");
 
-  if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
+  if (!supabaseUrl || !supabaseServiceRoleKey) {
     return jsonResponse(
       { error: "Hesap silme işlemi şu anda tamamlanamadı. Lütfen tekrar dene." },
       500,
@@ -56,12 +58,11 @@ Deno.serve(async (request) => {
     );
   }
 
-  if (!authorization) {
-    return jsonResponse(
-      { error: "Oturum doğrulanamadı. Lütfen tekrar giriş yap." },
-      401,
-      origin,
-    );
+  let authUser;
+  try {
+    authUser = await resolvePratiCaseUser(request);
+  } catch (error) {
+    return authErrorResponse(error, origin);
   }
 
   const body = await parseBody(request);
@@ -73,21 +74,7 @@ Deno.serve(async (request) => {
     );
   }
 
-  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: { persistSession: false },
-    global: { headers: { Authorization: authorization } },
-  });
-
-  const { data: authData, error: authError } = await userClient.auth.getUser();
-  if (authError || !authData.user) {
-    return jsonResponse(
-      { error: "Oturum doğrulanamadı. Lütfen tekrar giriş yap." },
-      401,
-      origin,
-    );
-  }
-
-  const userId = authData.user.id;
+  const userId = authUser.id;
   const admin = createClient(supabaseUrl, supabaseServiceRoleKey, {
     auth: { persistSession: false },
   });

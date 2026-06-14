@@ -1,4 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import {
+  authErrorResponse,
+  resolvePratiCaseUser,
+} from "../_shared/medasi_core_auth.ts";
 import { recordRecallEventInBackground } from "../_shared/recall.ts";
 import { loadEffectiveWalletProfile } from "../_shared/medasi_coin.ts";
 
@@ -65,35 +69,21 @@ Deno.serve(async (request) => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const authorization = request.headers.get("Authorization");
 
-  if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey) {
+  if (!supabaseUrl || !serviceRoleKey) {
     return jsonResponse(
       { error: "Teorik sınav şu anda yüklenemedi. Lütfen tekrar dene." },
       503,
       origin,
     );
   }
-  if (!authorization) {
-    return jsonResponse(
-      { error: "Oturum doğrulanamadı. Lütfen tekrar giriş yap." },
-      401,
-      origin,
-    );
-  }
-
-  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: authorization } },
-  });
-  const { data: authData, error: authError } = await userClient.auth.getUser();
-  if (authError || !authData.user) {
-    return jsonResponse(
-      { error: "Oturum doğrulanamadı. Lütfen tekrar giriş yap." },
-      401,
-      origin,
-    );
+  let authUser;
+  try {
+    authUser = await resolvePratiCaseUser(request);
+  } catch (error) {
+    return authErrorResponse(error, origin);
   }
 
   const admin = createClient(supabaseUrl, serviceRoleKey, {
@@ -105,33 +95,33 @@ Deno.serve(async (request) => {
   if (action === "filters") {
     const rateLimit = await enforceQuestionRateLimit(
       admin,
-      authData.user.id,
+      authUser.id,
       "filters",
     );
     if (rateLimit) return withOrigin(rateLimit, origin);
-    return withOrigin(await loadFilters(admin, authData.user.id), origin);
+    return withOrigin(await loadFilters(admin, authUser.id), origin);
   }
   if (action === "questions") {
     const rateLimit = await enforceQuestionRateLimit(
       admin,
-      authData.user.id,
+      authUser.id,
       "delivery",
     );
     if (rateLimit) return withOrigin(rateLimit, origin);
     return withOrigin(
-      await loadQuestions(admin, authData.user.id, body),
+      await loadQuestions(admin, authUser.id, body),
       origin,
     );
   }
   if (action === "submit_attempt") {
     const rateLimit = await enforceQuestionRateLimit(
       admin,
-      authData.user.id,
+      authUser.id,
       "answer",
     );
     if (rateLimit) return withOrigin(rateLimit, origin);
     return withOrigin(
-      await submitAttempt(admin, authData.user.id, body, authorization),
+      await submitAttempt(admin, authUser.id, body, authorization ?? ""),
       origin,
     );
   }

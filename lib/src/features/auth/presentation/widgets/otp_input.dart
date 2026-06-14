@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../app/theme/praticase_colors.dart';
-
 class OtpInput extends StatefulWidget {
   const OtpInput({required this.onChanged, super.key});
 
@@ -65,35 +63,62 @@ class _OtpInputState extends State<OtpInput> {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        for (var index = 0; index < _controllers.length; index++) ...[
-          Expanded(
-            child: TextField(
-              controller: _controllers[index],
-              focusNode: _nodes[index],
-              textAlign: TextAlign.center,
-              keyboardType: TextInputType.number,
-              autofillHints: const [AutofillHints.oneTimeCode],
-              textInputAction: index == 5
-                  ? TextInputAction.done
-                  : TextInputAction.next,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: PratiCaseColors.white,
-                contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: PratiCaseColors.border),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 280;
+        final gap = isNarrow ? 6.0 : 8.0;
+        final radius = isNarrow ? 10.0 : 12.0;
+        return Row(
+          children: [
+            for (var index = 0; index < _controllers.length; index++) ...[
+              Expanded(
+                child: TextField(
+                  controller: _controllers[index],
+                  focusNode: _nodes[index],
+                  textAlign: TextAlign.center,
+                  keyboardType: TextInputType.number,
+                  autofillHints: const [AutofillHints.oneTimeCode],
+                  textInputAction: index == 5
+                      ? TextInputAction.done
+                      : TextInputAction.next,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: const Color(0xFFF7FBFF),
+                    counterText: '',
+                    contentPadding: EdgeInsets.symmetric(
+                      vertical: isNarrow ? 11 : 13,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(radius),
+                      borderSide: const BorderSide(color: Color(0xFFC7DCF3)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(radius),
+                      borderSide: const BorderSide(color: Color(0xFFC7DCF3)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(radius),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF1D67D2),
+                        width: 1.4,
+                      ),
+                    ),
+                  ),
+                  maxLength: 1,
+                  style: TextStyle(
+                    color: const Color(0xFF102033),
+                    fontSize: isNarrow ? 17 : 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                  onChanged: (value) => _handleChanged(index, value),
                 ),
               ),
-              onChanged: (value) => _handleChanged(index, value),
-            ),
-          ),
-          if (index != 5) const SizedBox(width: 8),
-        ],
-      ],
+              if (index != 5) SizedBox(width: gap),
+            ],
+          ],
+        );
+      },
     );
   }
 }

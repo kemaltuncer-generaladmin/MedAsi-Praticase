@@ -14,15 +14,15 @@ import '../widgets/auth_validators.dart';
 class LoginScreen extends StatefulWidget {
   const LoginScreen({
     required this.repository,
-    required this.onBack,
     required this.onForgotPassword,
     required this.onRegister,
     required this.onSignedIn,
+    this.onBack,
     super.key,
   });
 
   final AuthRepository repository;
-  final VoidCallback onBack;
+  final VoidCallback? onBack;
   final VoidCallback onForgotPassword;
   final VoidCallback onRegister;
   final ValueChanged<AuthUser> onSignedIn;
@@ -36,7 +36,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _loading = false;
-  bool _rememberMe = true;
   String? _error;
 
   @override
@@ -56,7 +55,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final user = await widget.repository.signInWithEmail(
         email: _email.text,
         password: _password.text,
-        rememberMe: _rememberMe,
+        rememberMe: true,
       );
       widget.onSignedIn(user);
     } on AuthFailure catch (failure) {
@@ -69,200 +68,91 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return AuthScaffold(
-      showFooterText: false,
-      topPadding: 28,
-      onBack: widget.onBack,
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const _LoginBrandHeader(),
-            const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.all(PratiCaseSpacing.xl),
-              decoration: BoxDecoration(
-                color: PratiCaseColors.white,
-                borderRadius: BorderRadius.circular(PratiCaseRadius.xxl),
-                border: Border.all(
-                  color: PratiCaseColors.border.withValues(alpha: 0.86),
-                ),
-                boxShadow: PratiCaseShadows.card,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  AuthTextField(
-                    label: 'E-posta Adresi',
-                    hintText: 'doktor@hastane.com',
-                    controller: _email,
-                    icon: Icons.mail_outline_rounded,
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.next,
-                    validator: AuthValidators.email,
-                  ),
-                  const SizedBox(height: PratiCaseSpacing.lg),
-                  AuthTextField(
-                    label: 'Şifre',
-                    hintText: '••••••••',
-                    controller: _password,
-                    icon: Icons.lock_outline_rounded,
-                    obscureText: true,
-                    textInputAction: TextInputAction.done,
-                    validator: AuthValidators.password,
-                  ),
-                  const SizedBox(height: PratiCaseSpacing.sm),
-                  Row(
-                    children: [
-                      SizedBox(
-                        width: 42,
-                        height: 42,
-                        child: Checkbox(
-                          value: _rememberMe,
-                          onChanged: (value) =>
-                              setState(() => _rememberMe = value ?? true),
-                          activeColor: PratiCaseColors.teal,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Text(
-                          'Beni hatırla',
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
-                                color: PratiCaseColors.ink,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                              ),
-                        ),
-                      ),
-                      AuthLinkButton(
-                        label: 'Şifremi Unuttum',
-                        onPressed: widget.onForgotPassword,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: PratiCaseSpacing.sm),
-                  Text(
-                    _rememberMe
-                        ? 'Bu cihazda Medasi oturumun açık kalır.'
-                        : 'Uygulama kapanınca yeniden giriş istenir.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: PratiCaseColors.muted,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  AnimatedSize(
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.easeInOut,
-                    child: _error != null
-                        ? Padding(
-                            padding: const EdgeInsets.only(
-                              bottom: PratiCaseSpacing.md,
-                            ),
-                            child: AuthStatusCard(
-                              message: _error!,
-                              tone: AuthStatusTone.error,
-                            ),
-                          )
-                        : const SizedBox.shrink(),
-                  ),
-                  const SizedBox(height: PratiCaseSpacing.md),
-                  AuthPrimaryButton(
-                    identifier: 'cta.login-submit',
-                    label: 'Giriş Yap',
-                    loading: _loading,
-                    onPressed: _submit,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: PratiCaseSpacing.lg),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+      child: AuthCard(
+        children: [
+          const AuthScreenHeader(
+            title: 'PratiCase\'e Hoş Geldiniz 👋',
+            subtitle: 'MedAsi hesabınızla devam edin',
+          ),
+          const SizedBox(height: 24),
+          const AuthEcosystemCallout(),
+          const SizedBox(height: 24),
+          Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  'Hesabın yok mu?',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: PratiCaseColors.muted,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                AuthTextField(
+                  label: 'E-posta',
+                  hintText: 'ornek@email.com',
+                  controller: _email,
+                  icon: Icons.mail_outline_rounded,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  validator: AuthValidators.email,
+                ),
+                const SizedBox(height: PratiCaseSpacing.lg),
+                AuthTextField(
+                  label: 'Şifre',
+                  hintText: 'Şifrenizi girin',
+                  controller: _password,
+                  icon: Icons.lock_outline_rounded,
+                  obscureText: true,
+                  textInputAction: TextInputAction.done,
+                  validator: AuthValidators.password,
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: AuthLinkButton(
+                    label: 'Şifremi unuttum',
+                    onPressed: widget.onForgotPassword,
                   ),
                 ),
-                AuthLinkButton(label: 'Kayıt Ol', onPressed: widget.onRegister),
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeInOut,
+                  child: _error != null
+                      ? Padding(
+                          padding: const EdgeInsets.only(
+                            bottom: PratiCaseSpacing.md,
+                          ),
+                          child: AuthStatusCard(
+                            message: _error!,
+                            tone: AuthStatusTone.error,
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+                const SizedBox(height: PratiCaseSpacing.md),
+                AuthPrimaryButton(
+                  identifier: 'cta.login-submit',
+                  label: 'Giriş Yap',
+                  loading: _loading,
+                  onPressed: _submit,
+                ),
               ],
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 26),
+          const AuthDivider(),
+          const SizedBox(height: 18),
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                'Hesabın yok mu? ',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: PratiCaseColors.slateBlue,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              AuthLinkButton(label: 'Kayıt Ol', onPressed: widget.onRegister),
+            ],
+          ),
+        ],
       ),
-    );
-  }
-}
-
-class _LoginBrandHeader extends StatelessWidget {
-  const _LoginBrandHeader();
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(PratiCaseRadius.md),
-              child: Image.asset(
-                'assets/auth/praticase_icon.png',
-                width: 54,
-                height: 54,
-                fit: BoxFit.cover,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(text: 'Prati'),
-                  TextSpan(
-                    text: 'Case',
-                    style: TextStyle(color: PratiCaseColors.teal),
-                  ),
-                ],
-              ),
-              style: TextStyle(
-                color: PratiCaseColors.navy,
-                fontSize: 31,
-                fontWeight: FontWeight.w900,
-                height: 1.05,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 30),
-        Text(
-          'Hesabına Giriş Yap',
-          style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-            color: PratiCaseColors.navy,
-            fontSize: 34,
-            fontWeight: FontWeight.w900,
-            height: 1.08,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          'PratiCase klinik simülasyonuna giriş yapın.',
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: PratiCaseColors.muted,
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            height: 1.5,
-          ),
-        ),
-      ],
     );
   }
 }

@@ -13,9 +13,11 @@ import 'package:praticase/src/features/auth/domain/auth_user.dart';
 import 'package:praticase/src/features/auth/domain/profile_setup.dart';
 import 'package:praticase/src/features/auth/presentation/screens/onboarding_screen.dart';
 import 'package:praticase/src/features/auth/presentation/screens/profile_setup_screen.dart';
+import 'package:praticase/src/features/auth/presentation/screens/forgot_password_screen.dart';
 import 'package:praticase/src/features/auth/presentation/screens/login_screen.dart';
 import 'package:praticase/src/features/auth/presentation/screens/register_screen.dart';
 import 'package:praticase/src/features/auth/presentation/screens/reset_password_screen.dart';
+import 'package:praticase/src/features/auth/presentation/screens/verify_email_screen.dart';
 import 'package:praticase/src/features/cases/data/cases_repository.dart';
 import 'package:praticase/src/features/cases/data/voice_exam_adapter.dart';
 import 'package:praticase/src/features/cases/domain/osce_case.dart';
@@ -330,7 +332,9 @@ void main() {
     },
   );
 
-  testWidgets('PratiCase auth onboarding renders', (tester) async {
+  testWidgets('PratiCase auth entry renders common MedAsi login', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       PratiCaseApp(
         authRepository: _TestAuthRepository(),
@@ -343,9 +347,9 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.byType(Image), findsWidgets);
-    expect(find.textContaining('Klinik Akıl Yürütmeni'), findsOneWidget);
-    expect(find.text('Devam'), findsOneWidget);
+    expect(find.text("PratiCase'e Hoş Geldiniz 👋"), findsOneWidget);
+    expect(find.text('MedAsi Ekosistemi'), findsOneWidget);
+    expect(find.textContaining('MEDASI AILESINE HOŞ GELDINIZ'), findsOneWidget);
     expect(find.text('Giriş Yap'), findsOneWidget);
   });
 
@@ -384,7 +388,7 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
   });
 
-  testWidgets('register requires explicit legal consent', (tester) async {
+  testWidgets('register exposes common MedAsi profile fields', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: RegisterScreen(
@@ -396,24 +400,11 @@ void main() {
       ),
     );
 
-    await tester.enterText(_textFormFieldAt(0), 'Ayse');
-    await tester.enterText(_textFormFieldAt(1), 'Yilmaz');
-    await tester.enterText(_textFormFieldAt(2), 'ayse@example.com');
-    await tester.enterText(_textFormFieldAt(3), 'Password1');
-    await tester.enterText(_textFormFieldAt(4), 'Password1');
-    await tester.ensureVisible(find.text('Hesap Oluştur'));
-    await tester.tap(find.text('Hesap Oluştur'));
-    await tester.pump();
-
-    expect(
-      find.text(
-        'Devam etmek için KVKK/Gizlilik, kullanıcı sözleşmesi ve çalışma koşulları onayları gereklidir.',
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('KVKK / Gizlilik metnini okudum'), findsOneWidget);
-    expect(find.text('Kullanıcı sözleşmesini kabul ediyorum'), findsOneWidget);
-    expect(find.text('Çalışma koşullarını kabul ediyorum'), findsOneWidget);
+    expect(find.text('Aramıza Katılın ✨'), findsOneWidget);
+    expect(find.text('Üniversite'), findsOneWidget);
+    expect(find.text('Fakülte'), findsOneWidget);
+    expect(find.text('Hesabımı Oluştur'), findsOneWidget);
+    expect(find.textContaining('Kullanım Koşulları'), findsOneWidget);
   });
 
   testWidgets('reset password requires OTP code', (tester) async {
@@ -502,12 +493,23 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('OSCE'));
-    await tester.ensureVisible(find.text('PratiCase’e Başla'));
-    await tester.tap(find.text('PratiCase’e Başla'));
+    await tester.tap(find.text('Üniversiteni seç'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Abdullah Gül Üniversitesi'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Klinik Stajlar'));
+    await tester.tap(find.text('Klinik Stajlar'));
+    await tester.ensureVisible(find.text('Devam').last);
+    await tester.tap(find.text('Devam').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Devam').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Devam').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Bitir'));
     await tester.pumpAndSettle();
 
-    expect(repository.completedProfile?.targetExam, 'OSCE');
+    expect(repository.completedProfile?.targetExam, 'Klinik Stajlar');
   });
 
   testWidgets('profile setup offers 1st through 6th year and graduate', (
@@ -557,14 +559,23 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Profilini Tamamla'), findsOneWidget);
+    expect(find.text('MedAsi Ekosistem Kurulumu'), findsOneWidget);
 
-    await tester.ensureVisible(find.text('PratiCase’e Başla'));
-    await tester.tap(find.text('PratiCase’e Başla'));
+    await tester.tap(find.text('Üniversiteni seç'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Abdullah Gül Üniversitesi'));
+    await tester.pumpAndSettle();
+    for (var i = 0; i < 3; i++) {
+      await tester.ensureVisible(find.text('Devam').last);
+      await tester.tap(find.text('Devam').last);
+      await tester.pumpAndSettle();
+    }
+    await tester.ensureVisible(find.text('Bitir'));
+    await tester.tap(find.text('Bitir'));
     await tester.pumpAndSettle();
 
     expect(authRepository.completedProfile, isNotNull);
-    expect(find.text('Profilini Tamamla'), findsNothing);
+    expect(find.text('MedAsi Ekosistem Kurulumu'), findsNothing);
     expect(find.text('Ana Sayfa'), findsWidgets);
   });
 
@@ -1573,7 +1584,162 @@ void main() {
       await tester.pump();
 
       expect(tester.takeException(), isNull, reason: '${entry.key} setup');
-      expect(find.text('PratiCase’e Başla'), findsOneWidget, reason: entry.key);
+      expect(find.text('Devam'), findsOneWidget, reason: entry.key);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+    }
+  });
+
+  testWidgets('common auth screens fit compact mobile viewports', (
+    tester,
+  ) async {
+    final screens = <({String name, Widget Function() build, String anchor})>[
+      (
+        name: 'login',
+        build: () => LoginScreen(
+          repository: _TestAuthRepository(),
+          onForgotPassword: () {},
+          onRegister: () {},
+          onSignedIn: (_) {},
+        ),
+        anchor: 'Giriş Yap',
+      ),
+      (
+        name: 'register',
+        build: () => RegisterScreen(
+          repository: _TestAuthRepository(),
+          onBack: () {},
+          onLogin: () {},
+          onRegistered: (_, _) {},
+        ),
+        anchor: 'Hesabımı Oluştur',
+      ),
+      (
+        name: 'forgot',
+        build: () => ForgotPasswordScreen(
+          repository: _TestAuthRepository(),
+          onBack: () {},
+          onCodeSent: (_) {},
+        ),
+        anchor: 'Kod Gönder',
+      ),
+      (
+        name: 'verify',
+        build: () => VerifyEmailScreen(
+          repository: _TestAuthRepository(),
+          email: 'ayse@example.com',
+          fullName: 'Ayşe Yılmaz',
+          onBack: () {},
+          onVerified: () {},
+        ),
+        anchor: 'Doğrula',
+      ),
+      (
+        name: 'reset',
+        build: () => ResetPasswordScreen(
+          repository: _TestAuthRepository(),
+          email: 'ayse@example.com',
+          onBack: () {},
+          onPasswordUpdated: () {},
+        ),
+        anchor: 'Şifreyi Güncelle',
+      ),
+      (
+        name: 'profile-setup',
+        build: () => ProfileSetupScreen(
+          repository: _TestAuthRepository(),
+          fullName: 'Ayşe Yılmaz',
+          onBack: () {},
+          onCompleted: (_) {},
+        ),
+        anchor: 'Devam',
+      ),
+    ];
+
+    for (final viewport in _commonAuthCompatibilityViewports.entries) {
+      await _setViewport(tester, viewport.value);
+      for (final screen in screens) {
+        await tester.pumpWidget(MaterialApp(home: screen.build()));
+        await tester.pump();
+
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: '${viewport.key} ${screen.name}',
+        );
+        await tester.ensureVisible(find.text(screen.anchor).last);
+        await tester.pumpAndSettle();
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: '${viewport.key} ${screen.name} scrolled',
+        );
+
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pumpAndSettle();
+      }
+    }
+  });
+
+  testWidgets('common auth forms stay keyboard safe on compact phones', (
+    tester,
+  ) async {
+    const size = Size(320, 568);
+    const keyboardHeight = 260.0;
+    await _setViewport(tester, size);
+
+    final forms = <({String name, Widget Function() build, String anchor})>[
+      (
+        name: 'login',
+        build: () => LoginScreen(
+          repository: _TestAuthRepository(),
+          onForgotPassword: () {},
+          onRegister: () {},
+          onSignedIn: (_) {},
+        ),
+        anchor: 'Giriş Yap',
+      ),
+      (
+        name: 'register',
+        build: () => RegisterScreen(
+          repository: _TestAuthRepository(),
+          onBack: () {},
+          onLogin: () {},
+          onRegistered: (_, _) {},
+        ),
+        anchor: 'Hesabımı Oluştur',
+      ),
+      (
+        name: 'reset',
+        build: () => ResetPasswordScreen(
+          repository: _TestAuthRepository(),
+          email: 'ayse@example.com',
+          onBack: () {},
+          onPasswordUpdated: () {},
+        ),
+        anchor: 'Şifreyi Güncelle',
+      ),
+    ];
+
+    for (final form in forms) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: const MediaQueryData(
+              size: size,
+              viewInsets: EdgeInsets.only(bottom: keyboardHeight),
+            ),
+            child: form.build(),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(tester.takeException(), isNull, reason: form.name);
+      await tester.ensureVisible(find.text(form.anchor).last);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: '${form.name} keyboard');
 
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pumpAndSettle();
@@ -3311,6 +3477,14 @@ const _authDeviceViewports = <String, Size>{
   'iPhone 17 Pro': Size(402, 874),
   'iPad 5 portrait': Size(768, 1024),
   'iPad Pro landscape': Size(1366, 1024),
+};
+
+const _commonAuthCompatibilityViewports = <String, Size>{
+  'iPhone SE compact': Size(320, 568),
+  'compact Android': Size(360, 740),
+  'iPhone 14': Size(390, 844),
+  'mobile landscape': Size(844, 390),
+  'iPad 5 portrait': Size(768, 1024),
 };
 
 const _keyboardSafeViewports = <String, (Size, double)>{

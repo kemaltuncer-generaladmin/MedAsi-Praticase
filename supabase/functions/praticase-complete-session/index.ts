@@ -1,6 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders, isAllowedOrigin, jsonResponse } from "../_shared/cors.ts";
 import {
+  authErrorResponse,
+  resolvePratiCaseUser,
+} from "../_shared/medasi_core_auth.ts";
+import {
   evaluationModel,
   generateOpenAiContent,
   historyModel,
@@ -90,6 +94,12 @@ Deno.serve(async (request) => {
       origin,
     );
   }
+  let authUser;
+  try {
+    authUser = await resolvePratiCaseUser(request);
+  } catch (error) {
+    return authErrorResponse(error, origin);
+  }
 
   const body = await request.json().catch(() => ({}));
   const sessionId = String(body.sessionId ?? body.session_id ?? "").trim();
@@ -121,6 +131,13 @@ Deno.serve(async (request) => {
   const userId = String(
     (context?.session as Record<string, unknown> | undefined)?.userId ?? "",
   );
+  if (userId !== authUser.id) {
+    return jsonResponse(
+      { error: "Bu sınav oturumu bulunamadı." },
+      404,
+      origin,
+    );
+  }
   if (!admin) {
     return jsonResponse(
       { error: "Karne şu anda hazırlanamadı. Yanıtların kaydedildi." },

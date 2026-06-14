@@ -4,6 +4,10 @@ import { compactVerify } from "npm:jose@5.9.6";
 import { X509Certificate as PeculiarX509 } from "npm:@peculiar/x509@1.12.3";
 import { defaultAppleRootCertificates } from "../_shared/apple_root_certificates.ts";
 import { corsHeaders, isAllowedOrigin, jsonResponse } from "../_shared/cors.ts";
+import {
+  authErrorResponse,
+  resolvePratiCaseUser,
+} from "../_shared/medasi_core_auth.ts";
 
 // Apple'in resmi `app-store-server-library`'si node:crypto'nun X509Certificate
 // sınıfını kullanıyor; Supabase Edge Runtime'da (Deno node-compat) `raw`,
@@ -39,9 +43,7 @@ Deno.serve(async (request) => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const authorization = request.headers.get("Authorization");
 
   if (!supabaseUrl || !supabaseServiceRoleKey) {
     return jsonResponse(
@@ -77,27 +79,14 @@ Deno.serve(async (request) => {
     return handleAppStoreNotification(admin, signedPayload, origin);
   }
 
-  if (!supabaseAnonKey || !authorization) {
-    return jsonResponse(
-      { error: "Oturum doğrulanamadı. Lütfen tekrar giriş yap." },
-      401,
-      origin,
-    );
-  }
-  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: authorization } },
-  });
-
-  const { data: authData, error: authError } = await userClient.auth.getUser();
-  if (authError || !authData.user) {
-    return jsonResponse(
-      { error: "Oturum doğrulanamadı. Lütfen tekrar giriş yap." },
-      401,
-      origin,
-    );
+  let authUser;
+  try {
+    authUser = await resolvePratiCaseUser(request);
+  } catch (error) {
+    return authErrorResponse(error, origin);
   }
 
-  const userId = authData.user.id;
+  const userId = authUser.id;
 
   if (action === "catalog" || action === "store") {
     const payload = await loadCatalogPayload(admin, userId, body);
@@ -119,7 +108,7 @@ Deno.serve(async (request) => {
   }
 
   if (action === "create_payment_checkout") {
-    return createPaymentCheckout(admin, authData.user, body, origin);
+    return createPaymentCheckout(admin, authUser, body, origin);
   }
 
   return verifyNativePurchase(admin, userId, body, origin);
@@ -2192,9 +2181,13 @@ async function verifyAndDecodeAppleJws(
 
   // 2) The final cert must byte-equal one of the Apple root anchors we ship
   const rootDer = new Uint8Array(chain[chain.length - 1].rawData);
-  const trusted = config.rootCertificates.some((apple) =>
-    bytesEqual(rootDer, new Uint8Array(apple))
-  );
+  const trusted = config.rootCertificates.some((apple) => {
+    const appleDer = apple as unknown as Uint8Array;
+    return bytesEqual(
+      rootDer,
+      new Uint8Array(appleDer.buffer, appleDer.byteOffset, appleDer.byteLength),
+    );
+  });
   if (!trusted) {
     throw new Error(
       "Certificate chain does not terminate at a trusted Apple root",

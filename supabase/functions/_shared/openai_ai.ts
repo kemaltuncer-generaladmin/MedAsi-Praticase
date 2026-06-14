@@ -1,3 +1,5 @@
+import { alertCoreFallback } from "./core_alert.ts";
+
 type AiRole = "user" | "model";
 
 type AiContent = {
@@ -87,7 +89,71 @@ export async function generateOpenAiText(
   return generated.text;
 }
 
+// Text generation now prefers MedAsi Core (runs on the storage server, offloads
+// the provider call). If Core is unset, errors, or times out, it falls back to
+// the local OpenAI call below so live generation never breaks.
 export async function generateOpenAiContent(
+  options: GenerateContentOptions,
+): Promise<OpenAiGeneration> {
+  try {
+    const viaCore = await generateOpenAiContentViaCore(options);
+    if (viaCore) return viaCore;
+  } catch (error) {
+    console.error(
+      "praticase_core_text_generate_fallback_local",
+      error instanceof Error ? error.message : String(error),
+    );
+    alertCoreFallback("praticase", "openai-generate", error);
+  }
+  return generateOpenAiContentLocal(options);
+}
+
+async function generateOpenAiContentViaCore(
+  options: GenerateContentOptions,
+): Promise<OpenAiGeneration | null> {
+  const coreUrl = (Deno.env.get("MEDASI_CORE_URL") || "").trim().replace(/\/+$/, "");
+  if (!coreUrl) return null;
+  const coreKey = Deno.env.get("MEDASI_CORE_KEY") || "";
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 90_000);
+  try {
+    const response = await fetch(`${coreUrl}/v1/aicenter/text/generate`, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "content-type": "application/json",
+        "x-medasi-app": "praticase",
+        ...(coreKey ? { "x-medasi-core-key": coreKey } : {}),
+      },
+      body: JSON.stringify({
+        provider: "openai",
+        model: options.model,
+        systemInstruction: options.systemInstruction,
+        contents: options.contents,
+        temperature: options.temperature,
+        maxOutputTokens: options.maxOutputTokens,
+        responseMimeType: options.responseMimeType,
+        responseSchema: options.responseSchema,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`core text generate ${response.status}`);
+    }
+    const data = await response.json() as Partial<OpenAiGeneration> & { ok?: boolean };
+    if (!data?.text) throw new Error("core text generate returned empty");
+    return {
+      text: data.text,
+      usageMetadata: (data.usageMetadata as JsonMap) ?? {},
+      model: data.model || (options.model?.trim() || defaultOpenAiTextModel),
+      finishReason: data.finishReason,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function generateOpenAiContentLocal(
   options: GenerateContentOptions,
 ): Promise<OpenAiGeneration> {
   const apiKey = openAiApiKey();

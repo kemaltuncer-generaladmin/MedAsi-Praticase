@@ -20,7 +20,7 @@ class AuthStatusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = switch (tone) {
       AuthStatusTone.success => (
-        PratiCaseColors.teal,
+        PratiCaseColors.successGreen,
         PratiCaseColors.successSurface,
         Icons.check_circle_outline_rounded,
       ),
@@ -35,8 +35,8 @@ class AuthStatusCard extends StatelessWidget {
         Icons.error_outline_rounded,
       ),
       AuthStatusTone.info => (
-        PratiCaseColors.teal,
-        PratiCaseColors.infoSurface,
+        const Color(0xFF1D67D2),
+        const Color(0xFFEAF4FF),
         Icons.info_outline_rounded,
       ),
     };
@@ -46,7 +46,7 @@ class AuthStatusCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: colors.$2,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: colors.$1.withValues(alpha: 0.35)),
       ),
       child: Row(
@@ -61,11 +61,22 @@ class AuthStatusCard extends StatelessWidget {
                 if (title != null)
                   Text(
                     title!,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.titleMedium?.copyWith(fontSize: 14),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: colors.$1,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
-                Text(message, style: Theme.of(context).textTheme.bodySmall),
+                if (title != null) const SizedBox(height: 4),
+                Text(
+                  message,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: PratiCaseColors.slateBlue,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    height: 1.42,
+                  ),
+                ),
               ],
             ),
           ),

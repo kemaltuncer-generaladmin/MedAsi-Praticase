@@ -1,6 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { corsHeaders, isAllowedOrigin, jsonResponse } from "../_shared/cors.ts";
 import {
+  authErrorResponse,
+  resolvePratiCaseUser,
+} from "../_shared/medasi_core_auth.ts";
+import {
   evaluationModel,
   generateOpenAiContent,
   historyModel,
@@ -144,11 +148,10 @@ Deno.serve(async (request) => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const authorization = request.headers.get("Authorization");
 
-  if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
+  if (!supabaseUrl || !supabaseServiceRoleKey) {
     return jsonResponse(
       {
         error: "Sözlü sınav işlemi şu anda tamamlanamadı. Lütfen tekrar dene.",
@@ -157,24 +160,11 @@ Deno.serve(async (request) => {
       origin,
     );
   }
-  if (!authorization) {
-    return jsonResponse(
-      { error: "Oturum doğrulanamadı. Lütfen tekrar giriş yap." },
-      401,
-      origin,
-    );
-  }
-
-  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: authorization } },
-  });
-  const { data: authData, error: authError } = await userClient.auth.getUser();
-  if (authError || !authData.user) {
-    return jsonResponse(
-      { error: "Oturum doğrulanamadı. Lütfen tekrar giriş yap." },
-      401,
-      origin,
-    );
+  let authUser;
+  try {
+    authUser = await resolvePratiCaseUser(request);
+  } catch (error) {
+    return authErrorResponse(error, origin);
   }
 
   const admin = createClient(supabaseUrl, supabaseServiceRoleKey, {
@@ -193,7 +183,7 @@ Deno.serve(async (request) => {
 
   const body = await request.json().catch(() => ({})) as JsonMap;
   const action = stringValue(body.action);
-  const userId = authData.user.id;
+  const userId = authUser.id;
 
   try {
     await ensureAiCoinBalance(admin, userId);
@@ -223,7 +213,7 @@ Deno.serve(async (request) => {
         return withOrigin(await skipQuestion(admin, userId, body), origin);
       case "finalize":
         return withOrigin(
-          await finalize(admin, userId, body, authorization),
+          await finalize(admin, userId, body, authorization ?? ""),
           origin,
         );
       case "list_scenarios":

@@ -68,7 +68,9 @@ class _AuthFlowState extends State<AuthFlow> {
       ),
       AuthStep.login => LoginScreen(
         repository: widget.authRepository,
-        onBack: () => _go(AuthStep.onboarding),
+        onBack: widget.initialStep == AuthStep.login
+            ? null
+            : () => _go(AuthStep.onboarding),
         onForgotPassword: () => _go(AuthStep.forgotPassword),
         onRegister: () => _go(AuthStep.register),
         onSignedIn: (user) {
