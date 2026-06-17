@@ -1,5 +1,6 @@
 class ProfileSetup {
   const ProfileSetup({
+    required this.discipline,
     required this.grade,
     required this.targetExam,
     required this.targetBranches,
@@ -22,6 +23,7 @@ class ProfileSetup {
     this.examDate,
   });
 
+  final String discipline;
   final String grade;
   final String targetExam;
   final List<String> targetBranches;

@@ -4,6 +4,7 @@ class EcosystemSetupProfile {
     required this.email,
     required this.sourceApp,
     required this.lastCompletedApp,
+    required this.discipline,
     required this.universityName,
     required this.universityType,
     required this.classLevel,
@@ -28,6 +29,11 @@ class EcosystemSetupProfile {
   final String? fullName;
   final String sourceApp;
   final String lastCompletedApp;
+
+  /// Ekosistem kurulumunda seçilen alan/branş anahtarı: `tip`, `dis`,
+  /// `eczacilik`, `hemsirelik`, `ebelik`, `saglik_bilimleri`,
+  /// `meslek_onlisans`, `mezun`, `diger`.
+  final String discipline;
   final String universityName;
   final String? universityCity;
   final String universityType;
@@ -52,6 +58,7 @@ class EcosystemSetupProfile {
       fullName: _nullableString(json['full_name']),
       sourceApp: _string(json['source_app'], fallback: 'medasi'),
       lastCompletedApp: _string(json['last_completed_app'], fallback: 'medasi'),
+      discipline: _string(json['discipline']),
       universityName: _string(json['university_name']),
       universityCity: _nullableString(json['university_city']),
       universityType: _string(json['university_type'], fallback: 'Diğer'),

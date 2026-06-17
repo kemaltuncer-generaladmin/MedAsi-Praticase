@@ -14,6 +14,30 @@ const _pratiStart = Color(0xFF1D67D2);
 const _pratiEnd = Color(0xFF56A4F4);
 const _muted = Color(0xFF6B7396);
 
+List<String> _targetOptionsForDiscipline(String discipline) {
+  return switch (discipline) {
+    'tip' => const [
+      'OSCE Sınavı',
+      'USMLE Step 2 CS',
+      'Klinik Stajlar',
+      'İntörnlük Hazırlığı',
+    ],
+    'dis' => const [
+      'Klinik Beceri Sınavı',
+      'DUS Klinik Hazırlık',
+      'Klinik Stajlar',
+    ],
+    'hemsirelik' ||
+    'ebelik' => const ['Klinik Uygulama', 'OSCE Sınavı', 'Staj Hazırlığı'],
+    _ => const ['OSCE Sınavı', 'Klinik Stajlar'],
+  };
+}
+
+String _targetForDiscipline(String current, String discipline) {
+  final options = _targetOptionsForDiscipline(discipline);
+  return options.contains(current) ? current : options.first;
+}
+
 class ProfileSetupScreen extends StatefulWidget {
   const ProfileSetupScreen({
     required this.repository,
@@ -42,6 +66,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   int _step = 0;
   UniversityOption? _university;
+  String _discipline = 'tip';
   String _targetExam = 'OSCE Sınavı';
   String _grade = '5. Sınıf';
   int _dailyGoal = 2;
@@ -70,7 +95,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   bool get _canContinue {
     if (_step != 0) return true;
     final selected = _university;
-    if (selected == null) return false;
+    if (selected == null) return true;
     if (selected.isOther) {
       return _otherUniversityController.text.trim().length >= 2;
     }
@@ -79,29 +104,38 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   Future<void> _complete() async {
     if (!_canContinue) {
-      setState(
-        () => _error = 'Üniversite bilgisini seç veya Diğer alanını doldur.',
-      );
+      setState(() => _error = 'Diğer seçtiysen üniversite adını tamamla.');
       return;
     }
     setState(() {
       _loading = true;
       _error = null;
     });
-    final selected = _university!;
+    final selected = _university;
     final otherUniversity = _otherUniversityController.text.trim();
     try {
       final user = await widget.repository.completeProfile(
         ProfileSetup(
+          discipline: _discipline,
           grade: _grade,
           targetExam: _targetExam,
           targetBranches: const [],
           dailyGoal: _dailyGoal,
           fullName: widget.fullName,
-          universityName: selected.isOther ? otherUniversity : selected.name,
-          universityCity: selected.isOther ? null : selected.city,
-          universityType: selected.type,
-          universityOther: selected.isOther ? otherUniversity : null,
+          universityName: selected == null
+              ? 'MedAsi Ekosistem'
+              : selected.isOther
+              ? otherUniversity
+              : selected.name,
+          universityCity: selected == null || selected.isOther
+              ? null
+              : selected.city,
+          universityType: selected?.type ?? 'Diğer',
+          universityOther: selected == null
+              ? 'MedAsi Ekosistem'
+              : selected.isOther
+              ? otherUniversity
+              : null,
           weeklyGoalDays: _weeklyGoalDays,
           helpStyle: _helpStyle,
           learningPace: _learningPace,
@@ -128,9 +162,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   void _next() {
     if (!_canContinue) {
-      setState(
-        () => _error = 'Üniversite bilgisini seç veya Diğer alanını doldur.',
-      );
+      setState(() => _error = 'Diğer seçtiysen üniversite adını tamamla.');
       return;
     }
     setState(() {
@@ -258,12 +290,17 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   Widget _stepBody() {
     return switch (_step) {
       0 => _Step1GoalCalendar(
+        discipline: _discipline,
         university: _university,
         otherUniversityController: _otherUniversityController,
         syllabusController: _syllabusController,
         targetExam: _targetExam,
         grade: _grade,
         examDate: _examDate,
+        onDisciplineChanged: (value) => setState(() {
+          _discipline = value;
+          _targetExam = _targetForDiscipline(_targetExam, value);
+        }),
         onPickUniversity: _pickUniversity,
         onPickExamDate: _pickExamDate,
         onTargetChanged: (value) => setState(() => _targetExam = value),
@@ -385,12 +422,14 @@ class _ProgressHeader extends StatelessWidget {
 
 class _Step1GoalCalendar extends StatelessWidget {
   const _Step1GoalCalendar({
+    required this.discipline,
     required this.university,
     required this.otherUniversityController,
     required this.syllabusController,
     required this.targetExam,
     required this.grade,
     required this.examDate,
+    required this.onDisciplineChanged,
     required this.onPickUniversity,
     required this.onPickExamDate,
     required this.onTargetChanged,
@@ -398,12 +437,14 @@ class _Step1GoalCalendar extends StatelessWidget {
     required this.onChanged,
   });
 
+  final String discipline;
   final UniversityOption? university;
   final TextEditingController otherUniversityController;
   final TextEditingController syllabusController;
   final String targetExam;
   final String grade;
   final DateTime? examDate;
+  final ValueChanged<String> onDisciplineChanged;
   final VoidCallback onPickUniversity;
   final VoidCallback onPickExamDate;
   final ValueChanged<String> onTargetChanged;
@@ -419,6 +460,28 @@ class _Step1GoalCalendar extends StatelessWidget {
           body: 'Önce hedef, sonra hasta odası.',
         ),
         _SetupSection(
+          icon: Icons.monitor_heart_outlined,
+          title: 'Alan / Branş',
+          child: _ChoiceWrap(
+            selected: discipline,
+            values: const [
+              'tip',
+              'dis',
+              'hemsirelik',
+              'ebelik',
+              'saglik_bilimleri',
+            ],
+            labelFor: (value) => switch (value) {
+              'tip' => 'Tıp',
+              'dis' => 'Diş Hekimliği',
+              'hemsirelik' => 'Hemşirelik',
+              'ebelik' => 'Ebelik',
+              _ => 'Diğer Klinik',
+            },
+            onSelected: onDisciplineChanged,
+          ),
+        ),
+        _SetupSection(
           icon: Icons.school_rounded,
           title: 'Üniversite',
           child: Column(
@@ -426,7 +489,7 @@ class _Step1GoalCalendar extends StatelessWidget {
               _PickerTile(
                 title: university?.name ?? 'Üniversiteni seç',
                 subtitle: university == null
-                    ? 'Tam liste + Diğer seçeneği'
+                    ? 'Opsiyonel · tam liste + Diğer seçeneği'
                     : university!.isOther
                     ? 'Kendi üniversiteni yaz'
                     : '${university!.city} · ${university!.type}',
@@ -451,12 +514,7 @@ class _Step1GoalCalendar extends StatelessWidget {
           title: 'Hedef Sınav',
           child: _ChoiceWrap(
             selected: targetExam,
-            values: const [
-              'OSCE Sınavı',
-              'USMLE Step 2 CS',
-              'Klinik Stajlar',
-              'İntörnlük Hazırlığı',
-            ],
+            values: _targetOptionsForDiscipline(discipline),
             onSelected: onTargetChanged,
           ),
         ),

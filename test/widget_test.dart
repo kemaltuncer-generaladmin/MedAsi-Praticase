@@ -493,10 +493,6 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Üniversiteni seç'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Abdullah Gül Üniversitesi'));
-    await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Klinik Stajlar'));
     await tester.tap(find.text('Klinik Stajlar'));
     await tester.ensureVisible(find.text('Devam').last);
@@ -510,6 +506,40 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repository.completedProfile?.targetExam, 'Klinik Stajlar');
+    expect(repository.completedProfile?.discipline, 'tip');
+  });
+
+  testWidgets('profile setup filters target exams by discipline', (
+    tester,
+  ) async {
+    await _setIPhone14Viewport(tester);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ProfileSetupScreen(
+          repository: _TestAuthRepository(),
+          fullName: 'Ayse Yilmaz',
+          onBack: () {},
+          onCompleted: (_) {},
+        ),
+      ),
+    );
+
+    expect(find.text('USMLE Step 2 CS'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Hemşirelik'));
+    await tester.tap(find.text('Hemşirelik'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('USMLE Step 2 CS'), findsNothing);
+    expect(find.text('Klinik Uygulama'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Diş Hekimliği'));
+    await tester.tap(find.text('Diş Hekimliği'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('DUS Klinik Hazırlık'), findsOneWidget);
+    expect(find.text('USMLE Step 2 CS'), findsNothing);
   });
 
   testWidgets('profile setup offers 1st through 6th year and graduate', (
@@ -561,10 +591,6 @@ void main() {
 
     expect(find.text('MedAsi Ekosistem Kurulumu'), findsOneWidget);
 
-    await tester.tap(find.text('Üniversiteni seç'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Abdullah Gül Üniversitesi'));
-    await tester.pumpAndSettle();
     for (var i = 0; i < 3; i++) {
       await tester.ensureVisible(find.text('Devam').last);
       await tester.tap(find.text('Devam').last);

@@ -299,10 +299,11 @@ class SupabaseAuthRepository implements AuthRepository {
     try {
       final setup = await _client
           .from('user_setup_profiles')
-          .select('user_id')
+          .select('user_id, discipline')
           .eq('user_id', user.id)
           .maybeSingle();
-      return setup != null;
+      if (setup == null) return false;
+      return _isPratiCaseDiscipline(setup['discipline']);
     } on Object {
       return false;
     }
@@ -313,16 +314,16 @@ class SupabaseAuthRepository implements AuthRepository {
     required ProfileSetup setup,
   }) async {
     final metadata = user.userMetadata ?? const <String, dynamic>{};
-    final fullName =
-        setup.fullName?.trim().isNotEmpty == true
-            ? setup.fullName!.trim()
-            : (metadata['full_name'] as String? ?? '').trim();
+    final fullName = setup.fullName?.trim().isNotEmpty == true
+        ? setup.fullName!.trim()
+        : (metadata['full_name'] as String? ?? '').trim();
     await _client.from('user_setup_profiles').upsert({
       'user_id': user.id,
       'email': user.email,
       'full_name': fullName.isEmpty ? null : fullName,
       'source_app': 'praticase',
       'last_completed_app': 'praticase',
+      'discipline': setup.discipline,
       'university_name': setup.universityName,
       'university_city': setup.universityCity,
       'university_type': setup.universityType,
@@ -361,6 +362,18 @@ class SupabaseAuthRepository implements AuthRepository {
         .join(', ');
     if (branches.isEmpty) return setup.targetExam;
     return '${setup.targetExam} - $branches';
+  }
+
+  bool _isPratiCaseDiscipline(Object? value) {
+    final discipline = value?.toString().trim().toLowerCase() ?? '';
+    return discipline.isEmpty ||
+        discipline == 'tip' ||
+        discipline == 'dis' ||
+        discipline == 'hemsirelik' ||
+        discipline == 'ebelik' ||
+        discipline == 'saglik_bilimleri' ||
+        discipline == 'meslek_onlisans' ||
+        discipline == 'mezun';
   }
 
   String? _dateOnly(DateTime? value) {
