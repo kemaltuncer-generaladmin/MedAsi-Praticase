@@ -1,0 +1,26 @@
+project_id = "medasi-praticase"
+
+[auth]
+site_url = "https://praticase.medasi.com.tr"
+additional_redirect_urls = [
+  "https://praticase.medasi.com.tr/auth/callback",
+  "https://medasi.com.tr"
+]
+
+[auth.email]
+enable_confirmations = false
+max_frequency = "30s"
+otp_length = 6
+otp_expiry = 600
+
+[auth.email.template.magic_link]
+subject = "MedAsi PratiCase doğrulama kodu"
+content_path = "./supabase/templates/email_magic_link.html"
+
+[auth.email.template.confirmation]
+subject = "MedAsi PratiCase doğrulama kodu"
+content_path = "./supabase/templates/email_confirmation.html"
+
+[auth.email.template.recovery]
+subject = "MedAsi PratiCase şifre sıfırlama kodu"
+content_path = "./supabase/templates/email_recovery.html"
